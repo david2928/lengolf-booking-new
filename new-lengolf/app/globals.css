@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #005a32;
+  --neutral-color: #000000;
+  --accent-color: #ffffff;
+  --background-color: #f0f0f0;
+  --foreground-color: #171717;
+  --footer-bg-color: #f5fef9;
+  --footer-heading-color: #2b6f36;
+  --footer-text-color: #9fa4a5;
+}
+
+body {
+  @apply min-h-screen bg-gray-50;
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+  }
+}
