@@ -12,6 +12,7 @@ env:
   PROJECT_ID: lengolf-booking-system-436804
   SERVICE_NAME: lengolf-booking-new
   REGION: asia-southeast1
+  REGISTRY: asia-southeast1-docker.pkg.dev
 
 jobs:
   deploy:
@@ -43,7 +44,8 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Authorize Docker push
-        run: gcloud auth configure-docker
+        run: |-
+          gcloud auth configure-docker ${{ env.REGISTRY }}
 
       - name: Build and Push Container
         run: |-
@@ -56,7 +58,7 @@ jobs:
             --build-arg BOOKING_CALENDAR_BAY3_ID='${{ secrets.BOOKING_CALENDAR_BAY3_ID }}' \
             --build-arg EMAIL_PASSWORD='${{ secrets.EMAIL_PASSWORD }}' \
             --build-arg EMAIL_USER='${{ secrets.EMAIL_USER }}' \
-            --build-arg GCP_SA_KEY='${{ secrets.SERVICE_ACCOUNT_KEY_BASE64 }}' \
+            --build-arg GCP_SA_KEY='${{ secrets.GCP_SA_KEY }}' \
             --build-arg JWT_SECRET='${{ secrets.JWT_SECRET }}' \
             --build-arg LINE_CLIENT_SECRET='${{ secrets.LINE_CLIENT_SECRET }}' \
             --build-arg NEXT_PUBLIC_APP_URL='${{ secrets.NEXT_PUBLIC_APP_URL }}' \
@@ -74,8 +76,8 @@ jobs:
             --build-arg SERVICE_ACCOUNT_KEY_BASE64='${{ secrets.SERVICE_ACCOUNT_KEY_BASE64 }}' \
             --build-arg SUPABASE_DB_PW='${{ secrets.SUPABASE_DB_PW }}' \
             --build-arg SUPABASE_SERVICE_ROLE_KEY='${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}' \
-            -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
-          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
       - name: Deploy to Cloud Run
         id: deploy
@@ -83,7 +85,7 @@ jobs:
         with:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
-          image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
           env_vars: |
             NODE_ENV=production
             PORT=8080
@@ -95,7 +97,7 @@ jobs:
             BOOKING_CALENDAR_BAY3_ID=${{ secrets.BOOKING_CALENDAR_BAY3_ID }}
             EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
             EMAIL_USER=${{ secrets.EMAIL_USER }}
-            GCP_SA_KEY=${{ secrets.SERVICE_ACCOUNT_KEY_BASE64 }}
+            GCP_SA_KEY=${{ secrets.GCP_SA_KEY }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             LINE_CLIENT_SECRET=${{ secrets.LINE_CLIENT_SECRET }}
             NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
