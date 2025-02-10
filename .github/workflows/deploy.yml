@@ -86,6 +86,7 @@ jobs:
           service: ${{ env.SERVICE_NAME }}
           region: ${{ env.REGION }}
           image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          flags: --allow-unauthenticated
           env_vars: |
             NODE_ENV=production
             AVAILABILITY_CALENDAR_BAY1_ID=${{ secrets.AVAILABILITY_CALENDAR_BAY1_ID }}
