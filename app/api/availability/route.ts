@@ -153,11 +153,12 @@ export async function POST(request: Request) {
       });
       // Determine which bays are available at this slot
       const availableBays = Object.keys(AVAILABILITY_CALENDARS).filter(bay => {
-        const bayEvents = allEvents.filter(event => {
-          const eventStart = new Date(event.start?.dateTime || '');
-          return event.organizer?.email === AVAILABILITY_CALENDARS[bay as keyof typeof AVAILABILITY_CALENDARS] &&
-                 formatBangkokTime(eventStart, 'yyyy-MM-dd') === formatBangkokTime(bangkokStartOfDay, 'yyyy-MM-dd');
-        });
+        // Get events for this specific bay only
+        const bayEvents = allEvents.filter(event => 
+          event.organizer?.email === AVAILABILITY_CALENDARS[bay as keyof typeof AVAILABILITY_CALENDARS]
+        );
+
+        // Check for conflicts with any event in this bay
         return !bayEvents.some(event => {
           const eventStart = new Date(event.start?.dateTime || '');
           const eventEnd = new Date(event.end?.dateTime || '');
@@ -180,11 +181,11 @@ export async function POST(request: Request) {
       });
       if (availableBays.length > 0) {
         const bayHours = availableBays.map(bay => {
-          const bayEvents = allEvents.filter(event => {
-            const eventStart = new Date(event.start?.dateTime || '');
-            return event.organizer?.email === AVAILABILITY_CALENDARS[bay as keyof typeof AVAILABILITY_CALENDARS] &&
-                   formatBangkokTime(eventStart, 'yyyy-MM-dd') === formatBangkokTime(bangkokStartOfDay, 'yyyy-MM-dd');
-          });
+          // Get events for this specific bay only
+          const bayEvents = allEvents.filter(event => 
+            event.organizer?.email === AVAILABILITY_CALENDARS[bay as keyof typeof AVAILABILITY_CALENDARS]
+          );
+
           const nextEvent = bayEvents.find(event => {
             const eventStart = new Date(event.start?.dateTime || '');
             return eventStart.getTime() > slotStart.getTime();
