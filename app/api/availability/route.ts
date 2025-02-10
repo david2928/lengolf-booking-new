@@ -131,16 +131,23 @@ export async function POST(request: Request) {
       const slotStart = zonedTimeToUtc(setSeconds(setMinutes(setHours(selectedDate, hour), 0), 0), TIMEZONE);
       const timeStr = formatInTimeZone(slotStart, TIMEZONE, 'HH:mm');
 
-      // Convert both times to the same timezone for comparison
-      const slotStartInZone = utcToZonedTime(slotStart, TIMEZONE);
-      const currentDateInZone = utcToZonedTime(currentDate, TIMEZONE);
+      // Compare dates in the same timezone
+      const slotDateTime = new Date(formatInTimeZone(slotStart, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX"));
+      const currentDateTime = new Date(formatInTimeZone(currentDate, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX"));
+      const isAfterCurrent = slotDateTime.getTime() > currentDateTime.getTime();
 
       debug.log(`Processing slot for hour ${hour}:`, {
-        slotStartTime: formatInTimeZone(slotStart, TIMEZONE, 'HH:mm:ssXXX'),
-        currentTime: formatInTimeZone(currentDate, TIMEZONE, 'HH:mm:ssXXX'),
+        slotStartTime: formatInTimeZone(slotStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+        currentTime: formatInTimeZone(currentDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
         isToday,
-        isAfterCurrent: slotStartInZone.getTime() > currentDateInZone.getTime()
+        isAfterCurrent
       });
+
+      // Skip slots that are in the past
+      if (!isAfterCurrent) {
+        debug.log(`Skipping slot ${timeStr} as it is in the past`);
+        continue;
+      }
 
       // Calculate maximum available hours
       const hoursUntilClose = CLOSING_HOUR - hour;
@@ -154,9 +161,10 @@ export async function POST(request: Request) {
 
         // Check if the slot start time conflicts with any events in this bay
         const hasConflict = bayEvents.some(event => {
-          const eventStart = new Date(event.start?.dateTime || '');
-          const eventEnd = new Date(event.end?.dateTime || '');
-          const slotStartTime = slotStart.getTime();
+          // Convert event times to the same timezone format
+          const eventStart = new Date(formatInTimeZone(new Date(event.start?.dateTime || ''), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX"));
+          const eventEnd = new Date(formatInTimeZone(new Date(event.end?.dateTime || ''), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX"));
+          const slotStartTime = slotDateTime.getTime();
           const eventStartTime = eventStart.getTime();
           const eventEndTime = eventEnd.getTime();
           
@@ -171,15 +179,17 @@ export async function POST(request: Request) {
             debug.log(`Found direct conflict with event:`, {
               bay,
               event: event.summary,
-              start: formatInTimeZone(eventStart, TIMEZONE, 'HH:mm'),
-              end: formatInTimeZone(eventEnd, TIMEZONE, 'HH:mm')
+              slotStart: formatInTimeZone(slotStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+              eventStart: formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+              eventEnd: formatInTimeZone(eventEnd, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX')
             });
           } else if (hasSmallGap) {
             debug.log(`Found small gap before event:`, {
               bay,
               event: event.summary,
               gapMinutes: Math.floor(gapBeforeEvent / (60 * 1000)),
-              eventStart: formatInTimeZone(eventStart, TIMEZONE, 'HH:mm')
+              slotStart: formatInTimeZone(slotStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+              eventStart: formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX')
             });
           }
           
