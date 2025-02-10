@@ -9,6 +9,7 @@ export function createClient() {
   }
 
   const isDev = process.env.NODE_ENV !== 'production'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
 
   supabaseInstance = createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,6 +27,17 @@ export function createClient() {
         },
         remove(name: string, options: { path?: string }) {
           document.cookie = `${name}=; path=${options.path || '/'}; expires=Thu, 01 Jan 1970 00:00:00 GMT; ${isDev ? '' : 'secure; '}samesite=lax`
+        },
+      },
+      auth: {
+        flowType: 'pkce',
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        persistSession: true,
+      },
+      global: {
+        headers: {
+          'x-site-url': appUrl || '',
         },
       },
     }
