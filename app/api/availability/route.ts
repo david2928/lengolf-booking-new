@@ -179,7 +179,27 @@ export async function POST(request: Request) {
           const slotStartTime = slotStart.getTime();
           const eventStartTime = eventStart.getTime();
           const eventEndTime = eventEnd.getTime();
-          return slotStartTime >= eventStartTime && slotStartTime < eventEndTime;
+          
+          // Check for direct conflict
+          const hasDirectConflict = slotStartTime >= eventStartTime && slotStartTime < eventEndTime;
+          
+          // Check for small gaps (less than 15 minutes) before next event
+          const gapBeforeEvent = eventStartTime - slotStartTime;
+          const hasSmallGap = gapBeforeEvent > 0 && gapBeforeEvent < 15 * 60 * 1000; // 15 minutes in milliseconds
+          
+          if (hasDirectConflict) {
+            debug.log(`Found direct conflict with event:`, {
+              start: formatInTimeZone(eventStart, TIMEZONE, 'HH:mm'),
+              end: formatInTimeZone(eventEnd, TIMEZONE, 'HH:mm')
+            });
+          } else if (hasSmallGap) {
+            debug.log(`Found small gap before event:`, {
+              gapMinutes: Math.floor(gapBeforeEvent / (60 * 1000)),
+              eventStart: formatInTimeZone(eventStart, TIMEZONE, 'HH:mm')
+            });
+          }
+          
+          return hasDirectConflict || hasSmallGap;
         });
       });
 
