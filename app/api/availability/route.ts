@@ -62,6 +62,16 @@ export async function POST(request: Request) {
     
     // For today, start from the next hour
     const startHour = isToday ? Math.max(OPENING_HOUR, currentHourInZone + 1) : OPENING_HOUR;
+
+    debug.log('Time checks:', {
+      selectedDate: formatInTimeZone(selectedDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+      currentDate: formatInTimeZone(currentDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+      currentHourInZone,
+      isToday,
+      startHour,
+      openingHour: OPENING_HOUR,
+      closingHour: CLOSING_HOUR
+    });
     
     // Get events from all bays with caching
     const googleStart = performance.now();
@@ -120,6 +130,13 @@ export async function POST(request: Request) {
       // Create the slot start time for the current hour
       const slotStart = zonedTimeToUtc(setSeconds(setMinutes(setHours(selectedDate, hour), 0), 0), TIMEZONE);
       const timeStr = formatInTimeZone(slotStart, TIMEZONE, 'HH:mm');
+
+      debug.log(`Processing slot for hour ${hour}:`, {
+        slotStartTime: formatInTimeZone(slotStart, TIMEZONE, 'HH:mm:ssXXX'),
+        currentTime: formatInTimeZone(currentDate, TIMEZONE, 'HH:mm:ssXXX'),
+        isToday,
+        isAfterCurrent: slotStart > currentDate
+      });
 
       // Calculate maximum available hours
       const hoursUntilClose = CLOSING_HOUR - hour;
