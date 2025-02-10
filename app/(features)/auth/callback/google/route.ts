@@ -5,6 +5,7 @@ import { debug } from '@/lib/debug'
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
   
   debug.log('🔄 Processing Google OAuth callback with code:', code)
 
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     
     if (error) {
       debug.error('❌ Error exchanging code for session:', error.message)
-      return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=google_login_failed`)
+      return NextResponse.redirect(`${appUrl}/auth/login?error=google_login_failed`)
     }
 
     // Update profile
@@ -37,9 +38,9 @@ export async function GET(request: Request) {
     }
 
     debug.log('✅ Successfully authenticated with Google')
-    return NextResponse.redirect(`${requestUrl.origin}/bookings`)
+    return NextResponse.redirect(`${appUrl}/bookings`)
   }
 
   debug.error('❌ No code provided in Google callback')
-  return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=no_code`)
+  return NextResponse.redirect(`${appUrl}/auth/login?error=no_code`)
 } 

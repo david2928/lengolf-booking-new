@@ -13,7 +13,7 @@ env:
   SERVICE_NAME: lengolf-booking-new
   REGION: asia-southeast1
   REGISTRY: asia-southeast1-docker.pkg.dev
-  APP_URL: https://lengolf-booking-new-459419604461.asia-southeast1.run.app
+  APP_URL: https://lengolf-booking-new-ej6pn7llcq-as.a.run.app
 
 jobs:
   deploy:
