@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { getCurrentBangkokTime } from '@/utils/date';
 
 interface TimeSlot {
   startTime: string;
@@ -34,6 +35,7 @@ export function useAvailability() {
         },
         body: JSON.stringify({
           date: format(selectedDate, 'yyyy-MM-dd'),
+          currentTimeInBangkok: getCurrentBangkokTime()
         }),
       });
 
