@@ -13,6 +13,7 @@ env:
   SERVICE_NAME: lengolf-booking-new
   REGION: asia-southeast1
   REGISTRY: asia-southeast1-docker.pkg.dev
+  APP_URL: https://lengolf-booking-new-459419604461.asia-southeast1.run.app
 
 jobs:
   deploy:
@@ -61,7 +62,7 @@ jobs:
             --build-arg GCP_SA_KEY='${{ secrets.GCP_SA_KEY }}' \
             --build-arg JWT_SECRET='${{ secrets.JWT_SECRET }}' \
             --build-arg LINE_CLIENT_SECRET='${{ secrets.LINE_CLIENT_SECRET }}' \
-            --build-arg NEXT_PUBLIC_APP_URL='${{ secrets.NEXT_PUBLIC_APP_URL }}' \
+            --build-arg NEXT_PUBLIC_APP_URL='${{ env.APP_URL }}' \
             --build-arg NEXT_PUBLIC_FACEBOOK_APP_ID='${{ secrets.NEXT_PUBLIC_FACEBOOK_APP_ID }}' \
             --build-arg NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET='${{ secrets.NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET }}' \
             --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID='${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}' \
@@ -98,7 +99,7 @@ jobs:
             EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
             EMAIL_USER=${{ secrets.EMAIL_USER }}
             LINE_CLIENT_SECRET=${{ secrets.LINE_CLIENT_SECRET }}
-            NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_APP_URL=${{ env.APP_URL }}
             NEXT_PUBLIC_FACEBOOK_APP_ID=${{ secrets.NEXT_PUBLIC_FACEBOOK_APP_ID }}
             NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET=${{ secrets.NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET }}
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
