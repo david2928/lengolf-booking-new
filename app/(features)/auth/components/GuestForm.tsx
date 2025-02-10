@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
 
 interface GuestFormData {
   name: string;
@@ -27,17 +28,48 @@ export default function GuestForm({ onClose }: GuestFormProps) {
     setError(null);
 
     try {
-      // Store guest information in localStorage
+      const supabase = createClient();
+      
+      // Sign in with the shared guest account
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: 'guest@lengolf.com',
+        password: process.env.NEXT_PUBLIC_GUEST_PASSWORD!
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      // Store guest information in guest_profiles
+      const { error: profileError } = await supabase
+        .from('guest_profiles')
+        .insert({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          created_at: new Date().toISOString()
+        });
+
+      if (profileError) {
+        console.error('Failed to create guest profile:', profileError);
+        throw new Error('Failed to create guest profile');
+      }
+
+      // Store guest information in localStorage for booking
       localStorage.setItem('guest_name', formData.name);
       localStorage.setItem('guest_email', formData.email);
       localStorage.setItem('guest_phone', formData.phone);
       localStorage.setItem('guest_session', 'true');
       localStorage.setItem('guest_login_time', Date.now().toString());
 
+      // Set cookie to identify guest session
+      document.cookie = 'guest_session=true; path=/; max-age=86400; samesite=lax';
+
       router.push('/bookings');
       onClose();
     } catch (err) {
-      setError('Failed to create guest session');
+      console.error('Guest login error:', err);
+      setError('Failed to create guest session. Please try again.');
     }
   };
 
