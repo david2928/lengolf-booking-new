@@ -149,25 +149,23 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Create the slot start time for the current hour
-      const slotStart = setSeconds(setMinutes(setHours(selectedDate, hour), 0), 0);
-      const timeStr = formatInTimeZone(slotStart, TIMEZONE, 'HH:mm');
-
-      // Compare dates in Bangkok timezone
-      const isAfterCurrent = slotStart.getTime() > currentDate.getTime();
+      // Create the slot start time by setting the hour directly on the selected date
+      const slotStart = setHours(selectedDate, hour);
+      const slotStartInZone = utcToZonedTime(slotStart, TIMEZONE);
+      const timeStr = formatInTimeZone(slotStartInZone, TIMEZONE, 'HH:mm');
 
       debug.log(`Processing slot for hour ${hour}:`, {
-        slotStartTime: formatInTimeZone(slotStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+        slotStartTime: formatInTimeZone(slotStartInZone, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
         currentTime: formatInTimeZone(currentDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
         isToday,
-        isAfterCurrent,
+        isAfterCurrent: slotStartInZone.getTime() > currentDate.getTime(),
         hour,
         OPENING_HOUR,
         CLOSING_HOUR
       });
 
       // Skip slots that are in the past
-      if (!isAfterCurrent) {
+      if (slotStartInZone.getTime() <= currentDate.getTime()) {
         debug.log(`Skipping slot ${timeStr} as it is in the past`);
         continue;
       }
@@ -201,18 +199,18 @@ export async function POST(request: Request) {
           const eventEnd = utcToZonedTime(new Date(event.end?.dateTime || ''), TIMEZONE);
           
           // Check for direct conflict
-          const hasDirectConflict = slotStart.getTime() >= eventStart.getTime() && 
-                                  slotStart.getTime() < eventEnd.getTime();
+          const hasDirectConflict = slotStartInZone.getTime() >= eventStart.getTime() && 
+                                  slotStartInZone.getTime() < eventEnd.getTime();
           
           // Check for small gaps (less than 15 minutes) before next event
-          const gapBeforeEvent = eventStart.getTime() - slotStart.getTime();
+          const gapBeforeEvent = eventStart.getTime() - slotStartInZone.getTime();
           const hasSmallGap = gapBeforeEvent > 0 && gapBeforeEvent < 15 * 60 * 1000; // 15 minutes in milliseconds
           
           if (hasDirectConflict) {
             debug.log(`Found direct conflict with event:`, {
               bay,
               event: event.summary,
-              slotStart: formatInTimeZone(slotStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+              slotStart: formatInTimeZone(slotStartInZone, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
               eventStart: formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
               eventEnd: formatInTimeZone(eventEnd, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX')
             });
@@ -221,7 +219,7 @@ export async function POST(request: Request) {
               bay,
               event: event.summary,
               gapMinutes: Math.floor(gapBeforeEvent / (60 * 1000)),
-              slotStart: formatInTimeZone(slotStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+              slotStart: formatInTimeZone(slotStartInZone, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
               eventStart: formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX')
             });
           }
@@ -253,12 +251,12 @@ export async function POST(request: Request) {
           // Find the next event in this bay
           const nextEvent = bayEvents.find(event => {
             const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
-            return eventStart.getTime() > slotStart.getTime();
+            return eventStart.getTime() > slotStartInZone.getTime();
           });
 
           if (nextEvent) {
             const eventStart = utcToZonedTime(new Date(nextEvent.start?.dateTime || ''), TIMEZONE);
-            const hoursUntilEvent = Math.floor((eventStart.getTime() - slotStart.getTime()) / (1000 * 60 * 60));
+            const hoursUntilEvent = Math.floor((eventStart.getTime() - slotStartInZone.getTime()) / (1000 * 60 * 60));
             return Math.min(maxAvailableHours, hoursUntilEvent);
           }
           
@@ -279,7 +277,7 @@ export async function POST(request: Request) {
         if (actualMaxHours >= 1) {
           slots.push({
             startTime: timeStr,
-            endTime: formatInTimeZone(addHours(slotStart, actualMaxHours), TIMEZONE, 'HH:mm'),
+            endTime: formatInTimeZone(addHours(slotStartInZone, actualMaxHours), TIMEZONE, 'HH:mm'),
             maxHours: actualMaxHours,
             period: getTimePeriod(hour)
           });
