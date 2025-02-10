@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { format, parse, addHours, setHours, setMinutes, setSeconds } from 'date-fns';
-import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
+import { zonedTimeToUtc, utcToZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { calendar, AVAILABILITY_CALENDARS } from '@/lib/googleApiConfig';
 import { createClient } from '@/utils/supabase/server';
 import { performance } from 'perf_hooks';
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     const { date } = await request.json();
     const selectedDate = zonedTimeToUtc(parse(date, 'yyyy-MM-dd', new Date()), TIMEZONE);
     const currentDate = utcToZonedTime(new Date(), TIMEZONE);
-    const isToday = format(selectedDate, 'yyyy-MM-dd', { timeZone: TIMEZONE }) === format(currentDate, 'yyyy-MM-dd', { timeZone: TIMEZONE });
+    const isToday = formatInTimeZone(selectedDate, TIMEZONE, 'yyyy-MM-dd') === formatInTimeZone(currentDate, TIMEZONE, 'yyyy-MM-dd');
     
     // For today, start from the next hour
     const startHour = isToday ? Math.max(OPENING_HOUR, currentDate.getHours() + 1) : OPENING_HOUR;
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     let allEvents: any[] = [];
 
     // Check calendar cache
-    const calendarCacheKey = getCacheKey.calendar(format(selectedDate, 'yyyy-MM-dd', { timeZone: TIMEZONE }));
+    const calendarCacheKey = getCacheKey.calendar(formatInTimeZone(selectedDate, TIMEZONE, 'yyyy-MM-dd'));
     const cachedEvents = calendarCache.get<any[]>(calendarCacheKey);
 
     if (cachedEvents) {
@@ -82,8 +82,8 @@ export async function POST(request: Request) {
         Object.values(AVAILABILITY_CALENDARS).map(calendarId =>
           calendar.events.list({
             calendarId,
-            timeMin: format(startOfDay, "yyyy-MM-dd'T'HH:mm:ssxxx", { timeZone: TIMEZONE }),
-            timeMax: format(endOfDay, "yyyy-MM-dd'T'HH:mm:ssxxx", { timeZone: TIMEZONE }),
+            timeMin: formatInTimeZone(startOfDay, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+            timeMax: formatInTimeZone(endOfDay, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
             singleEvents: true,
             orderBy: 'startTime',
             timeZone: TIMEZONE,
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     for (let hour = startHour; hour <= CLOSING_HOUR - 1; hour++) {
       // Create the slot start time for the current hour
       const slotStart = zonedTimeToUtc(setSeconds(setMinutes(setHours(selectedDate, hour), 0), 0), TIMEZONE);
-      const timeStr = format(slotStart, 'HH:mm', { timeZone: TIMEZONE });
+      const timeStr = formatInTimeZone(slotStart, TIMEZONE, 'HH:mm');
 
       // Calculate maximum available hours
       const hoursUntilClose = CLOSING_HOUR - hour;
@@ -156,7 +156,7 @@ export async function POST(request: Request) {
         if (actualMaxHours >= 1) {
           slots.push({
             startTime: timeStr,
-            endTime: format(addHours(slotStart, actualMaxHours), 'HH:mm', { timeZone: TIMEZONE }),
+            endTime: formatInTimeZone(addHours(slotStart, actualMaxHours), TIMEZONE, 'HH:mm'),
             maxHours: actualMaxHours,
             period: getTimePeriod(hour)
           });

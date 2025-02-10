@@ -113,7 +113,6 @@ jobs:
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             SUPABASE_DB_PW=${{ secrets.SUPABASE_DB_PW }}
             SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-            SERVICE_ACCOUNT_KEY_BASE64=${{ secrets.SERVICE_ACCOUNT_KEY_BASE64 }}
 
       - name: Show Output
         run: echo ${{ steps.deploy.outputs.url }} 
