@@ -88,7 +88,6 @@ jobs:
           image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
           env_vars: |
             NODE_ENV=production
-            PORT=8080
             AVAILABILITY_CALENDAR_BAY1_ID=${{ secrets.AVAILABILITY_CALENDAR_BAY1_ID }}
             AVAILABILITY_CALENDAR_BAY2_ID=${{ secrets.AVAILABILITY_CALENDAR_BAY2_ID }}
             AVAILABILITY_CALENDAR_BAY3_ID=${{ secrets.AVAILABILITY_CALENDAR_BAY3_ID }}
