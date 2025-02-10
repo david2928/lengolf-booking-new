@@ -14,6 +14,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Add build argument for service account key
+ARG SERVICE_ACCOUNT_KEY_BASE64
+ENV SERVICE_ACCOUNT_KEY_BASE64=$SERVICE_ACCOUNT_KEY_BASE64
+
 # Build application
 RUN npm run build
 
