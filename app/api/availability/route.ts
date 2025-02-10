@@ -131,11 +131,15 @@ export async function POST(request: Request) {
       const slotStart = zonedTimeToUtc(setSeconds(setMinutes(setHours(selectedDate, hour), 0), 0), TIMEZONE);
       const timeStr = formatInTimeZone(slotStart, TIMEZONE, 'HH:mm');
 
+      // Convert both times to the same timezone for comparison
+      const slotStartInZone = utcToZonedTime(slotStart, TIMEZONE);
+      const currentDateInZone = utcToZonedTime(currentDate, TIMEZONE);
+
       debug.log(`Processing slot for hour ${hour}:`, {
         slotStartTime: formatInTimeZone(slotStart, TIMEZONE, 'HH:mm:ssXXX'),
         currentTime: formatInTimeZone(currentDate, TIMEZONE, 'HH:mm:ssXXX'),
         isToday,
-        isAfterCurrent: slotStart.getTime() > currentDate.getTime()
+        isAfterCurrent: slotStartInZone.getTime() > currentDateInZone.getTime()
       });
 
       // Calculate maximum available hours
