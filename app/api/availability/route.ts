@@ -155,9 +155,13 @@ export async function POST(request: Request) {
 
       // Check each bay for availability
       const availableBays = Object.keys(AVAILABILITY_CALENDARS).filter(bay => {
-        const bayEvents = allEvents.filter(event =>
-          event.organizer?.email === AVAILABILITY_CALENDARS[bay as keyof typeof AVAILABILITY_CALENDARS]
-        );
+        const bayEvents = allEvents.filter(event => {
+          // Only consider events for the selected date
+          const eventDate = formatInTimeZone(new Date(event.start?.dateTime || ''), TIMEZONE, 'yyyy-MM-dd');
+          const selectedDateStr = formatInTimeZone(selectedDate, TIMEZONE, 'yyyy-MM-dd');
+          return event.organizer?.email === AVAILABILITY_CALENDARS[bay as keyof typeof AVAILABILITY_CALENDARS] &&
+                 eventDate === selectedDateStr;
+        });
 
         // Check if the slot start time conflicts with any events in this bay
         const hasConflict = bayEvents.some(event => {
