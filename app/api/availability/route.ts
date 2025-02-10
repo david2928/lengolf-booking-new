@@ -152,28 +152,8 @@ export async function POST(request: Request) {
           event.organizer?.email === AVAILABILITY_CALENDARS[bay as keyof typeof AVAILABILITY_CALENDARS]
         );
 
-        // Debug log the bay check
-        debug.log(`Checking bay ${bay} for hour ${timeStr}:`, {
-          events: bayEvents.length,
-          conflicts: bayEvents.some(event => {
-            const eventStart = new Date(event.start?.dateTime || '');
-            const eventEnd = new Date(event.end?.dateTime || '');
-            const slotStartTime = slotStart.getTime();
-            const eventStartTime = eventStart.getTime();
-            const eventEndTime = eventEnd.getTime();
-            const hasConflict = slotStartTime >= eventStartTime && slotStartTime < eventEndTime;
-            if (hasConflict) {
-              debug.log(`Found conflict with event:`, {
-                start: formatInTimeZone(eventStart, TIMEZONE, 'HH:mm'),
-                end: formatInTimeZone(eventEnd, TIMEZONE, 'HH:mm')
-              });
-            }
-            return hasConflict;
-          })
-        });
-
         // Check if the slot start time conflicts with any events in this bay
-        return !bayEvents.some(event => {
+        const hasConflict = bayEvents.some(event => {
           const eventStart = new Date(event.start?.dateTime || '');
           const eventEnd = new Date(event.end?.dateTime || '');
           const slotStartTime = slotStart.getTime();
@@ -189,11 +169,15 @@ export async function POST(request: Request) {
           
           if (hasDirectConflict) {
             debug.log(`Found direct conflict with event:`, {
+              bay,
+              event: event.summary,
               start: formatInTimeZone(eventStart, TIMEZONE, 'HH:mm'),
               end: formatInTimeZone(eventEnd, TIMEZONE, 'HH:mm')
             });
           } else if (hasSmallGap) {
             debug.log(`Found small gap before event:`, {
+              bay,
+              event: event.summary,
               gapMinutes: Math.floor(gapBeforeEvent / (60 * 1000)),
               eventStart: formatInTimeZone(eventStart, TIMEZONE, 'HH:mm')
             });
@@ -201,6 +185,14 @@ export async function POST(request: Request) {
           
           return hasDirectConflict || hasSmallGap;
         });
+
+        // Debug log the bay check
+        debug.log(`Checking bay ${bay} for hour ${timeStr}:`, {
+          events: bayEvents.length,
+          conflicts: hasConflict
+        });
+
+        return !hasConflict;
       });
 
       // If any bay is available, add the slot
