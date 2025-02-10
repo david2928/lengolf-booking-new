@@ -1,4 +1,4 @@
-import { formatInTimeZone, zonedTimeToUtc } from 'date-fns-tz';
+import { formatInTimeZone, zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
 
 export const TIMEZONE = 'Asia/Bangkok';
 
@@ -6,11 +6,8 @@ export const TIMEZONE = 'Asia/Bangkok';
  * Gets the current time in Bangkok timezone
  * @returns ISO string of current time in Bangkok timezone
  */
-export function getCurrentBangkokTime(): string {
-  // Get current time in Bangkok
-  const bangkokTime = zonedTimeToUtc(new Date(), TIMEZONE);
-  // Format it with timezone info
-  return formatInTimeZone(bangkokTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+export function getCurrentBangkokTime(): Date {
+  return utcToZonedTime(new Date(), TIMEZONE);
 }
 
 /**

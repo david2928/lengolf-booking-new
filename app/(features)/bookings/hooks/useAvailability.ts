@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
-import { getCurrentBangkokTime } from '../../../../utils/date';
+import { getCurrentBangkokTime } from '@/utils/date';
 
 interface TimeSlot {
   startTime: string;
@@ -28,6 +28,13 @@ export function useAvailability() {
         return;
       }
 
+      // Get current time in Bangkok timezone
+      const currentTimeInBangkok = getCurrentBangkokTime();
+      console.log('Fetching availability with:', {
+        selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+        currentTimeInBangkok: currentTimeInBangkok.toISOString()
+      });
+
       const response = await fetch('/api/availability', {
         method: 'POST',
         headers: {
@@ -35,7 +42,7 @@ export function useAvailability() {
         },
         body: JSON.stringify({
           date: format(selectedDate, 'yyyy-MM-dd'),
-          currentTimeInBangkok: getCurrentBangkokTime()
+          currentTimeInBangkok: currentTimeInBangkok.toISOString()
         }),
       });
 
