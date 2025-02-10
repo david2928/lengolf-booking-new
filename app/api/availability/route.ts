@@ -19,6 +19,16 @@ function getTimePeriod(hour: number): 'morning' | 'afternoon' | 'evening' {
   return 'evening';                     // 17:00 - 22:00
 }
 
+// Helper function to convert date to Bangkok time
+function toBangkokTime(date: Date | string): Date {
+  return utcToZonedTime(new Date(date), TIMEZONE);
+}
+
+// Helper function to format Bangkok time
+function formatBangkokTime(date: Date | string, format: string): string {
+  return formatInTimeZone(new Date(date), TIMEZONE, format);
+}
+
 export async function POST(request: Request) {
   const startTime = performance.now();
   let authTime = 0;
@@ -53,24 +63,27 @@ export async function POST(request: Request) {
     authTime = performance.now() - authStart;
 
     const { date } = await request.json();
-    // Parse the date string and immediately convert to Bangkok timezone
-    const selectedDate = utcToZonedTime(
-      zonedTimeToUtc(parse(date, 'yyyy-MM-dd', new Date()), TIMEZONE),
+    
+    // Parse the date string in Bangkok timezone
+    const selectedDate = zonedTimeToUtc(
+      parse(date + ' 00:00', 'yyyy-MM-dd HH:mm', new Date()),
       TIMEZONE
     );
+    
+    // Get current time in Bangkok
     const currentDate = utcToZonedTime(new Date(), TIMEZONE);
-    const currentHourInZone = parseInt(formatInTimeZone(currentDate, TIMEZONE, 'HH'));
+    const currentHourInZone = parseInt(formatBangkokTime(currentDate, 'HH'));
     
     // Compare dates in Bangkok timezone
-    const isToday = formatInTimeZone(selectedDate, TIMEZONE, 'yyyy-MM-dd') === 
-                   formatInTimeZone(currentDate, TIMEZONE, 'yyyy-MM-dd');
+    const isToday = formatBangkokTime(selectedDate, 'yyyy-MM-dd') === 
+                   formatBangkokTime(currentDate, 'yyyy-MM-dd');
     
     // For today, start from the next hour
     const startHour = isToday ? Math.max(OPENING_HOUR, currentHourInZone + 1) : OPENING_HOUR;
 
     debug.log('Time checks:', {
-      selectedDate: formatInTimeZone(selectedDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
-      currentDate: formatInTimeZone(currentDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+      selectedDate: formatBangkokTime(selectedDate, 'yyyy-MM-dd HH:mm:ssXXX'),
+      currentDate: formatBangkokTime(currentDate, 'yyyy-MM-dd HH:mm:ssXXX'),
       currentHourInZone,
       isToday,
       startHour,
@@ -83,7 +96,7 @@ export async function POST(request: Request) {
     let allEvents: any[] = [];
 
     // Check calendar cache
-    const calendarCacheKey = getCacheKey.calendar(formatInTimeZone(selectedDate, TIMEZONE, 'yyyy-MM-dd'));
+    const calendarCacheKey = getCacheKey.calendar(formatBangkokTime(selectedDate, 'yyyy-MM-dd'));
     const cachedEvents = calendarCache.get<any[]>(calendarCacheKey);
 
     if (cachedEvents) {
@@ -149,23 +162,25 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Create the slot start time by setting the hour directly on the selected date
-      const slotStart = setHours(selectedDate, hour);
-      const slotStartInZone = utcToZonedTime(slotStart, TIMEZONE);
-      const timeStr = formatInTimeZone(slotStartInZone, TIMEZONE, 'HH:mm');
+      // Create the slot start time
+      const slotStart = zonedTimeToUtc(
+        parse(`${formatBangkokTime(selectedDate, 'yyyy-MM-dd')} ${hour}:00`, 'yyyy-MM-dd HH:mm', new Date()),
+        TIMEZONE
+      );
+      const timeStr = formatBangkokTime(slotStart, 'HH:mm');
 
       debug.log(`Processing slot for hour ${hour}:`, {
-        slotStartTime: formatInTimeZone(slotStartInZone, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
-        currentTime: formatInTimeZone(currentDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
+        slotStartTime: formatBangkokTime(slotStart, 'yyyy-MM-dd HH:mm:ssXXX'),
+        currentTime: formatBangkokTime(currentDate, 'yyyy-MM-dd HH:mm:ssXXX'),
         isToday,
-        isAfterCurrent: slotStartInZone.getTime() > currentDate.getTime(),
+        isAfterCurrent: slotStart.getTime() > currentDate.getTime(),
         hour,
         OPENING_HOUR,
         CLOSING_HOUR
       });
 
       // Skip slots that are in the past
-      if (slotStartInZone.getTime() <= currentDate.getTime()) {
+      if (slotStart.getTime() <= currentDate.getTime()) {
         debug.log(`Skipping slot ${timeStr} as it is in the past`);
         continue;
       }
@@ -183,57 +198,24 @@ export async function POST(request: Request) {
       // Check each bay for availability
       const availableBays = Object.keys(AVAILABILITY_CALENDARS).filter(bay => {
         const bayEvents = allEvents.filter(event => {
-          // Convert event time to Bangkok timezone for comparison
-          const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
-          // Only consider events for the selected date
-          const eventDate = formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd');
-          const selectedDateStr = formatInTimeZone(selectedDate, TIMEZONE, 'yyyy-MM-dd');
+          const eventStart = toBangkokTime(event.start?.dateTime || '');
           return event.organizer?.email === AVAILABILITY_CALENDARS[bay as keyof typeof AVAILABILITY_CALENDARS] &&
-                 eventDate === selectedDateStr;
+                 formatBangkokTime(eventStart, 'yyyy-MM-dd') === formatBangkokTime(selectedDate, 'yyyy-MM-dd');
         });
 
-        // Check if the slot start time conflicts with any events in this bay
-        const hasConflict = bayEvents.some(event => {
-          // Convert event times to Bangkok timezone
-          const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
-          const eventEnd = utcToZonedTime(new Date(event.end?.dateTime || ''), TIMEZONE);
+        // Check for conflicts
+        return !bayEvents.some(event => {
+          const eventStart = toBangkokTime(event.start?.dateTime || '');
+          const eventEnd = toBangkokTime(event.end?.dateTime || '');
           
-          // Check for direct conflict
-          const hasDirectConflict = slotStartInZone.getTime() >= eventStart.getTime() && 
-                                  slotStartInZone.getTime() < eventEnd.getTime();
+          const hasDirectConflict = slotStart.getTime() >= eventStart.getTime() && 
+                                   slotStart.getTime() < eventEnd.getTime();
           
-          // Check for small gaps (less than 15 minutes) before next event
-          const gapBeforeEvent = eventStart.getTime() - slotStartInZone.getTime();
-          const hasSmallGap = gapBeforeEvent > 0 && gapBeforeEvent < 15 * 60 * 1000; // 15 minutes in milliseconds
-          
-          if (hasDirectConflict) {
-            debug.log(`Found direct conflict with event:`, {
-              bay,
-              event: event.summary,
-              slotStart: formatInTimeZone(slotStartInZone, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
-              eventStart: formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
-              eventEnd: formatInTimeZone(eventEnd, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX')
-            });
-          } else if (hasSmallGap) {
-            debug.log(`Found small gap before event:`, {
-              bay,
-              event: event.summary,
-              gapMinutes: Math.floor(gapBeforeEvent / (60 * 1000)),
-              slotStart: formatInTimeZone(slotStartInZone, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
-              eventStart: formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX')
-            });
-          }
+          const gapBeforeEvent = eventStart.getTime() - slotStart.getTime();
+          const hasSmallGap = gapBeforeEvent > 0 && gapBeforeEvent < 15 * 60 * 1000;
           
           return hasDirectConflict || hasSmallGap;
         });
-
-        // Debug log the bay check
-        debug.log(`Checking bay ${bay} for hour ${timeStr}:`, {
-          events: bayEvents.length,
-          conflicts: hasConflict
-        });
-
-        return !hasConflict;
       });
 
       // If any bay is available, add the slot
@@ -241,22 +223,20 @@ export async function POST(request: Request) {
         // Calculate available hours for each bay and take the maximum
         const bayHours = availableBays.map(bay => {
           const bayEvents = allEvents.filter(event => {
-            const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
-            const eventDate = formatInTimeZone(eventStart, TIMEZONE, 'yyyy-MM-dd');
-            const selectedDateStr = formatInTimeZone(selectedDate, TIMEZONE, 'yyyy-MM-dd');
+            const eventStart = toBangkokTime(event.start?.dateTime || '');
             return event.organizer?.email === AVAILABILITY_CALENDARS[bay as keyof typeof AVAILABILITY_CALENDARS] &&
-                   eventDate === selectedDateStr;
+                   formatBangkokTime(eventStart, 'yyyy-MM-dd') === formatBangkokTime(selectedDate, 'yyyy-MM-dd');
           });
 
           // Find the next event in this bay
           const nextEvent = bayEvents.find(event => {
-            const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
-            return eventStart.getTime() > slotStartInZone.getTime();
+            const eventStart = toBangkokTime(event.start?.dateTime || '');
+            return eventStart.getTime() > slotStart.getTime();
           });
 
           if (nextEvent) {
-            const eventStart = utcToZonedTime(new Date(nextEvent.start?.dateTime || ''), TIMEZONE);
-            const hoursUntilEvent = Math.floor((eventStart.getTime() - slotStartInZone.getTime()) / (1000 * 60 * 60));
+            const eventStart = toBangkokTime(nextEvent.start?.dateTime || '');
+            const hoursUntilEvent = Math.floor((eventStart.getTime() - slotStart.getTime()) / (1000 * 60 * 60));
             return Math.min(maxAvailableHours, hoursUntilEvent);
           }
           
@@ -277,7 +257,7 @@ export async function POST(request: Request) {
         if (actualMaxHours >= 1) {
           slots.push({
             startTime: timeStr,
-            endTime: formatInTimeZone(addHours(slotStartInZone, actualMaxHours), TIMEZONE, 'HH:mm'),
+            endTime: formatInTimeZone(addHours(slotStart, actualMaxHours), TIMEZONE, 'HH:mm'),
             maxHours: actualMaxHours,
             period: getTimePeriod(hour)
           });
