@@ -5,6 +5,7 @@ import { calendar, AVAILABILITY_CALENDARS } from '@/lib/googleApiConfig';
 import { createClient } from '@/utils/supabase/server';
 import { performance } from 'perf_hooks';
 import { calendarCache, authCache, getCacheKey, updateCalendarCache } from '@/lib/cache';
+import { debug } from '@/lib/debug';
 
 const OPENING_HOUR = 10; // 10:00 AM
 const CLOSING_HOUR = 23; // 11:00 PM (last booking can be until 10:00 PM)
@@ -96,6 +97,17 @@ export async function POST(request: Request) {
       
       allEvents = bayEvents.flatMap(response => response.data.items || []);
     }
+
+    // Debug log the events
+    debug.log('Calendar Events for date:', date);
+    allEvents.forEach((event, index) => {
+      debug.log(`Event ${index + 1}:`, {
+        calendar: event.organizer?.email,
+        summary: event.summary,
+        start: event.start?.dateTime,
+        end: event.end?.dateTime
+      });
+    });
     
     googleTime = performance.now() - googleStart;
 
@@ -119,12 +131,27 @@ export async function POST(request: Request) {
           event.organizer?.email === AVAILABILITY_CALENDARS[bay as keyof typeof AVAILABILITY_CALENDARS]
         );
 
+        // Debug log the bay check
+        debug.log(`Checking bay ${bay} for hour ${timeStr}:`, {
+          events: bayEvents.length,
+          conflicts: bayEvents.some(event => {
+            const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
+            const eventEnd = utcToZonedTime(new Date(event.end?.dateTime || ''), TIMEZONE);
+            const hasConflict = slotStart >= eventStart && slotStart < eventEnd;
+            if (hasConflict) {
+              debug.log(`Found conflict with event:`, {
+                start: formatInTimeZone(eventStart, TIMEZONE, 'HH:mm'),
+                end: formatInTimeZone(eventEnd, TIMEZONE, 'HH:mm')
+              });
+            }
+            return hasConflict;
+          })
+        });
+
         // Check if the slot start time conflicts with any events in this bay
         return !bayEvents.some(event => {
           const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
           const eventEnd = utcToZonedTime(new Date(event.end?.dateTime || ''), TIMEZONE);
-
-          // Only check if the start time falls within an event
           return slotStart >= eventStart && slotStart < eventEnd;
         });
       });
@@ -154,6 +181,13 @@ export async function POST(request: Request) {
 
         // Take the maximum hours available in any bay
         const actualMaxHours = Math.max(...bayHours);
+
+        // Debug log the slot calculation
+        debug.log(`Slot calculation for ${timeStr}:`, {
+          availableBays,
+          bayHours,
+          actualMaxHours
+        });
 
         // Only add the slot if there's at least 1 hour available
         if (actualMaxHours >= 1) {
