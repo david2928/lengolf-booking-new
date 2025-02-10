@@ -53,11 +53,14 @@ export async function POST(request: Request) {
 
     const { date } = await request.json();
     const selectedDate = zonedTimeToUtc(parse(date, 'yyyy-MM-dd', new Date()), TIMEZONE);
-    const currentDate = utcToZonedTime(new Date(), TIMEZONE);
+    const currentDate = new Date();
+    const currentDateInZone = utcToZonedTime(currentDate, TIMEZONE);
+    const currentHourInZone = parseInt(formatInTimeZone(currentDate, TIMEZONE, 'HH'));
+    
     const isToday = formatInTimeZone(selectedDate, TIMEZONE, 'yyyy-MM-dd') === formatInTimeZone(currentDate, TIMEZONE, 'yyyy-MM-dd');
     
     // For today, start from the next hour
-    const startHour = isToday ? Math.max(OPENING_HOUR, currentDate.getHours() + 1) : OPENING_HOUR;
+    const startHour = isToday ? Math.max(OPENING_HOUR, currentHourInZone + 1) : OPENING_HOUR;
     
     // Get events from all bays with caching
     const googleStart = performance.now();
