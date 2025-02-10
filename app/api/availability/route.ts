@@ -133,7 +133,22 @@ export async function POST(request: Request) {
 
     // Generate all possible time slots
     const slots = [];
-    for (let hour = startHour; hour <= CLOSING_HOUR - 1; hour++) {
+    
+    debug.log('Hour boundaries:', {
+      startHour,
+      OPENING_HOUR,
+      CLOSING_HOUR,
+      currentHourInZone
+    });
+
+    // Ensure we only process slots within opening hours
+    for (let hour = startHour; hour < CLOSING_HOUR; hour++) {
+      // Validate hour is within bounds
+      if (hour < OPENING_HOUR || hour >= CLOSING_HOUR) {
+        debug.log(`Skipping hour ${hour} as it's outside operating hours (${OPENING_HOUR}:00-${CLOSING_HOUR}:00)`);
+        continue;
+      }
+
       // Create the slot start time for the current hour
       const slotStart = setSeconds(setMinutes(setHours(selectedDate, hour), 0), 0);
       const timeStr = formatInTimeZone(slotStart, TIMEZONE, 'HH:mm');
@@ -145,7 +160,10 @@ export async function POST(request: Request) {
         slotStartTime: formatInTimeZone(slotStart, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
         currentTime: formatInTimeZone(currentDate, TIMEZONE, 'yyyy-MM-dd HH:mm:ssXXX'),
         isToday,
-        isAfterCurrent
+        isAfterCurrent,
+        hour,
+        OPENING_HOUR,
+        CLOSING_HOUR
       });
 
       // Skip slots that are in the past
@@ -154,9 +172,15 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Calculate maximum available hours
+      // Calculate maximum available hours, ensuring we don't go past closing time
       const hoursUntilClose = CLOSING_HOUR - hour;
       let maxAvailableHours = Math.min(MAX_HOURS, hoursUntilClose);
+
+      debug.log(`Calculating hours for slot ${timeStr}:`, {
+        hoursUntilClose,
+        maxAvailableHours,
+        MAX_HOURS
+      });
 
       // Check each bay for availability
       const availableBays = Object.keys(AVAILABILITY_CALENDARS).filter(bay => {
