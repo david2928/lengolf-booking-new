@@ -97,8 +97,6 @@ jobs:
             BOOKING_CALENDAR_BAY3_ID=${{ secrets.BOOKING_CALENDAR_BAY3_ID }}
             EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
             EMAIL_USER=${{ secrets.EMAIL_USER }}
-            GCP_SA_KEY=${{ secrets.GCP_SA_KEY }}
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
             LINE_CLIENT_SECRET=${{ secrets.LINE_CLIENT_SECRET }}
             NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
             NEXT_PUBLIC_FACEBOOK_APP_ID=${{ secrets.NEXT_PUBLIC_FACEBOOK_APP_ID }}
@@ -111,7 +109,7 @@ jobs:
             NEXT_PUBLIC_LINE_REDIRECT_URI=${{ secrets.NEXT_PUBLIC_LINE_REDIRECT_URI }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-            SERVICE_ACCOUNT_KEY_BASE64=${{ secrets.SERVICE_ACCOUNT_KEY_BASE64 }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
             SUPABASE_DB_PW=${{ secrets.SUPABASE_DB_PW }}
             SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
