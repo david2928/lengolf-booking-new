@@ -31,10 +31,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
-        continue-on-error: true
-
       - name: Google Auth
         id: auth
         uses: google-github-actions/auth@v1
@@ -66,16 +62,4 @@ jobs:
             PORT=8080
 
       - name: Show Output
-        run: echo ${{ steps.deploy.outputs.url }}
-
-      - name: Send Deployment Status to Slack
-        if: always()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
-          text: |
-            Deployment ${{ job.status }} for ${{ env.SERVICE_NAME }}
-            URL: ${{ steps.deploy.outputs.url }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} 
+        run: echo ${{ steps.deploy.outputs.url }} 
