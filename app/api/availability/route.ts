@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { format, parse, addHours, setHours, setMinutes, setSeconds } from 'date-fns';
+import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
 import { calendar, AVAILABILITY_CALENDARS } from '@/lib/googleApiConfig';
 import { createClient } from '@/utils/supabase/server';
 import { performance } from 'perf_hooks';
@@ -8,6 +9,7 @@ import { calendarCache, authCache, getCacheKey, updateCalendarCache } from '@/li
 const OPENING_HOUR = 10; // 10:00 AM
 const CLOSING_HOUR = 23; // 11:00 PM (last booking can be until 10:00 PM)
 const MAX_HOURS = 5;
+const TIMEZONE = 'Asia/Bangkok';
 
 // Helper function to determine period
 function getTimePeriod(hour: number): 'morning' | 'afternoon' | 'evening' {
@@ -50,9 +52,9 @@ export async function POST(request: Request) {
     authTime = performance.now() - authStart;
 
     const { date } = await request.json();
-    const selectedDate = parse(date, 'yyyy-MM-dd', new Date());
-    const currentDate = new Date();
-    const isToday = selectedDate.toDateString() === currentDate.toDateString();
+    const selectedDate = zonedTimeToUtc(parse(date, 'yyyy-MM-dd', new Date()), TIMEZONE);
+    const currentDate = utcToZonedTime(new Date(), TIMEZONE);
+    const isToday = format(selectedDate, 'yyyy-MM-dd', { timeZone: TIMEZONE }) === format(currentDate, 'yyyy-MM-dd', { timeZone: TIMEZONE });
     
     // For today, start from the next hour
     const startHour = isToday ? Math.max(OPENING_HOUR, currentDate.getHours() + 1) : OPENING_HOUR;
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
     let allEvents: any[] = [];
 
     // Check calendar cache
-    const calendarCacheKey = getCacheKey.calendar(format(selectedDate, 'yyyy-MM-dd'));
+    const calendarCacheKey = getCacheKey.calendar(format(selectedDate, 'yyyy-MM-dd', { timeZone: TIMEZONE }));
     const cachedEvents = calendarCache.get<any[]>(calendarCacheKey);
 
     if (cachedEvents) {
@@ -73,18 +75,18 @@ export async function POST(request: Request) {
       updateCalendarCache().catch(console.error);
       
       // Meanwhile, fetch the data directly for this request
-      const startOfDay = setSeconds(setMinutes(setHours(selectedDate, 0), 0), 0);
-      const endOfDay = setSeconds(setMinutes(setHours(selectedDate, 23), 59), 59);
+      const startOfDay = zonedTimeToUtc(setSeconds(setMinutes(setHours(selectedDate, 0), 0), 0), TIMEZONE);
+      const endOfDay = zonedTimeToUtc(setSeconds(setMinutes(setHours(selectedDate, 23), 59), 59), TIMEZONE);
       
       const bayEvents = await Promise.all(
         Object.values(AVAILABILITY_CALENDARS).map(calendarId =>
           calendar.events.list({
             calendarId,
-            timeMin: format(startOfDay, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-            timeMax: format(endOfDay, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+            timeMin: format(startOfDay, "yyyy-MM-dd'T'HH:mm:ssxxx", { timeZone: TIMEZONE }),
+            timeMax: format(endOfDay, "yyyy-MM-dd'T'HH:mm:ssxxx", { timeZone: TIMEZONE }),
             singleEvents: true,
             orderBy: 'startTime',
-            timeZone: 'Asia/Bangkok',
+            timeZone: TIMEZONE,
           })
         )
       );
@@ -101,8 +103,8 @@ export async function POST(request: Request) {
     const slots = [];
     for (let hour = startHour; hour <= CLOSING_HOUR - 1; hour++) {
       // Create the slot start time for the current hour
-      const slotStart = setSeconds(setMinutes(setHours(selectedDate, hour), 0), 0);
-      const timeStr = format(slotStart, 'HH:mm');
+      const slotStart = zonedTimeToUtc(setSeconds(setMinutes(setHours(selectedDate, hour), 0), 0), TIMEZONE);
+      const timeStr = format(slotStart, 'HH:mm', { timeZone: TIMEZONE });
 
       // Calculate maximum available hours
       const hoursUntilClose = CLOSING_HOUR - hour;
@@ -116,8 +118,8 @@ export async function POST(request: Request) {
 
         // Check if the slot start time conflicts with any events in this bay
         return !bayEvents.some(event => {
-          const eventStart = new Date(event.start?.dateTime || '');
-          const eventEnd = new Date(event.end?.dateTime || '');
+          const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
+          const eventEnd = utcToZonedTime(new Date(event.end?.dateTime || ''), TIMEZONE);
 
           // Only check if the start time falls within an event
           return slotStart >= eventStart && slotStart < eventEnd;
@@ -134,12 +136,12 @@ export async function POST(request: Request) {
 
           // Find the next event in this bay
           const nextEvent = bayEvents.find(event => {
-            const eventStart = new Date(event.start?.dateTime || '');
+            const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
             return eventStart > slotStart;
           });
 
           if (nextEvent) {
-            const eventStart = new Date(nextEvent.start?.dateTime || '');
+            const eventStart = utcToZonedTime(new Date(nextEvent.start?.dateTime || ''), TIMEZONE);
             const hoursUntilEvent = Math.floor((eventStart.getTime() - slotStart.getTime()) / (1000 * 60 * 60));
             return Math.min(maxAvailableHours, hoursUntilEvent);
           }
@@ -154,7 +156,7 @@ export async function POST(request: Request) {
         if (actualMaxHours >= 1) {
           slots.push({
             startTime: timeStr,
-            endTime: format(addHours(slotStart, actualMaxHours), 'HH:mm'),
+            endTime: format(addHours(slotStart, actualMaxHours), 'HH:mm', { timeZone: TIMEZONE }),
             maxHours: actualMaxHours,
             period: getTimePeriod(hour)
           });
