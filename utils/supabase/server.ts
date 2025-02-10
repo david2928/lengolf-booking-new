@@ -6,7 +6,7 @@ import { CookieOptions } from '@supabase/ssr'
 
 export async function createClient() {
   const cookieStore = await cookies()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://lengolf-booking-new-ej6pn7llcq-as.a.run.app'
 
   debug.log('📌 Creating Supabase client with app URL:', appUrl)
 

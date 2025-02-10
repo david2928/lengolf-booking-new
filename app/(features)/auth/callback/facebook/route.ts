@@ -5,6 +5,7 @@ import { debug } from '@/lib/debug'
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
   
   debug.log('🔄 Processing Facebook OAuth callback with code:', code)
 
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     
     if (error) {
       debug.error('❌ Error exchanging code for session:', error.message)
-      return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=facebook_login_failed`)
+      return NextResponse.redirect(`${appUrl}/auth/login?error=facebook_login_failed`)
     }
 
     // Update profile
@@ -36,10 +37,19 @@ export async function GET(request: Request) {
       }
     }
 
+    // Create response with redirect
+    const response = NextResponse.redirect(`${appUrl}/bookings`)
+
+    // Set auth cookie
+    const authCookie = request.headers.get('cookie')
+    if (authCookie) {
+      response.headers.set('set-cookie', authCookie)
+    }
+
     debug.log('✅ Successfully authenticated with Facebook')
-    return NextResponse.redirect(`${requestUrl.origin}/bookings`)
+    return response
   }
 
   debug.error('❌ No code provided in Facebook callback')
-  return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=no_code`)
+  return NextResponse.redirect(`${appUrl}/auth/login?error=no_code`)
 } 

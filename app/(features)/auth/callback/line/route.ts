@@ -13,7 +13,7 @@ async function getLineUserProfile(accessToken: string) {
   return data;
 }
 
-async function getLineAccessToken(code: string) {
+async function getLineAccessToken(code: string, redirectUri: string) {
   const response = await fetch('https://api.line.me/oauth2/v2.1/token', {
     method: 'POST',
     headers: {
@@ -22,7 +22,7 @@ async function getLineAccessToken(code: string) {
     body: new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: process.env.NEXT_PUBLIC_LINE_REDIRECT_URI!,
+      redirect_uri: redirectUri,
       client_id: process.env.NEXT_PUBLIC_LINE_CLIENT_ID!,
       client_secret: process.env.LINE_CLIENT_SECRET!,
     }),
@@ -38,6 +38,7 @@ export async function GET(request: Request) {
   const state = requestUrl.searchParams.get('state');
   const error = requestUrl.searchParams.get('error');
   const cookieStore = request.headers.get('cookie');
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://lengolf-booking-new-ej6pn7llcq-as.a.run.app';
 
   // Get the stored state from cookies
   const storedState = cookieStore?.split(';')
@@ -46,17 +47,18 @@ export async function GET(request: Request) {
 
   if (error) {
     debug.error('LINE auth error:', error);
-    return NextResponse.redirect(new URL('/auth/login?error=line_login_failed', requestUrl));
+    return NextResponse.redirect(`${appUrl}/auth/login?error=line_login_failed`);
   }
 
   if (!code || !state || !storedState || state !== storedState) {
     debug.error('State validation failed:', { state, storedState });
-    return NextResponse.redirect(new URL('/auth/login?error=invalid_state', requestUrl));
+    return NextResponse.redirect(`${appUrl}/auth/login?error=invalid_state`);
   }
 
   try {
     debug.log('Exchanging code for token...');
-    const tokenData = await getLineAccessToken(code);
+    const redirectUri = process.env.NEXT_PUBLIC_LINE_REDIRECT_URI || `${appUrl}/auth/callback/line`;
+    const tokenData = await getLineAccessToken(code, redirectUri);
     if (!tokenData.access_token) {
       throw new Error('Failed to get access token');
     }
@@ -89,28 +91,17 @@ export async function GET(request: Request) {
             provider: 'line',
             line_id: profile.userId
           },
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback/line`
+          emailRedirectTo: `${appUrl}/auth/callback/line`
         }
       });
 
       if (signUpError) {
-        debug.error('Failed to create LINE user:', {
-          error: signUpError,
-          status: signUpError.status,
-          code: signUpError.code,
-          message: signUpError.message
-        });
+        debug.error('Failed to create LINE user:', signUpError);
         throw signUpError;
       }
 
       // Update profile for new user
       if (signUpData?.user) {
-        debug.log('Created new user:', {
-          id: signUpData.user.id,
-          email: signUpData.user.email,
-          metadata: signUpData.user.user_metadata
-        });
-
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
@@ -124,21 +115,10 @@ export async function GET(request: Request) {
           });
 
         if (profileError) {
-          debug.error('Failed to create profile:', {
-            error: profileError,
-            status: profileError.code,
-            message: profileError.message,
-            details: profileError.details,
-            hint: profileError.hint
-          });
-        } else {
-          debug.log('Created new profile for LINE user');
+          debug.error('Failed to create profile:', profileError);
         }
       }
-    } else if (signInError) {
-      debug.error('Unexpected sign in error:', signInError);
-      throw signInError;
-    } else if (signInData.user) {
+    } else if (signInData?.user) {
       // Update existing user's profile
       const { error: profileError } = await supabase
         .from('profiles')
@@ -158,9 +138,9 @@ export async function GET(request: Request) {
     }
 
     debug.log('LINE authentication successful');
-    return NextResponse.redirect(new URL('/bookings', requestUrl));
+    return NextResponse.redirect(`${appUrl}/bookings`);
   } catch (error) {
     debug.error('LINE login error:', error);
-    return NextResponse.redirect(new URL('/auth/login?error=line_login_failed', requestUrl));
+    return NextResponse.redirect(`${appUrl}/auth/login?error=line_login_failed`);
   }
 } 
