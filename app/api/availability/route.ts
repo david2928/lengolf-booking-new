@@ -135,9 +135,12 @@ export async function POST(request: Request) {
         debug.log(`Checking bay ${bay} for hour ${timeStr}:`, {
           events: bayEvents.length,
           conflicts: bayEvents.some(event => {
-            const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
-            const eventEnd = utcToZonedTime(new Date(event.end?.dateTime || ''), TIMEZONE);
-            const hasConflict = slotStart >= eventStart && slotStart < eventEnd;
+            const eventStart = new Date(event.start?.dateTime || '');
+            const eventEnd = new Date(event.end?.dateTime || '');
+            const slotStartTime = slotStart.getTime();
+            const eventStartTime = eventStart.getTime();
+            const eventEndTime = eventEnd.getTime();
+            const hasConflict = slotStartTime >= eventStartTime && slotStartTime < eventEndTime;
             if (hasConflict) {
               debug.log(`Found conflict with event:`, {
                 start: formatInTimeZone(eventStart, TIMEZONE, 'HH:mm'),
@@ -150,9 +153,12 @@ export async function POST(request: Request) {
 
         // Check if the slot start time conflicts with any events in this bay
         return !bayEvents.some(event => {
-          const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
-          const eventEnd = utcToZonedTime(new Date(event.end?.dateTime || ''), TIMEZONE);
-          return slotStart >= eventStart && slotStart < eventEnd;
+          const eventStart = new Date(event.start?.dateTime || '');
+          const eventEnd = new Date(event.end?.dateTime || '');
+          const slotStartTime = slotStart.getTime();
+          const eventStartTime = eventStart.getTime();
+          const eventEndTime = eventEnd.getTime();
+          return slotStartTime >= eventStartTime && slotStartTime < eventEndTime;
         });
       });
 
@@ -166,12 +172,12 @@ export async function POST(request: Request) {
 
           // Find the next event in this bay
           const nextEvent = bayEvents.find(event => {
-            const eventStart = utcToZonedTime(new Date(event.start?.dateTime || ''), TIMEZONE);
+            const eventStart = new Date(event.start?.dateTime || '');
             return eventStart > slotStart;
           });
 
           if (nextEvent) {
-            const eventStart = utcToZonedTime(new Date(nextEvent.start?.dateTime || ''), TIMEZONE);
+            const eventStart = new Date(nextEvent.start?.dateTime || '');
             const hoursUntilEvent = Math.floor((eventStart.getTime() - slotStart.getTime()) / (1000 * 60 * 60));
             return Math.min(maxAvailableHours, hoursUntilEvent);
           }
