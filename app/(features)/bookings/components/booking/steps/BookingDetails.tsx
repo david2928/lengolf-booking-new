@@ -17,7 +17,7 @@ interface Profile {
 }
 
 interface BookingDetailsProps {
-  user: User;
+  user?: User;
   selectedDate: Date;
   selectedTime: string;
   maxDuration: number;
@@ -50,31 +50,54 @@ export function BookingDetails({
   useEffect(() => {
     const fetchProfile = async () => {
       const supabase = createClient();
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('name, email, phone_number, display_name')
-        .eq('id', user.id)
-        .single();
+      const isGuest = localStorage.getItem('guest_session') === 'true';
 
-      if (error) {
-        console.error('Error fetching profile:', error);
+      if (isGuest) {
+        // Get guest info from localStorage
+        const guestName = localStorage.getItem('guest_name') || '';
+        const guestEmail = localStorage.getItem('guest_email') || '';
+        const guestPhone = localStorage.getItem('guest_phone') || '';
+
+        setProfile({
+          name: guestName,
+          email: guestEmail,
+          phone_number: guestPhone,
+          display_name: guestName
+        });
+        setPhoneNumber(guestPhone);
+        setName(guestName);
+        setEmail(guestEmail);
         return;
       }
 
-      if (profile) {
-        setProfile(profile);
-        setPhoneNumber(profile.phone_number || '');
-        setName(profile.name || profile.display_name || '');
-        if (user.email?.endsWith('@line.user')) {
-          setEmail(profile.email || '');
-        } else {
-          setEmail(profile.email || user.email || '');
+      // Only fetch profile if user exists
+      if (user?.id) {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('name, email, phone_number, display_name')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          return;
+        }
+
+        if (profile) {
+          setProfile(profile);
+          setPhoneNumber(profile.phone_number || '');
+          setName(profile.name || profile.display_name || '');
+          if (user.email?.endsWith('@line.user')) {
+            setEmail(profile.email || '');
+          } else {
+            setEmail(profile.email || user.email || '');
+          }
         }
       }
     };
 
     fetchProfile();
-  }, [user.id, user.email]);
+  }, [user?.id, user?.email]);
 
   const validatePhoneNumber = (phone: string) => {
     // Remove all non-digit characters
@@ -113,29 +136,37 @@ export function BookingDetails({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
     setIsSubmitting(true);
 
     try {
       const supabase = createClient();
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !session) {
-        router.push('/auth/login');
-        return;
-      }
+      const isGuest = localStorage.getItem('guest_session') === 'true';
 
-      // Update profile with new email and phone number
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
-          email: email === user.email ? null : email, // Only store if different from auth email
-          phone_number: phoneNumber,
-          name,
-          updated_at: new Date().toISOString()
-        });
+      // For regular users, verify session and update profile
+      if (!isGuest && user?.id) {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+          router.push('/auth/login');
+          return;
+        }
 
-      if (profileError) {
-        console.error('Failed to update profile:', profileError);
+        // Update profile with new email and phone number
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: user.id,
+            email: email === user.email ? null : email,
+            phone_number: phoneNumber,
+            name,
+            updated_at: new Date().toISOString()
+          });
+
+        if (profileError) {
+          console.error('Failed to update profile:', profileError);
+        }
       }
 
       // Generate a unique booking ID
@@ -147,7 +178,7 @@ export function BookingDetails({
         .insert([
           {
             id: bookingId,
-            user_id: user?.id,
+            user_id: isGuest ? 'ebc493c4-e094-4c4f-907b-67a3a64bd3a8' : user?.id,
             name,
             email,
             phone_number: phoneNumber.replace(/[- ]/g, ''),
@@ -156,13 +187,25 @@ export function BookingDetails({
             duration,
             number_of_people: numberOfPeople,
             status: 'confirmed',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           },
         ])
         .select()
         .single();
 
-      if (bookingError || !booking) {
-        throw bookingError || new Error('Failed to create booking');
+      if (bookingError) {
+        console.error('Booking error details:', bookingError);
+        const errorMessage = bookingError.message || 'Failed to create booking. Please try again.';
+        toast.error(errorMessage);
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!booking) {
+        toast.error('No booking data returned. Please try again.');
+        setIsSubmitting(false);
+        return;
       }
 
       // Create calendar entry
@@ -434,7 +477,7 @@ export function BookingDetails({
                       ? 'border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
                       : 'border border-green-500'
                   }`}
-                  placeholder={user.email?.endsWith('@line.user') ? "Enter your email address" : "your@email.com"}
+                  placeholder={user?.email?.endsWith('@line.user') ? "Enter your email address" : "your@email.com"}
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">
