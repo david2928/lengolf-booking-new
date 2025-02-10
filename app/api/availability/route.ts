@@ -135,7 +135,7 @@ export async function POST(request: Request) {
         slotStartTime: formatInTimeZone(slotStart, TIMEZONE, 'HH:mm:ssXXX'),
         currentTime: formatInTimeZone(currentDate, TIMEZONE, 'HH:mm:ssXXX'),
         isToday,
-        isAfterCurrent: slotStart > currentDate
+        isAfterCurrent: slotStart.getTime() > currentDate.getTime()
       });
 
       // Calculate maximum available hours
