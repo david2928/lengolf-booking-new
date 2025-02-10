@@ -207,12 +207,31 @@ export async function POST(request: Request) {
         return !bayEvents.some(event => {
           const eventStart = toBangkokTime(event.start?.dateTime || '');
           const eventEnd = toBangkokTime(event.end?.dateTime || '');
+          const slotStartInZone = toBangkokTime(slotStart);
           
-          const hasDirectConflict = slotStart.getTime() >= eventStart.getTime() && 
-                                   slotStart.getTime() < eventEnd.getTime();
+          debug.log(`Checking conflict for bay ${bay} at ${formatBangkokTime(slotStartInZone, 'HH:mm')}:`, {
+            event: event.summary,
+            eventStart: formatBangkokTime(eventStart, 'HH:mm'),
+            eventEnd: formatBangkokTime(eventEnd, 'HH:mm'),
+            slotStart: formatBangkokTime(slotStartInZone, 'HH:mm')
+          });
           
-          const gapBeforeEvent = eventStart.getTime() - slotStart.getTime();
+          const hasDirectConflict = slotStartInZone.getTime() >= eventStart.getTime() && 
+                                  slotStartInZone.getTime() < eventEnd.getTime();
+          
+          const gapBeforeEvent = eventStart.getTime() - slotStartInZone.getTime();
           const hasSmallGap = gapBeforeEvent > 0 && gapBeforeEvent < 15 * 60 * 1000;
+          
+          if (hasDirectConflict || hasSmallGap) {
+            debug.log(`Found conflict for bay ${bay}:`, {
+              type: hasDirectConflict ? 'direct conflict' : 'small gap',
+              event: event.summary,
+              eventStart: formatBangkokTime(eventStart, 'HH:mm'),
+              eventEnd: formatBangkokTime(eventEnd, 'HH:mm'),
+              slotStart: formatBangkokTime(slotStartInZone, 'HH:mm'),
+              gapMinutes: hasSmallGap ? Math.floor(gapBeforeEvent / (60 * 1000)) : null
+            });
+          }
           
           return hasDirectConflict || hasSmallGap;
         });
@@ -231,12 +250,22 @@ export async function POST(request: Request) {
           // Find the next event in this bay
           const nextEvent = bayEvents.find(event => {
             const eventStart = toBangkokTime(event.start?.dateTime || '');
-            return eventStart.getTime() > slotStart.getTime();
+            const slotStartInZone = toBangkokTime(slotStart);
+            return eventStart.getTime() > slotStartInZone.getTime();
           });
 
           if (nextEvent) {
             const eventStart = toBangkokTime(nextEvent.start?.dateTime || '');
-            const hoursUntilEvent = Math.floor((eventStart.getTime() - slotStart.getTime()) / (1000 * 60 * 60));
+            const slotStartInZone = toBangkokTime(slotStart);
+            const hoursUntilEvent = Math.floor((eventStart.getTime() - slotStartInZone.getTime()) / (1000 * 60 * 60));
+            
+            debug.log(`Found next event for bay ${bay}:`, {
+              event: nextEvent.summary,
+              eventStart: formatBangkokTime(eventStart, 'HH:mm'),
+              slotStart: formatBangkokTime(slotStartInZone, 'HH:mm'),
+              hoursUntilEvent
+            });
+            
             return Math.min(maxAvailableHours, hoursUntilEvent);
           }
           
