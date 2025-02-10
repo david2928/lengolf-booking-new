@@ -47,10 +47,35 @@ jobs:
 
       - name: Build and Push Container
         env:
-          SERVICE_ACCOUNT_KEY_BASE64: '${{ secrets.GCP_SA_KEY }}'
+          SERVICE_ACCOUNT_KEY_BASE64: '${{ secrets.SERVICE_ACCOUNT_KEY_BASE64 }}'
         run: |-
           docker build \
-            --build-arg SERVICE_ACCOUNT_KEY_BASE64='${{ secrets.GCP_SA_KEY }}' \
+            --build-arg AVAILABILITY_CALENDAR_BAY1_ID='${{ secrets.AVAILABILITY_CALENDAR_BAY1_ID }}' \
+            --build-arg AVAILABILITY_CALENDAR_BAY2_ID='${{ secrets.AVAILABILITY_CALENDAR_BAY2_ID }}' \
+            --build-arg AVAILABILITY_CALENDAR_BAY3_ID='${{ secrets.AVAILABILITY_CALENDAR_BAY3_ID }}' \
+            --build-arg BOOKING_CALENDAR_BAY1_ID='${{ secrets.BOOKING_CALENDAR_BAY1_ID }}' \
+            --build-arg BOOKING_CALENDAR_BAY2_ID='${{ secrets.BOOKING_CALENDAR_BAY2_ID }}' \
+            --build-arg BOOKING_CALENDAR_BAY3_ID='${{ secrets.BOOKING_CALENDAR_BAY3_ID }}' \
+            --build-arg EMAIL_PASSWORD='${{ secrets.EMAIL_PASSWORD }}' \
+            --build-arg EMAIL_USER='${{ secrets.EMAIL_USER }}' \
+            --build-arg GCP_SA_KEY='${{ secrets.GCP_SA_KEY }}' \
+            --build-arg JWT_SECRET='${{ secrets.JWT_SECRET }}' \
+            --build-arg LINE_CLIENT_SECRET='${{ secrets.LINE_CLIENT_SECRET }}' \
+            --build-arg NEXT_PUBLIC_APP_URL='${{ secrets.NEXT_PUBLIC_APP_URL }}' \
+            --build-arg NEXT_PUBLIC_FACEBOOK_APP_ID='${{ secrets.NEXT_PUBLIC_FACEBOOK_APP_ID }}' \
+            --build-arg NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET='${{ secrets.NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET }}' \
+            --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID='${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}' \
+            --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_SECRET='${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}' \
+            --build-arg NEXT_PUBLIC_GUEST_PASSWORD='${{ secrets.NEXT_PUBLIC_GUEST_PASSWORD }}' \
+            --build-arg NEXT_PUBLIC_LINE_CLIENT_ID='${{ secrets.NEXT_PUBLIC_LINE_CLIENT_ID }}' \
+            --build-arg NEXT_PUBLIC_LINE_NOTIFY_TOKEN='${{ secrets.NEXT_PUBLIC_LINE_NOTIFY_TOKEN }}' \
+            --build-arg NEXT_PUBLIC_LINE_REDIRECT_URI='${{ secrets.NEXT_PUBLIC_LINE_REDIRECT_URI }}' \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY='${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}' \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL='${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}' \
+            --build-arg NODE_ENV='production' \
+            --build-arg SERVICE_ACCOUNT_KEY_BASE64='${{ secrets.SERVICE_ACCOUNT_KEY_BASE64 }}' \
+            --build-arg SUPABASE_DB_PW='${{ secrets.SUPABASE_DB_PW }}' \
+            --build-arg SUPABASE_SERVICE_ROLE_KEY='${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}' \
             -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
           docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
@@ -64,7 +89,31 @@ jobs:
           env_vars: |
             NODE_ENV=production
             PORT=8080
-            SERVICE_ACCOUNT_KEY_BASE64=${{ secrets.GCP_SA_KEY }}
+            AVAILABILITY_CALENDAR_BAY1_ID=${{ secrets.AVAILABILITY_CALENDAR_BAY1_ID }}
+            AVAILABILITY_CALENDAR_BAY2_ID=${{ secrets.AVAILABILITY_CALENDAR_BAY2_ID }}
+            AVAILABILITY_CALENDAR_BAY3_ID=${{ secrets.AVAILABILITY_CALENDAR_BAY3_ID }}
+            BOOKING_CALENDAR_BAY1_ID=${{ secrets.BOOKING_CALENDAR_BAY1_ID }}
+            BOOKING_CALENDAR_BAY2_ID=${{ secrets.BOOKING_CALENDAR_BAY2_ID }}
+            BOOKING_CALENDAR_BAY3_ID=${{ secrets.BOOKING_CALENDAR_BAY3_ID }}
+            EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
+            EMAIL_USER=${{ secrets.EMAIL_USER }}
+            GCP_SA_KEY=${{ secrets.GCP_SA_KEY }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            LINE_CLIENT_SECRET=${{ secrets.LINE_CLIENT_SECRET }}
+            NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_FACEBOOK_APP_ID=${{ secrets.NEXT_PUBLIC_FACEBOOK_APP_ID }}
+            NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET=${{ secrets.NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}
+            NEXT_PUBLIC_GUEST_PASSWORD=${{ secrets.NEXT_PUBLIC_GUEST_PASSWORD }}
+            NEXT_PUBLIC_LINE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_LINE_CLIENT_ID }}
+            NEXT_PUBLIC_LINE_NOTIFY_TOKEN=${{ secrets.NEXT_PUBLIC_LINE_NOTIFY_TOKEN }}
+            NEXT_PUBLIC_LINE_REDIRECT_URI=${{ secrets.NEXT_PUBLIC_LINE_REDIRECT_URI }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            SERVICE_ACCOUNT_KEY_BASE64=${{ secrets.SERVICE_ACCOUNT_KEY_BASE64 }}
+            SUPABASE_DB_PW=${{ secrets.SUPABASE_DB_PW }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Show Output
         run: echo ${{ steps.deploy.outputs.url }} 
