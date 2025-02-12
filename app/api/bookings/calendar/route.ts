@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { calendar } from '@/lib/googleApiConfig';
 import { BOOKING_CALENDARS } from '@/lib/bookingCalendarConfig';
-import { format, addHours } from 'date-fns';
+import { format, addHours, parse } from 'date-fns';
+import { zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
 import { createClient } from '@/utils/supabase/server';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
+
+const TIMEZONE = 'Asia/Bangkok';
 
 async function findAvailableBay(startDateTime: Date, endDateTime: Date) {
   try {
@@ -11,10 +14,10 @@ async function findAvailableBay(startDateTime: Date, endDateTime: Date) {
       // Check if bay is available for the requested time slot
       const events = await calendar.events.list({
         calendarId,
-        timeMin: format(startDateTime, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-        timeMax: format(endDateTime, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+        timeMin: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+        timeMax: formatInTimeZone(endDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
         singleEvents: true,
-        timeZone: 'Asia/Bangkok',
+        timeZone: TIMEZONE,
       });
 
       // If no events during this time slot, bay is available
@@ -57,8 +60,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Format start and end times
-    const startDateTime = new Date(`${date}T${startTime}`);
+    // Format start and end times with proper timezone handling
+    const parsedDateTime = parse(`${date} ${startTime}`, 'yyyy-MM-dd HH:mm', new Date());
+    const startDateTime = zonedTimeToUtc(parsedDateTime, TIMEZONE);
     const endDateTime = addHours(startDateTime, duration);
 
     // Find an available bay
@@ -90,18 +94,18 @@ export async function POST(request: Request) {
     // Get the display name for the bay
     const bayDisplayName = BAY_DISPLAY_NAMES[availableBay] || availableBay;
 
-    // Create calendar event
+    // Create calendar event with proper timezone handling
     const event = {
       summary: `${user.user_metadata?.name || user.email} (${booking.phone_number}) (${booking.number_of_people}) - ${bayDisplayName}`,
       description: `Name: ${user.user_metadata?.name || user.email}\nEmail: ${user.email}\nPhone: ${booking.phone_number}\nPeople: ${booking.number_of_people}\nBooking ID: ${bookingId}`,
       colorId: BAY_COLORS[bayDisplayName],
       start: {
-        dateTime: format(startDateTime, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-        timeZone: 'Asia/Bangkok',
+        dateTime: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+        timeZone: TIMEZONE,
       },
       end: {
-        dateTime: format(endDateTime, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-        timeZone: 'Asia/Bangkok',
+        dateTime: formatInTimeZone(endDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+        timeZone: TIMEZONE,
       },
     };
 

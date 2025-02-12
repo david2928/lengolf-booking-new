@@ -13,7 +13,22 @@ export const metadata: Metadata = {
   title: "LENGOLF Booking System",
   description: "Book your golf bay at LENGOLF - The Mercury Ville @ BTS Chidlom",
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon.png',
+  },
+  openGraph: {
+    title: "Book Your Bay at LENGOLF - Bangkok's Premier Golf Simulator",
+    description: "Experience Bangkok's top-rated indoor golf simulator in the heart of the city! Located at Mercury Ville @ BTS Chidlom, LENGOLF offers state-of-the-art Korean simulators in a fun, relaxed environment. Perfect for all skill levels with great food & drinks. Book your bay now! 🏌️‍♂️✨",
+    url: 'https://booking.len.golf',
+    siteName: 'LENGOLF Booking',
+    images: [
+      {
+        url: 'https://booking.len.golf/images/lengolf.jpg',
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
   },
 };
 
