@@ -21,11 +21,13 @@ export default function GuestForm({ onClose }: GuestFormProps) {
     phone: '',
   });
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsSubmitting(true);
 
     try {
       const supabase = createClient();
@@ -70,6 +72,7 @@ export default function GuestForm({ onClose }: GuestFormProps) {
     } catch (err) {
       console.error('Guest login error:', err);
       setError('Failed to create guest session. Please try again.');
+      setIsSubmitting(false);
     }
   };
 
@@ -93,7 +96,8 @@ export default function GuestForm({ onClose }: GuestFormProps) {
               type="text"
               id="name"
               required
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+              disabled={isSubmitting}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
@@ -107,7 +111,8 @@ export default function GuestForm({ onClose }: GuestFormProps) {
               type="email"
               id="email"
               required
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+              disabled={isSubmitting}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
@@ -121,7 +126,8 @@ export default function GuestForm({ onClose }: GuestFormProps) {
               type="tel"
               id="phone"
               required
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+              disabled={isSubmitting}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             />
@@ -131,15 +137,24 @@ export default function GuestForm({ onClose }: GuestFormProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-md"
+              disabled={isSubmitting}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+              disabled={isSubmitting}
+              className="relative px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-90 disabled:cursor-not-allowed min-w-[100px]"
             >
-              Continue
+              {isSubmitting ? (
+                <div className="flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                'Continue'
+              )}
             </button>
           </div>
         </form>
