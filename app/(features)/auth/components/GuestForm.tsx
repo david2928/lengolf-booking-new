@@ -1,17 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
+import { signIn } from 'next-auth/react';
+
+interface GuestFormProps {
+  onClose: () => void;
+}
 
 interface GuestFormData {
   name: string;
   email: string;
   phone: string;
-}
-
-interface GuestFormProps {
-  onClose: () => void;
 }
 
 export default function GuestForm({ onClose }: GuestFormProps) {
@@ -22,7 +21,6 @@ export default function GuestForm({ onClose }: GuestFormProps) {
   });
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,45 +28,20 @@ export default function GuestForm({ onClose }: GuestFormProps) {
     setIsSubmitting(true);
 
     try {
-      const supabase = createClient();
-      
-      // Sign in with the shared guest account
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: 'guest@lengolf.com',
-        password: process.env.NEXT_PUBLIC_GUEST_PASSWORD!
+      const result = await signIn('guest', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        redirect: false
       });
 
-      if (signInError) {
-        throw signInError;
+      if (result?.error) {
+        setError('Failed to create guest session. Please try again.');
+        setIsSubmitting(false);
+        return;
       }
 
-      // Store guest information in guest_profiles
-      const { error: profileError } = await supabase
-        .from('guest_profiles')
-        .insert({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          created_at: new Date().toISOString()
-        });
-
-      if (profileError) {
-        console.error('Failed to create guest profile:', profileError);
-        throw new Error('Failed to create guest profile');
-      }
-
-      // Store guest information in localStorage for booking
-      localStorage.setItem('guest_name', formData.name);
-      localStorage.setItem('guest_email', formData.email);
-      localStorage.setItem('guest_phone', formData.phone);
-      localStorage.setItem('guest_session', 'true');
-      localStorage.setItem('guest_login_time', Date.now().toString());
-
-      // Set cookie to identify guest session
-      document.cookie = 'guest_session=true; path=/; max-age=86400; samesite=lax';
-
-      router.push('/bookings');
-      onClose();
+      window.location.href = '/bookings';
     } catch (err) {
       console.error('Guest login error:', err);
       setError('Failed to create guest session. Please try again.');

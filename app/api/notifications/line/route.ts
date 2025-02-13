@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { getToken } from 'next-auth/jwt';
+import type { NextRequest } from 'next/server';
 
 interface BookingNotification {
   customerName: string;
@@ -13,13 +14,11 @@ interface BookingNotification {
   numberOfPeople: number;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // Verify user authentication
-    const supabase = await createClient();
-    const { data: { user }, error: sessionError } = await supabase.auth.getUser();
-    
-    if (sessionError || !user) {
+    const token = await getToken({ req: request as any });
+    if (!token) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

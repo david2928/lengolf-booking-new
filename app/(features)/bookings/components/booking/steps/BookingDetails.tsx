@@ -8,6 +8,10 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import { sendBookingNotification } from '@/lib/lineNotifyService';
+import { useSession } from 'next-auth/react';
+import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
+import { Session } from 'next-auth';
 
 interface Profile {
   name: string;
@@ -16,8 +20,18 @@ interface Profile {
   display_name: string;
 }
 
+interface ExtendedSession extends Session {
+  user: {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    provider?: string;
+    phone?: string | null;
+  }
+}
+
 interface BookingDetailsProps {
-  user?: User;
   selectedDate: Date;
   selectedTime: string;
   maxDuration: number;
@@ -25,13 +39,13 @@ interface BookingDetailsProps {
 }
 
 export function BookingDetails({
-  user,
   selectedDate,
   selectedTime,
   maxDuration,
   onBack,
 }: BookingDetailsProps) {
   const router = useRouter();
+  const { data: session } = useSession() as { data: ExtendedSession | null };
   const [duration, setDuration] = useState<number>(1);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -49,33 +63,15 @@ export function BookingDetails({
 
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!session?.user?.id) return;
+
       const supabase = createClient();
-      const isGuest = localStorage.getItem('guest_session') === 'true';
 
-      if (isGuest) {
-        // Get guest info from localStorage
-        const guestName = localStorage.getItem('guest_name') || '';
-        const guestEmail = localStorage.getItem('guest_email') || '';
-        const guestPhone = localStorage.getItem('guest_phone') || '';
-
-        setProfile({
-          name: guestName,
-          email: guestEmail,
-          phone_number: guestPhone,
-          display_name: guestName
-        });
-        setPhoneNumber(guestPhone);
-        setName(guestName);
-        setEmail(guestEmail);
-        return;
-      }
-
-      // Only fetch profile if user exists
-      if (user?.id) {
+      try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('name, email, phone_number, display_name')
-          .eq('id', user.id)
+          .select('*')
+          .eq('id', session.user.id)
           .single();
 
         if (error) {
@@ -83,174 +79,171 @@ export function BookingDetails({
           return;
         }
 
-        if (profile) {
-          setProfile(profile);
-          setPhoneNumber(profile.phone_number || '');
-          setName(profile.name || profile.display_name || '');
-          if (user.email?.endsWith('@line.user')) {
-            setEmail(profile.email || '');
-          } else {
-            setEmail(profile.email || user.email || '');
-          }
-        }
+        setProfile(profile);
+        setPhoneNumber(profile?.phone_number || session?.user?.phone || '');
+        setName(profile?.display_name || session?.user?.name || '');
+        setEmail(profile?.email || session?.user?.email || '');
+      } catch (error) {
+        console.error('Error in fetchProfile:', error);
       }
     };
 
     fetchProfile();
-  }, [user?.id, user?.email]);
+  }, [session?.user]);
 
   const validatePhoneNumber = (phone: string) => {
-    // Remove all non-digit characters
-    const cleanPhone = phone.replace(/\D/g, '');
-    // Check if it's a Thai number (starts with 0, 10 digits)
-    const thaiRegex = /^0\d{9}$/;
-    // Check if it's an international number (minimum 10 digits)
-    const internationalRegex = /^\d{10,15}$/;
-    
-    return thaiRegex.test(cleanPhone) || internationalRegex.test(cleanPhone);
+    // Allow international format with + prefix and 10-15 digits
+    const phoneRegex = /^\+?[0-9]{10,15}$/;
+    return phoneRegex.test(phone);
   };
 
   const validateForm = () => {
-    const cleanPhone = phoneNumber.replace(/[- ]/g, '');
-    const newErrors = {
-      duration: duration === 0 ? 'Please select duration' : '',
-      phoneNumber: !phoneNumber 
-        ? 'Please enter phone number' 
-        : !validatePhoneNumber(cleanPhone)
-        ? 'Please enter a valid Thai phone number'
-        : '',
-      email: !email ? 'Please enter email' : '',
-      name: !name ? 'Please enter your name' : '',
-    };
-    setErrors(newErrors);
-    return !Object.values(newErrors).some(error => error !== '');
+    if (!name || !phoneNumber || !email) {
+      toast.error('Please fill in all required fields');
+      return false;
+    }
+
+    if (!validatePhoneNumber(phoneNumber)) {
+      toast.error('Please enter a valid phone number');
+      return false;
+    }
+
+    return true;
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Allow digits, spaces, dashes, plus sign, and parentheses
-    if (/^[0-9+\- ()]*$/.test(value)) {
+    const value = e.target.value.replace(/[^\d+]/g, '');
+    // Allow + only at the start
+    if (value === '+' || (value.startsWith('+') && value.length <= 16)) {
+      setPhoneNumber(value);
+    } else if (!value.includes('+') && value.length <= 15) {
       setPhoneNumber(value);
     }
   };
 
+  const generateBookingId = () => {
+    const timestamp = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const randomNum = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `BK${timestamp}${randomNum}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) {
-      return;
-    }
     setIsSubmitting(true);
 
     try {
-      const supabase = createClient();
-      const isGuest = localStorage.getItem('guest_session') === 'true';
-
-      // For regular users, verify session and update profile
-      if (!isGuest && user?.id) {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !session) {
-          router.push('/auth/login');
-          return;
-        }
-
-        // Update profile with new email and phone number
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: user.id,
-            email: email === user.email ? null : email,
-            phone_number: phoneNumber,
-            name,
-            updated_at: new Date().toISOString()
-          });
-
-        if (profileError) {
-          console.error('Failed to update profile:', profileError);
-        }
+      if (!validateForm()) {
+        setIsSubmitting(false);
+        return;
       }
 
-      // Generate a unique booking ID
-      const bookingId = `BK${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      const bookingId = generateBookingId();
+      const supabase = createClient();
+      
+      if (!session?.user?.id) {
+        toast.error('Session expired. Please login again.');
+        return;
+      }
 
-      // Create the booking
+      // Get profile using id
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError || !profile?.id) {
+        console.error('Error getting profile:', profileError);
+        toast.error('Failed to get user profile. Please try again.');
+        return;
+      }
+
+      // Update profile with provided information
+      const updateData = {
+        phone_number: phoneNumber,
+        display_name: name,
+        email,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: updateProfileError } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', session.user.id);
+
+      if (updateProfileError) {
+        console.error('Error updating profile:', updateProfileError);
+      }
+
+      // Create booking record
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .insert([
-          {
-            id: bookingId,
-            user_id: isGuest ? 'ebc493c4-e094-4c4f-907b-67a3a64bd3a8' : user?.id,
-            name,
-            email,
-            phone_number: phoneNumber.replace(/[- ]/g, ''),
-            date: selectedDate.toISOString().split('T')[0],
-            start_time: selectedTime,
-            duration,
-            number_of_people: numberOfPeople,
-            status: 'confirmed',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-        ])
+        .insert({
+          id: bookingId,
+          user_id: profile.id,
+          date: format(selectedDate, 'yyyy-MM-dd'),
+          start_time: selectedTime,
+          duration,
+          number_of_people: numberOfPeople,
+          name,
+          email,
+          phone_number: phoneNumber,
+          status: 'confirmed'
+        })
         .select()
         .single();
 
-      if (bookingError) {
-        console.error('Booking error details:', bookingError);
-        const errorMessage = bookingError.message || 'Failed to create booking. Please try again.';
-        toast.error(errorMessage);
-        setIsSubmitting(false);
+      if (bookingError || !booking) {
+        console.error('Error creating booking:', bookingError);
+        toast.error('Failed to create booking. Please try again.');
         return;
       }
 
-      if (!booking) {
-        toast.error('No booking data returned. Please try again.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Create calendar entry
-      const calendarResponse = await fetch('/api/bookings/calendar', {
+      // Create calendar event
+      const response = await fetch('/api/bookings/calendar', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           bookingId: booking.id,
-          date: selectedDate.toISOString().split('T')[0],
+          date: format(selectedDate, 'yyyy-MM-dd'),
           startTime: selectedTime,
           duration,
         }),
       });
 
-      let calendarData;
-      if (!calendarResponse.ok) {
-        const errorData = await calendarResponse.json();
-        console.error('Failed to create calendar event:', errorData);
-        
-        setIsSubmitting(false);
-        
-        // Show specific error message based on the error type
+      if (!response.ok) {
+        const errorData = await response.json();
         if (errorData.error === 'No bays available for the selected time slot') {
+          // Delete the booking since no bay is available
+          const { error: deleteError } = await supabase
+            .from('bookings')
+            .delete()
+            .eq('id', booking.id);
+
+          if (deleteError) {
+            console.error('Error deleting booking:', deleteError);
+          }
+
           setShowNoAvailabilityModal(true);
           return;
-        } else {
-          toast.error('There was a problem creating your booking. Please try again.');
-          return;
         }
+        throw new Error(errorData.error || 'Failed to create calendar event');
       }
-      
-      calendarData = await calendarResponse.json();
-      
-      // Update the booking with the assigned bay
-      if (calendarData?.bay) {
-        const { error: updateError } = await supabase
-          .from('bookings')
-          .update({ bay: calendarData.bay })
-          .eq('id', booking.id);
 
-        if (updateError) {
-          console.error('Failed to update booking with bay:', updateError);
-        }
+      const { bay } = await response.json();
+
+      // Update booking with bay information
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ bay })
+        .eq('id', booking.id);
+
+      if (updateError) {
+        console.error('Error updating booking:', updateError);
+        toast.error('Failed to update booking. Please try again.');
+        return;
       }
 
       // Send LINE notification
@@ -263,11 +256,11 @@ export function BookingDetails({
         await sendBookingNotification({
           customerName: name,
           email,
-          phoneNumber: phoneNumber.replace(/[- ]/g, ''),
+          phoneNumber,
           bookingDate: format(selectedDate, 'yyyy-MM-dd'),
           bookingStartTime: selectedTime,
           bookingEndTime: endTime,
-          bayNumber: calendarData?.bay || 'Not assigned',
+          bayNumber: bay || 'Not assigned',
           duration,
           numberOfPeople,
         });
@@ -307,11 +300,12 @@ export function BookingDetails({
         // Continue with redirect even if email fails
       }
 
-      // Redirect to confirmation page
+      toast.success('Booking confirmed!');
       router.push(`/bookings/confirmation?id=${booking.id}`);
     } catch (error) {
-      console.error('Error creating booking:', error);
+      console.error('Error creating booking:', error instanceof Error ? error.message : error);
       toast.error('Failed to create booking. Please try again.');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -319,6 +313,8 @@ export function BookingDetails({
   const formatDate = (date: Date) => {
     return format(date, 'EEE, d MMM yyyy');
   };
+
+  const isLineUser = session?.user?.provider === 'line';
 
   return (
     <div className="space-y-6">
@@ -369,8 +365,6 @@ export function BookingDetails({
                 className={`flex h-12 items-center justify-center rounded-lg border ${
                   duration === hours
                     ? 'border-green-600 bg-green-50 text-green-600 font-medium'
-                    : duration === 0
-                    ? 'border-red-100 text-gray-700 hover:border-green-600'
                     : 'border-gray-300 text-gray-700 hover:border-green-600'
                 }`}
               >
@@ -411,81 +405,52 @@ export function BookingDetails({
           <h3 className="text-sm font-semibold text-gray-900 mb-4">Contact Information</h3>
           
           <div className="space-y-4">
-            {/* Name */}
+            {/* Name field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Name
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
-                    !name
-                      ? 'border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
-                      : 'border border-green-500'
-                  }`}
-                  placeholder="Enter your name"
-                />
-              </div>
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-              )}
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
+                  !name ? 'border-red-100' : 'border-green-500'
+                } border focus:border-green-500 focus:ring-1 focus:ring-green-500`}
+                placeholder="Enter your name"
+              />
             </div>
 
-            {/* Phone Number */}
+            {/* Email field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number
+                Email
               </label>
-              <div className="relative">
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={handlePhoneChange}
-                  className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
-                    !phoneNumber
-                      ? 'border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
-                      : validatePhoneNumber(phoneNumber.replace(/\D/g, ''))
-                      ? 'border border-green-500'
-                      : 'border border-gray-200 focus:border-green-500 focus:ring-1 focus:ring-green-500'
-                  }`}
-                  placeholder="e.g., 0812345678"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Format: 0812345678 or +XX-XXX-XXXX (min. 10 digits)
-              </p>
-              {errors.phoneNumber && (
-                <p className="mt-1 text-sm text-red-600">{errors.phoneNumber}</p>
-              )}
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
+                  !email ? 'border-red-100' : 'border-green-500'
+                } border focus:border-green-500 focus:ring-1 focus:ring-green-500`}
+                placeholder="Enter your email"
+              />
             </div>
 
-            {/* Email */}
+            {/* Phone field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
+                Phone
               </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
-                    !email
-                      ? 'border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
-                      : 'border border-green-500'
-                  }`}
-                  placeholder={user?.email?.endsWith('@line.user') ? "Enter your email address" : "your@email.com"}
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Booking confirmation will be sent to this email
-              </p>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-              )}
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={handlePhoneChange}
+                className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
+                  !phoneNumber ? 'border-red-100' : 'border-green-500'
+                } border focus:border-green-500 focus:ring-1 focus:ring-green-500`}
+                placeholder="Enter your phone number"
+              />
             </div>
           </div>
         </div>
@@ -493,11 +458,18 @@ export function BookingDetails({
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitting || !duration || !phoneNumber || !validatePhoneNumber(phoneNumber.replace(/\D/g, '')) || !email || !name}
+          disabled={
+            isSubmitting || 
+            !duration || 
+            !phoneNumber || 
+            !validatePhoneNumber(phoneNumber) || 
+            !name ||
+            !email
+          }
           className={`relative w-full h-12 rounded-lg font-semibold transition-all ${
             isSubmitting
               ? 'bg-green-600 text-transparent'
-              : duration && phoneNumber && validatePhoneNumber(phoneNumber.replace(/\D/g, '')) && email && name
+              : duration && phoneNumber && validatePhoneNumber(phoneNumber) && name && email
               ? 'bg-green-600 hover:bg-green-700 text-white'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
@@ -545,4 +517,4 @@ export function BookingDetails({
       )}
     </div>
   );
-} 
+}

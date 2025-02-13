@@ -1,46 +1,22 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { Database } from '@/types/supabase'
-import { debug } from '@/lib/debug'
-import { CookieOptions } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
-export async function createClient() {
-  const cookieStore = await cookies()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://lengolf-booking-new-ej6pn7llcq-as.a.run.app'
+let supabaseServerClient: ReturnType<typeof createClient<Database>> | null = null;
 
-  debug.log('📌 Creating Supabase client with app URL:', appUrl)
+export function createServerClient() {
+  if (supabaseServerClient) {
+    return supabaseServerClient;
+  }
 
-  return createServerClient<Database>(
+  supabaseServerClient = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch (error) {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-      },
       auth: {
-        flowType: 'pkce',
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        persistSession: true,
-      },
-      global: {
-        headers: {
-          'x-site-url': appUrl,
-        },
-      },
+        persistSession: false // We don't need auth persistence
+      }
     }
-  )
+  );
+
+  return supabaseServerClient;
 } 

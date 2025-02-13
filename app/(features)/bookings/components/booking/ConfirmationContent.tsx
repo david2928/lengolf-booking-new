@@ -1,10 +1,32 @@
 'use client';
 
 import { format } from 'date-fns';
-import { CheckCircleIcon, CalendarIcon, ClockIcon, UserGroupIcon, UserIcon, PhoneIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
-import { PageTransition } from '@/components/shared/PageTransition';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Booking } from '@/types';
+import { 
+  CheckCircleIcon, 
+  CalendarIcon, 
+  ClockIcon, 
+  UserGroupIcon, 
+  UserIcon, 
+  PhoneIcon, 
+  EnvelopeIcon 
+} from '@heroicons/react/24/outline';
+
+// Dynamically import PageTransition with loading fallback
+const PageTransition = dynamic(
+  () => import('@/components/shared/PageTransition').then(mod => mod.PageTransition),
+  {
+    loading: () => (
+      <div className="animate-pulse">
+        <div className="h-8 bg-gray-200 rounded w-1/3 mx-auto mb-4"></div>
+        <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto"></div>
+      </div>
+    ),
+    ssr: false
+  }
+);
 
 interface ConfirmationContentProps {
   booking: Booking;

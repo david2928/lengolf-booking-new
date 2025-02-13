@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { format, parse, addHours, startOfDay, endOfDay } from 'date-fns';
 import { zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
 import { calendar, AVAILABILITY_CALENDARS } from '@/lib/googleApiConfig';
-import { createClient } from '@/utils/supabase/server';
+import { getToken } from 'next-auth/jwt';
+import type { NextRequest } from 'next/server';
 import { performance } from 'perf_hooks';
 import { calendarCache, authCache, getCacheKey, updateCalendarCache } from '@/lib/cache';
 import { differenceInHours } from 'date-fns';
@@ -24,20 +25,19 @@ function formatBangkokTime(date: Date | string, fmt: string): string {
   return formatInTimeZone(new Date(date), TIMEZONE, fmt);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const startTime = performance.now();
   let authTime = 0, googleTime = 0, processingTime = 0;
   let cacheHit = { auth: false, calendar: false };
 
   try {
-    // 1. Authenticate via Supabase
+    // 1. Authenticate via NextAuth
     const authStart = performance.now();
-    const supabase = await createClient();
-    const { data: { user }, error: sessionError } = await supabase.auth.getUser();
-    if (sessionError || !user) {
+    const token = await getToken({ req: request as any });
+    if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const authCacheKey = getCacheKey.auth(user.id);
+    const authCacheKey = getCacheKey.auth(token.sub!);
     if (!authCache.get(authCacheKey)) {
       authCache.set(authCacheKey, true);
     } else {

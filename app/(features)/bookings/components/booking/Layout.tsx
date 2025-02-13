@@ -1,25 +1,45 @@
 'use client';
 
-import { ChevronDownIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, Bars3Icon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
-import Image from 'next/image';
 import { useState } from 'react';
-import { Menu } from '@headlessui/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
+import { ChevronDownIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, Bars3Icon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
+import { Menu } from '@headlessui/react';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export function Layout({ children }: LayoutProps) {
-  const [showBayRates, setShowBayRates] = useState(false);
   const router = useRouter();
+  const { data: session } = useSession();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showBayRates, setShowBayRates] = useState(false);
 
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/auth/login');
+  const handleSignOut = async () => {
+    setIsLoading(true);
+    try {
+      await signOut({ redirect: false });
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('Failed to sign out. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  if (session === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -57,7 +77,7 @@ export function Layout({ children }: LayoutProps) {
                 >
                   Home Page
                 </a>
-                <button onClick={handleLogout} className="text-white hover:text-gray-200">Logout</button>
+                <button onClick={handleSignOut} className="text-white hover:text-gray-200">Logout</button>
               </div>
               <div className="md:hidden">
                 <Menu as="div" className="relative">
@@ -83,7 +103,7 @@ export function Layout({ children }: LayoutProps) {
                     <Menu.Item>
                       {({ active }) => (
                         <button
-                          onClick={handleLogout}
+                          onClick={handleSignOut}
                           className={`${
                             active ? 'bg-gray-100' : ''
                           } block w-full text-left px-4 py-2 text-sm text-gray-700`}
@@ -186,6 +206,17 @@ export function Layout({ children }: LayoutProps) {
                   <EnvelopeIcon className="h-4 w-4 mr-2 text-[#005a32]" />
                   info@len.golf
                 </a>
+                <a 
+                  href="https://www.len.golf/privacy-policy/" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center hover:text-gray-800"
+                >
+                  <svg className="h-4 w-4 mr-2 text-[#005a32]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Privacy Policy
+                </a>
               </div>
             </div>
 
@@ -275,6 +306,15 @@ export function Layout({ children }: LayoutProps) {
               >
                 <i className="fas fa-envelope text-[#005a32] mr-2"></i>
                 info@len.golf
+              </a>
+              <a 
+                href="https://www.len.golf/privacy-policy/" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-gray-600"
+              >
+                <i className="fas fa-file-alt text-[#005a32] mr-2"></i>
+                Privacy Policy
               </a>
             </div>
 

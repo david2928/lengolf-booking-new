@@ -1,21 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { createClient } from '@/utils/supabase/client';
+import { useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { User } from '@supabase/supabase-js';
+import { format } from 'date-fns';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { Layout } from './components/booking/Layout';
+import { DateSelection } from './components/booking/steps/DateSelection';
 import { TimeSlots } from './components/booking/steps/TimeSlots';
 import { BookingDetails } from './components/booking/steps/BookingDetails';
-import { DateSelection } from './components/booking/steps/DateSelection';
-import { Layout } from './components/booking/Layout';
-import { PageTransition } from '@/components/shared/PageTransition';
 import { useBookingFlow } from './hooks/useBookingFlow';
 
 export default function BookingsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const { data: session, status } = useSession();
   const {
     currentStep,
     selectedDate,
@@ -27,20 +25,20 @@ export default function BookingsPage() {
   } = useBookingFlow();
 
   useEffect(() => {
-    const initAuth = async () => {
-      const supabase = createClient();
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error || !user) {
-        router.push('/auth/login');
-        return;
-      }
+    if (status === 'unauthenticated') {
+      router.push('/auth/login');
+    }
+  }, [status, router]);
 
-      setUser(user);
-    };
-
-    initAuth();
-  }, []);
+  if (status === 'loading') {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
 
   const renderContent = () => (
     <div className="min-h-[36rem]">
@@ -89,9 +87,8 @@ export default function BookingsPage() {
           />
         )}
 
-        {currentStep === 3 && selectedDate && selectedTime && user && (
+        {currentStep === 3 && selectedDate && selectedTime && (
           <BookingDetails
-            user={user}
             selectedDate={selectedDate}
             selectedTime={selectedTime}
             maxDuration={maxDuration}
@@ -104,11 +101,9 @@ export default function BookingsPage() {
 
   return (
     <Layout>
-      {user && (
-        <PageTransition>
-          {renderContent()}
-        </PageTransition>
-      )}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {renderContent()}
+      </div>
     </Layout>
   );
 } 

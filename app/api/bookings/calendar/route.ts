@@ -3,7 +3,9 @@ import { calendar } from '@/lib/googleApiConfig';
 import { BOOKING_CALENDARS } from '@/lib/bookingCalendarConfig';
 import { format, addHours, parse } from 'date-fns';
 import { zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
-import { createClient } from '@/utils/supabase/server';
+import { getToken } from 'next-auth/jwt';
+import type { NextRequest } from 'next/server';
+import { createServerClient } from '@/utils/supabase/server';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
 
 const TIMEZONE = 'Asia/Bangkok';
@@ -38,16 +40,29 @@ async function findAvailableBay(startDateTime: Date, endDateTime: Date) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // Create Supabase client and check session
-    const supabase = await createClient();
-    const { data: { user }, error: sessionError } = await supabase.auth.getUser();
-    
-    if (sessionError || !user) {
+    // Authenticate via NextAuth
+    const token = await getToken({ req: request as any });
+    if (!token) {
       return NextResponse.json(
-        { error: 'Unauthorized', details: sessionError?.message },
+        { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    // Get user profile from Supabase
+    const supabase = createServerClient();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', token.sub)
+      .single();
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'Profile not found' },
+        { status: 404 }
       );
     }
 
@@ -96,8 +111,8 @@ export async function POST(request: Request) {
 
     // Create calendar event with proper timezone handling
     const event = {
-      summary: `${user.user_metadata?.name || user.email} (${booking.phone_number}) (${booking.number_of_people}) - ${bayDisplayName}`,
-      description: `Name: ${user.user_metadata?.name || user.email}\nEmail: ${user.email}\nPhone: ${booking.phone_number}\nPeople: ${booking.number_of_people}\nBooking ID: ${bookingId}`,
+      summary: `${profile.display_name || profile.email} (${booking.phone_number}) (${booking.number_of_people}) - ${bayDisplayName}`,
+      description: `Name: ${profile.display_name || profile.email}\nEmail: ${profile.email}\nPhone: ${booking.phone_number}\nPeople: ${booking.number_of_people}\nBooking ID: ${bookingId}`,
       colorId: BAY_COLORS[bayDisplayName],
       start: {
         dateTime: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),

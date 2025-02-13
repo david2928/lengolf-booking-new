@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { getCurrentBangkokTime } from '@/utils/date';
 
 interface TimeSlot {
@@ -15,15 +15,13 @@ export function useAvailability() {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const router = useRouter();
+  const { data: session } = useSession();
 
   const fetchAvailability = async (selectedDate: Date) => {
     setIsLoadingSlots(true);
 
     try {
-      const supabase = createClient();
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
+      if (!session) {
         router.push('/auth/login');
         return;
       }
