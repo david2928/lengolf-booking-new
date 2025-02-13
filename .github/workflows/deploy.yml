@@ -33,6 +33,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build Next.js app
+        env:
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ env.APP_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ env.APP_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}
+          NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.NEXT_PUBLIC_FACEBOOK_APP_ID }}
+          NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET: ${{ secrets.NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET }}
+          NEXT_PUBLIC_LINE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_LINE_CLIENT_ID }}
+          LINE_CLIENT_SECRET: ${{ secrets.LINE_CLIENT_SECRET }}
+          NEXT_PUBLIC_LINE_REDIRECT_URI: ${{ secrets.NEXT_PUBLIC_LINE_REDIRECT_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          NEXT_PUBLIC_LINE_NOTIFY_TOKEN: ${{ secrets.NEXT_PUBLIC_LINE_NOTIFY_TOKEN }}
+          NEXT_PUBLIC_GUEST_PASSWORD: ${{ secrets.NEXT_PUBLIC_GUEST_PASSWORD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          AVAILABILITY_CALENDAR_BAY1_ID: ${{ secrets.AVAILABILITY_CALENDAR_BAY1_ID }}
+          AVAILABILITY_CALENDAR_BAY2_ID: ${{ secrets.AVAILABILITY_CALENDAR_BAY2_ID }}
+          AVAILABILITY_CALENDAR_BAY3_ID: ${{ secrets.AVAILABILITY_CALENDAR_BAY3_ID }}
+          BOOKING_CALENDAR_BAY1_ID: ${{ secrets.BOOKING_CALENDAR_BAY1_ID }}
+          BOOKING_CALENDAR_BAY2_ID: ${{ secrets.BOOKING_CALENDAR_BAY2_ID }}
+          BOOKING_CALENDAR_BAY3_ID: ${{ secrets.BOOKING_CALENDAR_BAY3_ID }}
+          SERVICE_ACCOUNT_KEY_BASE64: ${{ secrets.SERVICE_ACCOUNT_KEY_BASE64 }}
+          NODE_ENV: production
+        run: npm run build
+
       - name: Google Auth
         id: auth
         uses: google-github-actions/auth@v1
