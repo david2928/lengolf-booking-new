@@ -2,7 +2,14 @@
 
 import { useState } from 'react';
 import { format, addDays } from 'date-fns';
-import { CalendarIcon, ClockIcon, SunIcon, CloudIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
+import {
+  CalendarIcon,
+  ClockIcon,
+  SunIcon,
+  UserGroupIcon,
+  ShoppingBagIcon,
+} from '@heroicons/react/24/outline';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 
@@ -13,90 +20,178 @@ interface DateSelectionProps {
 export function DateSelection({ onDateSelect }: DateSelectionProps) {
   const today = new Date();
   const tomorrow = addDays(today, 1);
-  const dayAfterTomorrow = addDays(today, 2);
   const [showCalendar, setShowCalendar] = useState(false);
 
+  const formatDateLong = (date: Date) => format(date, 'do MMMM yyyy');
+
   return (
-    <>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {/* Today */}
+    <div className="max-w-6xl mx-auto p-4 space-y-8">
+      {/* Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Today Card */}
         <button
           onClick={() => onDateSelect(today)}
-          className="p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-green-500 hover:shadow-md transition-all"
+          className="bg-white border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all duration-300 text-left"
         >
-          <div className="text-center">
-            <div className="inline-block p-3 rounded-full bg-green-100 mb-3">
-              <ClockIcon className="h-6 w-6 text-green-800" />
+          <div className="flex items-start p-4">
+            <div className="bg-green-50 p-2 rounded-full shrink-0">
+              <ClockIcon className="h-5 w-5 text-green-600" />
             </div>
-            <div className="text-xl font-bold text-green-800">Today</div>
-            <div className="text-gray-600 mt-1">{format(today, 'dd MMM yyyy')}</div>
+            <div className="ml-3 leading-normal">
+              <div className="text-xl font-bold text-green-800">Today</div>
+              <div className="text-gray-600">{formatDateLong(today)}</div>
+            </div>
           </div>
         </button>
 
-        {/* Tomorrow */}
+        {/* Tomorrow Card */}
         <button
           onClick={() => onDateSelect(tomorrow)}
-          className="p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-green-500 hover:shadow-md transition-all"
+          className="bg-white border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all duration-300 text-left"
         >
-          <div className="text-center">
-            <div className="inline-block p-3 rounded-full bg-green-100 mb-3">
-              <SunIcon className="h-6 w-6 text-green-800" />
+          <div className="flex items-start p-4">
+            <div className="bg-green-50 p-2 rounded-full shrink-0">
+              <SunIcon className="h-5 w-5 text-green-600" />
             </div>
-            <div className="text-xl font-bold text-green-800">Tomorrow</div>
-            <div className="text-gray-600 mt-1">{format(tomorrow, 'dd MMM yyyy')}</div>
+            <div className="ml-3 leading-normal">
+              <div className="text-xl font-bold text-green-800">Tomorrow</div>
+              <div className="text-gray-600">{formatDateLong(tomorrow)}</div>
+            </div>
           </div>
         </button>
 
-        {/* Day after tomorrow */}
-        <button
-          onClick={() => onDateSelect(dayAfterTomorrow)}
-          className="p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-green-500 hover:shadow-md transition-all"
-        >
-          <div className="text-center">
-            <div className="inline-block p-3 rounded-full bg-green-100 mb-3">
-              <CloudIcon className="h-6 w-6 text-green-800" />
-            </div>
-            <div className="text-xl font-bold text-green-800">
-              {format(dayAfterTomorrow, 'EEEE')}
-            </div>
-            <div className="text-gray-600 mt-1">{format(dayAfterTomorrow, 'dd MMM yyyy')}</div>
-          </div>
-        </button>
-
-        {/* Custom date selector */}
+        {/* Custom Date Card */}
         <button
           onClick={() => setShowCalendar(true)}
-          className="p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-green-500 hover:shadow-md transition-all"
+          className="bg-white border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all duration-300 text-left"
         >
-          <div className="text-center">
-            <div className="inline-block p-3 rounded-full bg-green-100 mb-3">
-              <CalendarIcon className="h-6 w-6 text-green-800" />
+          <div className="flex items-start p-4">
+            <div className="bg-green-50 p-2 rounded-full shrink-0">
+              <CalendarIcon className="h-5 w-5 text-green-600" />
             </div>
-            <div className="text-xl font-bold text-green-800">Select Date</div>
-            <div className="text-gray-600 mt-1">Custom date</div>
+            <div className="ml-3 leading-normal">
+              <div className="text-xl font-bold text-green-800">Select Date</div>
+              <div className="text-gray-600">Choose another date</div>
+            </div>
           </div>
         </button>
       </div>
 
+      {/* Facility Information (hidden on mobile) */}
+      <div className="hidden lg:block bg-gray-50 border-2 border-gray-300 rounded-xl p-6">
+        <div className="grid grid-cols-5 gap-6">
+          <div className="col-span-3 space-y-5">
+            <h3 className="text-xl font-bold text-green-800 mb-6">Facility Information</h3>
+            
+            {/* Opening Hours Section */}
+            <div className="space-y-2">
+              <div className="flex items-start">
+                <div className="bg-green-50 p-1.5 rounded-full shrink-0">
+                  <ClockIcon className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="ml-3 text-gray-600 leading-normal">
+                  <p><span className="font-medium">Opening Hours:</span> 10:00 AM - 11:00 PM daily</p>
+                  <p className="text-sm text-gray-500">Peak Hours: 6:00 PM - 9:00 PM</p>
+                  <p className="text-sm text-gray-500">Last booking: 10:00 PM (1-hour session)</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bay Capacity Section */}
+            <div className="space-y-2">
+              <div className="flex items-start">
+                <div className="bg-green-50 p-1.5 rounded-full shrink-0">
+                  <UserGroupIcon className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="ml-3 text-gray-600 leading-normal">
+                  <p><span className="font-medium">Bay Capacity:</span> Up to 5 players per bay</p>
+                  <p className="text-sm text-gray-500">Perfect for groups, friends, and family</p>
+                  <p className="text-sm text-gray-500">Professional coaching available upon request</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Equipment Section */}
+            <div className="space-y-2">
+              <div className="flex items-start">
+                <div className="bg-green-50 p-1.5 rounded-full shrink-0">
+                  <ShoppingBagIcon className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="ml-3 text-gray-600 leading-normal">
+                  <p><span className="font-medium">Facilities & Equipment:</span></p>
+                  <ul className="mt-1 space-y-1">
+                    <li>• Professional golf clubs available complimentary</li>
+                    <li>• Dedicated club storage for regular players</li>
+                    <li>• Professional golf gloves available in our shop</li>
+                    <li>• Food & beverages service available</li>
+                    <li>• Spacious putting green free for all visitors</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Images Section */}
+          <div className="col-span-2 grid grid-rows-2 gap-4">
+            <div className="relative w-full h-44 rounded-lg overflow-hidden">
+              <Image
+                src="/images/pic2.png"
+                alt="LENGOLF Bay"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 400px"
+                priority
+              />
+            </div>
+            <div className="relative w-full h-44 rounded-lg overflow-hidden">
+              <Image
+                src="/images/pic1.png"
+                alt="LENGOLF Facility"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 400px"
+                priority
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Calendar Modal */}
       {showCalendar && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => setShowCalendar(false)}
         >
-          <div 
-            className="bg-white rounded-xl p-4" 
-            onClick={e => e.stopPropagation()}
+          <div
+            className="bg-white rounded-2xl p-6 shadow-xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Select Date</h3>
-              <button 
-                onClick={() => setShowCalendar(false)} 
-                className="text-gray-500 hover:text-gray-700"
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Select Date</h3>
+                <p className="text-sm text-gray-500 mt-1">Choose your preferred date</p>
+              </div>
+              <button
+                onClick={() => setShowCalendar(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <XMarkIcon className="h-6 w-6" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
               </button>
             </div>
+
             <style jsx global>{`
               .rdp {
                 --rdp-cell-size: 40px;
@@ -118,10 +213,6 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                 color: rgb(22 163 74) !important;
                 font-weight: bold !important;
                 border: 2px solid rgb(22 163 74) !important;
-              }
-
-              .rdp-day_today:not(.rdp-day_outside) {
-                color: rgb(22 163 74) !important;
               }
 
               .rdp-day_selected:not([disabled]),
@@ -154,7 +245,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
               .rdp-button_reset {
                 color: inherit !important;
               }
-              
+
               .rdp-day {
                 color: inherit !important;
               }
@@ -175,9 +266,9 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                 border-color: rgb(156 163 175) !important;
               }
             `}</style>
+
             <DayPicker
               mode="single"
-              selected={undefined}
               onSelect={(date) => {
                 if (date) {
                   onDateSelect(date);
@@ -185,23 +276,13 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                 }
               }}
               fromDate={today}
-              disabled={[
-                { before: today }
-              ]}
-              modifiers={{
-                today: new Date(),
-              }}
-              modifiersStyles={{
-                disabled: {
-                  color: 'rgb(156 163 175) !important',
-                  cursor: 'not-allowed',
-                  backgroundColor: 'rgb(243 244 246) !important',
-                }
-              }}
+              disabled={[{ before: today }]}
+              modifiers={{ today: new Date() }}
+              className="mx-auto"
             />
           </div>
         </div>
       )}
-    </>
+    </div>
   );
-} 
+}

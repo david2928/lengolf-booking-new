@@ -20,7 +20,7 @@ const handler = NextAuth({
           prompt: "select_account",
           access_type: "offline",
           response_type: "code",
-          hl: "en"  // Force English language
+          hl: "en"
         }
       }
     }),
@@ -47,7 +47,7 @@ const handler = NextAuth({
         return {
           id: profile.sub,
           name: profile.name,
-          email: null, // Don't set any email initially
+          email: null,
           image: profile.picture
         }
       }
@@ -67,7 +67,6 @@ const handler = NextAuth({
 
         const supabase = createServerClient();
         
-        // Check if profile exists with this email
         const { data: existingProfile } = await supabase
           .from('profiles')
           .select('*')
@@ -76,8 +75,7 @@ const handler = NextAuth({
           .single();
 
         if (existingProfile) {
-          // Update existing profile
-          const { data: profile, error: updateError } = await supabase
+          const { data: profile } = await supabase
             .from('profiles')
             .update({
               display_name: credentials.name,
@@ -88,10 +86,7 @@ const handler = NextAuth({
             .select()
             .single();
 
-          if (updateError) {
-            console.error('Failed to update profile:', updateError);
-            return null;
-          }
+          if (!profile) return null;
 
           return {
             id: existingProfile.id,
@@ -102,9 +97,8 @@ const handler = NextAuth({
           };
         }
 
-        // Create new profile if none exists
         const guestId = uuidv4();
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
           .insert({
             id: guestId,
@@ -117,10 +111,7 @@ const handler = NextAuth({
           .select()
           .single();
 
-        if (error) {
-          console.error('Failed to create profile:', error);
-          return null;
-        }
+        if (!profile) return null;
 
         return {
           id: guestId,
@@ -137,12 +128,10 @@ const handler = NextAuth({
       const supabase = createServerClient();
 
       try {
-        // For guest users, we already created the profile in authorize
         if (account?.provider === 'guest') {
           return true;
         }
 
-        // For OAuth providers, check if profile exists by provider_id
         const { data: existingProfile } = await supabase
           .from('profiles')
           .select('id')
@@ -151,7 +140,6 @@ const handler = NextAuth({
 
         const userId = existingProfile?.id || uuidv4();
 
-        // Create/update profile
         const { error } = await supabase
           .from('profiles')
           .upsert({
@@ -164,20 +152,15 @@ const handler = NextAuth({
             updated_at: new Date().toISOString()
           });
 
-        if (error) {
-          console.error('Failed to update profile:', error);
-          return false;
-        }
+        if (error) return false;
 
         user.id = userId;
         return true;
       } catch (error) {
-        console.error('Error in signIn callback:', error);
         return false;
       }
     },
     async session({ session, token }) {
-      // Get the user profile to include phone number
       const supabase = createServerClient();
       const { data: profile } = await supabase
         .from('profiles')
@@ -209,9 +192,8 @@ const handler = NextAuth({
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60 // 30 days
-  },
-  debug: process.env.NODE_ENV === 'development'
+    maxAge: 30 * 24 * 60 * 60
+  }
 });
 
 export { handler as GET, handler as POST }; 
