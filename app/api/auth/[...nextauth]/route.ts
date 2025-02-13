@@ -42,9 +42,12 @@ const handler = NextAuth({
         params: {
           scope: 'profile openid email',
           bot_prompt: 'normal',
-          client_id: process.env.NEXT_PUBLIC_LINE_CLIENT_ID,
           redirect_uri: process.env.NEXT_PUBLIC_LINE_REDIRECT_URI
         }
+      },
+      userinfo: {
+        url: 'https://api.line.me/oauth2/v2.1/userinfo',
+        params: { scope: 'profile openid email' }
       },
       profile(profile) {
         return {
