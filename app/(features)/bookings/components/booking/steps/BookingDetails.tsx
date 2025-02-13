@@ -405,33 +405,26 @@ export function BookingDetails({
           <h3 className="text-sm font-semibold text-gray-900 mb-4">Contact Information</h3>
           
           <div className="space-y-4">
-            {/* Name */}
+            {/* Name field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name <span className="text-gray-500">(for booking confirmation)</span>
+                Name
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
-                    !name
-                      ? 'border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
-                      : 'border border-green-500'
-                  }`}
-                  placeholder="Enter your name"
-                />
-              </div>
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name}</p>
-              )}
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
+                  !name ? 'border-red-100' : 'border-green-500'
+                } border focus:border-green-500 focus:ring-1 focus:ring-green-500`}
+                placeholder="Enter your name"
+              />
             </div>
 
             {/* Phone Number */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number <span className="text-gray-500">(for booking updates)</span>
+                Phone Number
               </label>
               <div className="relative">
                 <input
@@ -449,7 +442,7 @@ export function BookingDetails({
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Format: 0812345678 or +XX-XXX-XXXX (min. 10 digits) • We'll send booking updates via SMS
+                We'll use this to send you booking confirmation and updates
               </p>
               {errors.phoneNumber && (
                 <p className="mt-1 text-sm text-red-600">{errors.phoneNumber}</p>
@@ -459,7 +452,7 @@ export function BookingDetails({
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address <span className="text-gray-500">(for booking confirmation)</span>
+                Email Address
               </label>
               <div className="relative">
                 <input
@@ -471,11 +464,11 @@ export function BookingDetails({
                       ? 'border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
                       : 'border border-green-500'
                   }`}
-                  placeholder={session?.user?.email?.endsWith('@line.user') ? "Enter your email address" : "your@email.com"}
+                  placeholder={isLineUser ? "Enter your email address" : "your@email.com"}
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                We'll send your booking confirmation and updates to this email
+                Your booking confirmation and receipt will be sent to this email
               </p>
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email}</p>

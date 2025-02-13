@@ -10,12 +10,6 @@ if (!process.env.NEXTAUTH_SECRET) {
   throw new Error('Please provide process.env.NEXTAUTH_SECRET');
 }
 
-// Debug logging for LINE configuration
-console.log('LINE OAuth Configuration:', {
-  clientId: process.env.NEXT_PUBLIC_LINE_CLIENT_ID,
-  redirectUri: process.env.NEXT_PUBLIC_LINE_REDIRECT_URI
-});
-
 const handler = NextAuth({
   providers: [
     GoogleProvider({

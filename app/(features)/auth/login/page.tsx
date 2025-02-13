@@ -14,9 +14,18 @@ export default function LoginPage() {
   const error = searchParams.get('error');
   const callbackUrl = searchParams.get('callbackUrl') || '/bookings';
 
-  // Reset loading state when returning to the page
+  // Reset loading state when component unmounts or user navigates back
   useEffect(() => {
-    setLoadingProvider(null);
+    const handlePopState = () => {
+      setLoadingProvider(null);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      setLoadingProvider(null);
+    };
   }, []);
 
   const handleProviderSignIn = async (provider: string) => {
