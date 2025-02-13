@@ -25,20 +25,20 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
   const formatDateLong = (date: Date) => format(date, 'do MMMM yyyy');
 
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-8">
+    <div className="w-full px-2 sm:px-4 space-y-8">
       {/* Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Today Card */}
         <button
           onClick={() => onDateSelect(today)}
-          className="bg-white border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all duration-300 text-left"
+          className="bg-white border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all duration-300 text-left w-full min-w-full"
         >
-          <div className="flex items-start p-4">
+          <div className="flex items-start p-4 sm:p-6">
             <div className="bg-green-50 p-2 rounded-full shrink-0">
-              <ClockIcon className="h-5 w-5 text-green-600" />
+              <ClockIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-3 leading-normal">
-              <div className="text-xl font-bold text-green-800">Today</div>
+              <div className="text-lg sm:text-xl font-bold text-green-800">Today</div>
               <div className="text-gray-600">{formatDateLong(today)}</div>
             </div>
           </div>
@@ -47,14 +47,14 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
         {/* Tomorrow Card */}
         <button
           onClick={() => onDateSelect(tomorrow)}
-          className="bg-white border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all duration-300 text-left"
+          className="bg-white border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all duration-300 text-left w-full min-w-full"
         >
-          <div className="flex items-start p-4">
+          <div className="flex items-start p-4 sm:p-6">
             <div className="bg-green-50 p-2 rounded-full shrink-0">
-              <SunIcon className="h-5 w-5 text-green-600" />
+              <SunIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-3 leading-normal">
-              <div className="text-xl font-bold text-green-800">Tomorrow</div>
+              <div className="text-lg sm:text-xl font-bold text-green-800">Tomorrow</div>
               <div className="text-gray-600">{formatDateLong(tomorrow)}</div>
             </div>
           </div>
@@ -63,14 +63,14 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
         {/* Custom Date Card */}
         <button
           onClick={() => setShowCalendar(true)}
-          className="bg-white border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all duration-300 text-left"
+          className="bg-white border-2 border-gray-200 rounded-xl hover:border-green-500 hover:shadow-lg transition-all duration-300 text-left w-full min-w-full"
         >
-          <div className="flex items-start p-4">
+          <div className="flex items-start p-4 sm:p-6">
             <div className="bg-green-50 p-2 rounded-full shrink-0">
-              <CalendarIcon className="h-5 w-5 text-green-600" />
+              <CalendarIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-3 leading-normal">
-              <div className="text-xl font-bold text-green-800">Select Date</div>
+              <div className="text-lg sm:text-xl font-bold text-green-800">Select Date</div>
               <div className="text-gray-600">Choose another date</div>
             </div>
           </div>
