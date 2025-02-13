@@ -63,10 +63,6 @@ jobs:
             --build-arg JWT_SECRET='${{ secrets.JWT_SECRET }}' \
             --build-arg LINE_CLIENT_SECRET='${{ secrets.LINE_CLIENT_SECRET }}' \
             --build-arg NEXT_PUBLIC_APP_URL='${{ env.APP_URL }}' \
-            --build-arg NEXT_PUBLIC_FACEBOOK_APP_ID='${{ secrets.NEXT_PUBLIC_FACEBOOK_APP_ID }}' \
-            --build-arg NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET='${{ secrets.NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET }}' \
-            --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID='${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}' \
-            --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_SECRET='${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}' \
             --build-arg NEXT_PUBLIC_GUEST_PASSWORD='${{ secrets.NEXT_PUBLIC_GUEST_PASSWORD }}' \
             --build-arg NEXT_PUBLIC_LINE_CLIENT_ID='${{ secrets.NEXT_PUBLIC_LINE_CLIENT_ID }}' \
             --build-arg NEXT_PUBLIC_LINE_NOTIFY_TOKEN='${{ secrets.NEXT_PUBLIC_LINE_NOTIFY_TOKEN }}' \
@@ -75,7 +71,6 @@ jobs:
             --build-arg NEXT_PUBLIC_SUPABASE_URL='${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}' \
             --build-arg NODE_ENV='production' \
             --build-arg SERVICE_ACCOUNT_KEY_BASE64='${{ secrets.SERVICE_ACCOUNT_KEY_BASE64 }}' \
-            --build-arg SUPABASE_DB_PW='${{ secrets.SUPABASE_DB_PW }}' \
             --build-arg SUPABASE_SERVICE_ROLE_KEY='${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}' \
             -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
           docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
@@ -100,10 +95,6 @@ jobs:
             EMAIL_USER=${{ secrets.EMAIL_USER }}
             LINE_CLIENT_SECRET=${{ secrets.LINE_CLIENT_SECRET }}
             NEXT_PUBLIC_APP_URL=${{ env.APP_URL }}
-            NEXT_PUBLIC_FACEBOOK_APP_ID=${{ secrets.NEXT_PUBLIC_FACEBOOK_APP_ID }}
-            NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET=${{ secrets.NEXT_PUBLIC_FACEBOOK_CLIENT_SECRET }}
-            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
-            NEXT_PUBLIC_GOOGLE_CLIENT_SECRET=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET }}
             NEXT_PUBLIC_GUEST_PASSWORD=${{ secrets.NEXT_PUBLIC_GUEST_PASSWORD }}
             NEXT_PUBLIC_LINE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_LINE_CLIENT_ID }}
             NEXT_PUBLIC_LINE_NOTIFY_TOKEN=${{ secrets.NEXT_PUBLIC_LINE_NOTIFY_TOKEN }}
@@ -111,7 +102,6 @@ jobs:
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
-            SUPABASE_DB_PW=${{ secrets.SUPABASE_DB_PW }}
             SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Show Output
