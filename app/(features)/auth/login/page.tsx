@@ -5,33 +5,18 @@ import { UserIcon } from '@/components/icons';
 import GuestForm from '../components/GuestForm';
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const router = useRouter();
   const error = searchParams.get('error');
   const callbackUrl = searchParams.get('callbackUrl') || '/bookings';
 
-  // Reset loading state when component unmounts or user navigates
+  // Reset loading state when returning to the page
   useEffect(() => {
-    return () => {
-      setLoadingProvider(null);
-    };
-  }, []);
-
-  // Reset loading state when user clicks back
-  useEffect(() => {
-    window.addEventListener('popstate', () => {
-      setLoadingProvider(null);
-    });
-    return () => {
-      window.removeEventListener('popstate', () => {
-        setLoadingProvider(null);
-      });
-    };
+    setLoadingProvider(null);
   }, []);
 
   const handleProviderSignIn = async (provider: string) => {
