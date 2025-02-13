@@ -3,16 +3,36 @@
 import Image from 'next/image';
 import { UserIcon } from '@/components/icons';
 import GuestForm from '../components/GuestForm';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const error = searchParams.get('error');
   const callbackUrl = searchParams.get('callbackUrl') || '/bookings';
+
+  // Reset loading state when component unmounts or user navigates
+  useEffect(() => {
+    return () => {
+      setLoadingProvider(null);
+    };
+  }, []);
+
+  // Reset loading state when user clicks back
+  useEffect(() => {
+    window.addEventListener('popstate', () => {
+      setLoadingProvider(null);
+    });
+    return () => {
+      window.removeEventListener('popstate', () => {
+        setLoadingProvider(null);
+      });
+    };
+  }, []);
 
   const handleProviderSignIn = async (provider: string) => {
     setLoadingProvider(provider);
@@ -20,6 +40,7 @@ export default function LoginPage() {
       await signIn(provider, { callbackUrl });
     } catch (error) {
       console.error('Sign in error:', error);
+      setLoadingProvider(null);
     }
   };
 

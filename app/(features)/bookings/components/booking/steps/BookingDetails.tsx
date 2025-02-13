@@ -407,50 +407,61 @@ export function BookingDetails({
           <div className="space-y-4">
             {/* Name field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
                   !name ? 'border-red-100' : 'border-green-500'
                 } border focus:border-green-500 focus:ring-1 focus:ring-green-500`}
                 placeholder="Enter your name"
+                required
               />
             </div>
 
             {/* Email field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email <span className="text-red-500">*</span>
+                <span className="text-sm text-gray-500 ml-1">(for booking confirmation)</span>
               </label>
               <input
                 type="email"
+                id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
                   !email ? 'border-red-100' : 'border-green-500'
                 } border focus:border-green-500 focus:ring-1 focus:ring-green-500`}
                 placeholder="Enter your email"
+                required
               />
             </div>
 
             {/* Phone field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                Phone <span className="text-red-500">*</span>
+                <span className="text-sm text-gray-500 ml-1">(for urgent contact)</span>
               </label>
               <input
                 type="tel"
+                id="phone"
                 value={phoneNumber}
                 onChange={handlePhoneChange}
                 className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
                   !phoneNumber ? 'border-red-100' : 'border-green-500'
                 } border focus:border-green-500 focus:ring-1 focus:ring-green-500`}
                 placeholder="Enter your phone number"
+                required
               />
+              <p className="mt-1 text-sm text-gray-500">
+                Format: International (+66) or local (08x-xxx-xxxx)
+              </p>
             </div>
           </div>
         </div>
