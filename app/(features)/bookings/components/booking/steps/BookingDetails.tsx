@@ -442,7 +442,7 @@ export function BookingDetails({
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                We'll use this to send you booking confirmation and updates
+               Format: 0812345678 or +XX-XXX-XXXX (min. 10 digits)
               </p>
               {errors.phoneNumber && (
                 <p className="mt-1 text-sm text-red-600">{errors.phoneNumber}</p>
@@ -468,7 +468,7 @@ export function BookingDetails({
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Your booking confirmation and receipt will be sent to this email
+              Booking confirmation will be sent to this email
               </p>
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email}</p>
