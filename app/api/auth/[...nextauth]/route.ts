@@ -10,6 +10,12 @@ if (!process.env.NEXTAUTH_SECRET) {
   throw new Error('Please provide process.env.NEXTAUTH_SECRET');
 }
 
+// Debug logging for LINE configuration
+console.log('LINE OAuth Configuration:', {
+  clientId: process.env.NEXT_PUBLIC_LINE_CLIENT_ID,
+  redirectUri: process.env.NEXT_PUBLIC_LINE_REDIRECT_URI
+});
+
 const handler = NextAuth({
   providers: [
     GoogleProvider({
@@ -32,9 +38,12 @@ const handler = NextAuth({
       clientId: process.env.NEXT_PUBLIC_LINE_CLIENT_ID!,
       clientSecret: process.env.LINE_CLIENT_SECRET!,
       authorization: {
+        url: 'https://access.line.me/oauth2/v2.1/authorize',
         params: {
           scope: 'profile openid email',
-          bot_prompt: 'normal'
+          bot_prompt: 'normal',
+          client_id: process.env.NEXT_PUBLIC_LINE_CLIENT_ID,
+          redirect_uri: process.env.NEXT_PUBLIC_LINE_REDIRECT_URI
         }
       },
       profile(profile) {
