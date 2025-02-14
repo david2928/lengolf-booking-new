@@ -237,6 +237,18 @@ export default function LoginPage() {
       {showGuestForm && (
         <GuestForm onClose={() => setShowGuestForm(false)} />
       )}
+
+      {/* Privacy Policy Link */}
+      <div className="mt-8 text-center">
+        <a 
+          href="https://www.len.golf/privacy-policy/" 
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          Privacy Policy
+        </a>
+      </div>
     </div>
   );
 } 
