@@ -242,8 +242,11 @@ export default function LoginPage() {
       <div className="mt-8 text-center">
         <a 
           href="https://www.len.golf/privacy-policy/" 
-          target="_blank"
-          rel="noopener noreferrer"
+          onClick={(e) => {
+            e.preventDefault();
+            const cleanUrl = 'https://www.len.golf/privacy-policy/';
+            window.open(cleanUrl, '_blank', 'noopener,noreferrer');
+          }}
           className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
         >
           Privacy Policy

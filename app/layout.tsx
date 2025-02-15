@@ -52,6 +52,15 @@ export default function RootLayout({
             })(window,document,'script','dataLayer','GTM-MKCHVJKW');
           `}
         </Script>
+        {/* Prevent GA from modifying URLs */}
+        <Script id="ga-disable-url-modification" strategy="afterInteractive">
+          {`
+            window.gtag('set', 'linker', {
+              'domains': ['len.golf'],
+              'decorate_forms': false
+            });
+          `}
+        </Script>
         <link 
           rel="stylesheet" 
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 
