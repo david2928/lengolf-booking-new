@@ -12,25 +12,86 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "LENGOLF Booking System",
-  description: "Book your golf bay at LENGOLF - The Mercury Ville @ BTS Chidlom",
-  icons: {
-    icon: '/favicon.png',
+  title: {
+    default: "LENGOLF - Indoor Golf Simulator in Bangkok | Book Your Bay",
+    template: "%s | LENGOLF Bangkok"
+  },
+  description: "Experience Bangkok's premier indoor golf simulator at LENGOLF. Located at Mercury Ville @ BTS Chidlom. State-of-the-art Korean simulators, professional coaching, and great food & drinks. Book your bay now!",
+  keywords: [
+    "golf simulator bangkok",
+    "indoor golf bangkok",
+    "golf practice bangkok",
+    "golf lessons bangkok",
+    "lengolf",
+    "mercury ville golf",
+    "chidlom golf",
+    "golf booking bangkok",
+    "korean golf simulator",
+    "golf training bangkok"
+  ],
+  authors: [{ name: "LENGOLF" }],
+  creator: "LENGOLF",
+  publisher: "LENGOLF",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL('https://booking.len.golf'),
+  alternates: {
+    canonical: '/',
   },
   openGraph: {
-    title: "Book Your Bay at LENGOLF - Bangkok's Premier Golf Simulator",
+    title: "LENGOLF - Bangkok's Premier Indoor Golf Simulator Experience",
     description: "Experience Bangkok's top-rated indoor golf simulator in the heart of the city! Located at Mercury Ville @ BTS Chidlom, LENGOLF offers state-of-the-art Korean simulators in a fun, relaxed environment. Perfect for all skill levels with great food & drinks. Book your bay now! 🏌️‍♂️✨",
     url: 'https://booking.len.golf',
-    siteName: 'LENGOLF Booking',
+    siteName: 'LENGOLF Bangkok',
     images: [
       {
         url: 'https://booking.len.golf/images/lengolf.jpg',
         width: 1200,
         height: 630,
+        alt: 'LENGOLF Indoor Golf Simulator Facility',
       },
     ],
     locale: 'en_US',
     type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'LENGOLF - Indoor Golf Simulator in Bangkok',
+    description: 'Book your golf simulator bay at LENGOLF Bangkok. Perfect for practice, lessons, or fun with friends. Located at Mercury Ville @ BTS Chidlom.',
+    images: ['https://booking.len.golf/images/lengolf.jpg'],
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 5,
+  },
+  category: 'sports',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-icon.png' },
+    ],
+  },
+  manifest: '/manifest.json',
+  verification: {
+    google: 'your-google-site-verification', // You'll need to add your actual verification code
   },
 };
 
@@ -50,17 +111,80 @@ export default function RootLayout({
             j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
             })(window,document,'script','dataLayer','GTM-MKCHVJKW');
-          `}
-        </Script>
-        {/* Prevent GA from modifying URLs */}
-        <Script id="ga-disable-url-modification" strategy="afterInteractive">
-          {`
-            window.gtag('set', 'linker', {
-              'domains': ['len.golf'],
-              'decorate_forms': false
+
+            // Initialize dataLayer
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'GTM-MKCHVJKW', {
+              linker: {
+                domains: ['len.golf'],
+                decorate_forms: false
+              }
             });
           `}
         </Script>
+
+        {/* JSON-LD Structured Data */}
+        <Script
+          id="structured-data"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'SportsActivityLocation',
+              name: 'LENGOLF Bangkok',
+              description: 'Premier indoor golf simulator facility in Bangkok with state-of-the-art Korean simulators, professional coaching, and great amenities.',
+              url: 'https://booking.len.golf',
+              telephone: '+66966682335',
+              address: {
+                '@type': 'PostalAddress',
+                streetAddress: 'The Mercury Ville @ BTS Chidlom, Floor 4',
+                addressLocality: 'Bangkok',
+                addressRegion: 'Bangkok',
+                postalCode: '10330',
+                addressCountry: 'TH'
+              },
+              geo: {
+                '@type': 'GeoCoordinates',
+                latitude: '13.7445',
+                longitude: '100.5431'
+              },
+              openingHoursSpecification: {
+                '@type': 'OpeningHoursSpecification',
+                dayOfWeek: [
+                  'Monday',
+                  'Tuesday',
+                  'Wednesday',
+                  'Thursday',
+                  'Friday',
+                  'Saturday',
+                  'Sunday'
+                ],
+                opens: '10:00',
+                closes: '23:00'
+              },
+              priceRange: '฿฿฿',
+              amenityFeature: [
+                {
+                  '@type': 'LocationFeatureSpecification',
+                  name: 'Golf Simulators',
+                  value: true
+                },
+                {
+                  '@type': 'LocationFeatureSpecification',
+                  name: 'Professional Coaching',
+                  value: true
+                },
+                {
+                  '@type': 'LocationFeatureSpecification',
+                  name: 'Equipment Rental',
+                  value: true
+                }
+              ]
+            })
+          }}
+        />
         <link 
           rel="stylesheet" 
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 

@@ -1,0 +1,14 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://booking.len.golf/sitemap.xml
+
+# Disallow admin and auth-related paths
+Disallow: /api/
+Disallow: /auth/error
+Disallow: /_next/
+
+# Crawl-delay
+Crawl-delay: 1 
