@@ -46,7 +46,12 @@ export async function POST(request: NextRequest) {
     authTime = performance.now() - authStart;
 
     // 2. Parse incoming JSON
-    const { date, currentTimeInBangkok } = await request.json();
+    const body = await request.json();
+    const { date, currentTimeInBangkok } = body;
+    if (!date || !currentTimeInBangkok) {
+      return NextResponse.json({ error: 'Invalid request parameters' }, { status: 400 });
+    }
+    
     const parsedDate = parse(date + ' 00:00', 'yyyy-MM-dd HH:mm', new Date());
     const bangkokStartOfDay = zonedTimeToUtc(parsedDate, TIMEZONE);
     const bangkokEndOfDay = zonedTimeToUtc(endOfDay(parsedDate), TIMEZONE);
@@ -59,27 +64,54 @@ export async function POST(request: NextRequest) {
     const googleStart = performance.now();
     let allEvents: any[] = [];
     const calendarCacheKey = getCacheKey.calendar(formatBangkokTime(bangkokStartOfDay, 'yyyy-MM-dd'));
+    
     const cachedEvents = calendarCache.get<any[]>(calendarCacheKey);
+    
     if (cachedEvents) {
       allEvents = cachedEvents;
       cacheHit.calendar = true;
     } else {
-      updateCalendarCache().catch(console.error);
       const timeMin = formatInTimeZone(bangkokStartOfDay, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx");
       const timeMax = formatInTimeZone(bangkokEndOfDay, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx");
-      const bayEvents = await Promise.all(
-        Object.values(AVAILABILITY_CALENDARS).map(calendarId =>
-          calendar.events.list({
-            calendarId,
-            timeMin,
-            timeMax,
-            singleEvents: true,
-            orderBy: 'startTime',
-            timeZone: TIMEZONE,
+
+      try {
+        const bayEvents = await Promise.all(
+          Object.entries(AVAILABILITY_CALENDARS).map(async ([name, calendarId]) => {
+            try {
+              const response = await calendar.events.list({
+                calendarId,
+                timeMin,
+                timeMax,
+                singleEvents: true,
+                orderBy: 'startTime',
+                timeZone: TIMEZONE,
+              });
+              return response;
+            } catch (error: any) {
+              console.error(`Error fetching events for ${name}:`, {
+                calendarId: calendarId.substring(0, 10) + '...',
+                error: error.message,
+                status: error.status
+              });
+              throw error;
+            }
           })
-        )
-      );
-      allEvents = bayEvents.flatMap(response => response.data.items || []);
+        );
+        
+        allEvents = bayEvents.flatMap(response => response.data.items || []);
+        
+        try {
+          calendarCache.set(calendarCacheKey, allEvents);
+        } catch (cacheError) {
+          console.error('Failed to update calendar cache:', cacheError);
+        }
+      } catch (error: any) {
+        console.error('Calendar API error:', {
+          message: error.message,
+          status: error.status
+        });
+        throw error;
+      }
     }
     googleTime = performance.now() - googleStart;
 
@@ -185,6 +217,8 @@ export async function POST(request: NextRequest) {
     }
     processingTime = performance.now() - processingStart;
     const totalTime = performance.now() - startTime;
+    processingTime = totalTime - (authTime + googleTime);
+
     console.log('Availability API Performance:', {
       totalTime: `${totalTime.toFixed(2)}ms`,
       authTime: `${authTime.toFixed(2)}ms`,
@@ -194,7 +228,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ slots });
   } catch (error) {
-    console.error('Error fetching availability:', error);
+    console.error('Error in availability endpoint:', error instanceof Error ? error.message : error);
     return NextResponse.json({ error: 'Failed to fetch availability' }, { status: 500 });
   }
 } 
