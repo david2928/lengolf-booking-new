@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google AdsBots Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .instructions {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Google AdsBots Test Page</h1>
+    <p class="success">✅ If you can see this page, the server is responding correctly.</p>
+    <p>This page is accessible at: <strong>https://booking.len.golf/test-adsbot.html</strong></p>
+    
+    <div class="instructions">
+        <h2>How to Test Google AdsBots Access:</h2>
+        <ol>
+            <li>Use an online user-agent switcher tool like <a href="https://www.webconfs.com/user-agent-switcher.php" target="_blank">WebConfs User Agent Switcher</a></li>
+            <li>Enter this URL: <code>https://booking.len.golf/test-adsbot.html</code></li>
+            <li>Set the user agent to one of these Google AdsBots strings:
+                <ul>
+                    <li><code>AdsBot-Google (+http://www.google.com/adsbot.html)</code></li>
+                    <li><code>AdsBot-Google-Mobile-Apps</code></li>
+                    <li><code>Mediapartners-Google</code></li>
+                </ul>
+            </li>
+            <li>If the tool can access this page with those user agents, Google's AdsBots should be able to access your site</li>
+        </ol>
+    </div>
+    
+    <p>Test page created: May 2024</p>
+</body>
+</html> 
