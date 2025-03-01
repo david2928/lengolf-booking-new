@@ -9,7 +9,6 @@ const MAX_REQUESTS_PER_WINDOW = 120; // 120 requests per minute (doubled from be
 
 // Bot detection patterns
 const BOT_USER_AGENTS = [
-  /bot/i,
   /crawler/i,
   /spider/i,
   /crawling/i,
@@ -20,6 +19,16 @@ const BOT_USER_AGENTS = [
   /wget/i,
   /phantom/i,
   /selenium/i
+];
+
+// Allowed bots (these bots should be allowed to access the site)
+const ALLOWED_BOTS = [
+  /googlebot/i,
+  /google-adsbot/i,
+  /adsbot-google/i,
+  /mediapartners-google/i,
+  /google web preview/i,
+  /google favicon/i
 ];
 
 // Suspicious behavior patterns
@@ -34,6 +43,11 @@ function isBot(request: NextRequest): boolean {
   const referer = request.headers.get('referer');
   const acceptLanguage = request.headers.get('accept-language');
   const acceptEncoding = request.headers.get('accept-encoding');
+
+  // Check if it's an allowed bot first
+  if (ALLOWED_BOTS.some(pattern => pattern.test(userAgent))) {
+    return false; // Allow these bots to access the site
+  }
 
   // Only check for obvious bot patterns in user agent
   if (BOT_USER_AGENTS.some(pattern => pattern.test(userAgent))) {
