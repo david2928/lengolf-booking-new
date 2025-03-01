@@ -12,8 +12,8 @@ export default function LoginPage() {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [browserType, setBrowserType] = useState<'line' | 'facebook' | 'other'>('other');
   const searchParams = useSearchParams();
-  const error = searchParams.get('error');
-  const callbackUrl = searchParams.get('callbackUrl') || '/bookings';
+  const error = searchParams?.get('error') || null;
+  const callbackUrl = searchParams?.get('callbackUrl') || '/bookings';
 
   useEffect(() => {
     // Function to detect browser type
