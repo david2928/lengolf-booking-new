@@ -28,11 +28,7 @@ export function useAvailability() {
 
       // Get current time in Bangkok timezone
       const currentTimeInBangkok = getCurrentBangkokTime();
-      console.log('Fetching availability with:', {
-        selectedDate: format(selectedDate, 'yyyy-MM-dd'),
-        currentTimeInBangkok: currentTimeInBangkok.toISOString()
-      });
-
+      
       const response = await fetch('/api/availability', {
         method: 'POST',
         headers: {
