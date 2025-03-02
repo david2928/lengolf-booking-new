@@ -2,6 +2,19 @@
 User-agent: *
 Allow: /
 
+# Explicitly allow Google's bots
+User-agent: Googlebot
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
+User-agent: AdsBot-Google-Mobile
+Allow: /
+
+User-agent: Mediapartners-Google
+Allow: /
+
 # Sitemap location
 Sitemap: https://booking.len.golf/sitemap.xml
 

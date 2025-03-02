@@ -11,7 +11,7 @@ interface EmailConfirmation {
 }
 
 const transporter = nodemailer.createTransport({
-  host: 'mail.len.golf',
+  host: '27.254.86.99', // Direct IP address instead of mail.len.golf
   port: 587,
   secure: false, // Use false since port 587 doesn't use SSL
   auth: {

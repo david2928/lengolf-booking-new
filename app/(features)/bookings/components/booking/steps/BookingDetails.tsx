@@ -12,12 +12,14 @@ import { useSession } from 'next-auth/react';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { Session } from 'next-auth';
+import { matchProfileWithCrm } from '@/utils/customer-matching-service';
 
 interface Profile {
   name: string;
   email: string | null;
   phone_number: string | null;
   display_name: string;
+  updated_at?: string;
 }
 
 interface ExtendedSession extends Session {
@@ -129,50 +131,48 @@ export function BookingDetails({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsSubmitting(true);
+    const bookingId = generateBookingId();
+    const supabase = createClient();
 
     try {
-      if (!validateForm()) {
-        setIsSubmitting(false);
-        return;
-      }
-
-      const bookingId = generateBookingId();
-      const supabase = createClient();
-      
       if (!session?.user?.id) {
-        toast.error('Session expired. Please login again.');
-        return;
+        throw new Error('User not authenticated');
       }
 
-      // Get profile using id
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', session.user.id)
-        .single();
-
-      if (profileError || !profile?.id) {
-        console.error('Error getting profile:', profileError);
-        toast.error('Failed to get user profile. Please try again.');
-        return;
+      if (!profile) {
+        throw new Error('Profile not loaded');
       }
 
-      // Update profile with provided information
-      const updateData = {
-        phone_number: phoneNumber,
-        display_name: name,
-        email,
+      // Update profile with latest customer info
+      const updateData: Partial<Profile> = {
         updated_at: new Date().toISOString()
       };
+      
+      if (name !== profile.name && name !== profile.display_name) {
+        updateData.name = name;
+      }
+      if (email !== profile.email) {
+        updateData.email = email;
+      }
+      if (phoneNumber !== profile.phone_number) {
+        updateData.phone_number = phoneNumber;
+      }
+      
+      if (Object.keys(updateData).length > 1) { // > 1 because we always include updated_at
+        const { error: updateProfileError } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', session.user.id);
 
-      const { error: updateProfileError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', session.user.id);
-
-      if (updateProfileError) {
-        console.error('Error updating profile:', updateProfileError);
+        if (updateProfileError) {
+          console.error('Error updating profile:', updateProfileError);
+        }
       }
 
       // Create booking record
@@ -180,7 +180,7 @@ export function BookingDetails({
         .from('bookings')
         .insert({
           id: bookingId,
-          user_id: profile.id,
+          user_id: session.user.id,
           date: format(selectedDate, 'yyyy-MM-dd'),
           start_time: selectedTime,
           duration,
@@ -198,6 +198,16 @@ export function BookingDetails({
         toast.error('Failed to create booking. Please try again.');
         return;
       }
+      
+      // Attempt to match the customer with a CRM record
+      // This runs in the background and doesn't block the booking process
+      matchProfileWithCrm(session.user.id).then(result => {
+        if (result?.matched) {
+          console.log(`Profile ${session.user.id} automatically matched with CRM customer ${result.crmCustomerId} (confidence: ${result.confidence})`);
+        }
+      }).catch(err => {
+        console.error(`Error matching profile ${session.user.id} with CRM:`, err);
+      });
 
       // Create calendar event
       const response = await fetch('/api/bookings/calendar', {

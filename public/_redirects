@@ -1,0 +1,8 @@
+# Redirect domain aliases to primary domain
+https://www.booking.len.golf/* https://booking.len.golf/:splat 301!
+
+# Optional: Redirect default Netlify subdomain to primary domain
+https://lengolf-booking.netlify.app/* https://booking.len.golf/:splat 301!
+
+# Handle 404s
+/* /index.html 200 

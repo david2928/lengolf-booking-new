@@ -160,4 +160,87 @@ The system relies on several external services and libraries:
 - Maintain backward compatibility during refactoring
 - Consider implementing feature flags
 - Plan for zero-downtime deployment
-- Establish monitoring and logging standards 
+- Establish monitoring and logging standards
+
+## CRM Customer Mapping
+
+The system now includes a feature to map booking customers to customers in the CRM system. This allows for better customer tracking and data integration across systems.
+
+### Features
+
+1. **Automatic Customer Matching**
+   - Maps booking system customers to CRM customers
+   - Uses phone numbers, emails, and names for matching
+   - Configurable confidence threshold for automatic matches
+
+2. **Manual Mapping Management**
+   - Admin API to manually set or update mappings
+   - API to retrieve CRM data for a specific profile
+
+3. **Periodic Synchronization**
+   - API endpoint for triggering syncs
+   - Support for incremental updates (syncing only new/updated customers)
+   - Statistics on match rates and confidence levels
+
+### Implementation
+
+The CRM customer mapping is implemented with the following components:
+
+1. **Database Table**
+   - `crm_customer_mapping` table in Supabase
+   - Stores mapping between profiles and CRM customers
+   - Includes match confidence and method (auto/manual)
+
+2. **Utility Functions**
+   - Phone number normalization
+   - Match confidence calculation
+   - CRM data retrieval
+
+3. **API Endpoints**
+   - `/api/admin/crm-sync` - Trigger and monitor syncs
+   - `/api/admin/crm-mapping` - Manage mappings
+
+4. **UI Component**
+   - `CrmCustomerInfo` component to display linked CRM data
+
+### Usage
+
+#### Initial Setup
+
+1. Ensure the CRM Supabase connection details are set in `.env.local`:
+   ```
+   CRM_SUPABASE_URL=your-crm-supabase-url
+   CRM_SUPABASE_SERVICE_KEY=your-crm-supabase-service-key
+   ```
+
+2. Run the database migration to create the required table
+
+3. Update the `fetchCrmCustomers` function in `utils/supabase/crm.ts` to match your CRM database structure
+
+4. Trigger initial sync by running:
+   ```
+   npx ts-node scripts/trigger-crm-sync.ts
+   ```
+
+#### Ongoing Management
+
+1. Periodically trigger syncs via the API:
+   ```
+   POST /api/admin/crm-sync
+   ```
+
+2. Check mapping statistics:
+   ```
+   GET /api/admin/crm-sync
+   ```
+
+3. Manually set mappings:
+   ```
+   POST /api/admin/crm-mapping
+   Body: { "profileId": "...", "crmCustomerId": "...", "isMatched": true }
+   ```
+
+4. Display CRM data in your components:
+   ```jsx
+   <CrmCustomerInfo profileId={user.id} />
+   ``` 

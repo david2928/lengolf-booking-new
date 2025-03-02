@@ -8,6 +8,7 @@ export type Json =
 
 export type Booking = Database['public']['Tables']['bookings']['Row'];
 export type Profile = Database['public']['Tables']['profiles']['Row'];
+export type CrmCustomerMapping = Database['public']['Tables']['crm_customer_mapping']['Row'];
 
 export interface Database {
   public: {
@@ -17,6 +18,9 @@ export interface Database {
           id: string
           line_id: string | null
           display_name: string | null
+          name: string | null
+          email: string | null
+          phone_number: string | null
           picture_url: string | null
           provider: string | null
           created_at: string
@@ -26,6 +30,9 @@ export interface Database {
           id: string
           line_id?: string | null
           display_name?: string | null
+          name?: string | null
+          email?: string | null
+          phone_number?: string | null
           picture_url?: string | null
           provider?: string | null
           created_at?: string
@@ -35,6 +42,9 @@ export interface Database {
           id?: string
           line_id?: string | null
           display_name?: string | null
+          name?: string | null
+          email?: string | null
+          phone_number?: string | null
           picture_url?: string | null
           provider?: string | null
           created_at?: string
@@ -84,6 +94,41 @@ export interface Database {
           number_of_people?: number
           bay?: string | null
           status?: 'confirmed' | 'cancelled'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      crm_customer_mapping: {
+        Row: {
+          id: string
+          profile_id: string
+          crm_customer_id: string
+          crm_customer_data: Json
+          is_matched: boolean
+          match_method: 'auto' | 'manual'
+          match_confidence: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          crm_customer_id: string
+          crm_customer_data?: Json
+          is_matched?: boolean
+          match_method?: 'auto' | 'manual'
+          match_confidence?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          crm_customer_id?: string
+          crm_customer_data?: Json
+          is_matched?: boolean
+          match_method?: 'auto' | 'manual'
+          match_confidence?: number
           created_at?: string
           updated_at?: string
         }

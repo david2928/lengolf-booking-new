@@ -6,7 +6,7 @@ import Image from 'next/image';
 
 export default function ErrorPage() {
   const searchParams = useSearchParams();
-  const error = searchParams.get('error');
+  const error = searchParams?.get('error') || '';
 
   const getErrorMessage = (error: string) => {
     switch (error) {

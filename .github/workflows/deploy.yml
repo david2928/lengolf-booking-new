@@ -1,12 +1,15 @@
-name: Deploy to Cloud Run
+name: Deploy to Cloud Run [DISABLED]
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  # Workflow disabled as requested
+  # Uncomment below to re-enable
+  # push:
+  #   branches:
+  #     - main
+  # pull_request:
+  #   branches:
+  #     - main
+  workflow_dispatch:  # Only manual triggers now
 
 env:
   PROJECT_ID: lengolf-booking-system-436804

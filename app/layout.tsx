@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -10,6 +10,12 @@ const poppins = Poppins({
   variable: '--font-poppins',
   display: 'swap',
 });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
   title: {
@@ -73,11 +79,6 @@ export const metadata: Metadata = {
     title: 'LENGOLF - Indoor Golf Simulator in Bangkok',
     description: 'Book your golf simulator bay at LENGOLF Bangkok. Perfect for practice, lessons, or fun with friends. Located at Mercury Ville @ BTS Chidlom.',
     images: ['https://booking.len.golf/images/lengolf.jpg'],
-  },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
   },
   category: 'sports',
   icons: {

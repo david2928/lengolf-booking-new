@@ -4,7 +4,6 @@ import { zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
 import { calendar, AVAILABILITY_CALENDARS } from '@/lib/googleApiConfig';
 import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
-import { performance } from 'perf_hooks';
 import { calendarCache, authCache, getCacheKey, updateCalendarCache } from '@/lib/cache';
 import { differenceInHours } from 'date-fns';
 
@@ -26,13 +25,8 @@ function formatBangkokTime(date: Date | string, fmt: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const startTime = performance.now();
-  let authTime = 0, googleTime = 0, processingTime = 0;
-  let cacheHit = { auth: false, calendar: false };
-
   try {
     // 1. Authenticate via NextAuth
-    const authStart = performance.now();
     const token = await getToken({ req: request as any });
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -40,10 +34,7 @@ export async function POST(request: NextRequest) {
     const authCacheKey = getCacheKey.auth(token.sub!);
     if (!authCache.get(authCacheKey)) {
       authCache.set(authCacheKey, true);
-    } else {
-      cacheHit.auth = true;
     }
-    authTime = performance.now() - authStart;
 
     // 2. Parse incoming JSON
     const body = await request.json();
@@ -61,7 +52,6 @@ export async function POST(request: NextRequest) {
     const startHour = isToday ? Math.max(OPENING_HOUR, currentHourInZone + 1) : OPENING_HOUR;
 
     // 3. Fetch events for the booking day
-    const googleStart = performance.now();
     let allEvents: any[] = [];
     const calendarCacheKey = getCacheKey.calendar(formatBangkokTime(bangkokStartOfDay, 'yyyy-MM-dd'));
     
@@ -69,7 +59,6 @@ export async function POST(request: NextRequest) {
     
     if (cachedEvents) {
       allEvents = cachedEvents;
-      cacheHit.calendar = true;
     } else {
       const timeMin = formatInTimeZone(bangkokStartOfDay, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx");
       const timeMax = formatInTimeZone(bangkokEndOfDay, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx");
@@ -113,10 +102,8 @@ export async function POST(request: NextRequest) {
         throw error;
       }
     }
-    googleTime = performance.now() - googleStart;
 
     // 4. Build available time slots
-    const processingStart = performance.now();
     const slots = [];
 
     for (let hour = startHour; hour < CLOSING_HOUR; hour++) {
@@ -215,17 +202,7 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    processingTime = performance.now() - processingStart;
-    const totalTime = performance.now() - startTime;
-    processingTime = totalTime - (authTime + googleTime);
 
-    console.log('Availability API Performance:', {
-      totalTime: `${totalTime.toFixed(2)}ms`,
-      authTime: `${authTime.toFixed(2)}ms`,
-      googleTime: `${googleTime.toFixed(2)}ms`,
-      processingTime: `${processingTime.toFixed(2)}ms`,
-      cacheHit,
-    });
     return NextResponse.json({ slots });
   } catch (error) {
     console.error('Error in availability endpoint:', error instanceof Error ? error.message : error);
