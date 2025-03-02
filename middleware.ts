@@ -28,7 +28,13 @@ const ALLOWED_BOTS = [
   /adsbot-google/i,
   /mediapartners-google/i,
   /google web preview/i,
-  /google favicon/i
+  /google favicon/i,
+  /adsbot/i,           // Additional Google Ads bots
+  /adspreview/i,       // Google Ads Preview and Diagnosis tool
+  /google-adwords/i,   // Google AdWords
+  /google-shopping/i,  // Google Shopping
+  /google-xrawler/i,   // Google ad verification
+  /adservice.google/i  // Google Ad Service
 ];
 
 // Suspicious behavior patterns
@@ -44,7 +50,7 @@ function isBot(request: NextRequest): boolean {
   const acceptLanguage = request.headers.get('accept-language');
   const acceptEncoding = request.headers.get('accept-encoding');
 
-  // Check if it's an allowed bot first
+  // Check if it's an allowed bot first - this has priority
   if (ALLOWED_BOTS.some(pattern => pattern.test(userAgent))) {
     return false; // Allow these bots to access the site
   }
@@ -106,6 +112,7 @@ function shouldRateLimit(request: NextRequest): boolean {
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const userAgent = request.headers.get('user-agent') || '';
 
   // Allow access to public routes immediately
   if (
@@ -127,9 +134,17 @@ export async function middleware(request: NextRequest) {
     return new NextResponse('Too Many Requests', { status: 429 });
   }
 
-  // Redirect root to login
-  if (pathname === '/') {
+  // Special handling for Google Ads bots
+  const isGoogleAdsBot = ALLOWED_BOTS.some(pattern => pattern.test(userAgent));
+  
+  // Redirect root to login UNLESS it's a Google Ads bot
+  if (pathname === '/' && !isGoogleAdsBot) {
     return NextResponse.redirect(new URL('/auth/login', request.url));
+  }
+  
+  // Allow Google Ads bots to access any page without authentication
+  if (isGoogleAdsBot) {
+    return NextResponse.next();
   }
 
   try {
