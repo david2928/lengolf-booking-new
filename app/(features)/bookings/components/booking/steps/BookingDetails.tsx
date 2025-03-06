@@ -333,141 +333,168 @@ export function BookingDetails({
       
       // Create calendar event (this will also handle CRM matching once)
       setLoadingStep(prevStep => prevStep + 1);
-      const response = await fetch('/api/bookings/calendar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.accessToken || ''}`
-        },
-        body: JSON.stringify({
-          bookingId: booking.id,
-          date: format(selectedDate, 'yyyy-MM-dd'),
-          startTime: selectedTime,
-          duration,
-          skipCrmMatch: false, // Tell the API to handle CRM matching
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (errorData.error === 'No bays available for the selected time slot') {
-          // Delete the booking since no bay is available
-          const { error: deleteError } = await supabase
-            .from('bookings')
-            .delete()
-            .eq('id', booking.id);
-
-          if (deleteError) {
-            console.error('Error deleting booking:', deleteError);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
+        const response = await fetch('/api/bookings/calendar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.accessToken || ''}`
+          },
+          body: JSON.stringify({
+            bookingId: booking.id,
+            date: format(selectedDate, 'yyyy-MM-dd'),
+            startTime: selectedTime,
+            duration,
+            skipCrmMatch: false, // Tell the API to handle CRM matching
+          }),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          let errorMessage = 'Failed to create calendar event';
+          try {
+            const errorData = await response.json();
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            }
+          } catch (parseError) {
+            // If we can't parse the error as JSON, use the status text
+            errorMessage = `API Error: ${response.status} ${response.statusText}`;
           }
+          
+          if (errorMessage === 'No bays available for the selected time slot') {
+            // Delete the booking since no bay is available
+            const { error: deleteError } = await supabase
+              .from('bookings')
+              .delete()
+              .eq('id', booking.id);
 
-          setShowNoAvailabilityModal(true);
+            if (deleteError) {
+              console.error('Error deleting booking:', deleteError);
+            }
+
+            setShowNoAvailabilityModal(true);
+            return;
+          }
+          
+          throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        const { bay, warning, crmCustomerId, packageInfo } = data;
+
+        // Update booking with bay information
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({ bay })
+          .eq('id', booking.id);
+
+        if (updateError) {
+          console.error('Error updating booking:', updateError);
+          toast.error('Failed to update booking. Please try again.');
           return;
         }
-        throw new Error(errorData.error || 'Failed to create calendar event');
-      }
 
-      const { bay, warning, crmCustomerId, packageInfo } = await response.json();
-
-      // Update booking with bay information
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ bay })
-        .eq('id', booking.id);
-
-      if (updateError) {
-        console.error('Error updating booking:', updateError);
-        toast.error('Failed to update booking. Please try again.');
-        return;
-      }
-
-      // Wait for notifications to complete
-      setLoadingStep(2); // "Sending confirmation details"
-      try {
-        // Prepare notification data
-        const notificationData = {
-          customerName: name,
-          email,
-          phoneNumber,
-          bookingDate: format(selectedDate, 'yyyy-MM-dd'),
-          bookingStartTime: selectedTime,
-          bookingEndTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
-          bayNumber: bay,
-          duration,
-          numberOfPeople,
-          crmCustomerId: crmCustomerId || undefined, // Use the ID from calendar API if available
-          profileId: session.user.id,
-          skipCrmMatch: true // Skip redundant CRM matching
-        };
-        
-        const emailData = {
-          userName: name,
-          email,
-          phoneNumber,
-          date: format(selectedDate, 'MMMM d, yyyy'),
-          startTime: selectedTime,
-          endTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
-          duration,
-          numberOfPeople,
-          bayNumber: bay,
-          userId: session.user.id,
-          packageInfo,
-          skipCrmMatch: true // Skip redundant CRM matching
-        };
-        
-        // Send notifications in parallel (no need to wait for one before starting the other)
-        const [lineResponse, emailResponse] = await Promise.all([
-          fetch('/api/notifications/line', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.accessToken || ''}`
-            },
-            body: JSON.stringify(notificationData)
-          }),
-          fetch('/api/notifications/email', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.accessToken || ''}`
-            },
-            body: JSON.stringify(emailData)
-          })
-        ]);
-
-        if (!lineResponse.ok || !emailResponse.ok) {
-          console.error('Error sending notifications:', lineResponse.statusText, emailResponse.statusText);
+        // Wait for notifications to complete
+        setLoadingStep(2); // "Sending confirmation details"
+        try {
+          // Prepare notification data
+          const notificationData = {
+            customerName: name,
+            email,
+            phoneNumber,
+            bookingDate: format(selectedDate, 'yyyy-MM-dd'),
+            bookingStartTime: selectedTime,
+            bookingEndTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
+            bayNumber: bay,
+            duration,
+            numberOfPeople,
+            crmCustomerId: crmCustomerId || undefined, // Use the ID from calendar API if available
+            profileId: session.user.id,
+            skipCrmMatch: true // Skip redundant CRM matching
+          };
+          
+          const emailData = {
+            userName: name,
+            email,
+            phoneNumber,
+            date: format(selectedDate, 'MMMM d, yyyy'),
+            startTime: selectedTime,
+            endTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
+            duration,
+            numberOfPeople,
+            bayNumber: bay,
+            userId: session.user.id,
+            packageInfo,
+            skipCrmMatch: true // Skip redundant CRM matching
+          };
+          
+          // Set timeout controllers for both notification requests
+          const lineController = new AbortController();
+          const emailController = new AbortController();
+          
+          // Set 10 second timeouts for notifications
+          const lineTimeoutId = setTimeout(() => lineController.abort(), 10000);
+          const emailTimeoutId = setTimeout(() => emailController.abort(), 10000);
+          
+          // Send notifications in parallel (no need to wait for one before starting the other)
+          const [lineResponse, emailResponse] = await Promise.allSettled([
+            fetch('/api/notifications/line', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.accessToken || ''}`
+              },
+              body: JSON.stringify(notificationData),
+              signal: lineController.signal
+            }),
+            fetch('/api/notifications/email', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.accessToken || ''}`
+              },
+              body: JSON.stringify(emailData),
+              signal: emailController.signal
+            })
+          ]);
+          
+          // Clear the timeouts
+          clearTimeout(lineTimeoutId);
+          clearTimeout(emailTimeoutId);
+          
+          // Check if any notification failed
+          const lineSuccess = lineResponse.status === 'fulfilled' && lineResponse.value.ok;
+          const emailSuccess = emailResponse.status === 'fulfilled' && emailResponse.value.ok;
+          
+          if (!lineSuccess || !emailSuccess) {
+            console.warn('Some notifications failed to send:', 
+              !lineSuccess ? 'LINE notification failed' : '', 
+              !emailSuccess ? 'Email notification failed' : '');
+            
+            setHasNotificationError(true);
+          }
+          
+          // Still proceed with booking success even if notifications failed
+          router.push(`/bookings/confirmation?id=${booking.id}&bay=${bay}`);
+        } catch (error) {
+          console.error('Error sending notifications:', error);
           setHasNotificationError(true);
+          
+          // Still redirect to confirmation page, as the booking itself succeeded
+          router.push(`/bookings/confirmation?id=${booking.id}&bay=${bay}`);
         }
       } catch (error) {
-        console.error('Error sending notifications:', error);
-        setHasNotificationError(true);
+        console.error('Error creating booking:', error instanceof Error ? error.message : error);
+        setIsSubmitting(false);
+        setShowLoadingOverlay(false);
+        toast.error(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-
-      // Show final step and completion
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setLoadingStep(loadingSteps.length - 1);
-      
-      // Wait another moment to show the checkmark
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (warning || hasNotificationError) {
-        toast('Booking confirmed but there was an issue sending notifications', {
-          icon: '⚠️',
-        });
-      } else {
-        toast.success('Booking confirmed!');
-      }
-      
-      router.push(`/bookings/confirmation?id=${booking.id}`);
-    } catch (error) {
-      console.error('Error creating booking:', error instanceof Error ? error.message : error);
-      if (error instanceof Error && error.message.includes('authentication')) {
-        toast.error('Your session has expired. Please sign in again.');
-        router.push('/auth/signin');
-        return;
-      }
-      toast.error('Failed to create booking. Please try again.');
     } finally {
       setIsSubmitting(false);
       setShowLoadingOverlay(false);

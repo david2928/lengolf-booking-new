@@ -15,28 +15,36 @@ const TIMEZONE = 'Asia/Bangkok';
 
 async function findAvailableBay(startDateTime: Date, endDateTime: Date) {
   try {
-    for (const [bay, calendarId] of Object.entries(BOOKING_CALENDARS)) {
-      // Check if bay is available for the requested time slot
-      const events = await calendar.events.list({
-        calendarId,
-        timeMin: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-        timeMax: formatInTimeZone(endDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-        singleEvents: true,
-        timeZone: TIMEZONE,
-      });
-
-      // If no events during this time slot, bay is available
-      const hasConflict = (events.data.items || []).some(event => {
-        const eventStart = new Date(event.start?.dateTime || '');
-        const eventEnd = new Date(event.end?.dateTime || '');
-        return startDateTime < eventEnd && endDateTime > eventStart;
-      });
-
-      if (!hasConflict) {
-        return bay;
+    // Create requests for all calendars in parallel
+    const bayPromises = Object.entries(BOOKING_CALENDARS).map(async ([bay, calendarId]) => {
+      try {
+        const events = await calendar.events.list({
+          calendarId,
+          timeMin: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+          timeMax: formatInTimeZone(endDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+          singleEvents: true,
+          timeZone: TIMEZONE,
+        });
+        
+        const hasConflict = (events.data.items || []).some(event => {
+          const eventStart = new Date(event.start?.dateTime || '');
+          const eventEnd = new Date(event.end?.dateTime || '');
+          return startDateTime < eventEnd && endDateTime > eventStart;
+        });
+        
+        return { bay, available: !hasConflict };
+      } catch (error) {
+        console.error(`Error checking availability for bay ${bay}:`, error);
+        return { bay, available: false, error: true };
       }
-    }
-    return null;
+    });
+    
+    // Wait for all checks to complete
+    const results = await Promise.all(bayPromises);
+    
+    // Find the first available bay
+    const firstAvailable = results.find(result => result.available);
+    return firstAvailable ? firstAvailable.bay : null;
   } catch (error) {
     console.error('Error checking bay availability:', error);
     throw error;
@@ -65,6 +73,16 @@ async function makeInternalRequest(url: string, options: any) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Early timing tracking to diagnose performance issues
+    const startTime = Date.now();
+    let lastCheckpoint = startTime;
+    
+    const logTiming = (step: string) => {
+      const now = Date.now();
+      console.log(`[Timing] ${step}: ${now - lastCheckpoint}ms (total: ${now - startTime}ms)`);
+      lastCheckpoint = now;
+    };
+
     // Get the authorization header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -79,6 +97,7 @@ export async function POST(request: NextRequest) {
       req: request as any,
       secret: process.env.NEXTAUTH_SECRET 
     });
+    logTiming('Auth token verification');
 
     if (!token) {
       return NextResponse.json(
@@ -94,6 +113,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('id', token.sub)
       .single();
+    logTiming('Profile fetch');
 
     if (!profile) {
       return NextResponse.json(
@@ -102,25 +122,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { bookingId, date, startTime, duration, skipCrmMatch } = await request.json();
+    const { bookingId, date, startTime: bookingStartTime, duration, skipCrmMatch } = await request.json();
 
-    if (!bookingId || !date || !startTime || !duration) {
+    if (!bookingId || !date || !bookingStartTime || !duration) {
       return NextResponse.json(
-        { error: 'Missing required fields', details: { bookingId, date, startTime, duration } },
+        { error: 'Missing required fields', details: { bookingId, date, bookingStartTime, duration } },
         { status: 400 }
       );
     }
 
     // Format start and end times with proper timezone handling
-    const parsedDateTime = parse(`${date} ${startTime}`, 'yyyy-MM-dd HH:mm', new Date());
+    const parsedDateTime = parse(`${date} ${bookingStartTime}`, 'yyyy-MM-dd HH:mm', new Date());
     const startDateTime = zonedTimeToUtc(parsedDateTime, TIMEZONE);
     const endDateTime = addHours(startDateTime, duration);
 
-    // Find an available bay
-    const availableBay = await findAvailableBay(startDateTime, endDateTime);
+    // Find an available bay with a timeout
+    let availableBay: string | null = null;
+    try {
+      // Set a timeout for the bay availability check
+      const timeoutPromise = new Promise<null>((_, reject) => {
+        setTimeout(() => reject(new Error('Bay availability check timed out')), 5000);
+      });
+      
+      // Race the actual check against the timeout
+      availableBay = await Promise.race([
+        findAvailableBay(startDateTime, endDateTime),
+        timeoutPromise
+      ]);
+    } catch (error) {
+      console.error('Error or timeout finding available bay:', error);
+      return NextResponse.json(
+        { error: 'Failed to check bay availability - please try again' },
+        { status: 500 }
+      );
+    }
+    logTiming('Bay availability check');
+
     if (!availableBay) {
       return NextResponse.json(
-        { error: 'No bays available for the selected time slot', details: { date, startTime, duration } },
+        { error: 'No bays available for the selected time slot', details: { date, startTime: bookingStartTime, duration } },
         { status: 400 }
       );
     }
@@ -134,6 +174,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('id', bookingId)
       .single();
+    logTiming('Booking fetch');
 
     if (!booking) {
       return NextResponse.json(
@@ -157,6 +198,7 @@ export async function POST(request: NextRequest) {
         console.log('Customer profile check failed, but continuing with booking');
       }
     }
+    logTiming('CRM match');
 
     // Get CRM customer mapping for profile
     const { data: crmMapping } = await supabase
@@ -170,6 +212,7 @@ export async function POST(request: NextRequest) {
       crmCustomerId = crmMapping.crm_customer_id;
       crmCustomerData = crmMapping.crm_customer_data;
     }
+    logTiming('CRM data fetch');
     
     // Get customer name from CRM if available, otherwise use profile name
     let customerName = profile.display_name || profile.name || profile.email;
@@ -201,46 +244,53 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+    logTiming('Package data fetch');
 
     // Get the display name for the bay
     const bayDisplayName = BAY_DISPLAY_NAMES[availableBay] || availableBay;
 
-    // Create calendar event with proper timezone handling
-    const event = {
-      summary: `${customerName} (${booking.phone_number}) (${booking.number_of_people}) - ${packageInfo} at ${bayDisplayName}`,
-      description: `Customer Name: ${customerName}
-Booking Name: ${booking.name}
-Email: ${profile.email}
-Phone: ${booking.phone_number}
-People: ${booking.number_of_people}
-Package: ${packageInfo}
-Booking ID: ${bookingId}`,
-      colorId: BAY_COLORS[bayDisplayName],
-      start: {
-        dateTime: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-        timeZone: TIMEZONE,
-      },
-      end: {
-        dateTime: formatInTimeZone(endDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-        timeZone: TIMEZONE,
-      },
-    };
-
-    // Create calendar event
-    const response = await calendar.events.insert({
-      calendarId,
-      requestBody: event,
-    });
-
-    if (response.status !== 200) {
-      throw new Error(`Failed to create calendar event. Status: ${response.status}`);
+    // Create a calendar event with timeout protection
+    let calendarEventResponse: any;
+    try {
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Calendar event creation timed out')), 5000);
+      });
+      
+      const createEventPromise = calendar.events.insert({
+        calendarId,
+        requestBody: {
+          summary: `${customerName} (${booking.number_of_people}) - ${packageInfo}`,
+          description: `Booking ID: ${booking.id}\nEmail: ${booking.email}\nPhone: ${booking.phone_number}\nCustomer ID: ${crmCustomerId || 'N/A'}`,
+          start: {
+            dateTime: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+            timeZone: TIMEZONE
+          },
+          end: {
+            dateTime: formatInTimeZone(endDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
+            timeZone: TIMEZONE
+          },
+          colorId: availableBay && BAY_COLORS[availableBay as keyof typeof BAY_COLORS] || '1'
+        }
+      });
+      
+      calendarEventResponse = await Promise.race([
+        createEventPromise,
+        timeoutPromise
+      ]);
+    } catch (error) {
+      console.error('Failed to create calendar event:', error);
+      return NextResponse.json(
+        { error: 'Failed to create calendar event - please try again' },
+        { status: 500 }
+      );
     }
+    logTiming('Calendar event creation');
 
     // Return success with the assigned bay and additional data for notifications
     return NextResponse.json({
       bay: bayDisplayName,
       bayCode: availableBay,
-      eventId: response.data.id,
+      eventId: calendarEventResponse.data.id,
       calendarId,
       warning: null,
       crmCustomerId,
@@ -249,10 +299,7 @@ Booking ID: ${bookingId}`,
   } catch (error) {
     console.error('Error creating calendar event:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to create calendar event', 
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to create calendar event' },
       { status: 500 }
     );
   }
