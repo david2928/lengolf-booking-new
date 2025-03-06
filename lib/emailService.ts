@@ -8,6 +8,9 @@ interface EmailConfirmation {
   endTime: string;
   duration: number;
   numberOfPeople: number;
+  bayNumber?: string;
+  phoneNumber?: string;
+  packageInfo?: string;
 }
 
 const transporter = nodemailer.createTransport({
@@ -24,6 +27,11 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function sendConfirmationEmail(booking: EmailConfirmation) {
+  // Create the booking title
+  const bookingTitle = booking.bayNumber 
+    ? `${booking.userName}${booking.phoneNumber ? ` (${booking.phoneNumber})` : ''} (${booking.numberOfPeople}) - ${booking.packageInfo || 'Normal Booking'} at Bay ${booking.bayNumber}`
+    : `${booking.userName} (${booking.numberOfPeople})`;
+
   const emailContent = `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
         <!-- Logo Section -->
@@ -60,6 +68,16 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
                 <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Duration</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.duration} hour(s)</td>
             </tr>
+            ${booking.bayNumber ? `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Bay</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.bayNumber}</td>
+            </tr>` : ''}
+            ${booking.packageInfo ? `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Booking Type</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.packageInfo}</td>
+            </tr>` : ''}
             <tr>
                 <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Number of People</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.numberOfPeople}</td>
@@ -105,7 +123,7 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
   const mailOptions = {
     from: 'LENGOLF <notification@len.golf>',
     to: booking.email,
-    subject: `LENGOLF Booking Confirmation - ${booking.date} at ${booking.startTime}`,
+    subject: `LENGOLF Booking Confirmation - ${bookingTitle}`,
     html: emailContent,
   };
 

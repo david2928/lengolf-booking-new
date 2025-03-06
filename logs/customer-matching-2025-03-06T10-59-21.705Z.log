@@ -1,0 +1,110 @@
+[2025-03-06T10:59:21.708Z] [info] Starting customer matching with configuration:
+{
+  "confidenceThreshold": 0.7,
+  "batchSize": 50,
+  "forceUpdate": false,
+  "debugMode": false
+}
+[2025-03-06T10:59:21.709Z] [info] Fetching existing customer mappings...
+[2025-03-06T10:59:22.305Z] [info] Fetched 60 existing customer mappings
+[2025-03-06T10:59:22.306Z] [info] Fetching all profiles from booking database...
+[2025-03-06T10:59:22.306Z] [info] Checking for users table...
+[2025-03-06T10:59:22.375Z] [info] Users table not found, fetching only profiles data
+[2025-03-06T10:59:22.483Z] [info] Found 126 profiles
+[2025-03-06T10:59:22.483Z] [debug] Sample profiles data structure:
+[2025-03-06T10:59:22.483Z] [debug] {"id":"8ee65db0-c74d-4ff6-b78d-4bc97c124dac","full_name":null,"email":"truangrairatanaroje@gmail.com","phone":null,"has_name":false,"has_email":true,"has_phone":false}
+[2025-03-06T10:59:22.483Z] [debug] {"id":"b3bee2f8-a793-448a-8116-bfaffc161c04","full_name":null,"email":"c8080459@gmail.com","phone":null,"has_name":false,"has_email":true,"has_phone":false}
+[2025-03-06T10:59:22.483Z] [debug] {"id":"7c2436e8-dfd5-4ce4-8133-78ca02aff71b","full_name":null,"email":"harrykgc@gmail.com","phone":null,"has_name":false,"has_email":true,"has_phone":false}
+[2025-03-06T10:59:22.483Z] [debug] {"id":"db0ab7b2-2580-437f-932c-e16e246aa43b","full_name":null,"email":"ilufe0303@gmail.com","phone":null,"has_name":false,"has_email":true,"has_phone":false}
+[2025-03-06T10:59:22.483Z] [debug] {"id":"f8404092-3240-41e0-a1ce-ab9310e05d2a","full_name":null,"email":"danskyrel808@gmail.com","phone":null,"has_name":false,"has_email":true,"has_phone":false}
+[2025-03-06T10:59:22.483Z] [info] Profiles with name: 0, email: 104, phone: 0
+[2025-03-06T10:59:22.483Z] [info] Profiles with any identifying info: 104 (83%)
+[2025-03-06T10:59:22.483Z] [info] Fetched 126 profiles
+[2025-03-06T10:59:22.483Z] [info] 66 profiles to process
+[2025-03-06T10:59:22.483Z] [info] Fetching all customers from CRM database...
+[2025-03-06T10:59:23.138Z] [info] Found 1436 CRM customers
+[2025-03-06T10:59:23.138Z] [info] Fetched 1436 CRM customers
+[2025-03-06T10:59:23.138Z] [info] Processing special profile: 44b0cd15-c901-4517-9743-31c68032259d (David Geiermann)
+[2025-03-06T10:59:23.145Z] [info] Old algorithm found no match for 44b0cd15-c901-4517-9743-31c68032259d
+[2025-03-06T10:59:23.146Z] [info] No suitable match found for special profile 44b0cd15-c901-4517-9743-31c68032259d
+[2025-03-06T10:59:23.146Z] [info] Processing special profile: 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e (David Geiermann)
+[2025-03-06T10:59:23.152Z] [info] Old algorithm found no match for 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e
+[2025-03-06T10:59:23.152Z] [info] No suitable match found for special profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e
+[2025-03-06T10:59:23.152Z] [info] Processing special profile: f7775120-f37f-45e5-92b9-0388f8670ea5 (David Geiermann)
+[2025-03-06T10:59:23.156Z] [info] Old algorithm found no match for f7775120-f37f-45e5-92b9-0388f8670ea5
+[2025-03-06T10:59:23.157Z] [info] No suitable match found for special profile f7775120-f37f-45e5-92b9-0388f8670ea5
+[2025-03-06T10:59:23.157Z] [info] Processing batch 1 of 2
+[2025-03-06T10:59:23.157Z] [info] No suitable match found for profile 7c2436e8-dfd5-4ce4-8133-78ca02aff71b
+[2025-03-06T10:59:23.157Z] [info] No suitable match found for profile db0ab7b2-2580-437f-932c-e16e246aa43b
+[2025-03-06T10:59:23.158Z] [info] No suitable match found for profile 02586ebc-0dae-4034-8de8-30399669e9a0
+[2025-03-06T10:59:23.158Z] [info] No suitable match found for profile 16b0609f-aec1-4294-944e-2ebe1564380c
+[2025-03-06T10:59:23.158Z] [info] No suitable match found for profile e3666711-2572-4ced-8670-e9cd565808bf
+[2025-03-06T10:59:23.158Z] [info] No suitable match found for profile f1f82830-e40a-4188-927b-7910b00f5e70
+[2025-03-06T10:59:23.158Z] [info] No suitable match found for profile 05c1d6cc-d6cb-476d-aa03-4207b02e11b9
+[2025-03-06T10:59:23.159Z] [info] No suitable match found for profile 889ecb64-89f0-4c98-b7d7-0d9c0a702873
+[2025-03-06T10:59:23.159Z] [info] No suitable match found for profile d7a9f886-640a-49a1-ae1d-097abe759e44
+[2025-03-06T10:59:23.159Z] [info] No suitable match found for profile 7495ca3e-f353-45e5-8c3a-e14c3afb6428
+[2025-03-06T10:59:23.159Z] [info] No suitable match found for profile d468d53a-8698-4041-96e0-27292c3c6415
+[2025-03-06T10:59:23.159Z] [info] No suitable match found for profile d7f8ff4f-6a58-49f8-b996-33dfe2e1aa71
+[2025-03-06T10:59:23.159Z] [info] No suitable match found for profile 49e1e114-3b05-49d1-affd-9a734e962c11
+[2025-03-06T10:59:23.159Z] [info] No suitable match found for profile d600c411-506d-46ec-a78e-4c4f0fe234da
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile ef4e5727-7c81-48c8-9fde-5b971769bc9e
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile f5ee6dab-f3c2-4208-99a2-b7bf1a7e0938
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile 7cc1e4dc-7248-4478-8fa0-33e08f25e4a9
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile f62e5fd4-bf5e-4842-aa83-24946954ebe5
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile efd083c1-26b8-4ed0-92cc-187b8e0d7636
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile 7a6a3e65-c0a5-4b79-9c30-c6c83d45f2b6
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile 51db2450-320e-46d2-b008-c72de637a34b
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile ce06fb6f-54b2-4251-8999-7a652dbc5f81
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile 51291577-fd1c-4e3f-92aa-83f036c823c7
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile f0fb78ea-3f83-4150-8b3c-c9930e8896b3
+[2025-03-06T10:59:23.160Z] [info] No suitable match found for profile f29b69b0-7f4b-4220-b90b-eb429d02f4c9
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile 00339476-5ddc-4091-8159-d79c5522038a
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile b4007b4f-36d5-4457-be49-0af5e897c4e6
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile 4d90b73a-ac27-4aec-b66e-97803dfb092d
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile ecfa8a87-852b-447d-8e77-7a25000e86cc
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile 1c5035c1-2c68-4d0e-9951-7e9587f5db67
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile 2135017a-f1eb-48d7-ae1d-103839aae825
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile 8f896027-a01c-4888-a273-c99251ef4ec0
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile 3bbbb0c7-5b67-4c8c-b71c-9198aac19b39
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile 9ac75560-522e-4fc5-bd0e-f4fc6bbf6858
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile 258c6a48-aeed-4951-a686-594d44101996
+[2025-03-06T10:59:23.161Z] [info] No suitable match found for profile 37756307-753f-48b1-a6ef-d1efe4a6d282
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile 20416b86-2c39-4b48-9f4f-339a36610b12
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile d875a820-79c2-4474-ada6-e0e9e4da6fc2
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile ece51ef3-895e-46e4-bbe4-aed165cfe2ae
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile 08f3f551-3da8-45ff-978a-c7b9faab82b5
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile 12f32b4c-e397-4061-821e-b6b2df703a30
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile 20becc32-0552-41b8-8bf8-79a8ac76ec20
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile e40c4ecf-cfee-433c-bb5e-602ca85cd473
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile 9827b8fc-209e-41ca-b574-1467dce2af6b
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile e7f6e2f1-e177-4773-8864-d49561a715f1
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile 40a3ac9b-61e5-42ef-85b7-6efcebbe5d25
+[2025-03-06T10:59:23.162Z] [info] No suitable match found for profile 75cac53a-84b0-4ff7-9c94-7891956c7170
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile a4ec276b-eba0-4d28-b691-6c635e54668b
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile 9575e766-194f-4d0d-8f62-3b1859d2212c
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile bb15d9c8-883c-4b17-9cc2-982bf7909dee
+[2025-03-06T10:59:23.163Z] [info] Processing batch 2 of 2
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile 09d6c149-5e74-4e6e-a207-3b6976e591e3
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile 41225aa4-a339-4f78-b859-b26363102162
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile 778e4a41-fdb8-44f9-92da-a5169e7ec220
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile 16bae061-22e9-4d35-bebb-e691116421f7
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile 8bab31ce-987b-4ac2-8013-01e6684580c7
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile 742ed5bc-8bf2-4faf-ba1c-553e920becd2
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile 649454d3-1f58-496b-b024-abc7f125f00b
+[2025-03-06T10:59:23.163Z] [info] No suitable match found for profile 6486ccf4-3ce0-44f0-9385-9dae5bf3db1b
+[2025-03-06T10:59:23.164Z] [info] No suitable match found for profile d4896c75-f8d2-4f2c-9e77-8320e5b0120c
+[2025-03-06T10:59:23.164Z] [info] No suitable match found for profile 049fdf7d-916a-4ce4-af42-c432ed52f096
+[2025-03-06T10:59:23.164Z] [info] No suitable match found for profile e861a124-77b1-4867-b9b2-c882f61fd96e
+[2025-03-06T10:59:23.164Z] [info] No suitable match found for profile a93a2a4b-b222-4922-be21-0c113a12fd9f
+[2025-03-06T10:59:23.164Z] [info] No suitable match found for profile 0460a45c-7475-4492-8889-5b43ccec0075
+[2025-03-06T10:59:23.164Z] [info] No suitable match found for profile 06df4876-5a86-496b-a25e-0ec55d93dad7
+[2025-03-06T10:59:23.164Z] [info] No suitable match found for profile c4109846-ed34-4ba7-ba12-15c3f8121c10
+[2025-03-06T10:59:23.164Z] [info] No suitable match found for profile 3e854d34-a1a2-4d15-adc6-0e47b4000df4
+[2025-03-06T10:59:23.164Z] [info] ===== Customer Matching Completed =====
+[2025-03-06T10:59:23.164Z] [info] Total Profiles Processed: 69
+[2025-03-06T10:59:23.164Z] [info] Successfully Matched: 0
+[2025-03-06T10:59:23.164Z] [info] Newly Inserted: 0
+[2025-03-06T10:59:23.164Z] [info] Updated: 0
+[2025-03-06T10:59:23.164Z] [info] Skipped (No Match/Low Confidence): 69
+[2025-03-06T10:59:23.164Z] [info] Errors: 0

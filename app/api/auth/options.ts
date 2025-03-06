@@ -3,14 +3,24 @@ import FacebookProvider from 'next-auth/providers/facebook';
 import LineProvider from 'next-auth/providers/line';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createServerClient } from '@/utils/supabase/server';
-import { matchProfileWithCrm } from '@/utils/customer-matching-service';
+import { matchProfileWithCrm, type MatchResult } from '@/utils/customer-matching';
 import { v4 as uuidv4 } from 'uuid';
 import type { NextAuthOptions } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
 import type { Session } from 'next-auth';
+import type { User } from 'next-auth';
+import type { Account } from 'next-auth';
+import type { Profile as OAuthProfile } from 'next-auth';
 
 if (!process.env.NEXTAUTH_SECRET) {
   throw new Error('Please provide process.env.NEXTAUTH_SECRET');
+}
+
+// Extend the User type to include our custom fields
+interface ExtendedUser extends User {
+  id: string;
+  provider?: string;
+  phone?: string | null;
 }
 
 export const authOptions: NextAuthOptions = {
@@ -128,9 +138,9 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile: oauthProfile }: { 
-      user: any; 
-      account: any; 
-      profile?: any;
+      user: ExtendedUser; 
+      account: Account | null; 
+      profile?: OAuthProfile;
     }) {
       const supabase = createServerClient();
 
@@ -165,11 +175,11 @@ export const authOptions: NextAuthOptions = {
         
         // Attempt to match the user with a CRM customer record
         // This runs asynchronously and doesn't block the login process
-        matchProfileWithCrm(userId).then(result => {
+        matchProfileWithCrm(userId).then((result: MatchResult | null) => {
           if (result?.matched) {
             console.log(`User ${userId} automatically matched with CRM customer ${result.crmCustomerId} (confidence: ${result.confidence})`);
           }
-        }).catch(err => {
+        }).catch((err: Error) => {
           console.error(`Error matching user ${userId} with CRM:`, err);
         });
         
@@ -196,7 +206,7 @@ export const authOptions: NextAuthOptions = {
         }
       };
     },
-    async jwt({ token, user, account }: { token: JWT; user: any; account: any }) {
+    async jwt({ token, user, account }: { token: JWT; user?: ExtendedUser; account?: Account | null }) {
       if (user) {
         token.id = user.id;
         token.provider = account?.provider;

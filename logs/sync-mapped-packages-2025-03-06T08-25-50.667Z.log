@@ -1,0 +1,36 @@
+[2025-03-06T08:25:50.669Z] [info] Starting sync of mapped customers and packages
+[2025-03-06T08:25:50.672Z] [info] Fetching all CRM customer mappings...
+[2025-03-06T08:25:50.861Z] [info] Found 3 CRM customer mappings
+[2025-03-06T08:25:50.861Z] [info] Processing mapping 1/3 for profile 44b0cd15-c901-4517-9743-31c68032259d
+[2025-03-06T08:25:50.862Z] [info] Fetching packages for CRM customer ID: 4920780
+[2025-03-06T08:25:51.058Z] [debug] Column 'customer_id' does not exist in packages table
+[2025-03-06T08:25:51.153Z] [debug] Column 'stable_id' does not exist in packages table
+[2025-03-06T08:25:51.216Z] [debug] Column 'customer' does not exist in packages table
+[2025-03-06T08:25:51.287Z] [debug] Column 'id_customer' does not exist in packages table
+[2025-03-06T08:25:51.287Z] [info] No packages found for customer 4920780 using any known column name
+[2025-03-06T08:25:51.287Z] [info] No packages to sync for customer 4920780
+[2025-03-06T08:25:51.288Z] [info] Processed 0 packages for customer 4920780 (Added: 0, Updated: 0, Errors: 0)
+[2025-03-06T08:25:51.288Z] [info] Processing mapping 2/3 for profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e
+[2025-03-06T08:25:51.288Z] [info] Fetching packages for CRM customer ID: 4920780
+[2025-03-06T08:25:51.410Z] [debug] Column 'customer_id' does not exist in packages table
+[2025-03-06T08:25:51.488Z] [debug] Column 'stable_id' does not exist in packages table
+[2025-03-06T08:25:51.551Z] [debug] Column 'customer' does not exist in packages table
+[2025-03-06T08:25:51.613Z] [debug] Column 'id_customer' does not exist in packages table
+[2025-03-06T08:25:51.613Z] [info] No packages found for customer 4920780 using any known column name
+[2025-03-06T08:25:51.613Z] [info] No packages to sync for customer 4920780
+[2025-03-06T08:25:51.613Z] [info] Processed 0 packages for customer 4920780 (Added: 0, Updated: 0, Errors: 0)
+[2025-03-06T08:25:51.614Z] [info] Processing mapping 3/3 for profile f7775120-f37f-45e5-92b9-0388f8670ea5
+[2025-03-06T08:25:51.614Z] [info] Fetching packages for CRM customer ID: 4920780
+[2025-03-06T08:25:51.749Z] [debug] Column 'customer_id' does not exist in packages table
+[2025-03-06T08:25:51.809Z] [debug] Column 'stable_id' does not exist in packages table
+[2025-03-06T08:25:51.867Z] [debug] Column 'customer' does not exist in packages table
+[2025-03-06T08:25:51.933Z] [debug] Column 'id_customer' does not exist in packages table
+[2025-03-06T08:25:51.933Z] [info] No packages found for customer 4920780 using any known column name
+[2025-03-06T08:25:51.933Z] [info] No packages to sync for customer 4920780
+[2025-03-06T08:25:51.933Z] [info] Processed 0 packages for customer 4920780 (Added: 0, Updated: 0, Errors: 0)
+[2025-03-06T08:25:51.933Z] [info] ====== Sync Completed ======
+[2025-03-06T08:25:51.934Z] [info] Total Mappings Processed: 3
+[2025-03-06T08:25:51.934Z] [info] Total Packages Found: 0
+[2025-03-06T08:25:51.934Z] [info] Total Packages Added: 0
+[2025-03-06T08:25:51.934Z] [info] Total Packages Updated: 0
+[2025-03-06T08:25:51.935Z] [info] Total Errors: 0

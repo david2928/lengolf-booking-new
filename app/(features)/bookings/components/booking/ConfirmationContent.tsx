@@ -41,7 +41,7 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
 
   return (
     <PageTransition>
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Confirmation Header */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <div className="flex items-center justify-center mb-4">
@@ -64,7 +64,7 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
               <div>
                 <h3 className="text-sm font-medium text-gray-600">Date</h3>
                 <p className="text-lg sm:text-xl font-bold text-green-700">
-                  {format(new Date(booking.date), 'MMM d, yyyy')}
+                  {format(new Date(booking.date), 'MMMM d, yyyy')}
                 </p>
               </div>
             </div>
@@ -76,9 +76,9 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
               <div className="bg-green-50 p-2 sm:p-3 rounded-full">
                 <ClockIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-medium text-gray-600">Time Period</h3>
-                <p className="text-lg sm:text-xl font-bold text-green-700">
+                <p className="text-lg sm:text-xl font-bold text-green-700 whitespace-nowrap">
                   {booking.start_time} - {format(
                     new Date(`2000-01-01T${booking.start_time}`).getTime() + booking.duration * 60 * 60 * 1000,
                     'HH:mm'

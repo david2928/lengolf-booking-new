@@ -1,0 +1,29 @@
+[2025-03-06T08:45:25.768Z] [info] Starting sync for David G. profiles
+[2025-03-06T08:45:25.770Z] [info] Processing profile 44b0cd15-c901-4517-9743-31c68032259d
+[2025-03-06T08:45:26.387Z] [info] Profile: David Geiermann
+[2025-03-06T08:45:26.387Z] [info] Phone: 0842695447
+[2025-03-06T08:45:27.036Z] [info] Found CRM customer: David G. (4920780)
+[2025-03-06T08:45:27.036Z] [info] Creating mapping for profile 44b0cd15-c901-4517-9743-31c68032259d to CRM customer 4920780
+[2025-03-06T08:45:27.104Z] [info] Updating existing mapping for profile 44b0cd15-c901-4517-9743-31c68032259d
+[2025-03-06T08:45:27.174Z] [error] Error creating/updating mapping: duplicate key value violates unique constraint "crm_customer_mapping_profile_id_crm_customer_id_key"
+[2025-03-06T08:45:27.174Z] [error] Failed to create mapping for profile 44b0cd15-c901-4517-9743-31c68032259d
+[2025-03-06T08:45:27.174Z] [info] Processing profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e
+[2025-03-06T08:45:27.252Z] [info] Profile: David Geiermann
+[2025-03-06T08:45:27.252Z] [info] Phone: +66842695447
+[2025-03-06T08:45:27.433Z] [info] Found CRM customer: David G. (4920780)
+[2025-03-06T08:45:27.433Z] [info] Creating mapping for profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e to CRM customer 4920780
+[2025-03-06T08:45:27.504Z] [info] Updating existing mapping for profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e
+[2025-03-06T08:45:27.572Z] [error] Error creating/updating mapping: duplicate key value violates unique constraint "crm_customer_mapping_profile_id_crm_customer_id_key"
+[2025-03-06T08:45:27.572Z] [error] Failed to create mapping for profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e
+[2025-03-06T08:45:27.572Z] [info] Processing profile f7775120-f37f-45e5-92b9-0388f8670ea5
+[2025-03-06T08:45:27.637Z] [info] Profile: David Geiermann
+[2025-03-06T08:45:27.637Z] [info] Phone: +66842695447
+[2025-03-06T08:45:27.809Z] [info] Found CRM customer: David G. (4920780)
+[2025-03-06T08:45:27.809Z] [info] Creating mapping for profile f7775120-f37f-45e5-92b9-0388f8670ea5 to CRM customer 4920780
+[2025-03-06T08:45:27.871Z] [info] Updating existing mapping for profile f7775120-f37f-45e5-92b9-0388f8670ea5
+[2025-03-06T08:45:27.932Z] [error] Error creating/updating mapping: duplicate key value violates unique constraint "crm_customer_mapping_profile_id_crm_customer_id_key"
+[2025-03-06T08:45:27.932Z] [error] Failed to create mapping for profile f7775120-f37f-45e5-92b9-0388f8670ea5
+[2025-03-06T08:45:27.932Z] [info] ====== Sync Completed ======
+[2025-03-06T08:45:27.933Z] [info] Total Profiles Processed: 3
+[2025-03-06T08:45:27.933Z] [info] Successfully Processed: 0
+[2025-03-06T08:45:27.933Z] [info] Failed: 3

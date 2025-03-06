@@ -7,6 +7,7 @@ import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
+import { matchProfileWithCrm } from '@/utils/customer-matching';
 
 const TIMEZONE = 'Asia/Bangkok';
 
@@ -106,13 +107,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Run customer profile check in the background - this doesn't modify the booking flow
+    try {
+      await matchProfileWithCrm(token.sub as string);
+    } catch (e) {
+      // Don't let this error affect the booking process
+      console.log('Customer profile check failed, but continuing with booking');
+    }
+
+    // Get CRM customer mapping for profile
+    const { data: crmMapping } = await supabase
+      .from('crm_customer_mapping')
+      .select('crm_customer_id, crm_customer_data')
+      .eq('profile_id', token.sub)
+      .eq('is_matched', true)
+      .maybeSingle();
+    
+    // Get customer name from CRM if available, otherwise use profile name
+    let customerName = profile.display_name || profile.name || profile.email;
+    if (crmMapping?.crm_customer_data) {
+      const crmData = crmMapping.crm_customer_data as any;
+      if (crmData?.name) {
+        customerName = crmData.name;
+      }
+    }
+
+    // Get active packages for the customer
+    const { data: packages } = await supabase
+      .from('crm_packages')
+      .select('*')
+      .eq('stable_hash_id', crmMapping?.crm_customer_data?.stable_hash_id)
+      .gte('expiration_date', new Date().toISOString())
+      .order('expiration_date', { ascending: true });
+
     // Get the display name for the bay
     const bayDisplayName = BAY_DISPLAY_NAMES[availableBay] || availableBay;
 
+    // Format package info for the event
+    let packageInfo = 'Normal Bay Rate';
+    if (packages && packages.length > 0) {
+      const activePackage = packages[0]; // Use the first valid package
+      packageInfo = `Package (${activePackage.package_type_name})`;
+    }
+
     // Create calendar event with proper timezone handling
     const event = {
-      summary: `${profile.display_name || profile.email} (${booking.phone_number}) (${booking.number_of_people}) - ${bayDisplayName}`,
-      description: `Name: ${profile.display_name || profile.email}\nEmail: ${profile.email}\nPhone: ${booking.phone_number}\nPeople: ${booking.number_of_people}\nBooking ID: ${bookingId}`,
+      summary: `${customerName} (${booking.phone_number}) (${booking.number_of_people}) - ${packageInfo} at ${bayDisplayName}`,
+      description: `Customer Name: ${customerName}
+Booking Name: ${booking.name}
+Email: ${profile.email}
+Phone: ${booking.phone_number}
+People: ${booking.number_of_people}
+Package: ${packageInfo}
+Booking ID: ${bookingId}`,
       colorId: BAY_COLORS[bayDisplayName],
       start: {
         dateTime: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
@@ -133,10 +180,10 @@ export async function POST(request: NextRequest) {
       throw new Error(`Failed to create calendar event. Status: ${response.status}`);
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       eventId: response.data.id,
-      bay: availableBay // Keep the simple bay name for the database
+      bay: availableBay
     });
   } catch (error) {
     console.error('Error creating calendar event:', error);

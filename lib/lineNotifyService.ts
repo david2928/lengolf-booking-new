@@ -10,6 +10,8 @@ interface BookingNotification {
   bayNumber: string;
   duration: number;
   numberOfPeople: number;
+  crmCustomerId?: string;
+  profileId?: string;
 }
 
 export async function sendBookingNotification(booking: BookingNotification) {

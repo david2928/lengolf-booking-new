@@ -1,0 +1,9 @@
+[2025-03-06T10:21:58.111Z] [info] Starting customer matching with configuration:
+{
+  "confidenceThreshold": 0.15,
+  "batchSize": 50,
+  "forceUpdate": false,
+  "debugMode": true
+}
+[2025-03-06T10:21:58.114Z] [info] Fetching existing customer mappings...
+[2025-03-06T10:21:58.290Z] [info] Fetched 24 existing customer mappings

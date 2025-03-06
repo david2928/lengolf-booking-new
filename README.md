@@ -243,4 +243,73 @@ The CRM customer mapping is implemented with the following components:
 4. Display CRM data in your components:
    ```jsx
    <CrmCustomerInfo profileId={user.id} />
-   ``` 
+   ```
+
+# Customer Mapping and Package System
+
+## Overview
+
+This system integrates our booking website with our CRM system to provide:
+
+1. **Customer Mapping**: Matches website users with CRM customer profiles
+2. **Package Access**: Allows customers to use their packages for bookings
+3. **Automatic Checking**: Checks for mappings and packages when users login or make bookings
+
+## Key Components
+
+### Customer Mapping
+
+The customer mapping system tries to match website profiles with CRM customers by:
+- Comparing email addresses
+- Comparing phone numbers
+- Comparing names
+
+It uses a configurable confidence threshold (currently 0.75) to determine if a match is automatic or requires manual approval.
+
+### Package Integration
+
+When a customer has packages in our CRM system:
+- These packages are synced to our booking database
+- The packages are linked using a stable hash ID
+- Users can see and use their packages during booking
+
+### How It Works
+
+1. **On User Login**:
+   - The system calls `checkCustomerProfileOnLogin(profileId)` 
+   - This checks for an existing mapping or tries to create one
+   - It also fetches any packages associated with the customer
+
+2. **During Booking**:
+   - The same function ensures the user's profile is checked
+   - Any available packages are offered during the booking process
+   - The selected package is recorded with the booking
+
+## API Endpoints
+
+- `GET /api/user/profile-check` - Checks user's profile for CRM mapping and packages
+- `GET /api/user/packages` - Returns available packages for the current user
+- `POST /api/crm/match-profile` - Attempts to match a profile with CRM customer
+
+## Usage in Code
+
+To check a user's profile and get their packages:
+
+```typescript
+import { checkCustomerProfileOnLogin } from '@/utils/customer-matching-service';
+
+// Get both mapping and packages in one call
+const { mapping, packages } = await checkCustomerProfileOnLogin(profileId);
+
+// Check if user is mapped to a CRM customer
+if (mapping?.matched) {
+  // User has a CRM mapping
+  console.log(`Mapped to CRM customer: ${mapping.crmCustomerId}`);
+}
+
+// Check if user has packages
+if (packages.length > 0) {
+  // User has packages
+  console.log(`User has ${packages.length} packages`);
+}
+``` 

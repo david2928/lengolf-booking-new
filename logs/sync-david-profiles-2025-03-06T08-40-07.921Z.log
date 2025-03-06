@@ -1,0 +1,62 @@
+[2025-03-06T08:40:07.924Z] [info] Starting sync for David G. profiles
+[2025-03-06T08:40:07.927Z] [info] Processing profile 44b0cd15-c901-4517-9743-31c68032259d
+[2025-03-06T08:40:08.513Z] [info] Profile: David Geiermann
+[2025-03-06T08:40:08.513Z] [info] Phone: 0842695447
+[2025-03-06T08:40:09.170Z] [info] Found CRM customer: David G. (4920780)
+[2025-03-06T08:40:09.171Z] [info] Creating mapping for profile 44b0cd15-c901-4517-9743-31c68032259d to CRM customer 4920780
+[2025-03-06T08:40:09.311Z] [info] Successfully mapped profile 44b0cd15-c901-4517-9743-31c68032259d to CRM customer 4920780
+[2025-03-06T08:40:09.312Z] [info] Fetching packages for profile 44b0cd15-c901-4517-9743-31c68032259d
+[2025-03-06T08:40:09.312Z] [info] Using stable_hash_id: 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-03-06T08:40:09.393Z] [info] Found 1 packages using stable_hash_id
+[2025-03-06T08:40:09.393Z] [info] Syncing 1 packages for customer 4920780
+[2025-03-06T08:40:09.469Z] [debug] Package data for f700c08e-c985-4192-90c8-3429da4b0003:
+{
+  "customer_name": "David G. (842695447)",
+  "package_type": "Unknown Package",
+  "expiration": "2025-06-15",
+  "stable_hash_id": "519cefd56a0595cd29e6a0ec1e0a6296"
+}
+[2025-03-06T08:40:09.542Z] [info] Added new package f700c08e-c985-4192-90c8-3429da4b0003 with stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-03-06T08:40:09.543Z] [info] Processed profile 44b0cd15-c901-4517-9743-31c68032259d (Packages: 1, Added: 1, Updated: 0, Errors: 0)
+[2025-03-06T08:40:09.543Z] [info] Processing profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e
+[2025-03-06T08:40:09.607Z] [info] Profile: David Geiermann
+[2025-03-06T08:40:09.607Z] [info] Phone: +66842695447
+[2025-03-06T08:40:09.775Z] [info] Found CRM customer: David G. (4920780)
+[2025-03-06T08:40:09.776Z] [info] Creating mapping for profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e to CRM customer 4920780
+[2025-03-06T08:40:09.906Z] [info] Successfully mapped profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e to CRM customer 4920780
+[2025-03-06T08:40:09.907Z] [info] Fetching packages for profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e
+[2025-03-06T08:40:09.907Z] [info] Using stable_hash_id: 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-03-06T08:40:09.966Z] [info] Found 1 packages using stable_hash_id
+[2025-03-06T08:40:09.966Z] [info] Syncing 1 packages for customer 4920780
+[2025-03-06T08:40:10.028Z] [debug] Package data for f700c08e-c985-4192-90c8-3429da4b0003:
+{
+  "customer_name": "David G. (842695447)",
+  "package_type": "Unknown Package",
+  "expiration": "2025-06-15",
+  "stable_hash_id": "519cefd56a0595cd29e6a0ec1e0a6296"
+}
+[2025-03-06T08:40:10.097Z] [info] Updated package f700c08e-c985-4192-90c8-3429da4b0003 with stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-03-06T08:40:10.097Z] [info] Processed profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e (Packages: 1, Added: 0, Updated: 1, Errors: 0)
+[2025-03-06T08:40:10.098Z] [info] Processing profile f7775120-f37f-45e5-92b9-0388f8670ea5
+[2025-03-06T08:40:10.191Z] [info] Profile: David Geiermann
+[2025-03-06T08:40:10.192Z] [info] Phone: +66842695447
+[2025-03-06T08:40:10.366Z] [info] Found CRM customer: David G. (4920780)
+[2025-03-06T08:40:10.366Z] [info] Creating mapping for profile f7775120-f37f-45e5-92b9-0388f8670ea5 to CRM customer 4920780
+[2025-03-06T08:40:10.551Z] [info] Successfully mapped profile f7775120-f37f-45e5-92b9-0388f8670ea5 to CRM customer 4920780
+[2025-03-06T08:40:10.551Z] [info] Fetching packages for profile f7775120-f37f-45e5-92b9-0388f8670ea5
+[2025-03-06T08:40:10.552Z] [info] Using stable_hash_id: 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-03-06T08:40:10.609Z] [info] Found 1 packages using stable_hash_id
+[2025-03-06T08:40:10.609Z] [info] Syncing 1 packages for customer 4920780
+[2025-03-06T08:40:10.670Z] [debug] Package data for f700c08e-c985-4192-90c8-3429da4b0003:
+{
+  "customer_name": "David G. (842695447)",
+  "package_type": "Unknown Package",
+  "expiration": "2025-06-15",
+  "stable_hash_id": "519cefd56a0595cd29e6a0ec1e0a6296"
+}
+[2025-03-06T08:40:10.760Z] [info] Updated package f700c08e-c985-4192-90c8-3429da4b0003 with stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-03-06T08:40:10.760Z] [info] Processed profile f7775120-f37f-45e5-92b9-0388f8670ea5 (Packages: 1, Added: 0, Updated: 1, Errors: 0)
+[2025-03-06T08:40:10.760Z] [info] ====== Sync Completed ======
+[2025-03-06T08:40:10.760Z] [info] Total Profiles Processed: 3
+[2025-03-06T08:40:10.760Z] [info] Successfully Processed: 3
+[2025-03-06T08:40:10.761Z] [info] Failed: 0

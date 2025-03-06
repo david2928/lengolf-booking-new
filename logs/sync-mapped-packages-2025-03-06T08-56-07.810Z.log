@@ -1,0 +1,107 @@
+[2025-03-06T08:56:07.813Z] [info] Starting sync of mapped customers and packages
+[2025-03-06T08:56:07.817Z] [info] Fetching all CRM customer mappings...
+[2025-03-06T08:56:07.991Z] [info] Found 3 CRM customer mappings
+[2025-03-06T08:56:07.991Z] [info] Found 3 total mappings to process
+[2025-03-06T08:56:07.991Z] [info] Processing batch 1 of 1
+[2025-03-06T08:56:07.991Z] [info] Processing mapping 1/3 for profile 44b0cd15-c901-4517-9743-31c68032259d
+[2025-03-06T08:56:07.992Z] [info] Fetching packages for profile 44b0cd15-c901-4517-9743-31c68032259d
+[2025-03-06T08:56:07.992Z] [info] Using stable_hash_id: 519cefd56a0595cd29e6a0ec1e0a6296 with database function
+[2025-03-06T08:56:08.118Z] [error] Error using database function: structure of query does not match function result type
+[2025-03-06T08:56:08.118Z] [info] Falling back to direct query with stable_hash_id
+[2025-03-06T08:56:08.184Z] [info] Found 1 packages using direct stable_hash_id query
+[2025-03-06T08:56:08.252Z] [info] Found 11 package types in package_types table
+[2025-03-06T08:56:08.252Z] [debug] Package type examples:
+[
+  [
+    "1",
+    "Early Bird (10H)"
+  ],
+  [
+    "2",
+    "Silver (15H)"
+  ],
+  [
+    "3",
+    "Bronze (5H)"
+  ]
+]
+[2025-03-06T08:56:08.253Z] [info] Syncing 1 packages for customer 4920780
+[2025-03-06T08:56:08.326Z] [debug] Package data for f700c08e-c985-4192-90c8-3429da4b0003:
+{
+  "customer_name": "David G. (842695447)",
+  "package_type_name": "Gold (30H)",
+  "expiration": "2025-06-15",
+  "stable_hash_id": "519cefd56a0595cd29e6a0ec1e0a6296"
+}
+[2025-03-06T08:56:08.401Z] [info] Updated package f700c08e-c985-4192-90c8-3429da4b0003 with stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-03-06T08:56:08.401Z] [info] Processed 1 packages for customer 4920780 (Added: 0, Updated: 1, Errors: 0)
+[2025-03-06T08:56:08.401Z] [info] Processing mapping 2/3 for profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e
+[2025-03-06T08:56:08.401Z] [info] Fetching packages for profile 3afaf5ea-d8c5-4745-9d7d-ba99ab162e1e
+[2025-03-06T08:56:08.401Z] [info] Using stable_hash_id: 519cefd56a0595cd29e6a0ec1e0a6296 with database function
+[2025-03-06T08:56:08.470Z] [error] Error using database function: structure of query does not match function result type
+[2025-03-06T08:56:08.470Z] [info] Falling back to direct query with stable_hash_id
+[2025-03-06T08:56:08.536Z] [info] Found 1 packages using direct stable_hash_id query
+[2025-03-06T08:56:08.598Z] [info] Found 11 package types in package_types table
+[2025-03-06T08:56:08.599Z] [debug] Package type examples:
+[
+  [
+    "1",
+    "Early Bird (10H)"
+  ],
+  [
+    "2",
+    "Silver (15H)"
+  ],
+  [
+    "3",
+    "Bronze (5H)"
+  ]
+]
+[2025-03-06T08:56:08.599Z] [info] Syncing 1 packages for customer 4920780
+[2025-03-06T08:56:08.668Z] [debug] Package data for f700c08e-c985-4192-90c8-3429da4b0003:
+{
+  "customer_name": "David G. (842695447)",
+  "package_type_name": "Gold (30H)",
+  "expiration": "2025-06-15",
+  "stable_hash_id": "519cefd56a0595cd29e6a0ec1e0a6296"
+}
+[2025-03-06T08:56:08.733Z] [info] Updated package f700c08e-c985-4192-90c8-3429da4b0003 with stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-03-06T08:56:08.733Z] [info] Processed 1 packages for customer 4920780 (Added: 0, Updated: 1, Errors: 0)
+[2025-03-06T08:56:08.734Z] [info] Processing mapping 3/3 for profile f7775120-f37f-45e5-92b9-0388f8670ea5
+[2025-03-06T08:56:08.735Z] [info] Fetching packages for profile f7775120-f37f-45e5-92b9-0388f8670ea5
+[2025-03-06T08:56:08.735Z] [info] Using stable_hash_id: 519cefd56a0595cd29e6a0ec1e0a6296 with database function
+[2025-03-06T08:56:08.804Z] [error] Error using database function: structure of query does not match function result type
+[2025-03-06T08:56:08.804Z] [info] Falling back to direct query with stable_hash_id
+[2025-03-06T08:56:08.885Z] [info] Found 1 packages using direct stable_hash_id query
+[2025-03-06T08:56:08.957Z] [info] Found 11 package types in package_types table
+[2025-03-06T08:56:08.957Z] [debug] Package type examples:
+[
+  [
+    "1",
+    "Early Bird (10H)"
+  ],
+  [
+    "2",
+    "Silver (15H)"
+  ],
+  [
+    "3",
+    "Bronze (5H)"
+  ]
+]
+[2025-03-06T08:56:08.958Z] [info] Syncing 1 packages for customer 4920780
+[2025-03-06T08:56:09.035Z] [debug] Package data for f700c08e-c985-4192-90c8-3429da4b0003:
+{
+  "customer_name": "David G. (842695447)",
+  "package_type_name": "Gold (30H)",
+  "expiration": "2025-06-15",
+  "stable_hash_id": "519cefd56a0595cd29e6a0ec1e0a6296"
+}
+[2025-03-06T08:56:09.103Z] [info] Updated package f700c08e-c985-4192-90c8-3429da4b0003 with stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-03-06T08:56:09.103Z] [info] Processed 1 packages for customer 4920780 (Added: 0, Updated: 1, Errors: 0)
+[2025-03-06T08:56:09.103Z] [info] ====== Sync Completed ======
+[2025-03-06T08:56:09.103Z] [info] Total Mappings Processed: 3
+[2025-03-06T08:56:09.103Z] [info] Total Packages Found: 3
+[2025-03-06T08:56:09.103Z] [info] Total Packages Added: 0
+[2025-03-06T08:56:09.104Z] [info] Total Packages Updated: 3
+[2025-03-06T08:56:09.104Z] [info] Total Errors: 0
