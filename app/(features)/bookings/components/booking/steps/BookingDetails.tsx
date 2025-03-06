@@ -257,6 +257,21 @@ export function BookingDetails({
     }
   };
 
+  // Helper function to show completion and wait before redirecting
+  const showCompletionAndRedirect = async (startTime: number, url: string) => {
+    // First ensure minimum animation duration for previous steps
+    await ensureMinimumAnimationDuration(startTime);
+    
+    // Show the final loading step (completion)
+    setLoadingStep(loadingSteps.length - 1);
+    
+    // Wait for 0.7 seconds to let user register the completion
+    await new Promise(resolve => setTimeout(resolve, 700));
+    
+    // Redirect to the specified URL
+    router.push(url);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -496,23 +511,14 @@ export function BookingDetails({
             setHasNotificationError(true);
           }
           
-          // Show the final loading step before redirect
-          setLoadingStep(loadingSteps.length - 1);
-          
-          // Ensure we show the animation for at least 3 seconds
-          await ensureMinimumAnimationDuration(submissionStartTime);
-          
-          // Redirect to confirmation page
-          router.push(`/bookings/confirmation?id=${booking.id}&bay=${bay}`);
+          // Show completion animation and redirect
+          await showCompletionAndRedirect(submissionStartTime, `/bookings/confirmation?id=${booking.id}&bay=${bay}`);
         } catch (error) {
           console.error('Error sending notifications:', error);
           setHasNotificationError(true);
           
-          // Ensure we show the animation for at least 3 seconds
-          await ensureMinimumAnimationDuration(submissionStartTime);
-          
-          // Still redirect to confirmation page, as the booking itself succeeded
-          router.push(`/bookings/confirmation?id=${booking.id}&bay=${bay}`);
+          // Show completion animation and redirect
+          await showCompletionAndRedirect(submissionStartTime, `/bookings/confirmation?id=${booking.id}&bay=${bay}`);
         }
       } catch (error) {
         console.error('Error creating booking:', error instanceof Error ? error.message : error);
@@ -520,10 +526,16 @@ export function BookingDetails({
         // Ensure minimum animation duration
         await ensureMinimumAnimationDuration(submissionStartTime);
         
-        toast.error(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      } finally {
+        // Show error state in animation
+        setLoadingStep(loadingSteps.length - 1); // Use the last step but will show error state
+        setHasNotificationError(true);
+        
+        // Wait a moment for the user to register the error state
+        await new Promise(resolve => setTimeout(resolve, 700));
+        
         setIsSubmitting(false);
         setShowLoadingOverlay(false);
+        toast.error(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error in booking process:', error instanceof Error ? error.message : error);
@@ -534,6 +546,12 @@ export function BookingDetails({
       setIsSubmitting(false);
       setShowLoadingOverlay(false);
       toast.error(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      // Only clear state if not already cleared in the catch block
+      if (isSubmitting) {
+        setIsSubmitting(false);
+        setShowLoadingOverlay(false);
+      }
     }
   };
 
