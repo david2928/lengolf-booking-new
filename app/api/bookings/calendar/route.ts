@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { bookingId, date, startTime, duration } = await request.json();
+    const { bookingId, date, startTime, duration, skipCrmMatch } = await request.json();
 
     if (!bookingId || !date || !startTime || !duration) {
       return NextResponse.json(
@@ -142,14 +142,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Run customer profile check in the background - this doesn't modify the booking flow
-    try {
-      matchProfileWithCrm(token.sub as string).catch(e => {
-        console.error('Background CRM match failed:', e);
-      });
-    } catch (e) {
-      // Don't let this error affect the booking process
-      console.log('Customer profile check failed, but continuing with booking');
+    // Run customer profile check if not skipped
+    let crmCustomerId = null;
+    let crmCustomerData = null;
+    
+    if (!skipCrmMatch) {
+      try {
+        const matchResult = await matchProfileWithCrm(token.sub as string);
+        if (matchResult?.matched) {
+          crmCustomerId = matchResult.crmCustomerId;
+        }
+      } catch (e) {
+        // Don't let this error affect the booking process
+        console.log('Customer profile check failed, but continuing with booking');
+      }
     }
 
     // Get CRM customer mapping for profile
@@ -160,32 +166,44 @@ export async function POST(request: NextRequest) {
       .eq('is_matched', true)
       .maybeSingle();
     
+    if (crmMapping?.crm_customer_id) {
+      crmCustomerId = crmMapping.crm_customer_id;
+      crmCustomerData = crmMapping.crm_customer_data;
+    }
+    
     // Get customer name from CRM if available, otherwise use profile name
     let customerName = profile.display_name || profile.name || profile.email;
-    if (crmMapping?.crm_customer_data) {
-      const crmData = crmMapping.crm_customer_data as any;
-      if (crmData?.name) {
-        customerName = crmData.name;
-      }
+    if (crmCustomerData?.name) {
+      customerName = crmCustomerData.name;
     }
 
     // Get active packages for the customer
-    const { data: packages } = await supabase
-      .from('crm_packages')
-      .select('*')
-      .eq('stable_hash_id', crmMapping?.crm_customer_data?.stable_hash_id)
-      .gte('expiration_date', new Date().toISOString())
-      .order('expiration_date', { ascending: true });
+    let packageInfo = 'Normal Bay Rate';
+    let activePackage = null;
+    
+    if (crmCustomerId) {
+      const { data: packages } = await supabase
+        .from('crm_packages')
+        .select('*')
+        .eq('crm_customer_id', crmCustomerId)
+        .gte('expiration_date', new Date().toISOString().split('T')[0])
+        .order('expiration_date', { ascending: true });
+
+      if (packages && packages.length > 0) {
+        // Filter out coaching packages
+        const nonCoachingPackages = packages.filter(pkg => 
+          !pkg.package_type_name.toLowerCase().includes('coaching')
+        );
+        
+        if (nonCoachingPackages.length > 0) {
+          activePackage = nonCoachingPackages[0];
+          packageInfo = `Package (${activePackage.package_type_name})`;
+        }
+      }
+    }
 
     // Get the display name for the bay
     const bayDisplayName = BAY_DISPLAY_NAMES[availableBay] || availableBay;
-
-    // Format package info for the event
-    let packageInfo = 'Normal Bay Rate';
-    if (packages && packages.length > 0) {
-      const activePackage = packages[0]; // Use the first valid package
-      packageInfo = `Package (${activePackage.package_type_name})`;
-    }
 
     // Create calendar event with proper timezone handling
     const event = {
@@ -218,67 +236,16 @@ Booking ID: ${bookingId}`,
       throw new Error(`Failed to create calendar event. Status: ${response.status}`);
     }
 
-    // Return success immediately, handle notifications asynchronously
-    const eventData = {
-      success: true,
+    // Return success with the assigned bay and additional data for notifications
+    return NextResponse.json({
+      bay: bayDisplayName,
+      bayCode: availableBay,
       eventId: response.data.id,
-      bay: availableBay
-    };
-
-    // Get the base URL from environment or construct it
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-    // When making internal API calls, ensure the auth token is properly formatted
-    const authToken = request.headers.get('Authorization') || '';
-    
-    // Send notifications in the background
-    Promise.all([
-      // Send LINE notification
-      fetch(`${baseUrl}/api/notifications/line`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          customerName,
-          email: profile.email,
-          phoneNumber: booking.phone_number,
-          bookingDate: date,
-          bookingStartTime: startTime,
-          bookingEndTime: formatInTimeZone(endDateTime, TIMEZONE, 'HH:mm'),
-          bayNumber: availableBay,
-          duration,
-          numberOfPeople: booking.number_of_people,
-          crmCustomerId: crmMapping?.crm_customer_id,
-          profileId: token.sub
-        })
-      }),
-      // Send email notification
-      fetch(`${baseUrl}/api/notifications/email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          userName: customerName,
-          email: profile.email,
-          phoneNumber: booking.phone_number,
-          date: format(new Date(date), 'MMMM d, yyyy'),
-          startTime,
-          endTime: formatInTimeZone(endDateTime, TIMEZONE, 'HH:mm'),
-          duration,
-          numberOfPeople: booking.number_of_people,
-          bayNumber: availableBay,
-          userId: token.sub
-        })
-      })
-    ]).catch(error => {
-      console.error('Background notification tasks failed:', error);
+      calendarId,
+      warning: null,
+      crmCustomerId,
+      packageInfo
     });
-
-    return NextResponse.json(eventData);
   } catch (error) {
     console.error('Error creating calendar event:', error);
     return NextResponse.json(

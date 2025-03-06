@@ -295,6 +295,7 @@ export function BookingDetails({
         updateData.phone_number = phoneNumber;
       }
       
+      // Update profile if needed
       if (Object.keys(updateData).length > 1) { // > 1 because we always include updated_at
         const { error: updateProfileError } = await supabase
           .from('profiles')
@@ -330,33 +331,7 @@ export function BookingDetails({
         return;
       }
       
-      // Attempt to match the customer with a CRM record BEFORE sending notifications
-      // Wait for CRM match to complete to ensure it's available for notifications
-      let crmId = crmCustomerId;
-      try {
-        const response = await fetch('/api/crm/match', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            profileId: session.user.id
-          })
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.result?.matched) {
-            crmId = result.result.crmCustomerId;
-            setCrmCustomerId(result.result.crmCustomerId);
-          }
-        }
-      } catch (err) {
-        console.error(`Error matching profile ${session.user.id} with CRM:`, err);
-        // Continue without CRM match
-      }
-
-      // Create calendar event
+      // Create calendar event (this will also handle CRM matching once)
       setLoadingStep(prevStep => prevStep + 1);
       const response = await fetch('/api/bookings/calendar', {
         method: 'POST',
@@ -369,6 +344,7 @@ export function BookingDetails({
           date: format(selectedDate, 'yyyy-MM-dd'),
           startTime: selectedTime,
           duration,
+          skipCrmMatch: false, // Tell the API to handle CRM matching
         }),
       });
 
@@ -391,7 +367,7 @@ export function BookingDetails({
         throw new Error(errorData.error || 'Failed to create calendar event');
       }
 
-      const { bay, warning } = await response.json();
+      const { bay, warning, crmCustomerId, packageInfo } = await response.json();
 
       // Update booking with bay information
       const { error: updateError } = await supabase
@@ -408,27 +384,46 @@ export function BookingDetails({
       // Wait for notifications to complete
       setLoadingStep(2); // "Sending confirmation details"
       try {
-        // Send notifications directly from frontend to ensure token is passed
-        await Promise.all([
+        // Prepare notification data
+        const notificationData = {
+          customerName: name,
+          email,
+          phoneNumber,
+          bookingDate: format(selectedDate, 'yyyy-MM-dd'),
+          bookingStartTime: selectedTime,
+          bookingEndTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
+          bayNumber: bay,
+          duration,
+          numberOfPeople,
+          crmCustomerId: crmCustomerId || undefined, // Use the ID from calendar API if available
+          profileId: session.user.id,
+          skipCrmMatch: true // Skip redundant CRM matching
+        };
+        
+        const emailData = {
+          userName: name,
+          email,
+          phoneNumber,
+          date: format(selectedDate, 'MMMM d, yyyy'),
+          startTime: selectedTime,
+          endTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
+          duration,
+          numberOfPeople,
+          bayNumber: bay,
+          userId: session.user.id,
+          packageInfo,
+          skipCrmMatch: true // Skip redundant CRM matching
+        };
+        
+        // Send notifications in parallel (no need to wait for one before starting the other)
+        const [lineResponse, emailResponse] = await Promise.all([
           fetch('/api/notifications/line', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${session?.accessToken || ''}`
             },
-            body: JSON.stringify({
-              customerName: name,
-              email,
-              phoneNumber,
-              bookingDate: format(selectedDate, 'yyyy-MM-dd'),
-              bookingStartTime: selectedTime,
-              bookingEndTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
-              bayNumber: bay,
-              duration,
-              numberOfPeople,
-              crmCustomerId: crmId,
-              profileId: session.user.id
-            })
+            body: JSON.stringify(notificationData)
           }),
           fetch('/api/notifications/email', {
             method: 'POST',
@@ -436,20 +431,14 @@ export function BookingDetails({
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${session?.accessToken || ''}`
             },
-            body: JSON.stringify({
-              userName: name,
-              email,
-              phoneNumber,
-              date: format(selectedDate, 'MMMM d, yyyy'),
-              startTime: selectedTime,
-              endTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
-              duration,
-              numberOfPeople,
-              bayNumber: bay,
-              userId: session.user.id
-            })
+            body: JSON.stringify(emailData)
           })
         ]);
+
+        if (!lineResponse.ok || !emailResponse.ok) {
+          console.error('Error sending notifications:', lineResponse.statusText, emailResponse.statusText);
+          setHasNotificationError(true);
+        }
       } catch (error) {
         console.error('Error sending notifications:', error);
         setHasNotificationError(true);

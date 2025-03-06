@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const booking: BookingNotification = await request.json();
+    const booking: BookingNotification & { skipCrmMatch?: boolean } = await request.json();
 
     // Look up CRM customer if available
     let crmCustomerName = "New Customer";
     let customerLabel = "New Customer";
     let bookingType = "Normal Bay Rate";
     
-    if (booking.profileId) {
+    if (booking.profileId && !booking.skipCrmMatch) {
       try {
         // First ensure CRM matching is up to date
         const matchResult = await matchProfileWithCrm(booking.profileId);

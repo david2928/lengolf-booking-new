@@ -42,10 +42,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const bookingData: EmailConfirmation = await request.json();
+    const bookingData: EmailConfirmation & { skipCrmMatch?: boolean } = await request.json();
     
-    // Get package info if userId is provided
-    if (bookingData.userId) {
+    // Get package info if userId is provided and CRM matching is not skipped
+    if (bookingData.userId && !bookingData.skipCrmMatch && !bookingData.packageInfo) {
       const supabase = createServerClient();
       
       // Get CRM customer mapping
@@ -84,7 +84,11 @@ export async function POST(request: NextRequest) {
       bookingData.packageInfo = "Normal Booking";
     }
 
-    const success = await sendConfirmationEmail(bookingData);
+    // Important: Remove skipCrmMatch from the data to avoid passing it to the email service
+    // which doesn't expect this field
+    const { skipCrmMatch, ...emailData } = bookingData;
+    
+    const success = await sendConfirmationEmail(emailData);
 
     if (!success) {
       throw new Error('Failed to send confirmation email');
