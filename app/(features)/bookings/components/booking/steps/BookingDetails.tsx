@@ -390,69 +390,9 @@ export function BookingDetails({
         return;
       }
 
-      // Send LINE notification with the resolved CRM ID
-      setLoadingStep(prevStep => prevStep + 1);
-      try {
-        const endTime = format(
-          addHours(new Date(`${selectedDate.toISOString().split('T')[0]}T${selectedTime}`), duration),
-          'HH:mm'
-        );
-
-        await sendBookingNotification({
-          customerName: name,
-          email,
-          phoneNumber,
-          bookingDate: format(selectedDate, 'yyyy-MM-dd'),
-          bookingStartTime: selectedTime,
-          bookingEndTime: endTime,
-          bayNumber: bay || 'Not assigned',
-          duration,
-          numberOfPeople,
-          crmCustomerId: crmId || undefined,
-          profileId: session.user.id,
-        });
-      } catch (error) {
-        console.error('Failed to send LINE notification:', error);
-        // Continue with redirect even if LINE notification fails
-      }
-
-      // Send confirmation email
-      setLoadingStep(prevStep => prevStep + 1);
-      try {
-        const endTime = format(
-          addHours(new Date(`${selectedDate.toISOString().split('T')[0]}T${selectedTime}`), duration),
-          'HH:mm'
-        );
-
-        const emailResponse = await fetch('/api/notifications/email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userName: name,
-            email,
-            phoneNumber,
-            date: format(selectedDate, 'MMMM d, yyyy'),
-            startTime: selectedTime,
-            endTime,
-            duration,
-            numberOfPeople,
-            bayNumber: bay || undefined,
-            userId: session.user.id
-          }),
-        });
-
-        if (!emailResponse.ok) {
-          console.error('Failed to send confirmation email');
-        }
-      } catch (error) {
-        console.error('Failed to send confirmation email:', error);
-        // Continue with redirect even if email fails
-      }
-
+      // Notifications are now handled in the background by the server
+      setLoadingStep(loadingSteps.length - 1);
       toast.success('Booking confirmed!');
-      setLoadingStep(loadingSteps.length - 1); // Set to final step only after everything is done
       router.push(`/bookings/confirmation?id=${booking.id}`);
     } catch (error) {
       console.error('Error creating booking:', error instanceof Error ? error.message : error);

@@ -109,7 +109,9 @@ export async function POST(request: NextRequest) {
 
     // Run customer profile check in the background - this doesn't modify the booking flow
     try {
-      await matchProfileWithCrm(token.sub as string);
+      matchProfileWithCrm(token.sub as string).catch(e => {
+        console.error('Background CRM match failed:', e);
+      });
     } catch (e) {
       // Don't let this error affect the booking process
       console.log('Customer profile check failed, but continuing with booking');
@@ -171,6 +173,7 @@ Booking ID: ${bookingId}`,
       },
     };
 
+    // Create calendar event
     const response = await calendar.events.insert({
       calendarId,
       requestBody: event,
@@ -180,11 +183,55 @@ Booking ID: ${bookingId}`,
       throw new Error(`Failed to create calendar event. Status: ${response.status}`);
     }
 
-    return NextResponse.json({
+    // Return success immediately, handle notifications asynchronously
+    const eventData = {
       success: true,
       eventId: response.data.id,
       bay: availableBay
+    };
+
+    // Send notifications in the background
+    Promise.all([
+      // Send LINE notification
+      fetch('/api/notifications/line', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName,
+          email: profile.email,
+          phoneNumber: booking.phone_number,
+          bookingDate: date,
+          bookingStartTime: startTime,
+          bookingEndTime: formatInTimeZone(endDateTime, TIMEZONE, 'HH:mm'),
+          bayNumber: availableBay,
+          duration,
+          numberOfPeople: booking.number_of_people,
+          crmCustomerId: crmMapping?.crm_customer_id,
+          profileId: token.sub
+        })
+      }),
+      // Send email notification
+      fetch('/api/notifications/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userName: customerName,
+          email: profile.email,
+          phoneNumber: booking.phone_number,
+          date: format(new Date(date), 'MMMM d, yyyy'),
+          startTime,
+          endTime: formatInTimeZone(endDateTime, TIMEZONE, 'HH:mm'),
+          duration,
+          numberOfPeople: booking.number_of_people,
+          bayNumber: availableBay,
+          userId: token.sub
+        })
+      })
+    ]).catch(error => {
+      console.error('Background notification tasks failed:', error);
     });
+
+    return NextResponse.json(eventData);
   } catch (error) {
     console.error('Error creating calendar event:', error);
     return NextResponse.json(
