@@ -8,13 +8,6 @@ console.log('=== Starting Customer Matching Script ===');
 // Hardcoded credentials
 const CREDENTIALS = {
   // Booking Supabase
-  SUPABASE_URL: 'https://bisimqmtxjsptehhqpeg.supabase.co',
-  SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpc2ltcW10eGpzcHRlaGhxcGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgzOTY5MzEsImV4cCI6MjA1Mzk3MjkzMX0.NZ_mEOOoaKEG1p9LBXkULWwSIr-rWmCbksVZq3OzSYE',
-  
-  // CRM Supabase
-  CRM_SUPABASE_URL: 'https://dujqvigihnlfnvmcdrko.supabase.co',
-  CRM_SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1anF2aWdpaG5sZm52bWNkcmtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTQyNDYsImV4cCI6MjA0OTMzMDI0Nn0.N-KIgE6_nfAY9LarJgFYFjBvjQ6awVgDmUtsBbNzhZM'
-};
 
 // Configuration
 const CONFIG = {
