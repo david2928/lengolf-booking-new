@@ -20,11 +20,24 @@ interface EmailConfirmation {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify user authentication
-    const token = await getToken({ req: request as any });
+    // Get the authorization header
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Missing or invalid authorization header' },
+        { status: 401 }
+      );
+    }
+
+    // Authenticate via NextAuth
+    const token = await getToken({ 
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+
     if (!token) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Invalid or expired session' },
         { status: 401 }
       );
     }

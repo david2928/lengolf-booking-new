@@ -48,6 +48,7 @@ interface ExtendedUser {
 
 interface ExtendedSession extends Omit<Session, 'user'> {
   user: ExtendedUser;
+  accessToken?: string;  // Add accessToken to the session type
 }
 
 interface BookingDetailsProps {
@@ -122,7 +123,7 @@ export function BookingDetails({
   onBack,
 }: BookingDetailsProps) {
   const router = useRouter();
-  const { data: session } = useSession() as { data: ExtendedSession | null };
+  const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
   const [duration, setDuration] = useState<number>(1);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -140,12 +141,19 @@ export function BookingDetails({
   });
   const [showNoAvailabilityModal, setShowNoAvailabilityModal] = useState(false);
   const [crmCustomerId, setCrmCustomerId] = useState<string | null>(null);
+  const [hasNotificationError, setHasNotificationError] = useState(false);
   const loadingSteps = [
     "Checking availability",
     "Securing your booking slot",
     "Sending confirmation details",
     "Finalizing your booking"
   ];
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+    }
+  }, [status, router]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -251,6 +259,12 @@ export function BookingDetails({
       return;
     }
 
+    if (!session) {
+      toast.error('Please sign in to continue');
+      router.push('/auth/signin');
+      return;
+    }
+
     setIsSubmitting(true);
     setShowLoadingOverlay(true);
     setLoadingStep(0);
@@ -348,6 +362,7 @@ export function BookingDetails({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.accessToken || ''}`
         },
         body: JSON.stringify({
           bookingId: booking.id,
@@ -376,7 +391,7 @@ export function BookingDetails({
         throw new Error(errorData.error || 'Failed to create calendar event');
       }
 
-      const { bay } = await response.json();
+      const { bay, warning } = await response.json();
 
       // Update booking with bay information
       const { error: updateError } = await supabase
@@ -390,12 +405,79 @@ export function BookingDetails({
         return;
       }
 
-      // Notifications are now handled in the background by the server
+      // Wait for notifications to complete
+      setLoadingStep(2); // "Sending confirmation details"
+      try {
+        // Send notifications directly from frontend to ensure token is passed
+        await Promise.all([
+          fetch('/api/notifications/line', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.accessToken || ''}`
+            },
+            body: JSON.stringify({
+              customerName: name,
+              email,
+              phoneNumber,
+              bookingDate: format(selectedDate, 'yyyy-MM-dd'),
+              bookingStartTime: selectedTime,
+              bookingEndTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
+              bayNumber: bay,
+              duration,
+              numberOfPeople,
+              crmCustomerId: crmId,
+              profileId: session.user.id
+            })
+          }),
+          fetch('/api/notifications/email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.accessToken || ''}`
+            },
+            body: JSON.stringify({
+              userName: name,
+              email,
+              phoneNumber,
+              date: format(selectedDate, 'MMMM d, yyyy'),
+              startTime: selectedTime,
+              endTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
+              duration,
+              numberOfPeople,
+              bayNumber: bay,
+              userId: session.user.id
+            })
+          })
+        ]);
+      } catch (error) {
+        console.error('Error sending notifications:', error);
+        setHasNotificationError(true);
+      }
+
+      // Show final step and completion
+      await new Promise(resolve => setTimeout(resolve, 1000));
       setLoadingStep(loadingSteps.length - 1);
-      toast.success('Booking confirmed!');
+      
+      // Wait another moment to show the checkmark
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (warning || hasNotificationError) {
+        toast('Booking confirmed but there was an issue sending notifications', {
+          icon: '⚠️',
+        });
+      } else {
+        toast.success('Booking confirmed!');
+      }
+      
       router.push(`/bookings/confirmation?id=${booking.id}`);
     } catch (error) {
       console.error('Error creating booking:', error instanceof Error ? error.message : error);
+      if (error instanceof Error && error.message.includes('authentication')) {
+        toast.error('Your session has expired. Please sign in again.');
+        router.push('/auth/signin');
+        return;
+      }
       toast.error('Failed to create booking. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -408,6 +490,15 @@ export function BookingDetails({
   };
 
   const isLineUser = session?.user?.provider === 'line';
+
+  // Show loading state while session is being fetched
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

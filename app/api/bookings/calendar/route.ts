@@ -8,6 +8,8 @@ import type { NextRequest } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
 import { matchProfileWithCrm } from '@/utils/customer-matching';
+import http from 'http';
+import https from 'https';
 
 const TIMEZONE = 'Asia/Bangkok';
 
@@ -41,13 +43,46 @@ async function findAvailableBay(startDateTime: Date, endDateTime: Date) {
   }
 }
 
+// Helper function to make internal HTTP requests
+async function makeInternalRequest(url: string, options: any) {
+  return new Promise((resolve, reject) => {
+    const isHttps = url.startsWith('https');
+    const httpModule = isHttps ? https : http;
+    
+    const req = httpModule.request(url, options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => resolve(data));
+    });
+    
+    req.on('error', reject);
+    if (options.body) {
+      req.write(JSON.stringify(options.body));
+    }
+    req.end();
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // Get the authorization header
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Missing or invalid authorization header' },
+        { status: 401 }
+      );
+    }
+
     // Authenticate via NextAuth
-    const token = await getToken({ req: request as any });
+    const token = await getToken({ 
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+
     if (!token) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Invalid or expired session' },
         { status: 401 }
       );
     }
@@ -190,12 +225,21 @@ Booking ID: ${bookingId}`,
       bay: availableBay
     };
 
+    // Get the base URL from environment or construct it
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+    // When making internal API calls, ensure the auth token is properly formatted
+    const authToken = request.headers.get('Authorization') || '';
+    
     // Send notifications in the background
     Promise.all([
       // Send LINE notification
-      fetch('/api/notifications/line', {
+      fetch(`${baseUrl}/api/notifications/line`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`
+        },
         body: JSON.stringify({
           customerName,
           email: profile.email,
@@ -211,9 +255,12 @@ Booking ID: ${bookingId}`,
         })
       }),
       // Send email notification
-      fetch('/api/notifications/email', {
+      fetch(`${baseUrl}/api/notifications/email`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authToken.startsWith('Bearer ') ? authToken : `Bearer ${authToken}`
+        },
         body: JSON.stringify({
           userName: customerName,
           email: profile.email,

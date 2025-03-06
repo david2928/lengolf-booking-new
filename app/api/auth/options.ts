@@ -203,13 +203,17 @@ export const authOptions: NextAuthOptions = {
           id: token.sub,
           provider: token.provider as string,
           phone: profile?.phone_number || null
-        }
+        },
+        accessToken: token.accessToken
       };
     },
     async jwt({ token, user, account }: { token: JWT; user?: ExtendedUser; account?: Account | null }) {
       if (user) {
         token.id = user.id;
         token.provider = account?.provider;
+      }
+      if (account?.access_token) {
+        token.accessToken = account.access_token;
       }
       return token;
     }
