@@ -43,8 +43,9 @@ export async function POST(request: NextRequest) {
     if (booking.packageInfo) {
       bookingType = booking.packageInfo;
     }
-    // Otherwise check if we already have a crmCustomerId from the calendar API
-    else if (booking.crmCustomerId) {
+
+    // Always look up customer details when we have a CRM ID (regardless of package)
+    if (booking.crmCustomerId) {
       try {
         // If we have a customer ID, we can look up the customer details directly
         const crmSupabase = createCrmClient();
@@ -69,8 +70,6 @@ export async function POST(request: NextRequest) {
           }
           customerLabel = crmCustomerName;
           
-          console.log(`Found CRM customer: ${crmCustomerName} (ID: ${booking.crmCustomerId})`);
-          
           // Also get the stable_hash_id for this customer
           const supabase = createServerClient();
           const { data: mapping } = await supabase
@@ -79,8 +78,9 @@ export async function POST(request: NextRequest) {
             .eq('crm_customer_id', booking.crmCustomerId)
             .eq('is_matched', true)
             .maybeSingle();
-            
-          if (mapping?.stable_hash_id) {
+
+          // If packageInfo wasn't passed directly, look it up
+          if (!booking.packageInfo && mapping?.stable_hash_id) {
             // Now look up packages with the stable_hash_id
             const { data: packages } = await crmSupabase
               .from('packages')
