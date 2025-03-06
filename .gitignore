@@ -50,3 +50,4 @@ Thumbs.db
 # GCP Service Account
 key.json
 **/key.json
+# Log files\nscripts/customer-matching.log\nscripts/*.log
