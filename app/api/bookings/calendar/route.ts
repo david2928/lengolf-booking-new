@@ -15,6 +15,9 @@ const TIMEZONE = 'Asia/Bangkok';
 
 async function findAvailableBay(startDateTime: Date, endDateTime: Date) {
   try {
+    // Add some console logs for performance debugging
+    const startTime = Date.now();
+    
     // Create requests for all calendars in parallel
     const bayPromises = Object.entries(BOOKING_CALENDARS).map(async ([bay, calendarId]) => {
       try {
@@ -24,12 +27,31 @@ async function findAvailableBay(startDateTime: Date, endDateTime: Date) {
           timeMax: formatInTimeZone(endDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
           singleEvents: true,
           timeZone: TIMEZONE,
+          // Optimize the response - we only need start/end dates and status
+          fields: "items(id,start,end,status)",
+          // Limit maximum results to improve performance
+          maxResults: 10
         });
         
-        const hasConflict = (events.data.items || []).some(event => {
-          const eventStart = new Date(event.start?.dateTime || '');
-          const eventEnd = new Date(event.end?.dateTime || '');
-          return startDateTime < eventEnd && endDateTime > eventStart;
+        // Use a more optimized comparison - convert dates just once
+        const startTimestamp = startDateTime.getTime();
+        const endTimestamp = endDateTime.getTime();
+        
+        // Fast path: if no events, bay is available
+        if (!events.data.items || events.data.items.length === 0) {
+          return { bay, available: true };
+        }
+        
+        // Fast conflict check using timestamps
+        const hasConflict = events.data.items.some(event => {
+          // Skip events that are cancelled
+          if (event.status === 'cancelled') return false;
+          
+          const eventStart = new Date(event.start?.dateTime || '').getTime();
+          const eventEnd = new Date(event.end?.dateTime || '').getTime();
+          
+          // Conflict check using timestamps is faster than Date object comparison
+          return startTimestamp < eventEnd && endTimestamp > eventStart;
         });
         
         return { bay, available: !hasConflict };
@@ -44,6 +66,10 @@ async function findAvailableBay(startDateTime: Date, endDateTime: Date) {
     
     // Find the first available bay
     const firstAvailable = results.find(result => result.available);
+    
+    // Log the total time taken for all bay checks
+    console.log(`[Bay Availability Check] Completed in ${Date.now() - startTime}ms for ${Object.keys(BOOKING_CALENDARS).length} bays`);
+    
     return firstAvailable ? firstAvailable.bay : null;
   } catch (error) {
     console.error('Error checking bay availability:', error);
@@ -168,13 +194,25 @@ export async function POST(request: NextRequest) {
     // Get the calendar ID for the selected bay
     const calendarId = BOOKING_CALENDARS[availableBay as keyof typeof BOOKING_CALENDARS];
 
-    // Get booking details
-    const { data: booking } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('id', bookingId)
-      .single();
-    logTiming('Booking fetch');
+    // Fetch booking details and CRM mapping in parallel
+    const [bookingResult, crmMappingResult] = await Promise.all([
+      supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', bookingId)
+        .single(),
+      supabase
+        .from('crm_customer_mapping')
+        .select('crm_customer_id, crm_customer_data')
+        .eq('profile_id', token.sub)
+        .eq('is_matched', true)
+        .maybeSingle()
+    ]);
+    
+    const { data: booking } = bookingResult;
+    const { data: crmMapping } = crmMappingResult;
+    
+    logTiming('Parallel data fetch');
 
     if (!booking) {
       return NextResponse.json(
@@ -183,36 +221,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Run customer profile check if not skipped
+    // Process CRM data
     let crmCustomerId = null;
     let crmCustomerData = null;
     
-    if (!skipCrmMatch) {
+    // Only run the expensive matching process if specifically requested AND no mapping exists
+    if (!crmMapping?.crm_customer_id && !skipCrmMatch) {
       try {
+        // This is the expensive operation (~500ms) that we want to avoid if possible
         const matchResult = await matchProfileWithCrm(token.sub as string);
         if (matchResult?.matched) {
           crmCustomerId = matchResult.crmCustomerId;
+          
+          // Refresh mapping data after match
+          const { data: updatedMapping } = await supabase
+            .from('crm_customer_mapping')
+            .select('crm_customer_id, crm_customer_data')
+            .eq('profile_id', token.sub)
+            .eq('is_matched', true)
+            .maybeSingle();
+            
+          if (updatedMapping) {
+            crmCustomerData = updatedMapping.crm_customer_data;
+          }
         }
       } catch (e) {
         // Don't let this error affect the booking process
         console.log('Customer profile check failed, but continuing with booking');
       }
-    }
-    logTiming('CRM match');
-
-    // Get CRM customer mapping for profile
-    const { data: crmMapping } = await supabase
-      .from('crm_customer_mapping')
-      .select('crm_customer_id, crm_customer_data')
-      .eq('profile_id', token.sub)
-      .eq('is_matched', true)
-      .maybeSingle();
-    
-    if (crmMapping?.crm_customer_id) {
+    } else if (crmMapping?.crm_customer_id) {
+      // Use the existing mapping (fast path)
       crmCustomerId = crmMapping.crm_customer_id;
       crmCustomerData = crmMapping.crm_customer_data;
     }
-    logTiming('CRM data fetch');
+    logTiming('CRM data processing');
     
     // Get customer name from CRM if available, otherwise use profile name
     let customerName = profile.display_name || profile.name || profile.email;
@@ -220,36 +262,61 @@ export async function POST(request: NextRequest) {
       customerName = crmCustomerData.name;
     }
 
-    // Get active packages for the customer
-    let packageInfo = 'Normal Bay Rate';
-    let activePackage = null;
+    // Get the stable_hash_id from the CRM mapping which is needed for package lookup
+    let stableHashId = null;
+    if (crmCustomerData && typeof crmCustomerData === 'object') {
+      stableHashId = (crmCustomerData as any).stable_hash_id;
+    }
     
-    if (crmCustomerId) {
-      const { data: packages } = await supabase
-        .from('crm_packages')
-        .select('*')
-        .eq('crm_customer_id', crmCustomerId)
-        .gte('expiration_date', new Date().toISOString().split('T')[0])
-        .order('expiration_date', { ascending: true });
+    // Start calendar event creation and package fetch in parallel
+    const packagePromise = stableHashId ? 
+      (async () => {
+        try {
+          const result = await supabase
+            .from('crm_packages')
+            .select('*')
+            .eq('stable_hash_id', stableHashId)
+            .gte('expiration_date', new Date().toISOString().split('T')[0])
+            .order('expiration_date', { ascending: true });
+          
+          return result;
+        } catch (error) {
+          console.error(`Error in package query:`, error);
+          return { data: null, error };
+        }
+      })() :
+      Promise.resolve({ data: null });
+    
+    // Get the display name for the bay
+    const bayDisplayName = BAY_DISPLAY_NAMES[availableBay] || availableBay;
 
+    // Start both operations in parallel
+    const [calendarResult, packageResult] = await Promise.allSettled([
+      // Calendar event creation with timeout - we'll create it after we determine packageInfo
+      Promise.resolve(),
+      // Package fetch
+      packagePromise
+    ]);
+    
+    // Process package result first
+    let packageInfo = 'Normal Bay Rate';
+    if (packageResult.status === 'fulfilled' && packageResult.value.data) {
+      const packages = packageResult.value.data;
+      
       if (packages && packages.length > 0) {
         // Filter out coaching packages
-        const nonCoachingPackages = packages.filter(pkg => 
+        const nonCoachingPackages = packages.filter((pkg: any) => 
           !pkg.package_type_name.toLowerCase().includes('coaching')
         );
         
         if (nonCoachingPackages.length > 0) {
-          activePackage = nonCoachingPackages[0];
+          const activePackage = nonCoachingPackages[0];
           packageInfo = `Package (${activePackage.package_type_name})`;
         }
       }
     }
-    logTiming('Package data fetch');
-
-    // Get the display name for the bay
-    const bayDisplayName = BAY_DISPLAY_NAMES[availableBay] || availableBay;
-
-    // Create a calendar event with timeout protection
+    
+    // Now create calendar event with the package info
     let calendarEventResponse: any;
     try {
       const timeoutPromise = new Promise((_, reject) => {
@@ -259,8 +326,20 @@ export async function POST(request: NextRequest) {
       const createEventPromise = calendar.events.insert({
         calendarId,
         requestBody: {
-          summary: `${customerName} (${booking.number_of_people}) - ${packageInfo}`,
-          description: `Booking ID: ${booking.id}\nEmail: ${booking.email}\nPhone: ${booking.phone_number}\nCustomer ID: ${crmCustomerId || 'N/A'}`,
+          summary: `${customerName} (${booking.phone_number}) (${booking.number_of_people}) - ${packageInfo} at ${bayDisplayName}`,
+          description: `Customer Name: ${customerName}
+Booking Name: ${booking.name}
+Contact: ${booking.phone_number}
+Email: ${booking.email}
+Type: ${packageInfo}
+Pax: ${booking.number_of_people}
+Bay: ${bayDisplayName}
+Date: ${format(startDateTime, 'EEEE, MMMM d')}
+Time: ${format(startDateTime, 'HH:mm')} - ${format(endDateTime, 'HH:mm')}
+Booked by: ${profile.display_name || profile.name || 'Website User'}
+Via: Website
+Booking ID: ${booking.id}
+CRM ID: ${crmCustomerId || 'N/A'}`,
           start: {
             dateTime: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
             timeZone: TIMEZONE
@@ -284,10 +363,10 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    logTiming('Calendar event creation');
-
+    logTiming('Calendar operations completed');
+    
     // Return success with the assigned bay and additional data for notifications
-    return NextResponse.json({
+    const response = {
       bay: bayDisplayName,
       bayCode: availableBay,
       eventId: calendarEventResponse.data.id,
@@ -295,7 +374,9 @@ export async function POST(request: NextRequest) {
       warning: null,
       crmCustomerId,
       packageInfo
-    });
+    };
+    
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error creating calendar event:', error);
     return NextResponse.json(

@@ -178,24 +178,21 @@ export function BookingDetails({
             setEmail(data.email || session?.user?.email || '');
             setPhoneNumber(data.phone_number || session?.user?.phone || '');
             
-            // Try to match with CRM
+            // Get any existing CRM mapping from our database directly
+            // Skip the unnecessary API call to /api/crm/match which is slow
             try {
-              const response = await fetch('/api/crm/match', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ profileId: userId }),
-              });
-
-              if (response.ok) {
-                const result = await response.json();
-                if (result.success && result.result?.matched) {
-                  setCrmCustomerId(result.result.crmCustomerId);
-                }
+              const { data: mapping } = await supabase
+                .from('crm_customer_mapping')
+                .select('crm_customer_id')
+                .eq('profile_id', userId)
+                .eq('is_matched', true)
+                .maybeSingle();
+                
+              if (mapping?.crm_customer_id) {
+                setCrmCustomerId(mapping.crm_customer_id);
               }
             } catch (error) {
-              console.error('Error matching profile with CRM:', error);
+              console.error('Error checking CRM mapping:', error);
             }
           }
         } catch (err) {
@@ -348,7 +345,7 @@ export function BookingDetails({
             date: format(selectedDate, 'yyyy-MM-dd'),
             startTime: selectedTime,
             duration,
-            skipCrmMatch: false, // Tell the API to handle CRM matching
+            skipCrmMatch: true, // Skip the expensive matching algorithm - we'll use existing mapping
           }),
           signal: controller.signal
         });
@@ -386,7 +383,12 @@ export function BookingDetails({
         }
 
         const data = await response.json();
-        const { bay, warning, crmCustomerId, packageInfo } = data;
+        const { bay, warning, crmCustomerId: apiCrmCustomerId, packageInfo } = data;
+        
+        // Update CRM customer ID if returned from API
+        if (apiCrmCustomerId) {
+          setCrmCustomerId(apiCrmCustomerId);
+        }
 
         // Update booking with bay information
         const { error: updateError } = await supabase
@@ -403,6 +405,9 @@ export function BookingDetails({
         // Wait for notifications to complete
         setLoadingStep(2); // "Sending confirmation details"
         try {
+          // Get the most up-to-date crmCustomerId
+          const currentCrmCustomerId = apiCrmCustomerId || crmCustomerId;
+          
           // Prepare notification data
           const notificationData = {
             customerName: name,
@@ -414,8 +419,9 @@ export function BookingDetails({
             bayNumber: bay,
             duration,
             numberOfPeople,
-            crmCustomerId: crmCustomerId || undefined, // Use the ID from calendar API if available
+            crmCustomerId: currentCrmCustomerId, // Use the most up-to-date CRM ID
             profileId: session.user.id,
+            packageInfo: packageInfo, // Add the package info to LINE notification
             skipCrmMatch: true // Skip redundant CRM matching
           };
           

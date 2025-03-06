@@ -16,6 +16,7 @@ interface EmailConfirmation {
   phoneNumber?: string;
   userId?: string;
   packageInfo?: string;
+  skipCrmMatch?: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -42,10 +43,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const bookingData: EmailConfirmation & { skipCrmMatch?: boolean } = await request.json();
+    const bookingData: EmailConfirmation = await request.json();
     
-    // Get package info if userId is provided and CRM matching is not skipped
-    if (bookingData.userId && !bookingData.skipCrmMatch && !bookingData.packageInfo) {
+    // Only look up package info if not already provided and not explicitly skipped
+    if (bookingData.userId && !bookingData.packageInfo && !bookingData.skipCrmMatch) {
       const supabase = createServerClient();
       
       // Get CRM customer mapping
