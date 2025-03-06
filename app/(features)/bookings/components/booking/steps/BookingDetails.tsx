@@ -249,6 +249,14 @@ export function BookingDetails({
     return `BK${timestamp}${randomNum}`;
   };
 
+  // Helper function to ensure minimum animation duration
+  const ensureMinimumAnimationDuration = async (startTime: number, minDuration: number = 3000) => {
+    const elapsedTime = Date.now() - startTime;
+    if (elapsedTime < minDuration) {
+      await new Promise(resolve => setTimeout(resolve, minDuration - elapsedTime));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -262,6 +270,8 @@ export function BookingDetails({
       return;
     }
 
+    // Start timing the submission process
+    const submissionStartTime = Date.now();
     setIsSubmitting(true);
     setShowLoadingOverlay(true);
     setLoadingStep(0);
@@ -486,24 +496,44 @@ export function BookingDetails({
             setHasNotificationError(true);
           }
           
-          // Still proceed with booking success even if notifications failed
+          // Show the final loading step before redirect
+          setLoadingStep(loadingSteps.length - 1);
+          
+          // Ensure we show the animation for at least 3 seconds
+          await ensureMinimumAnimationDuration(submissionStartTime);
+          
+          // Redirect to confirmation page
           router.push(`/bookings/confirmation?id=${booking.id}&bay=${bay}`);
         } catch (error) {
           console.error('Error sending notifications:', error);
           setHasNotificationError(true);
+          
+          // Ensure we show the animation for at least 3 seconds
+          await ensureMinimumAnimationDuration(submissionStartTime);
           
           // Still redirect to confirmation page, as the booking itself succeeded
           router.push(`/bookings/confirmation?id=${booking.id}&bay=${bay}`);
         }
       } catch (error) {
         console.error('Error creating booking:', error instanceof Error ? error.message : error);
+        
+        // Ensure minimum animation duration
+        await ensureMinimumAnimationDuration(submissionStartTime);
+        
+        toast.error(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
         setIsSubmitting(false);
         setShowLoadingOverlay(false);
-        toast.error(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-    } finally {
+    } catch (error) {
+      console.error('Error in booking process:', error instanceof Error ? error.message : error);
+      
+      // Ensure minimum animation duration
+      await ensureMinimumAnimationDuration(submissionStartTime);
+      
       setIsSubmitting(false);
       setShowLoadingOverlay(false);
+      toast.error(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
