@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
+      - name: Install additional dependencies
+        run: npm install natural
+        
       - name: Run customer matching sync
         run: node scripts/sync-customer-matching.js --all
         env:
