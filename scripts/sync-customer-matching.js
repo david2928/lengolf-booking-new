@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const { levenshtein } = require('natural');
 const fs = require('fs');
 
-console.log('=== Starting Customer Matching Script ===');
+console.log('=== Starting Customer Matching Sync ===');
 
 // Display help message
 function showHelp() {
@@ -33,47 +34,45 @@ Examples:
   process.exit(0);
 }
 
+// Get credentials from environment variables or use defaults
+const CREDENTIALS = {
+  // Booking Supabase
+  SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bisimqmtxjsptehhqpeg.supabase.co',
+  SUPABASE_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpc2ltcW10eGpzcHRlaGhxcGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgzOTY5MzEsImV4cCI6MjA1Mzk3MjkzMX0.NZ_mEOOoaKEG1p9LBXkULWwSIr-rWmCbksVZq3OzSYE',
+  
+  // CRM Supabase
+  CRM_SUPABASE_URL: process.env.NEXT_PUBLIC_CRM_SUPABASE_URL || 'https://dujqvigihnlfnvmcdrko.supabase.co',
+  CRM_SUPABASE_KEY: process.env.NEXT_PUBLIC_CRM_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1anF2aWdpaG5sZm52bWNkcmtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTQyNDYsImV4cCI6MjA0OTMzMDI0Nn0.N-KIgE6_nfAY9LarJgFYFjBvjQ6awVgDmUtsBbNzhZM'
+};
+
 // Parse command line arguments
-const args = process.argv.slice(2);
-const argMap = {};
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
+const args = process.argv.slice(2).reduce((acc, arg) => {
   if (arg.startsWith('--')) {
-    const key = arg.substring(2);
-    const value = args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : 'true';
-    argMap[key] = value;
-    if (value !== 'true') i++; // Skip the value in the next iteration
+    const [key, value] = arg.substring(2).split('=');
+    acc[key] = value || true;
   }
-}
+  return acc;
+}, {});
 
 // Show help if requested
-if (argMap.help) {
+if (args.help) {
   showHelp();
 }
 
-console.log('Command line arguments:', argMap);
+console.log('Command line arguments:', args);
 
-// Hardcoded credentials
-const CREDENTIALS = {
-  // Booking Supabase
-
-
-// Configuration
+// Configuration with defaults and command line overrides - with environment variable support
 const CONFIG = {
-  // Always use 0.6 as threshold regardless of command-line arguments
-  confidenceThreshold: 0.6,
-  debugMode: argMap.debug !== 'false', // Debug mode is on by default
-  // Whether to process all profiles or just a single target profile
-  processAllProfiles: argMap.all === 'true' || argMap.all === true,
-  // Target profile ID to process (only used if processAllProfiles is false)
-  targetProfileId: argMap.profile || '44b0cd15-c901-4517-9743-31c68032259d',
-  // The maximal edit distance to consider for phone number similarity
-  maxPhoneEditDistance: parseInt(argMap.maxDistance || 3)
+  confidenceThreshold: parseFloat(process.env.CONFIDENCE_THRESHOLD || args.confidenceThreshold || 0.85),
+  debugMode: (process.env.DEBUG_MODE === 'true') || args.debug === 'true',
+  processAllProfiles: args.all === true,
+  targetProfileId: args.profileId || null,
+  maxPhoneEditDistance: parseInt(args.maxPhoneEditDistance || 2, 10)
 };
 
 // Debug output for processAllProfiles setting
 console.log(`processAllProfiles setting: ${CONFIG.processAllProfiles}`);
-console.log(`--all argument value: ${argMap.all}`);
+console.log(`--all argument value: ${args.all}`);
 
 // Simple logging function
 function log(message, type = 'info') {

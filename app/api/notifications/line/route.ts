@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { createCrmClient } from '@/utils/supabase/crm';
 import { createServerClient } from '@/utils/supabase/server';
-import { getPackagesForProfile } from '@/utils/supabase/crm-packages';
-import { matchProfileWithCrm } from '@/utils/customer-matching';
+// We may keep this for future reference but can comment it out
+// import { getPackagesForProfile } from '@/utils/supabase/crm-packages';
 
 interface BookingNotification {
   customerName: string;
@@ -34,117 +33,59 @@ export async function POST(request: NextRequest) {
 
     const booking: BookingNotification = await request.json();
     
-    // Look up CRM customer if available
-    let crmCustomerName = "New Customer";
-    let customerLabel = "New Customer";
+    // Look up customer and package info
+    let customerLabel = booking.customerName || "New Customer";
     let bookingType = "Normal Bay Rate";
+    
+    // Get the Supabase client once
+    const supabase = createServerClient();
     
     // If package info was passed directly, use it (highest priority)
     if (booking.packageInfo) {
       bookingType = booking.packageInfo;
     }
-
-    // Always look up customer details when we have a CRM ID (regardless of package)
-    if (booking.crmCustomerId) {
+    // Look up package using profile ID (if available)
+    else if (booking.profileId) {
       try {
-        // If we have a customer ID, we can look up the customer details directly
-        const crmSupabase = createCrmClient();
+        console.log(`Looking up packages for profile ID ${booking.profileId}`);
         
-        // Get customer data
-        const { data: customerData, error: customerError } = await crmSupabase
-          .from('customers')
-          .select('*')
-          .eq('id', booking.crmCustomerId)
+        // Get the stable_hash_id for this profile
+        const { data: mapping, error: mappingError } = await supabase
+          .from('crm_customer_mapping')
+          .select('stable_hash_id, crm_customer_id')
+          .eq('profile_id', booking.profileId)
+          .eq('is_matched', true)
           .single();
         
-        if (!customerError && customerData) {
-          // Use first name and last initial if customer exists in CRM
-          const fullName = customerData.name || customerData.customer_name || '';
-          const nameParts = fullName.split(' ');
-          if (nameParts.length > 1) {
-            const firstName = nameParts[0];
-            const lastInitial = nameParts[1].charAt(0);
-            crmCustomerName = `${firstName} ${lastInitial}.`;
-          } else {
-            crmCustomerName = fullName;
-          }
-          customerLabel = crmCustomerName;
+        if (mappingError) {
+          console.log(`No mapping found for profile ID ${booking.profileId}`);
+        } else if (mapping?.stable_hash_id) {
+          console.log(`Stable Hash ID ${mapping.stable_hash_id} found for profile ID ${booking.profileId}`);
           
-          // Also get the stable_hash_id for this customer
-          const supabase = createServerClient();
-          const { data: mapping } = await supabase
-            .from('crm_customer_mapping')
-            .select('stable_hash_id')
-            .eq('crm_customer_id', booking.crmCustomerId)
-            .eq('is_matched', true)
-            .maybeSingle();
-
-          // If packageInfo wasn't passed directly, look it up
-          if (!booking.packageInfo && mapping?.stable_hash_id) {
-            // Now look up packages with the stable_hash_id
-            const { data: packages } = await crmSupabase
-              .from('packages')
-              .select('*')
-              .eq('customer_id', booking.crmCustomerId)
-              .gte('expiration_date', new Date().toISOString().split('T')[0])
-              .order('expiration_date', { ascending: true });
-            
-            console.log(`Found ${packages?.length || 0} packages for customer ID ${booking.crmCustomerId}`);
-            
-            if (packages && packages.length > 0) {
-              // Use the first valid package
-              bookingType = `Package (${packages[0].package_type_name})`;
-              console.log('Using package type:', bookingType);
-            }
-          } else {
-            console.log(`No stable_hash_id found for CRM customer ID ${booking.crmCustomerId}`);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching customer data by ID:', error);
-      }
-    }
-    // Only fall back to CRM matching if we don't have a customer ID and matching is not skipped
-    else if (booking.profileId && !booking.skipCrmMatch) {
-      try {
-        // Fall back to CRM matching
-        const matchResult = await matchProfileWithCrm(booking.profileId);
-        console.log('CRM match result:', matchResult);
-        
-        // Get packages for this profile
-        const packages = await getPackagesForProfile(booking.profileId);
-        console.log('Found packages:', packages);
-        
-        if (packages && packages.length > 0) {
-          // Use the first valid package
-          bookingType = `Package (${packages[0].package_type_name})`;
-        }
-
-        // Get CRM customer name if available
-        if (matchResult?.matched && matchResult.crmCustomerId) {
-          const crmSupabase = createCrmClient();
-          const { data, error } = await crmSupabase
-            .from('customers')
+          // Use stable_hash_id to look up packages
+          const { data: packages, error: packagesError } = await supabase
+            .from('crm_packages')
             .select('*')
-            .eq('id', matchResult.crmCustomerId)
-            .single();
+            .eq('stable_hash_id', mapping.stable_hash_id)
+            .gte('expiration_date', new Date().toISOString().split('T')[0])
+            .order('expiration_date', { ascending: true });
           
-          if (!error && data) {
-            // Use first name and last initial if customer exists in CRM
-            const fullName = data.name || data.customer_name || '';
-            const nameParts = fullName.split(' ');
-            if (nameParts.length > 1) {
-              const firstName = nameParts[0];
-              const lastInitial = nameParts[1].charAt(0);
-              crmCustomerName = `${firstName} ${lastInitial}.`;
-            } else {
-              crmCustomerName = fullName;
-            }
-            customerLabel = crmCustomerName;
+          if (packagesError) {
+            console.error(`Error looking up packages with stable_hash_id ${mapping.stable_hash_id}`);
+          } else if (packages && packages.length > 0) {
+            console.log(`Found ${packages.length} packages for stable hash id ${mapping.stable_hash_id}`);
+            
+            // Use the first valid package
+            bookingType = `Package (${packages[0].package_type_name})`;
+            console.log(`Package ${packages[0].id} found for stable hash id ${mapping.stable_hash_id}`);
+          } else {
+            console.log(`No packages found for stable hash id ${mapping.stable_hash_id}`);
           }
+        } else {
+          console.log(`No stable_hash_id found in mapping for profile ID ${booking.profileId}`);
         }
       } catch (error) {
-        console.error('Error with CRM matching fallback:', error);
+        console.error('Error looking up package information:', error);
       }
     }
 
@@ -165,7 +106,6 @@ export async function POST(request: NextRequest) {
     // Generate the notification message
     const fullMessage = `Booking Notification
 Customer Name: ${customerLabel}
-Booking Name: ${booking.customerName}
 Email: ${booking.email}
 Phone: ${booking.phoneNumber}
 Date: ${formattedDate}

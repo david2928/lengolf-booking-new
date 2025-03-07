@@ -7,7 +7,6 @@ import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
-import { matchProfileWithCrm } from '@/utils/customer-matching';
 import http from 'http';
 import https from 'https';
 
@@ -109,28 +108,15 @@ export async function POST(request: NextRequest) {
       lastCheckpoint = now;
     };
 
-    // Get the authorization header
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
+    // Get token and check authorization
+    const token = await getToken({ req: request as any });
+    if (!token?.sub) {
       return NextResponse.json(
-        { error: 'Missing or invalid authorization header' },
+        { error: 'Unauthorized or session expired' },
         { status: 401 }
       );
     }
-
-    // Authenticate via NextAuth
-    const token = await getToken({ 
-      req: request as any,
-      secret: process.env.NEXTAUTH_SECRET 
-    });
-    logTiming('Auth token verification');
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Invalid or expired session' },
-        { status: 401 }
-      );
-    }
+    logTiming('Auth token validation');
 
     // Get user profile from Supabase
     const supabase = createServerClient();
@@ -148,7 +134,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { bookingId, date, startTime: bookingStartTime, duration, skipCrmMatch } = await request.json();
+    // Parse the request body
+    const { bookingId, date, startTime: bookingStartTime, duration } = await request.json();
 
     if (!bookingId || !date || !bookingStartTime || !duration) {
       return NextResponse.json(
@@ -203,7 +190,7 @@ export async function POST(request: NextRequest) {
         .single(),
       supabase
         .from('crm_customer_mapping')
-        .select('crm_customer_id, crm_customer_data')
+        .select('crm_customer_id, crm_customer_data, stable_hash_id')
         .eq('profile_id', token.sub)
         .eq('is_matched', true)
         .maybeSingle()
@@ -225,31 +212,8 @@ export async function POST(request: NextRequest) {
     let crmCustomerId = null;
     let crmCustomerData = null;
     
-    // Only run the expensive matching process if specifically requested AND no mapping exists
-    if (!crmMapping?.crm_customer_id && !skipCrmMatch) {
-      try {
-        // This is the expensive operation (~500ms) that we want to avoid if possible
-        const matchResult = await matchProfileWithCrm(token.sub as string);
-        if (matchResult?.matched) {
-          crmCustomerId = matchResult.crmCustomerId;
-          
-          // Refresh mapping data after match
-          const { data: updatedMapping } = await supabase
-            .from('crm_customer_mapping')
-            .select('crm_customer_id, crm_customer_data')
-            .eq('profile_id', token.sub)
-            .eq('is_matched', true)
-            .maybeSingle();
-            
-          if (updatedMapping) {
-            crmCustomerData = updatedMapping.crm_customer_data;
-          }
-        }
-      } catch (e) {
-        // Don't let this error affect the booking process
-        console.log('Customer profile check failed, but continuing with booking');
-      }
-    } else if (crmMapping?.crm_customer_id) {
+    // Only use existing mapping data - no runtime matching
+    if (crmMapping?.crm_customer_id) {
       // Use the existing mapping (fast path)
       crmCustomerId = crmMapping.crm_customer_id;
       crmCustomerData = crmMapping.crm_customer_data;
@@ -264,7 +228,11 @@ export async function POST(request: NextRequest) {
 
     // Get the stable_hash_id from the CRM mapping which is needed for package lookup
     let stableHashId = null;
-    if (crmCustomerData && typeof crmCustomerData === 'object') {
+    if (crmMapping && 'stable_hash_id' in crmMapping) {
+      // Use stable_hash_id directly from the mapping if available
+      stableHashId = crmMapping.stable_hash_id;
+    } else if (crmCustomerData && typeof crmCustomerData === 'object') {
+      // Fall back to the stable_hash_id in the customer data
       stableHashId = (crmCustomerData as any).stable_hash_id;
     }
     

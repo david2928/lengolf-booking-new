@@ -174,14 +174,35 @@ export const authOptions: NextAuthOptions = {
         user.id = userId;
         
         // Attempt to match the user with a CRM customer record
-        // This runs asynchronously and doesn't block the login process
-        matchProfileWithCrm(userId).then((result: MatchResult | null) => {
-          if (result?.matched) {
-            console.log(`User ${userId} automatically matched with CRM customer ${result.crmCustomerId} (confidence: ${result.confidence})`);
+        // We'll await this with a timeout to ensure it completes but doesn't block login for too long
+        try {
+          // Create a timeout promise that rejects after 3 seconds
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('CRM matching timed out')), 3000);
+          });
+          
+          // Race the matching process against the timeout
+          const matchResult = await Promise.race([
+            matchProfileWithCrm(userId),
+            timeoutPromise
+          ]) as MatchResult | null;
+          
+          // Log the result regardless of match success
+          if (matchResult?.matched) {
+            console.log(`✅ User ${userId} matched with CRM customer ${matchResult.crmCustomerId} (confidence: ${matchResult.confidence.toFixed(2)})`);
+            console.log(`Match reasons: ${matchResult.reasons?.join(', ')}`);
+          } else if (matchResult) {
+            console.log(`❌ User ${userId} NOT matched with CRM (confidence: ${matchResult.confidence.toFixed(2)} < threshold)`);
+            if (matchResult.reasons?.length) {
+              console.log(`Match reasons (insufficient): ${matchResult.reasons.join(', ')}`);
+            }
+          } else {
+            console.log(`⚠️ No match attempt results for user ${userId}`);
           }
-        }).catch((err: Error) => {
-          console.error(`Error matching user ${userId} with CRM:`, err);
-        });
+        } catch (err) {
+          // Log matching errors but don't block login
+          console.error(`Error or timeout matching user ${userId} with CRM:`, err);
+        }
         
         return true;
       } catch (error) {

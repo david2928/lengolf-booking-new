@@ -512,13 +512,13 @@ export function BookingDetails({
           }
           
           // Show completion animation and redirect
-          await showCompletionAndRedirect(submissionStartTime, `/bookings/confirmation?id=${booking.id}&bay=${bay}`);
+          await showCompletionAndRedirect(submissionStartTime, `/bookings/confirmation?id=${booking.id}`);
         } catch (error) {
           console.error('Error sending notifications:', error);
           setHasNotificationError(true);
           
           // Show completion animation and redirect
-          await showCompletionAndRedirect(submissionStartTime, `/bookings/confirmation?id=${booking.id}&bay=${bay}`);
+          await showCompletionAndRedirect(submissionStartTime, `/bookings/confirmation?id=${booking.id}`);
         }
       } catch (error) {
         console.error('Error creating booking:', error instanceof Error ? error.message : error);
@@ -729,6 +729,13 @@ export function BookingDetails({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Fine print about communications */}
+        <div className="mt-2">
+          <p className="text-xs text-gray-500">
+            By placing a booking, you agree to receive communications regarding your booking status. If this is your first booking, you will also receive a follow-up message inviting you to rate your visit.
+          </p>
         </div>
 
         {/* Submit Button */}

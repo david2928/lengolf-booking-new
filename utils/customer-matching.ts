@@ -41,8 +41,87 @@ export interface CrmCustomerMapping {
   stable_hash_id?: string;
 }
 
-// Constants
-const MATCH_CONFIDENCE_THRESHOLD = 0.6; // From sync script
+// Configuration for matching
+const CONFIG = {
+  confidenceThreshold: 0.6,
+  maxPhoneEditDistance: 3
+};
+
+/**
+ * Calculate Levenshtein distance between two strings
+ * @param a - First string
+ * @param b - Second string
+ * @returns The edit distance between the strings
+ */
+function levenshteinDistance(a: string, b: string): number {
+  if (!a || !b) return 0;
+  
+  const matrix: number[][] = [];
+  
+  // Initialize the matrix
+  for (let i = 0; i <= a.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= b.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  // Fill the matrix
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,      // deletion
+        matrix[i][j - 1] + 1,      // insertion
+        matrix[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+  
+  return matrix[a.length][b.length];
+}
+
+/**
+ * Calculate similarity score between two phone numbers
+ * @param phone1 - First phone number
+ * @param phone2 - Second phone number
+ * @returns Similarity score between 0 and 1
+ */
+function phoneNumberSimilarity(phone1: string, phone2: string): number {
+  if (!phone1 || !phone2) return 0;
+  
+  // For very short numbers, require exact match
+  if (phone1.length < 8 || phone2.length < 8) {
+    return phone1 === phone2 ? 1 : 0;
+  }
+  
+  // Calculate edit distance
+  const distance = levenshteinDistance(phone1, phone2);
+  
+  // Calculate similarity score
+  // For longer phone numbers, we allow more differences
+  const maxLength = Math.max(phone1.length, phone2.length);
+  const similarityThreshold = Math.min(CONFIG.maxPhoneEditDistance, Math.floor(maxLength * 0.2)); 
+  
+  let similarity = 0;
+  if (distance === 0) {
+    similarity = 1; // Exact match
+  } else if (distance === 1) {
+    similarity = 0.9; // Off by just one digit
+  } else if (distance === 2) {
+    similarity = 0.8; // Off by two digits
+  } else if (distance <= similarityThreshold) {
+    similarity = 0.7; // Similar enough but not very close
+  }
+  
+  // Log phone comparison in development/debug environments
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Phone comparison: '${phone1}' vs '${phone2}' - distance: ${distance}, similarity: ${similarity.toFixed(2)}`);
+  }
+  
+  return similarity;
+}
 
 /**
  * Extract first and last name from display name
@@ -88,6 +167,13 @@ function normalizePhoneNumber(phone?: string): string {
     normalized = normalized.substring(normalized.length - 9);
   }
   
+  // Try to consistently extract the last N digits for comparison
+  // This helps match numbers that might be formatted differently but are actually the same
+  if (normalized.length > 8) {
+    // Keep the last 9 digits for consistency when comparing
+    normalized = normalized.substring(Math.max(0, normalized.length - 9));
+  }
+  
   return normalized;
 }
 
@@ -123,15 +209,27 @@ function calculateMatchConfidence(profile: Profile, customer: CrmCustomer): { co
   const normalizedCustomerLastName = normalizeText(customerNameParts.last);
   const normalizedCustomerEmail = normalizeText(customer.email);
   
-  // Phone number matching (higher weight)
+  // Phone number matching with improved fuzzy matching
   if (normalizedProfilePhone && normalizedCustomerPhone) {
-    if (normalizedProfilePhone === normalizedCustomerPhone) {
-      score += 0.7; // Increased from 0.5 for exact phone matches
+    // Calculate phone similarity score
+    const phoneSimilarity = phoneNumberSimilarity(normalizedProfilePhone, normalizedCustomerPhone);
+    
+    if (phoneSimilarity === 1) {
+      score += 0.7; // Exact match
       reasons.push('exact_phone_match');
+    } else if (phoneSimilarity >= 0.9) {
+      score += 0.6; // Off by just one digit
+      reasons.push('very_similar_phone_match');
+    } else if (phoneSimilarity >= 0.8) {
+      score += 0.5; // Off by two digits
+      reasons.push('similar_phone_match');
+    } else if (phoneSimilarity >= 0.7) {
+      score += 0.3; // Similar enough
+      reasons.push('partial_phone_match');
     } else if (normalizedProfilePhone.includes(normalizedCustomerPhone) || 
               normalizedCustomerPhone.includes(normalizedProfilePhone)) {
-      score += 0.3;
-      reasons.push('partial_phone_match');
+      score += 0.2;
+      reasons.push('substring_phone_match');
     }
   }
   
@@ -238,7 +336,25 @@ export async function matchProfileWithCrm(profileId: string): Promise<MatchResul
       };
     }
     
-    const isHighConfidence = bestMatch.confidence >= MATCH_CONFIDENCE_THRESHOLD;
+    // Apply match boosting for high-quality but borderline matches
+    const originalConfidence = bestMatch.confidence;
+    let isHighConfidence = originalConfidence >= CONFIG.confidenceThreshold;
+
+    // If we have a phone match that's close to threshold, boost it 
+    if (!isHighConfidence && 
+        bestMatch.confidence >= CONFIG.confidenceThreshold - 0.1 && 
+        (bestMatch.reasons.includes('exact_phone_match') || 
+         bestMatch.reasons.includes('very_similar_phone_match'))) {
+      
+      // Boost the confidence score to meet the threshold
+      bestMatch.confidence = CONFIG.confidenceThreshold;
+      bestMatch.reasons.push('boosted_phone_match');
+      
+      console.log(`Boosted match confidence from ${originalConfidence.toFixed(2)} to ${bestMatch.confidence.toFixed(2)} based on phone match`);
+      
+      // Now this match will be considered high confidence
+      isHighConfidence = true;
+    }
     
     // Store the mapping if confidence is high enough
     if (isHighConfidence) {
