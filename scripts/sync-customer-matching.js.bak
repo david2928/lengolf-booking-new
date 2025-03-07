@@ -56,7 +56,13 @@ console.log('Command line arguments:', argMap);
 // Hardcoded credentials
 const CREDENTIALS = {
   // Booking Supabase
-
+  SUPABASE_URL: 'https://bisimqmtxjsptehhqpeg.supabase.co',
+  SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpc2ltcW10eGpzcHRlaGhxcGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgzOTY5MzEsImV4cCI6MjA1Mzk3MjkzMX0.NZ_mEOOoaKEG1p9LBXkULWwSIr-rWmCbksVZq3OzSYE',
+  
+  // CRM Supabase
+  CRM_SUPABASE_URL: 'https://dujqvigihnlfnvmcdrko.supabase.co',
+  CRM_SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1anF2aWdpaG5sZm52bWNkcmtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTQyNDYsImV4cCI6MjA0OTMzMDI0Nn0.N-KIgE6_nfAY9LarJgFYFjBvjQ6awVgDmUtsBbNzhZM'
+};
 
 // Configuration
 const CONFIG = {
@@ -554,40 +560,4 @@ async function main() {
   console.log('=== Matching Statistics ===');
   console.log(`Profiles processed: ${profiles.length}`);
   console.log(`High confidence matches (>=0.6): ${matchCount}`);
-  console.log(`Lower confidence matches (0.4-0.6): ${lowerMatchCount}`);
-  console.log(`Total matches found: ${matchCount + lowerMatchCount}`);
-  console.log(`Not matched: ${notMatchedCount}`);
-  
-  // Log confidence level breakdown
-  console.log('=== Confidence Level Breakdown ===');
-  for (const [level, count] of Object.entries(confidenceLevels)) {
-    if (count > 0) {
-      console.log(`  ${level}: ${count} profiles`);
-    }
-  }
-  
-  log(`Matching complete. High confidence (mapped): ${matchCount}, Lower confidence (not mapped): ${lowerMatchCount}, Not matched: ${notMatchedCount}`, 'info');
-  
-  if (typeof lowerMatchCount !== 'undefined') {
-    log(`Note: ${lowerMatchCount} profiles had match scores between 0.4-0.6 but were not mapped due to confidence threshold`, 'info');
-  }
-  
-  console.log('Main function completed');
-  return true;
-}
-
-// Run the main function
-console.log('Calling main function...');
-main().then(success => {
-  if (success) {
-    log('Script completed successfully', 'info');
-    process.exit(0);
-  } else {
-    log('Script completed with errors', 'error');
-    process.exit(1);
-  }
-}).catch(err => {
-  console.error('Error in main function:', err);
-  log(`Unhandled error: ${err.message}`, 'error');
-  process.exit(1);
-});
+  console.log("Profile processing completed");
