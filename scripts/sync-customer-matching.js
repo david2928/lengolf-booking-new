@@ -65,7 +65,7 @@ console.log('Command line arguments:', args);
 const CONFIG = {
   confidenceThreshold: parseFloat(process.env.CONFIDENCE_THRESHOLD || args.confidenceThreshold || 0.85),
   debugMode: (process.env.DEBUG_MODE === 'true') || args.debug === 'true',
-  processAllProfiles: args.all === true,
+  processAllProfiles: args.all === true || args.all === 'true',
   targetProfileId: args.profileId || null,
   maxPhoneEditDistance: parseInt(args.maxPhoneEditDistance || 2, 10)
 };
