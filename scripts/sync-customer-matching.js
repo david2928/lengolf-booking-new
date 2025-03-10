@@ -409,37 +409,20 @@ async function createMapping(supabase, profile, customer, score, reasons) {
       crm_customer_data: customer // Include the entire customer object
     };
     
-    // Check if mapping already exists
-    const { data: existingMapping } = await supabase
+    // Use PostgreSQL's upsert functionality with the profile_id constraint
+    console.log(`Upserting mapping for profile ${profile.id}`);
+    const { data, error } = await supabase
       .from('crm_customer_mapping')
-      .select('*')
-      .eq('profile_id', profile.id)
-      .single();
+      .upsert(mappingData, {
+        onConflict: 'profile_id'
+      });
     
-    if (existingMapping) {
-      console.log(`Updating existing mapping for profile ${profile.id}`);
-      const { data, error } = await supabase
-        .from('crm_customer_mapping')
-        .update(mappingData)
-        .eq('id', existingMapping.id);
-      
-      if (error) {
-        throw error;
-      }
-      
-      return { operation: 'update', data };
-    } else {
-      console.log(`Inserting new mapping for profile ${profile.id}`);
-      const { data, error } = await supabase
-        .from('crm_customer_mapping')
-        .insert(mappingData);
-      
-      if (error) {
-        throw error;
-      }
-      
-      return { operation: 'insert', data };
+    if (error) {
+      console.error(`Error upserting mapping: ${error.message}`);
+      throw error;
     }
+    
+    return { operation: 'upsert', data };
   } catch (error) {
     console.error(`Error creating mapping for profile ${profile.id}:`, error);
     throw error;
