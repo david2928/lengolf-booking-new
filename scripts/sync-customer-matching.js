@@ -253,7 +253,7 @@ function phoneNumberSimilarity(phone1, phone2) {
   // Calculate similarity score
   // For longer phone numbers, we allow more differences
   const maxLength = Math.max(phone1.length, phone2.length);
-  const similarityThreshold = Math.min(CONFIG.maxPhoneEditDistance, Math.floor(maxLength * 0.2)); 
+  const similarityThreshold = Math.min(3, Math.floor(maxLength * 0.2)); 
   
   let similarity = 0;
   if (distance === 0) {
@@ -266,8 +266,10 @@ function phoneNumberSimilarity(phone1, phone2) {
     similarity = 0.7; // Similar enough but not very close
   }
   
-  // Log phone comparison
-  console.log(`Phone comparison: '${phone1}' vs '${phone2}' - distance: ${distance}, similarity: ${similarity.toFixed(2)}`);
+  // Only log phone comparisons in debug mode and when there's an actual match
+  if (process.env.DEBUG_PHONE_COMPARISON === 'true' && similarity > 0) {
+    console.log(`Phone comparison: '${phone1}' vs '${phone2}' - distance: ${distance}, similarity: ${similarity.toFixed(2)}`);
+  }
   
   return similarity;
 }

@@ -115,8 +115,8 @@ function phoneNumberSimilarity(phone1: string, phone2: string): number {
     similarity = 0.7; // Similar enough but not very close
   }
   
-  // Log phone comparison in development/debug environments
-  if (process.env.NODE_ENV !== 'production') {
+  // Only log phone comparisons in debug mode and when there's an actual match
+  if (process.env.DEBUG_PHONE_COMPARISON === 'true' && similarity > 0) {
     console.log(`Phone comparison: '${phone1}' vs '${phone2}' - distance: ${distance}, similarity: ${similarity.toFixed(2)}`);
   }
   

@@ -8,5 +8,10 @@
       "path": "/api/cron/sync-packages?secret=$CRON_SECRET",
       "schedule": "30 0 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/**/*": {
+      "maxDuration": 20
+    }
+  }
 } 
