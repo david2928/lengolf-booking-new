@@ -1,16 +1,6 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/sync-profiles?secret=$CRON_SECRET",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/sync-packages?secret=$CRON_SECRET",
-      "schedule": "30 0 * * *"
-    }
-  ],
   "functions": {
-    "api/**/*": {
+    "app/api/**/*": {
       "maxDuration": 20
     }
   }
