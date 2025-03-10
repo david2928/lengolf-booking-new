@@ -34,6 +34,10 @@ interface BookingNotification {
   numberOfPeople: number;
   crmCustomerId?: string;
   profileId?: string;
+  skipCrmMatch?: boolean;
+  packageInfo?: string;
+  bookingName?: string;
+  crmCustomerData?: any;
 }
 
 // Define the session user type to match what we actually have
@@ -435,7 +439,8 @@ export function BookingDetails({
           
           // Prepare notification data
           const notificationData = {
-            customerName: name,
+            customerName: "New Customer",
+            bookingName: name,
             email,
             phoneNumber,
             bookingDate: format(selectedDate, 'yyyy-MM-dd'),
@@ -447,7 +452,8 @@ export function BookingDetails({
             crmCustomerId: currentCrmCustomerId, // Use the most up-to-date CRM ID
             profileId: session.user.id,
             packageInfo: packageInfo, // Add the package info to LINE notification
-            skipCrmMatch: true // Skip redundant CRM matching
+            skipCrmMatch: true, // Skip redundant CRM matching
+            crmCustomerData: data.crmCustomerData
           };
           
           const emailData = {

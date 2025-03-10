@@ -4,6 +4,7 @@ import LineProvider from 'next-auth/providers/line';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createServerClient } from '@/utils/supabase/server';
 import { matchProfileWithCrm, type MatchResult } from '@/utils/customer-matching';
+import { crmLogger } from '@/utils/logging';
 import { v4 as uuidv4 } from 'uuid';
 import type { NextAuthOptions } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
@@ -142,6 +143,7 @@ export const authOptions: NextAuthOptions = {
       account: Account | null; 
       profile?: OAuthProfile;
     }) {
+      const requestId = crmLogger.newRequest();
       const supabase = createServerClient();
 
       try {
@@ -157,6 +159,20 @@ export const authOptions: NextAuthOptions = {
 
         const userId = existingProfile?.id || uuidv4();
 
+        crmLogger.info(
+          `User sign-in: ${account?.provider}`,
+          { 
+            email: user.email, 
+            provider: account?.provider,
+            isNewUser: !existingProfile
+          },
+          { 
+            requestId,
+            profileId: userId,
+            source: 'auth'
+          }
+        );
+
         const { error } = await supabase
           .from('profiles')
           .upsert({
@@ -169,13 +185,26 @@ export const authOptions: NextAuthOptions = {
             updated_at: new Date().toISOString()
           });
 
-        if (error) return false;
+        if (error) {
+          crmLogger.error(
+            `Failed to upsert profile`,
+            { error, userId },
+            { requestId, profileId: userId, source: 'auth' }
+          );
+          return false;
+        }
 
         user.id = userId;
         
         // Attempt to match the user with a CRM customer record
         // We'll await this with a timeout to ensure it completes but doesn't block login for too long
         try {
+          crmLogger.info(
+            `Starting CRM matching during sign-in`,
+            { userId },
+            { requestId, profileId: userId, source: 'auth' }
+          );
+          
           // Create a timeout promise that rejects after 3 seconds
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error('CRM matching timed out')), 3000);
@@ -189,23 +218,54 @@ export const authOptions: NextAuthOptions = {
           
           // Log the result regardless of match success
           if (matchResult?.matched) {
-            console.log(`✅ User ${userId} matched with CRM customer ${matchResult.crmCustomerId} (confidence: ${matchResult.confidence.toFixed(2)})`);
-            console.log(`Match reasons: ${matchResult.reasons?.join(', ')}`);
+            crmLogger.info(
+              `User matched with CRM customer`,
+              { 
+                userId,
+                crmCustomerId: matchResult.crmCustomerId,
+                confidence: matchResult.confidence,
+                reasons: matchResult.reasons
+              },
+              { 
+                requestId, 
+                profileId: userId, 
+                crmCustomerId: matchResult.crmCustomerId,
+                source: 'auth' 
+              }
+            );
           } else if (matchResult) {
-            console.log(`❌ User ${userId} NOT matched with CRM (confidence: ${matchResult.confidence.toFixed(2)} < threshold)`);
-            if (matchResult.reasons?.length) {
-              console.log(`Match reasons (insufficient): ${matchResult.reasons.join(', ')}`);
-            }
+            crmLogger.info(
+              `User NOT matched with CRM (below threshold)`,
+              { 
+                userId,
+                confidence: matchResult.confidence,
+                reasons: matchResult.reasons
+              },
+              { requestId, profileId: userId, source: 'auth' }
+            );
           } else {
-            console.log(`⚠️ No match attempt results for user ${userId}`);
+            crmLogger.warn(
+              `No match attempt results for user`,
+              { userId },
+              { requestId, profileId: userId, source: 'auth' }
+            );
           }
-        } catch (err) {
-          // Log matching errors but don't block login
-          console.error(`Error or timeout matching user ${userId} with CRM:`, err);
+        } catch (error) {
+          crmLogger.error(
+            `Error during CRM matching at sign-in`,
+            { error, userId },
+            { requestId, profileId: userId, source: 'auth' }
+          );
+          // Don't block login if matching fails
         }
-        
+
         return true;
       } catch (error) {
+        crmLogger.error(
+          `Sign-in process error`,
+          { error },
+          { requestId, source: 'auth' }
+        );
         return false;
       }
     },

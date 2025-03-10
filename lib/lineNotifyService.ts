@@ -12,6 +12,10 @@ interface BookingNotification {
   numberOfPeople: number;
   crmCustomerId?: string;
   profileId?: string;
+  skipCrmMatch?: boolean;
+  packageInfo?: string;
+  bookingName?: string;
+  crmCustomerData?: any;
 }
 
 export async function sendBookingNotification(booking: BookingNotification) {

@@ -9,6 +9,7 @@ import { createServerClient } from '@/utils/supabase/server';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
 import http from 'http';
 import https from 'https';
+import { crmLogger } from '@/utils/logging';
 
 const TIMEZONE = 'Asia/Bangkok';
 
@@ -97,6 +98,9 @@ async function makeInternalRequest(url: string, options: any) {
 }
 
 export async function POST(request: NextRequest) {
+  // Generate a unique request ID for this booking
+  const requestId = crmLogger.newRequest();
+  
   try {
     // Early timing tracking to diagnose performance issues
     const startTime = Date.now();
@@ -226,30 +230,82 @@ export async function POST(request: NextRequest) {
       customerName = crmCustomerData.name;
     }
 
-    // Get the stable_hash_id from the CRM mapping which is needed for package lookup
+    // Retrieve CRM mappings and customer data
     let stableHashId = null;
+    let profileId = null;
+    
     if (crmMapping && 'stable_hash_id' in crmMapping) {
       // Use stable_hash_id directly from the mapping if available
       stableHashId = crmMapping.stable_hash_id;
+      profileId = booking.userId || null;
+      crmCustomerId = crmMapping.crm_customer_id || null;
+      
+      crmLogger.info(
+        `Found stable_hash_id from mapping`, 
+        { stableHashId, profileId, phone: booking.phone_number },
+        { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+      );
     } else if (crmCustomerData && typeof crmCustomerData === 'object') {
       // Fall back to the stable_hash_id in the customer data
       stableHashId = (crmCustomerData as any).stable_hash_id;
+      profileId = booking.userId || null;
+      crmCustomerId = (crmCustomerData as any).id || null;
+      
+      crmLogger.info(
+        `Found stable_hash_id from customer data`, 
+        { stableHashId, profileId, phone: booking.phone_number },
+        { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+      );
+    } else {
+      crmLogger.warn(
+        `No stable_hash_id found in mapping or customer data`,
+        { profileId: booking.userId, phone: booking.phone_number },
+        { requestId, profileId: booking.userId, source: 'calendar' }
+      );
     }
     
     // Start calendar event creation and package fetch in parallel
     const packagePromise = stableHashId ? 
       (async () => {
         try {
+          crmLogger.debug(
+            `Starting package query for customer`,
+            { stableHashId },
+            { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+          );
+          
+          // Query by stable_hash_id
           const result = await supabase
             .from('crm_packages')
             .select('*')
             .eq('stable_hash_id', stableHashId)
-            .gte('expiration_date', new Date().toISOString().split('T')[0])
-            .order('expiration_date', { ascending: true });
+            .order('expiration_date', { ascending: false });
+          
+          if (result.error) {
+            crmLogger.error(
+              `Error in package query`,
+              { error: result.error, stableHashId },
+              { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+            );
+          } else {
+            crmLogger.info(
+              `Package query successful`,
+              { 
+                packageCount: result.data?.length || 0,
+                packages: result.data,
+                stableHashId 
+              },
+              { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+            );
+          }
           
           return result;
         } catch (error) {
-          console.error(`Error in package query:`, error);
+          crmLogger.error(
+            `Exception in package query`,
+            { error, stableHashId },
+            { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+          );
           return { data: null, error };
         }
       })() :
@@ -271,17 +327,68 @@ export async function POST(request: NextRequest) {
     if (packageResult.status === 'fulfilled' && packageResult.value.data) {
       const packages = packageResult.value.data;
       
+      crmLogger.debug(
+        `Processing package results`,
+        { 
+          packageCount: packages.length, 
+          packages,
+          stableHashId 
+        },
+        { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+      );
+      
       if (packages && packages.length > 0) {
         // Filter out coaching packages
         const nonCoachingPackages = packages.filter((pkg: any) => 
           !pkg.package_type_name.toLowerCase().includes('coaching')
         );
         
+        crmLogger.debug(
+          `Filtered out coaching packages`,
+          { 
+            originalCount: packages.length,
+            filteredCount: nonCoachingPackages.length,
+            filteredPackages: nonCoachingPackages
+          },
+          { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+        );
+        
         if (nonCoachingPackages.length > 0) {
           const activePackage = nonCoachingPackages[0];
           packageInfo = `Package (${activePackage.package_type_name})`;
+          
+          crmLogger.info(
+            `Using package for booking`,
+            { 
+              packageType: activePackage.package_type_name,
+              packageId: activePackage.id,
+              expirationDate: activePackage.expiration_date
+            },
+            { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+          );
+        } else {
+          crmLogger.info(
+            `No non-coaching packages found after filtering`,
+            { originalPackageCount: packages.length },
+            { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+          );
         }
+      } else {
+        crmLogger.info(
+          `No packages found for customer`,
+          { stableHashId },
+          { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+        );
       }
+    } else {
+      crmLogger.info(
+        `No packages found or error fetching packages`,
+        { 
+          status: packageResult.status,
+          error: packageResult.status === 'rejected' ? packageResult.reason : null 
+        },
+        { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
+      );
     }
     
     // Now create calendar event with the package info
@@ -341,14 +448,19 @@ CRM ID: ${crmCustomerId || 'N/A'}`,
       calendarId,
       warning: null,
       crmCustomerId,
-      packageInfo
+      packageInfo,
+      crmCustomerData
     };
     
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Error creating calendar event:', error);
+    crmLogger.error(
+      `Exception in calendar route`,
+      { error },
+      { requestId, source: 'calendar' }
+    );
     return NextResponse.json(
-      { error: 'Failed to create calendar event' },
+      { error: 'An error occurred while creating the calendar event' },
       { status: 500 }
     );
   }

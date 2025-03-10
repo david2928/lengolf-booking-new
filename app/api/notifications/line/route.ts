@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { createServerClient } from '@/utils/supabase/server';
+import { crmLogger } from '@/utils/logging';
 // We may keep this for future reference but can comment it out
 // import { getPackagesForProfile } from '@/utils/supabase/crm-packages';
 
@@ -18,9 +19,14 @@ interface BookingNotification {
   profileId?: string;
   skipCrmMatch?: boolean;
   packageInfo?: string;
+  bookingName?: string;
+  crmCustomerData?: any;
 }
 
 export async function POST(request: NextRequest) {
+  // Generate a unique request ID for this notification
+  const requestId = crmLogger.newRequest();
+  
   try {
     // Verify user authentication
     const token = await getToken({ req: request as any });
@@ -33,16 +39,47 @@ export async function POST(request: NextRequest) {
 
     const booking: BookingNotification = await request.json();
     
+    // Log received booking data
+    crmLogger.debug(
+      'Received booking data for LINE notification',
+      { 
+        profileId: booking.profileId,
+        bookingId: booking.bookingName,
+        hasPackageInfo: !!booking.packageInfo
+      },
+      { 
+        requestId, 
+        profileId: booking.profileId, 
+        source: 'line' 
+      }
+    );
+    
     // Look up customer and package info
-    let customerLabel = booking.customerName || "New Customer";
+    // If CRM customer data is available, use that name, otherwise use the provided customerName or "New Customer"
+    let customerLabel = "New Customer";
+    
+    // If we have CRM customer data, use that name
+    if (booking.crmCustomerData && booking.crmCustomerData.name) {
+      customerLabel = booking.crmCustomerData.name;
+    } else if (booking.customerName && booking.customerName !== "New Customer") {
+      // If no CRM data but a specific customer name was provided that's not "New Customer"
+      customerLabel = booking.customerName;
+    }
+    
+    // Determine booking type (package or normal)
     let bookingType = "Normal Bay Rate";
-    
-    // Get the Supabase client once
-    const supabase = createServerClient();
-    
-    // If package info was passed directly, use it (highest priority)
     if (booking.packageInfo) {
       bookingType = booking.packageInfo;
+      
+      crmLogger.info(
+        'Using provided package info in LINE notification',
+        { packageInfo: booking.packageInfo },
+        { 
+          requestId, 
+          profileId: booking.profileId, 
+          source: 'line' 
+        }
+      );
     }
     // Look up package using profile ID (if available)
     else if (booking.profileId) {
@@ -50,7 +87,7 @@ export async function POST(request: NextRequest) {
         console.log(`Looking up packages for profile ID ${booking.profileId}`);
         
         // Get the stable_hash_id for this profile
-        const { data: mapping, error: mappingError } = await supabase
+        const { data: mapping, error: mappingError } = await createServerClient()
           .from('crm_customer_mapping')
           .select('stable_hash_id, crm_customer_id')
           .eq('profile_id', booking.profileId)
@@ -63,7 +100,7 @@ export async function POST(request: NextRequest) {
           console.log(`Stable Hash ID ${mapping.stable_hash_id} found for profile ID ${booking.profileId}`);
           
           // Use stable_hash_id to look up packages
-          const { data: packages, error: packagesError } = await supabase
+          const { data: packages, error: packagesError } = await createServerClient()
             .from('crm_packages')
             .select('*')
             .eq('stable_hash_id', mapping.stable_hash_id)
@@ -106,6 +143,7 @@ export async function POST(request: NextRequest) {
     // Generate the notification message
     const fullMessage = `Booking Notification
 Customer Name: ${customerLabel}
+Booking Name: ${booking.bookingName || booking.customerName}
 Email: ${booking.email}
 Phone: ${booking.phoneNumber}
 Date: ${formattedDate}
@@ -168,7 +206,11 @@ This booking has been auto-confirmed. No need to re-confirm with the customer. P
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to send LINE notification:', error);
+    crmLogger.error(
+      'Exception in LINE notification',
+      { error },
+      { requestId, source: 'line' }
+    );
     return NextResponse.json(
       { error: 'Failed to send LINE notification' },
       { status: 500 }
