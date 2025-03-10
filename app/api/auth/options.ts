@@ -3,9 +3,7 @@ import FacebookProvider from 'next-auth/providers/facebook';
 import LineProvider from 'next-auth/providers/line';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createServerClient } from '@/utils/supabase/server';
-import { matchProfileWithCrm, type MatchResult, getOrCreateCrmMapping } from '@/utils/customer-matching';
-import { syncPackagesForProfile } from '@/utils/supabase/crm-packages';
-import { crmLogger } from '@/utils/logging';
+import { getOrCreateCrmMapping } from '@/utils/customer-matching';
 import { v4 as uuidv4 } from 'uuid';
 import type { NextAuthOptions } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
@@ -144,7 +142,6 @@ export const authOptions: NextAuthOptions = {
       account: Account | null; 
       profile?: OAuthProfile;
     }) {
-      const requestId = crmLogger.newRequest();
       const supabase = createServerClient();
 
       try {
@@ -160,20 +157,6 @@ export const authOptions: NextAuthOptions = {
 
         const userId = existingProfile?.id || uuidv4();
 
-        crmLogger.info(
-          `User sign-in: ${account?.provider}`,
-          { 
-            email: user.email, 
-            provider: account?.provider,
-            isNewUser: !existingProfile
-          },
-          { 
-            requestId,
-            profileId: userId,
-            source: 'auth'
-          }
-        );
-
         const { error } = await supabase
           .from('profiles')
           .upsert({
@@ -187,46 +170,21 @@ export const authOptions: NextAuthOptions = {
           });
 
         if (error) {
-          crmLogger.error(
-            `Failed to upsert profile`,
-            { error, userId },
-            { requestId, profileId: userId, source: 'auth' }
-          );
+          console.error('Failed to upsert profile:', error);
           return false;
         }
 
         user.id = userId;
         
-        // Attempt to match the user with a CRM customer using the efficient method
-        // This will first check for existing mapping before trying a new match
-        crmLogger.info(
-          `Starting CRM mapping lookup for sign-in`,
-          { userId },
-          { requestId, profileId: userId, source: 'auth' }
-        );
-        
-        // Start the mapping process but don't await it
+        // Attempt to match the user with a CRM customer in the background
         // This allows the login to proceed regardless of mapping success
-        getOrCreateCrmMapping(userId, {
-          requestId,
-          source: 'auth',
-          timeoutMs: 5000, // Longer timeout for background process
-          logger: crmLogger
-        }).catch(error => {
-          crmLogger.error(
-            `Unexpected error in background CRM mapping`,
-            { error, userId },
-            { requestId, profileId: userId, source: 'auth' }
-          );
+        getOrCreateCrmMapping(userId, { source: 'auth' }).catch(error => {
+          console.error('Unexpected error in background CRM mapping:', error);
         });
 
         return true;
       } catch (error) {
-        crmLogger.error(
-          `Sign-in process error`,
-          { error },
-          { requestId, source: 'auth' }
-        );
+        console.error('Sign-in process error:', error);
         return false;
       }
     },
@@ -251,10 +209,10 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, user, account }: { token: JWT; user?: ExtendedUser; account?: Account | null }) {
       if (user) {
-        token.id = user.id;
-        token.provider = account?.provider;
+        token.sub = user.id;
+        token.provider = user.provider;
       }
-      if (account?.access_token) {
+      if (account) {
         token.accessToken = account.access_token;
       }
       return token;
@@ -262,10 +220,11 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/auth/login',
-    error: '/auth/error'
+    error: '/auth/error',
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60
-  }
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  debug: false,
 }; 

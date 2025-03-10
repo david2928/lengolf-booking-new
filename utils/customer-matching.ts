@@ -478,11 +478,9 @@ export async function getCrmCustomerForProfile(profileId: string): Promise<CrmCu
 export async function getOrCreateCrmMapping(
   profileId: string,
   options: {
-    requestId?: string,
     source?: string,
     timeoutMs?: number,
-    forceRefresh?: boolean,
-    logger?: any // Allow passing a logger instance
+    forceRefresh?: boolean
   } = {}
 ): Promise<{
   profileId: string,
@@ -492,38 +490,16 @@ export async function getOrCreateCrmMapping(
   isNewMatch: boolean
 } | null> {
   const {
-    requestId,
     source = 'unknown',
     timeoutMs = 5000,
-    forceRefresh = false,
-    logger
+    forceRefresh = false
   } = options;
-  
-  // Helper for logging if a logger is provided
-  const log = (level: 'info' | 'warn' | 'error' | 'debug', message: string, context: any = {}, metadata: any = {}) => {
-    if (logger && typeof logger[level] === 'function') {
-      logger[level](
-        message,
-        context,
-        { 
-          ...metadata,
-          requestId, 
-          profileId, 
-          source
-        }
-      );
-    } else {
-      console[level === 'debug' ? 'log' : level](`[${level.toUpperCase()}] ${message}`, context);
-    }
-  };
 
   try {
     const supabase = createServerClient();
     
     // STEP 1: Check for existing mapping (fast path)
     if (!forceRefresh) {
-      log('debug', 'Checking for existing CRM mapping', { profileId });
-      
       // Modified query to handle multiple mappings - get all matches and sort by confidence
       const { data: mappings, error: mappingError } = await supabase
         .from('crm_customer_mapping')
@@ -534,28 +510,14 @@ export async function getOrCreateCrmMapping(
         .order('updated_at', { ascending: false }); // Most recent first
         
       if (mappingError) {
-        log('error', 'Error checking for existing mappings', { error: mappingError });
+        console.error('Error checking for existing mappings:', mappingError);
       } else if (mappings && mappings.length > 0) {
         // Use the first mapping (highest confidence, most recent)
         const bestMapping = mappings[0];
         
-        if (mappings.length > 1) {
-          log('warn', 'Multiple CRM mappings found for profile', { 
-            profileId, 
-            mappingCount: mappings.length,
-            selectedMapping: bestMapping
-          });
-        } else {
-          log('info', 'Found existing CRM mapping', { 
-            profileId, 
-            crmCustomerId: bestMapping.crm_customer_id,
-            confidence: bestMapping.match_confidence
-          });
-        }
-        
         // Sync packages asynchronously without awaiting to keep operations fast
         syncPackagesForProfile(profileId).catch(err => {
-          log('warn', 'Failed to sync packages for existing mapping', { error: err });
+          console.warn('Failed to sync packages for existing mapping:', err);
         });
         
         return {
@@ -565,14 +527,10 @@ export async function getOrCreateCrmMapping(
           confidence: bestMapping.match_confidence,
           isNewMatch: false
         };
-      } else {
-        log('info', 'No existing CRM mapping found', { profileId });
       }
     }
     
     // STEP 2: Attempt a match with timeout (slower path)
-    log('info', 'Starting CRM matching process', { profileId });
-    
     const timeoutPromise = new Promise<null>((_, reject) => {
       setTimeout(() => reject(new Error(`CRM matching timed out after ${timeoutMs}ms`)), timeoutMs);
     });
@@ -585,7 +543,7 @@ export async function getOrCreateCrmMapping(
       ]);
       
       if (matchResult?.matched) {
-        log('info', 'Successfully matched profile with CRM', {
+        console.log('Successfully matched profile with CRM', {
           profileId,
           crmCustomerId: matchResult.crmCustomerId,
           confidence: matchResult.confidence,
@@ -603,14 +561,11 @@ export async function getOrCreateCrmMapping(
           .maybeSingle();
           
         if (mappingError) {
-          log('error', 'Error retrieving mapping after match', { 
-            error: mappingError,
-            profileId
-          });
+          console.error('Error retrieving mapping after match:', mappingError);
         } else if (!newMapping) {
-          log('warn', 'Mapping not found after successful match', { profileId });
+          console.warn('Mapping not found after successful match');
         } else {
-          log('info', 'Retrieved mapping details', {
+          console.log('Retrieved mapping details', {
             profileId,
             crmCustomerId: newMapping.crm_customer_id,
             stableHashId: newMapping.stable_hash_id
@@ -626,7 +581,7 @@ export async function getOrCreateCrmMapping(
           isNewMatch: true
         };
       } else {
-        log('info', 'Profile could not be matched with CRM', {
+        console.log('Profile could not be matched with CRM', {
           profileId,
           confidence: matchResult?.confidence || 0,
           reasons: matchResult?.reasons || []
@@ -634,7 +589,7 @@ export async function getOrCreateCrmMapping(
       }
     } catch (error) {
       // Improved error handling - check for constraint and timeout errors
-      log('warn', 'Error during CRM matching', {
+      console.warn('Error during CRM matching', {
         error: error instanceof Error 
           ? { message: error.message, stack: error.stack, code: (error as any).code }
           : error,
@@ -654,7 +609,7 @@ export async function getOrCreateCrmMapping(
           .maybeSingle();
           
         if (existingMapping) {
-          log('info', 'Found existing mapping despite matching error', {
+          console.info('Found existing mapping despite matching error', {
             profileId,
             crmCustomerId: existingMapping.crm_customer_id,
             stableHashId: existingMapping.stable_hash_id
@@ -668,10 +623,10 @@ export async function getOrCreateCrmMapping(
             isNewMatch: false
           };
         } else {
-          log('warn', 'No mapping found after error recovery attempt', { profileId });
+          console.warn('No mapping found after error recovery attempt');
         }
       } catch (recoveryError) {
-        log('error', 'Error in recovery attempt', {
+        console.error('Error in recovery attempt', {
           error: recoveryError,
           profileId
         });
@@ -680,7 +635,7 @@ export async function getOrCreateCrmMapping(
     
     return null;
   } catch (error) {
-    log('error', 'Unexpected error in getOrCreateCrmMapping', {
+    console.error('Unexpected error in getOrCreateCrmMapping', {
       error: error instanceof Error 
         ? { message: error.message, stack: error.stack }
         : error

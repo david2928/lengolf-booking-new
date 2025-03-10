@@ -9,7 +9,6 @@ import { createServerClient } from '@/utils/supabase/server';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
 import http from 'http';
 import https from 'https';
-import { crmLogger } from '@/utils/logging';
 import { getOrCreateCrmMapping } from '@/utils/customer-matching';
 
 const TIMEZONE = 'Asia/Bangkok';
@@ -34,47 +33,31 @@ async function findAvailableBay(startDateTime: Date, endDateTime: Date) {
           maxResults: 10
         });
         
-        // Use a more optimized comparison - convert dates just once
-        const startTimestamp = startDateTime.getTime();
-        const endTimestamp = endDateTime.getTime();
+        // Check if there are any events during this time
+        const hasOverlap = events.data.items && events.data.items.length > 0;
         
-        // Fast path: if no events, bay is available
-        if (!events.data.items || events.data.items.length === 0) {
-          return { bay, available: true };
-        }
-        
-        // Fast conflict check using timestamps
-        const hasConflict = events.data.items.some(event => {
-          // Skip events that are cancelled
-          if (event.status === 'cancelled') return false;
-          
-          const eventStart = new Date(event.start?.dateTime || '').getTime();
-          const eventEnd = new Date(event.end?.dateTime || '').getTime();
-          
-          // Conflict check using timestamps is faster than Date object comparison
-          return startTimestamp < eventEnd && endTimestamp > eventStart;
-        });
-        
-        return { bay, available: !hasConflict };
+        // If no overlapping events, this bay is available
+        return { bay, available: !hasOverlap };
       } catch (error) {
-        console.error(`Error checking availability for bay ${bay}:`, error);
-        return { bay, available: false, error: true };
+        console.error(`Error checking calendar ${bay}:`, error);
+        // If we can't check availability, mark as unavailable to be safe
+        return { bay, available: false };
       }
     });
     
-    // Wait for all checks to complete
-    const results = await Promise.all(bayPromises);
+    // Wait for all results
+    const bayResults = await Promise.all(bayPromises);
     
     // Find the first available bay
-    const firstAvailable = results.find(result => result.available);
+    const availableBay = bayResults.find(result => result.available);
     
-    // Log the total time taken for all bay checks
+    // Log how long the check took
     console.log(`[Bay Availability Check] Completed in ${Date.now() - startTime}ms for ${Object.keys(BOOKING_CALENDARS).length} bays`);
     
-    return firstAvailable ? firstAvailable.bay : null;
+    return availableBay ? availableBay.bay : null;
   } catch (error) {
-    console.error('Error checking bay availability:', error);
-    throw error;
+    console.error("Error in findAvailableBay:", error);
+    return null;
   }
 }
 
@@ -99,9 +82,6 @@ async function makeInternalRequest(url: string, options: any) {
 }
 
 export async function POST(request: NextRequest) {
-  // Generate a unique request ID for this booking
-  const requestId = crmLogger.newRequest();
-  
   try {
     // Early timing tracking to diagnose performance issues
     const startTime = Date.now();
@@ -194,16 +174,10 @@ export async function POST(request: NextRequest) {
         .eq('id', bookingId)
         .single(),
       getOrCreateCrmMapping(token.sub, {
-        requestId: crmLogger.newRequest(),
-        source: 'calendar',
-        logger: crmLogger
+        source: 'calendar'
       }).catch(error => {
         // Log but don't fail if CRM mapping fails
-        crmLogger.error(
-          'Error getting CRM mapping for booking',
-          { error, profileId: token.sub },
-          { requestId, profileId: token.sub, source: 'calendar' }
-        );
+        console.error('Error getting CRM mapping for booking:', error);
         return null;
       })
     ]);
@@ -257,66 +231,30 @@ export async function POST(request: NextRequest) {
     
     if (stableHashId) {
       profileId = booking.userId || null;
-      
-      crmLogger.info(
-        `Found stable_hash_id from mapping`, 
-        { stableHashId, profileId, phone: booking.phone_number },
-        { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-      );
-    } else {
-      crmLogger.warn(
-        `No stable_hash_id found in mapping or customer data`,
-        { profileId: booking.userId, phone: booking.phone_number },
-        { requestId, profileId: booking.userId, source: 'calendar' }
-      );
     }
     
     // Start calendar event creation and package fetch in parallel
     const packagePromise = stableHashId ? 
       (async () => {
         try {
-          crmLogger.debug(
-            `Starting package query for customer`,
-            { stableHashId },
-            { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-          );
-          
-          // Query by stable_hash_id
-          const result = await supabase
+          // Execute package query using stable hash ID
+          const { data, error } = await supabase
             .from('crm_packages')
             .select('*')
             .eq('stable_hash_id', stableHashId)
-            .order('expiration_date', { ascending: false });
+            .gte('expiration_date', new Date().toISOString().split('T')[0]) // Only active packages
+            .order('expiration_date', { ascending: true });
           
-          if (result.error) {
-            crmLogger.error(
-              `Error in package query`,
-              { error: result.error, stableHashId },
-              { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-            );
-          } else {
-            crmLogger.info(
-              `Package query successful`,
-              { 
-                packageCount: result.data?.length || 0,
-                packages: result.data,
-                stableHashId 
-              },
-              { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-            );
+          if (error) {
+            return { data: null, error };
           }
           
-          return result;
+          return { data, error: null };
         } catch (error) {
-          crmLogger.error(
-            `Exception in package query`,
-            { error, stableHashId },
-            { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-          );
           return { data: null, error };
         }
       })() :
-      Promise.resolve({ data: null });
+      Promise.resolve({ data: null, error: null });
     
     // Get the display name for the bay
     const bayDisplayName = BAY_DISPLAY_NAMES[availableBay] || availableBay;
@@ -334,68 +272,17 @@ export async function POST(request: NextRequest) {
     if (packageResult.status === 'fulfilled' && packageResult.value.data) {
       const packages = packageResult.value.data;
       
-      crmLogger.debug(
-        `Processing package results`,
-        { 
-          packageCount: packages.length, 
-          packages,
-          stableHashId 
-        },
-        { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-      );
-      
       if (packages && packages.length > 0) {
         // Filter out coaching packages
         const nonCoachingPackages = packages.filter((pkg: any) => 
           !pkg.package_type_name.toLowerCase().includes('coaching')
         );
         
-        crmLogger.debug(
-          `Filtered out coaching packages`,
-          { 
-            originalCount: packages.length,
-            filteredCount: nonCoachingPackages.length,
-            filteredPackages: nonCoachingPackages
-          },
-          { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-        );
-        
         if (nonCoachingPackages.length > 0) {
           const activePackage = nonCoachingPackages[0];
           packageInfo = `Package (${activePackage.package_type_name})`;
-          
-          crmLogger.info(
-            `Using package for booking`,
-            { 
-              packageType: activePackage.package_type_name,
-              packageId: activePackage.id,
-              expirationDate: activePackage.expiration_date
-            },
-            { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-          );
-        } else {
-          crmLogger.info(
-            `No non-coaching packages found after filtering`,
-            { originalPackageCount: packages.length },
-            { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-          );
         }
-      } else {
-        crmLogger.info(
-          `No packages found for customer`,
-          { stableHashId },
-          { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-        );
       }
-    } else {
-      crmLogger.info(
-        `No packages found or error fetching packages`,
-        { 
-          status: packageResult.status,
-          error: packageResult.status === 'rejected' ? packageResult.reason : null 
-        },
-        { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-      );
     }
     
     // Now create calendar event with the package info
@@ -420,8 +307,7 @@ Date: ${format(startDateTime, 'EEEE, MMMM d')}
 Time: ${format(startDateTime, 'HH:mm')} - ${format(endDateTime, 'HH:mm')}
 Booked by: ${profile.display_name || profile.name || 'Website User'}
 Via: Website
-Booking ID: ${booking.id}
-CRM ID: ${crmCustomerId || 'N/A'}`,
+Booking ID: ${booking.id}`,
           start: {
             dateTime: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
             timeZone: TIMEZONE
@@ -430,7 +316,7 @@ CRM ID: ${crmCustomerId || 'N/A'}`,
             dateTime: formatInTimeZone(endDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
             timeZone: TIMEZONE
           },
-          colorId: availableBay && BAY_COLORS[availableBay as keyof typeof BAY_COLORS] || '1'
+          colorId: BAY_COLORS[bayDisplayName as keyof typeof BAY_COLORS] || '1'
         }
       });
       
@@ -454,33 +340,17 @@ CRM ID: ${crmCustomerId || 'N/A'}`,
       bayDisplayName
     };
     
-    // Log the final values being sent to notifications
-    console.log('Data for notifications:', {
-      bayNumber: bayDisplayName, // The formatted bay name for display
-      rawBay: booking.bay, // The raw bay value
-      availableBay, // The assigned bay from availability check
-      packageInfo, // The package information that was determined
-      customerName
-    });
-    
     // Notification Section: Send all notifications after successful booking creation
     
     // Prepare and send email notification
     try {
-      // Log the data we're sending to email notifications for debugging
-      crmLogger.debug('Sending email notification with data', {
-        bayNumber: availableBay,
-        bayDisplayName,
-        packageInfo,
-        customerName
-      }, { requestId, source: 'calendar' });
-
-      // Format end time to match start time format
-      const formattedEndTime = typeof endDateTime === 'string' ? 
-        endDateTime : // If already a string, use as is
-        (endDateTime instanceof Date ? 
-          format(endDateTime, 'HH:mm') : // Format as HH:mm if it's a Date object
-          endDateTime); // Fallback to whatever it is
+      // Calculate end time properly in local timezone
+      // First parse the start time in local timezone
+      const localStartTime = parse(`${booking.date} ${booking.start_time}`, 'yyyy-MM-dd HH:mm', new Date());
+      // Then add the duration to get the end time, still in local timezone
+      const localEndTime = addHours(localStartTime, booking.duration);
+      // Format both times consistently
+      const formattedEndTime = format(localEndTime, 'HH:mm');
 
       // Format the date in a human-readable format
       const formattedDate = format(new Date(booking.date), 'MMMM d, yyyy');
@@ -517,36 +387,16 @@ CRM ID: ${crmCustomerId || 'N/A'}`,
         }
       );
       
-      crmLogger.info('Email notification sent', 
-        { status: emailNotificationResponse.status }, 
-        { requestId, source: 'calendar' }
-      );
     } catch (error) {
-      crmLogger.error('Error sending email notification:', 
-        { error }, 
-        { requestId, source: 'calendar' }
-      );
+      console.error('Error sending email notification:', error);
     }
     
     // Send LINE notification
     try {
-      // Log exactly what we're sending to LINE notification
-      crmLogger.debug(
-        'Sending LINE notification with data',
-        {
-          packageInfo,
-          bayNumber: bayDisplayName,
-          customerName
-        },
-        { requestId, source: 'calendar' }
-      );
-
-      // Format end time to match start time format (reusing the same formatting)
-      const formattedEndTime = typeof endDateTime === 'string' ? 
-        endDateTime : // If already a string, use as is
-        (endDateTime instanceof Date ? 
-          format(endDateTime, 'HH:mm') : // Format as HH:mm if it's a Date object
-          endDateTime); // Fallback to whatever it is
+      // Reuse the same end time calculation for consistency
+      const localStartTime = parse(`${booking.date} ${booking.start_time}`, 'yyyy-MM-dd HH:mm', new Date());
+      const localEndTime = addHours(localStartTime, booking.duration);
+      const formattedEndTime = format(localEndTime, 'HH:mm');
 
       // Format the date in a human-readable format (reuse the same formatting)
       const formattedDate = format(new Date(booking.date), 'MMMM d, yyyy');
@@ -583,24 +433,13 @@ CRM ID: ${crmCustomerId || 'N/A'}`,
           }),
         }
       );
-      crmLogger.info('LINE notification sent', 
-        { status: lineNotificationResponse.status }, 
-        { requestId, source: 'calendar' }
-      );
     } catch (error) {
-      crmLogger.error('Error sending LINE notification:', 
-        { error }, 
-        { requestId, source: 'calendar' }
-      );
+      console.error('Error sending LINE notification:', error);
     }
 
     return NextResponse.json(response);
   } catch (error) {
-    crmLogger.error(
-      `Exception in calendar route`,
-      { error },
-      { requestId, source: 'calendar' }
-    );
+    console.error('Exception in calendar route:', error);
     return NextResponse.json(
       { error: 'An error occurred while creating the calendar event' },
       { status: 500 }

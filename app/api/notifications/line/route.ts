@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { createServerClient } from '@/utils/supabase/server';
-import { crmLogger } from '@/utils/logging';
 import { getOrCreateCrmMapping } from '@/utils/customer-matching';
-// We may keep this for future reference but can comment it out
-// import { getPackagesForProfile } from '@/utils/supabase/crm-packages';
 
 interface BookingNotification {
   customerName: string;
@@ -26,31 +23,10 @@ interface BookingNotification {
 }
 
 export async function POST(request: NextRequest) {
-  // Generate a unique request ID for this notification
-  const requestId = crmLogger.newRequest();
-  
   try {
     // We're not verifying tokens for internal API calls
     // This avoids 401 errors when called from other API routes
     const booking: BookingNotification = await request.json();
-    
-    // Log full received booking data for debugging
-    crmLogger.debug(
-      'Raw booking data received in LINE notification',
-      { 
-        ...booking, // Log the complete booking object
-        rawRequestType: typeof booking,
-        hasProfileId: !!booking.profileId,
-        hasPackageInfo: !!booking.packageInfo,
-        hasBayNumber: !!booking.bayNumber,
-        hasCrmData: !!booking.crmCustomerData
-      },
-      { 
-        requestId, 
-        profileId: booking.profileId || 'unknown', 
-        source: 'line' 
-      }
-    );
     
     // Provide fallbacks for all important fields
     const sanitizedBooking = {
@@ -60,24 +36,6 @@ export async function POST(request: NextRequest) {
       packageInfo: booking.packageInfo || 'Normal Bay Rate',
       bookingName: booking.bookingName || booking.customerName || 'Unknown Booking'
     };
-    
-    // Log normal booking data with sanitized values
-    crmLogger.debug(
-      'Processed booking data for LINE notification',
-      { 
-        profileId: sanitizedBooking.profileId,
-        bookingId: sanitizedBooking.bookingName,
-        hasPackageInfo: !!sanitizedBooking.packageInfo,
-        packageInfo: sanitizedBooking.packageInfo,
-        bayNumber: sanitizedBooking.bayNumber,
-        duration: sanitizedBooking.duration
-      },
-      { 
-        requestId, 
-        profileId: sanitizedBooking.profileId, 
-        source: 'line' 
-      }
-    );
     
     // Look up customer and package info
     // If CRM customer data is available, use that name, otherwise use the provided customerName or "New Customer"
@@ -95,30 +53,9 @@ export async function POST(request: NextRequest) {
     let bookingType = "Normal Bay Rate";
     if (sanitizedBooking.packageInfo) {
       bookingType = sanitizedBooking.packageInfo;
-      
-      crmLogger.info(
-        'Using provided package info in LINE notification',
-        { packageInfo: sanitizedBooking.packageInfo },
-        { 
-          requestId, 
-          profileId: sanitizedBooking.profileId, 
-          source: 'line' 
-        }
-      );
     }
     // If we have stableHashId from the booking flow, use it directly
-    else if (sanitizedBooking.stableHashId) {
-      crmLogger.info(
-        'Using provided stable hash ID in LINE notification',
-        { stableHashId: sanitizedBooking.stableHashId },
-        { 
-          requestId, 
-          profileId: sanitizedBooking.profileId,
-          stableHashId: sanitizedBooking.stableHashId, 
-          source: 'line' 
-        }
-      );
-      
+    else if (sanitizedBooking.stableHashId && !sanitizedBooking.skipCrmMatch) {
       try {
         // Look up packages using the provided stable hash ID
         const { data: packages, error: packagesError } = await createServerClient()
@@ -128,134 +65,42 @@ export async function POST(request: NextRequest) {
           .gte('expiration_date', new Date().toISOString().split('T')[0])
           .order('expiration_date', { ascending: true });
         
-        if (packagesError) {
-          crmLogger.error(
-            'Error looking up packages by provided stable hash ID',
-            { error: packagesError, stableHashId: sanitizedBooking.stableHashId },
-            { 
-              requestId, 
-              profileId: sanitizedBooking.profileId, 
-              stableHashId: sanitizedBooking.stableHashId,
-              source: 'line' 
-            }
-          );
-        } else if (packages && packages.length > 0) {
-          crmLogger.info(
-            'Found packages using provided stable hash ID',
-            { packageCount: packages.length, firstPackage: packages[0] },
-            { 
-              requestId, 
-              profileId: sanitizedBooking.profileId, 
-              stableHashId: sanitizedBooking.stableHashId,
-              source: 'line' 
-            }
-          );
-          
+        if (packages && packages.length > 0) {
           // Use the first valid package
           bookingType = `Package (${packages[0].package_type_name})`;
-        } else {
-          crmLogger.info(
-            'No packages found for provided stable hash ID',
-            { stableHashId: sanitizedBooking.stableHashId },
-            { 
-              requestId, 
-              profileId: sanitizedBooking.profileId, 
-              stableHashId: sanitizedBooking.stableHashId,
-              source: 'line' 
-            }
-          );
         }
       } catch (error) {
-        crmLogger.error(
-          'Exception looking up packages by provided stable hash ID',
-          { error, stableHashId: sanitizedBooking.stableHashId },
-          { 
-            requestId, 
-            profileId: sanitizedBooking.profileId, 
-            stableHashId: sanitizedBooking.stableHashId,
-            source: 'line' 
-          }
-        );
+        console.error('Error looking up packages:', error);
       }
     }
     // Look up package using profile ID as a fallback
     else if (sanitizedBooking.profileId && !sanitizedBooking.skipCrmMatch) {
-      crmLogger.info(
-        'Looking up CRM mapping for LINE notification',
-        { profileId: sanitizedBooking.profileId },
-        { requestId, profileId: sanitizedBooking.profileId, source: 'line' }
-      );
-      
       try {
         // Use our efficient CRM mapping function
         const crmMapping = await getOrCreateCrmMapping(sanitizedBooking.profileId, {
-          requestId,
-          source: 'line',
-          logger: crmLogger
+          source: 'line'
         });
         
         if (crmMapping && crmMapping.stableHashId) {
-          // Found a mapping, look up packages
-          const { data: packages, error: packagesError } = await createServerClient()
-            .from('crm_packages')
-            .select('*')
-            .eq('stable_hash_id', crmMapping.stableHashId)
-            .gte('expiration_date', new Date().toISOString().split('T')[0])
-            .order('expiration_date', { ascending: true });
-          
-          if (packagesError) {
-            crmLogger.error(
-              'Error looking up packages for CRM mapping',
-              { error: packagesError, stableHashId: crmMapping.stableHashId },
-              { 
-                requestId, 
-                profileId: sanitizedBooking.profileId, 
-                stableHashId: crmMapping.stableHashId,
-                crmCustomerId: crmMapping.crmCustomerId,
-                source: 'line' 
-              }
-            );
-          } else if (packages && packages.length > 0) {
-            crmLogger.info(
-              'Found packages for CRM mapping',
-              { packageCount: packages.length, firstPackage: packages[0] },
-              { 
-                requestId, 
-                profileId: sanitizedBooking.profileId, 
-                stableHashId: crmMapping.stableHashId,
-                crmCustomerId: crmMapping.crmCustomerId,
-                source: 'line' 
-              }
-            );
+          try {
+            // Look up packages
+            const { data: packages } = await createServerClient()
+              .from('crm_packages')
+              .select('*')
+              .eq('stable_hash_id', crmMapping.stableHashId)
+              .gte('expiration_date', new Date().toISOString().split('T')[0]) // Only active packages
+              .order('expiration_date', { ascending: true });
             
-            // Use the first valid package
-            bookingType = `Package (${packages[0].package_type_name})`;
-          } else {
-            crmLogger.info(
-              'No packages found for CRM mapping',
-              { stableHashId: crmMapping.stableHashId },
-              { 
-                requestId, 
-                profileId: sanitizedBooking.profileId, 
-                stableHashId: crmMapping.stableHashId,
-                crmCustomerId: crmMapping.crmCustomerId,
-                source: 'line' 
-              }
-            );
+            if (packages && packages.length > 0) {
+              // Use the first valid package
+              bookingType = `Package (${packages[0].package_type_name})`;
+            }
+          } catch (error) {
+            console.error('Error looking up packages for mapping:', error);
           }
-        } else {
-          crmLogger.info(
-            'No CRM mapping found for LINE notification',
-            { profileId: sanitizedBooking.profileId },
-            { requestId, profileId: sanitizedBooking.profileId, source: 'line' }
-          );
         }
       } catch (error) {
-        crmLogger.error(
-          'Error during CRM mapping for LINE notification',
-          { error, profileId: sanitizedBooking.profileId },
-          { requestId, profileId: sanitizedBooking.profileId, source: 'line' }
-        );
+        console.error('Error during CRM mapping for LINE notification:', error);
       }
     }
 
@@ -321,31 +166,18 @@ This booking has been auto-confirmed. No need to re-confirm with the customer. P
     // Handle rate limiting more gracefully
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
-      
-      // For rate limiting (429 errors), return a 200 with a warning instead of failing
-      // This ensures the booking process continues even if LINE notifications fail
-      if (response.status === 429) {
-        console.warn(`LINE API rate limit reached: ${JSON.stringify(errorData || {})}`);
-        return NextResponse.json({ 
-          success: true, 
-          warning: 'LINE notification quota reached', 
-          details: errorData
-        });
-      }
-      
-      // For other errors, still throw
-      throw new Error(`LINE Messaging API error: ${response.status} ${response.statusText} ${JSON.stringify(errorData || {})}`);
+      console.error('LINE API error:', errorData || response.statusText);
+      return NextResponse.json(
+        { error: 'Failed to send LINE notification', details: errorData },
+        { status: response.status }
+      );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    crmLogger.error(
-      'Exception in LINE notification',
-      { error },
-      { requestId, source: 'line' }
-    );
+    console.error('Error in LINE notification:', error);
     return NextResponse.json(
-      { error: 'Failed to send LINE notification' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
