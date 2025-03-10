@@ -4,6 +4,7 @@ import LineProvider from 'next-auth/providers/line';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createServerClient } from '@/utils/supabase/server';
 import { matchProfileWithCrm, type MatchResult } from '@/utils/customer-matching';
+import { syncPackagesForProfile } from '@/utils/supabase/crm-packages';
 import { crmLogger } from '@/utils/logging';
 import { v4 as uuidv4 } from 'uuid';
 import type { NextAuthOptions } from 'next-auth';
@@ -211,10 +212,75 @@ export const authOptions: NextAuthOptions = {
           });
           
           // Race the matching process against the timeout
-          const matchResult = await Promise.race([
-            matchProfileWithCrm(userId),
-            timeoutPromise
-          ]) as MatchResult | null;
+          let matchResult: MatchResult | null = null;
+          try {
+            matchResult = await Promise.race([
+              matchProfileWithCrm(userId),
+              timeoutPromise
+            ]) as MatchResult | null;
+          } catch (matchError) {
+            // Log the matching error
+            crmLogger.error(
+              `CRM matching failed during sign-in`,
+              { 
+                error: matchError instanceof Error 
+                  ? { message: matchError.message, stack: matchError.stack } 
+                  : matchError,
+                userId 
+              },
+              { requestId, profileId: userId, source: 'auth' }
+            );
+            
+            // Fallback: Check for existing mapping
+            const { data: existingMapping } = await supabase
+              .from('crm_customer_mapping')
+              .select('crm_customer_id, crm_customer_data, stable_hash_id, match_confidence, match_method')
+              .eq('profile_id', userId)
+              .eq('is_matched', true)
+              .maybeSingle();
+              
+            if (existingMapping) {
+              crmLogger.info(
+                `Using existing CRM mapping as fallback`,
+                {
+                  userId,
+                  crmCustomerId: existingMapping.crm_customer_id,
+                  confidence: existingMapping.match_confidence,
+                  matchMethod: existingMapping.match_method
+                },
+                {
+                  requestId,
+                  profileId: userId,
+                  crmCustomerId: existingMapping.crm_customer_id,
+                  stableHashId: existingMapping.stable_hash_id,
+                  source: 'auth'
+                }
+              );
+              
+              // Try to sync packages silently
+              try {
+                await syncPackagesForProfile(userId);
+              } catch (syncError) {
+                crmLogger.warn(
+                  `Failed to sync packages after using fallback mapping`,
+                  { error: syncError, userId },
+                  { 
+                    requestId, 
+                    profileId: userId, 
+                    crmCustomerId: existingMapping.crm_customer_id,
+                    stableHashId: existingMapping.stable_hash_id,
+                    source: 'auth'
+                  }
+                );
+              }
+            } else {
+              crmLogger.warn(
+                `No fallback mapping available for user`,
+                { userId },
+                { requestId, profileId: userId, source: 'auth' }
+              );
+            }
+          }
           
           // Log the result regardless of match success
           if (matchResult?.matched) {
