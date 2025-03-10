@@ -145,7 +145,7 @@ export function BookingDetails({
   });
   const [showNoAvailabilityModal, setShowNoAvailabilityModal] = useState(false);
   const [crmCustomerId, setCrmCustomerId] = useState<string | null>(null);
-  const [hasNotificationError, setHasNotificationError] = useState(false);
+  const [hasBookingError, setHasBookingError] = useState(false);
   const loadingSteps = [
     "Checking availability",
     "Securing your booking slot",
@@ -479,7 +479,10 @@ export function BookingDetails({
           const lineTimeoutId = setTimeout(() => lineController.abort(), 10000);
           const emailTimeoutId = setTimeout(() => emailController.abort(), 10000);
           
-          // Send notifications in parallel (no need to wait for one before starting the other)
+          // Skip sending notifications directly from the frontend
+          // They will be sent by the calendar route on the server
+          // This prevents duplicate notifications
+          /*
           const [lineResponse, emailResponse] = await Promise.allSettled([
             fetch('/api/notifications/line', {
               method: 'POST',
@@ -500,44 +503,40 @@ export function BookingDetails({
               signal: emailController.signal
             })
           ]);
+          */
           
-          // Clear the timeouts
+          // Clean up timeout
           clearTimeout(lineTimeoutId);
           clearTimeout(emailTimeoutId);
           
-          // Check if any notification failed
-          const lineSuccess = lineResponse.status === 'fulfilled' && lineResponse.value.ok;
-          const emailSuccess = emailResponse.status === 'fulfilled' && emailResponse.value.ok;
-          
-          if (!lineSuccess || !emailSuccess) {
-            console.warn('Some notifications failed to send:', 
-              !lineSuccess ? 'LINE notification failed' : '', 
-              !emailSuccess ? 'Email notification failed' : '');
-            
-            setHasNotificationError(true);
-          }
+          // Since we're no longer sending notifications from the frontend,
+          // we won't have notification errors here
           
           // Show completion animation and redirect
-          await showCompletionAndRedirect(submissionStartTime, `/bookings/confirmation?id=${booking.id}`);
+          const confirmationUrl = `/bookings/confirmation?id=${bookingId}`;
+          await showCompletionAndRedirect(submissionStartTime, confirmationUrl);
         } catch (error) {
-          console.error('Error sending notifications:', error);
-          setHasNotificationError(true);
+          console.error('Error creating booking:', error);
           
-          // Show completion animation and redirect
-          await showCompletionAndRedirect(submissionStartTime, `/bookings/confirmation?id=${booking.id}`);
+          // Ensure minimum animation duration and then show error
+          await ensureMinimumAnimationDuration(submissionStartTime);
+          
+          // Use the last step for error state
+          setLoadingStep(loadingSteps.length - 1);
+          
+          // Only set booking error, since notifications are now handled server-side
+          setHasBookingError(true);
+          
+          // Reset loading state after error is displayed
+          setTimeout(() => {
+            setIsSubmitting(false);
+          }, 3000);
         }
       } catch (error) {
-        console.error('Error creating booking:', error instanceof Error ? error.message : error);
+        console.error('Error in booking process:', error instanceof Error ? error.message : error);
         
         // Ensure minimum animation duration
         await ensureMinimumAnimationDuration(submissionStartTime);
-        
-        // Show error state in animation
-        setLoadingStep(loadingSteps.length - 1); // Use the last step but will show error state
-        setHasNotificationError(true);
-        
-        // Wait a moment for the user to register the error state
-        await new Promise(resolve => setTimeout(resolve, 700));
         
         setIsSubmitting(false);
         setShowLoadingOverlay(false);

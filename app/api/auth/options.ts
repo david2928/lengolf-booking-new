@@ -3,7 +3,7 @@ import FacebookProvider from 'next-auth/providers/facebook';
 import LineProvider from 'next-auth/providers/line';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createServerClient } from '@/utils/supabase/server';
-import { matchProfileWithCrm, type MatchResult } from '@/utils/customer-matching';
+import { matchProfileWithCrm, type MatchResult, getOrCreateCrmMapping } from '@/utils/customer-matching';
 import { syncPackagesForProfile } from '@/utils/supabase/crm-packages';
 import { crmLogger } from '@/utils/logging';
 import { v4 as uuidv4 } from 'uuid';
@@ -197,133 +197,28 @@ export const authOptions: NextAuthOptions = {
 
         user.id = userId;
         
-        // Attempt to match the user with a CRM customer record
-        // We'll await this with a timeout to ensure it completes but doesn't block login for too long
-        try {
-          crmLogger.info(
-            `Starting CRM matching during sign-in`,
-            { userId },
-            { requestId, profileId: userId, source: 'auth' }
-          );
-          
-          // Create a timeout promise that rejects after 3 seconds
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('CRM matching timed out')), 3000);
-          });
-          
-          // Race the matching process against the timeout
-          let matchResult: MatchResult | null = null;
-          try {
-            matchResult = await Promise.race([
-              matchProfileWithCrm(userId),
-              timeoutPromise
-            ]) as MatchResult | null;
-          } catch (matchError) {
-            // Log the matching error
-            crmLogger.error(
-              `CRM matching failed during sign-in`,
-              { 
-                error: matchError instanceof Error 
-                  ? { message: matchError.message, stack: matchError.stack } 
-                  : matchError,
-                userId 
-              },
-              { requestId, profileId: userId, source: 'auth' }
-            );
-            
-            // Fallback: Check for existing mapping
-            const { data: existingMapping } = await supabase
-              .from('crm_customer_mapping')
-              .select('crm_customer_id, crm_customer_data, stable_hash_id, match_confidence, match_method')
-              .eq('profile_id', userId)
-              .eq('is_matched', true)
-              .maybeSingle();
-              
-            if (existingMapping) {
-              crmLogger.info(
-                `Using existing CRM mapping as fallback`,
-                {
-                  userId,
-                  crmCustomerId: existingMapping.crm_customer_id,
-                  confidence: existingMapping.match_confidence,
-                  matchMethod: existingMapping.match_method
-                },
-                {
-                  requestId,
-                  profileId: userId,
-                  crmCustomerId: existingMapping.crm_customer_id,
-                  stableHashId: existingMapping.stable_hash_id,
-                  source: 'auth'
-                }
-              );
-              
-              // Try to sync packages silently
-              try {
-                await syncPackagesForProfile(userId);
-              } catch (syncError) {
-                crmLogger.warn(
-                  `Failed to sync packages after using fallback mapping`,
-                  { error: syncError, userId },
-                  { 
-                    requestId, 
-                    profileId: userId, 
-                    crmCustomerId: existingMapping.crm_customer_id,
-                    stableHashId: existingMapping.stable_hash_id,
-                    source: 'auth'
-                  }
-                );
-              }
-            } else {
-              crmLogger.warn(
-                `No fallback mapping available for user`,
-                { userId },
-                { requestId, profileId: userId, source: 'auth' }
-              );
-            }
-          }
-          
-          // Log the result regardless of match success
-          if (matchResult?.matched) {
-            crmLogger.info(
-              `User matched with CRM customer`,
-              { 
-                userId,
-                crmCustomerId: matchResult.crmCustomerId,
-                confidence: matchResult.confidence,
-                reasons: matchResult.reasons
-              },
-              { 
-                requestId, 
-                profileId: userId, 
-                crmCustomerId: matchResult.crmCustomerId,
-                source: 'auth' 
-              }
-            );
-          } else if (matchResult) {
-            crmLogger.info(
-              `User NOT matched with CRM (below threshold)`,
-              { 
-                userId,
-                confidence: matchResult.confidence,
-                reasons: matchResult.reasons
-              },
-              { requestId, profileId: userId, source: 'auth' }
-            );
-          } else {
-            crmLogger.warn(
-              `No match attempt results for user`,
-              { userId },
-              { requestId, profileId: userId, source: 'auth' }
-            );
-          }
-        } catch (error) {
+        // Attempt to match the user with a CRM customer using the efficient method
+        // This will first check for existing mapping before trying a new match
+        crmLogger.info(
+          `Starting CRM mapping lookup for sign-in`,
+          { userId },
+          { requestId, profileId: userId, source: 'auth' }
+        );
+        
+        // Start the mapping process but don't await it
+        // This allows the login to proceed regardless of mapping success
+        getOrCreateCrmMapping(userId, {
+          requestId,
+          source: 'auth',
+          timeoutMs: 5000, // Longer timeout for background process
+          logger: crmLogger
+        }).catch(error => {
           crmLogger.error(
-            `Error during CRM matching at sign-in`,
+            `Unexpected error in background CRM mapping`,
             { error, userId },
             { requestId, profileId: userId, source: 'auth' }
           );
-          // Don't block login if matching fails
-        }
+        });
 
         return true;
       } catch (error) {

@@ -43,22 +43,30 @@ export function GtmUserProfileProvider({ children }: { children: React.ReactNode
           }
 
           // Get CRM mapping to find stable hash ID
-          const { data: crmMapping, error: crmError } = await supabase
+          const { data: crmMappings, error: crmError } = await supabase
             .from('crm_customer_mapping')
-            .select('stable_hash_id, crm_customer_id')
+            .select('stable_hash_id, crm_customer_id, match_confidence, updated_at')
             .eq('profile_id', userId)
             .eq('is_matched', true)
-            .maybeSingle();
+            .order('match_confidence', { ascending: false }) // Highest confidence first
+            .order('updated_at', { ascending: false }); // Most recent first
 
           if (crmError) {
-            console.error('Error fetching CRM mapping:', crmError);
+            console.error('Error fetching CRM mappings:', crmError);
+          }
+
+          // Use the best mapping (first in sorted list)
+          const bestMapping = crmMappings && crmMappings.length > 0 ? crmMappings[0] : null;
+          
+          if (crmMappings && crmMappings.length > 1) {
+            console.warn(`Multiple CRM mappings found (${crmMappings.length}), using highest confidence one`);
           }
 
           // Set profile data for GTM
           const userData = {
             profileId: userId,
-            stableHashId: crmMapping?.stable_hash_id || null,
-            customerID: crmMapping?.crm_customer_id || null // For backward compatibility
+            stableHashId: bestMapping?.stable_hash_id || null,
+            customerID: bestMapping?.crm_customer_id || null // For backward compatibility
           };
 
           // Update state

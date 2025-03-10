@@ -10,6 +10,7 @@ import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
 import http from 'http';
 import https from 'https';
 import { crmLogger } from '@/utils/logging';
+import { getOrCreateCrmMapping } from '@/utils/customer-matching';
 
 const TIMEZONE = 'Asia/Bangkok';
 
@@ -186,22 +187,28 @@ export async function POST(request: NextRequest) {
     const calendarId = BOOKING_CALENDARS[availableBay as keyof typeof BOOKING_CALENDARS];
 
     // Fetch booking details and CRM mapping in parallel
-    const [bookingResult, crmMappingResult] = await Promise.all([
+    const [bookingResult, profileCrmResult] = await Promise.all([
       supabase
         .from('bookings')
         .select('*')
         .eq('id', bookingId)
         .single(),
-      supabase
-        .from('crm_customer_mapping')
-        .select('crm_customer_id, crm_customer_data, stable_hash_id')
-        .eq('profile_id', token.sub)
-        .eq('is_matched', true)
-        .maybeSingle()
+      getOrCreateCrmMapping(token.sub, {
+        requestId: crmLogger.newRequest(),
+        source: 'calendar',
+        logger: crmLogger
+      }).catch(error => {
+        // Log but don't fail if CRM mapping fails
+        crmLogger.error(
+          'Error getting CRM mapping for booking',
+          { error, profileId: token.sub },
+          { requestId, profileId: token.sub, source: 'calendar' }
+        );
+        return null;
+      })
     ]);
     
     const { data: booking } = bookingResult;
-    const { data: crmMapping } = crmMappingResult;
     
     logTiming('Parallel data fetch');
 
@@ -215,15 +222,30 @@ export async function POST(request: NextRequest) {
     // Process CRM data
     let crmCustomerId = null;
     let crmCustomerData = null;
+    let stableHashId = null;
     
-    // Only use existing mapping data - no runtime matching
-    if (crmMapping?.crm_customer_id) {
-      // Use the existing mapping (fast path)
-      crmCustomerId = crmMapping.crm_customer_id;
-      crmCustomerData = crmMapping.crm_customer_data;
+    // Use the data from the efficient CRM lookup
+    if (profileCrmResult) {
+      crmCustomerId = profileCrmResult.crmCustomerId;
+      stableHashId = profileCrmResult.stableHashId;
+      
+      // Fetch the full customer data if needed
+      if (crmCustomerId) {
+        const { data: mappingData } = await supabase
+          .from('crm_customer_mapping')
+          .select('crm_customer_data')
+          .eq('crm_customer_id', crmCustomerId)
+          .eq('profile_id', token.sub)
+          .single();
+          
+        if (mappingData?.crm_customer_data) {
+          crmCustomerData = mappingData.crm_customer_data;
+        }
+      }
     }
-    logTiming('CRM data processing');
     
+    logTiming('CRM data processing');
+
     // Get customer name from CRM if available, otherwise use profile name
     let customerName = profile.display_name || profile.name || profile.email;
     if (crmCustomerData?.name) {
@@ -231,28 +253,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Retrieve CRM mappings and customer data
-    let stableHashId = null;
     let profileId = null;
     
-    if (crmMapping && 'stable_hash_id' in crmMapping) {
-      // Use stable_hash_id directly from the mapping if available
-      stableHashId = crmMapping.stable_hash_id;
+    if (stableHashId) {
       profileId = booking.userId || null;
-      crmCustomerId = crmMapping.crm_customer_id || null;
       
       crmLogger.info(
         `Found stable_hash_id from mapping`, 
-        { stableHashId, profileId, phone: booking.phone_number },
-        { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
-      );
-    } else if (crmCustomerData && typeof crmCustomerData === 'object') {
-      // Fall back to the stable_hash_id in the customer data
-      stableHashId = (crmCustomerData as any).stable_hash_id;
-      profileId = booking.userId || null;
-      crmCustomerId = (crmCustomerData as any).id || null;
-      
-      crmLogger.info(
-        `Found stable_hash_id from customer data`, 
         { stableHashId, profileId, phone: booking.phone_number },
         { requestId, profileId, stableHashId, crmCustomerId, source: 'calendar' }
       );
@@ -442,16 +449,151 @@ CRM ID: ${crmCustomerId || 'N/A'}`,
     
     // Return success with the assigned bay and additional data for notifications
     const response = {
-      bay: bayDisplayName,
-      bayCode: availableBay,
-      eventId: calendarEventResponse.data.id,
-      calendarId,
-      warning: null,
-      crmCustomerId,
-      packageInfo,
-      crmCustomerData
+      id: bookingId,
+      calendarEventId: calendarEventResponse?.id,
+      bayDisplayName
     };
     
+    // Log the final values being sent to notifications
+    console.log('Data for notifications:', {
+      bayNumber: bayDisplayName, // The formatted bay name for display
+      rawBay: booking.bay, // The raw bay value
+      availableBay, // The assigned bay from availability check
+      packageInfo, // The package information that was determined
+      customerName
+    });
+    
+    // Notification Section: Send all notifications after successful booking creation
+    
+    // Prepare and send email notification
+    try {
+      // Log the data we're sending to email notifications for debugging
+      crmLogger.debug('Sending email notification with data', {
+        bayNumber: availableBay,
+        bayDisplayName,
+        packageInfo,
+        customerName
+      }, { requestId, source: 'calendar' });
+
+      // Format end time to match start time format
+      const formattedEndTime = typeof endDateTime === 'string' ? 
+        endDateTime : // If already a string, use as is
+        (endDateTime instanceof Date ? 
+          format(endDateTime, 'HH:mm') : // Format as HH:mm if it's a Date object
+          endDateTime); // Fallback to whatever it is
+
+      // Format the date in a human-readable format
+      const formattedDate = format(new Date(booking.date), 'MMMM d, yyyy');
+
+      // Use environment variable or fallback to localhost
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+      // Send email notification with absolute URL
+      const emailNotificationResponse = await fetch(
+        `${baseUrl}/api/notifications/email`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userName: customerName,
+            email: booking.email,
+            date: formattedDate, // Use the formatted date
+            startTime: booking.start_time,
+            endTime: formattedEndTime,
+            duration: booking.duration,
+            numberOfPeople: booking.number_of_people,
+            bayNumber: bayDisplayName,
+            phoneNumber: booking.phone_number,
+            packageInfo,
+            // Additional fields for internal use
+            userId: profileId,
+            crmCustomerId,
+            stableHashId,
+            crmCustomerData,
+            skipCrmMatch: true
+          }),
+        }
+      );
+      
+      crmLogger.info('Email notification sent', 
+        { status: emailNotificationResponse.status }, 
+        { requestId, source: 'calendar' }
+      );
+    } catch (error) {
+      crmLogger.error('Error sending email notification:', 
+        { error }, 
+        { requestId, source: 'calendar' }
+      );
+    }
+    
+    // Send LINE notification
+    try {
+      // Log exactly what we're sending to LINE notification
+      crmLogger.debug(
+        'Sending LINE notification with data',
+        {
+          packageInfo,
+          bayNumber: bayDisplayName,
+          customerName
+        },
+        { requestId, source: 'calendar' }
+      );
+
+      // Format end time to match start time format (reusing the same formatting)
+      const formattedEndTime = typeof endDateTime === 'string' ? 
+        endDateTime : // If already a string, use as is
+        (endDateTime instanceof Date ? 
+          format(endDateTime, 'HH:mm') : // Format as HH:mm if it's a Date object
+          endDateTime); // Fallback to whatever it is
+
+      // Format the date in a human-readable format (reuse the same formatting)
+      const formattedDate = format(new Date(booking.date), 'MMMM d, yyyy');
+
+      // Use environment variable or fallback to localhost
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+      // Send LINE notification with absolute URL
+      const lineNotificationResponse = await fetch(
+        `${baseUrl}/api/notifications/line`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            customerName,
+            email: booking.email,
+            phoneNumber: booking.phone_number,
+            bookingDate: formattedDate, // Use the formatted date
+            bookingStartTime: booking.start_time,
+            bookingEndTime: formattedEndTime,
+            bayNumber: bayDisplayName,
+            duration: booking.duration,
+            numberOfPeople: booking.number_of_people,
+            // Use exact name from booking form (not CRM name or customer display name)
+            bookingName: booking.name,
+            profileId,
+            crmCustomerId,
+            stableHashId,
+            crmCustomerData,
+            packageInfo,
+            skipCrmMatch: true
+          }),
+        }
+      );
+      crmLogger.info('LINE notification sent', 
+        { status: lineNotificationResponse.status }, 
+        { requestId, source: 'calendar' }
+      );
+    } catch (error) {
+      crmLogger.error('Error sending LINE notification:', 
+        { error }, 
+        { requestId, source: 'calendar' }
+      );
+    }
+
     return NextResponse.json(response);
   } catch (error) {
     crmLogger.error(
