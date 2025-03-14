@@ -24,6 +24,14 @@ interface BookingNotification {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if LINE environment variables are set
+    console.log('LINE environment variables check:', {
+      hasChannelAccessToken: !!process.env.LINE_CHANNEL_ACCESS_TOKEN,
+      hasGroupId: !!process.env.LINE_GROUP_ID,
+      channelAccessTokenLength: process.env.LINE_CHANNEL_ACCESS_TOKEN?.length || 0,
+      groupIdLength: process.env.LINE_GROUP_ID?.length || 0
+    });
+    
     // We're not verifying tokens for internal API calls
     // This avoids 401 errors when called from other API routes
     const booking: BookingNotification = await request.json();
@@ -48,6 +56,7 @@ export async function POST(request: NextRequest) {
       // If no CRM data but a specific customer name was provided that's not "New Customer"
       customerLabel = sanitizedBooking.customerName;
     }
+    // Note: If customerName is "New Customer", we keep the default customerLabel value
     
     // Determine booking type (package or normal)
     let bookingType = "Normal Bay Rate";
@@ -145,6 +154,13 @@ This booking has been auto-confirmed. No need to re-confirm with the customer. P
       throw new Error('LINE group ID is not set');
     }
 
+    console.log('Sending LINE message to group:', {
+      groupId,
+      messageLength: fullMessage.length,
+      customerLabel,
+      bookingName: sanitizedBooking.bookingName
+    });
+
     // Send message to LINE group using Messaging API
     const response = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
@@ -173,6 +189,7 @@ This booking has been auto-confirmed. No need to re-confirm with the customer. P
       );
     }
 
+    console.log('LINE notification sent successfully');
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in LINE notification:', error);

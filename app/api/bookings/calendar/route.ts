@@ -220,12 +220,16 @@ export async function POST(request: NextRequest) {
     
     logTiming('CRM data processing');
 
-    // Get customer name from CRM if available, otherwise use profile name
-    let customerName = profile.display_name || profile.name || profile.email;
+    // Get customer name from CRM if available, otherwise use "New Customer"
+    let customerName = "New Customer";
+    
+    // If we have CRM data, use that name
     if (crmCustomerData?.name) {
       customerName = crmCustomerData.name;
-    }
-
+    } 
+    // We'll keep it as "New Customer" for all users without CRM data
+    // This ensures consistency with LINE notifications
+    
     // Retrieve CRM mappings and customer data
     let profileId = null;
     
@@ -305,7 +309,6 @@ Pax: ${booking.number_of_people}
 Bay: ${bayDisplayName}
 Date: ${format(startDateTime, 'EEEE, MMMM d')}
 Time: ${format(startDateTime, 'HH:mm')} - ${format(endDateTime, 'HH:mm')}
-Booked by: ${profile.display_name || profile.name || 'Website User'}
 Via: Website
 Booking ID: ${booking.id}`,
           start: {
@@ -403,6 +406,14 @@ Booking ID: ${booking.id}`,
 
       // Use environment variable or fallback to localhost
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      
+      console.log('Sending LINE notification with data:', {
+        customerName,
+        bookingName: booking.name,
+        email: booking.email,
+        phoneNumber: booking.phone_number,
+        bayNumber: bayDisplayName
+      });
 
       // Send LINE notification with absolute URL
       const lineNotificationResponse = await fetch(
@@ -433,6 +444,14 @@ Booking ID: ${booking.id}`,
           }),
         }
       );
+      
+      // Log the response from the LINE notification API
+      const lineResponseData = await lineNotificationResponse.json().catch(e => ({ error: e.message }));
+      console.log('LINE notification response:', {
+        status: lineNotificationResponse.status,
+        ok: lineNotificationResponse.ok,
+        data: lineResponseData
+      });
     } catch (error) {
       console.error('Error sending LINE notification:', error);
     }
