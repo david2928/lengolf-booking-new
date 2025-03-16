@@ -77,11 +77,6 @@ export function GtmUserProfileProvider({ children }: { children: React.ReactNode
 
           // Push to GTM data layer
           pushProfileDataToGtm(userData);
-          
-          console.log('Profile data pushed to GTM data layer:', {
-            profileId: userData.profileId,
-            stableHashId: userData.stableHashId
-          });
         } catch (error) {
           console.error('Error in GTM profile data provider:', error);
         }

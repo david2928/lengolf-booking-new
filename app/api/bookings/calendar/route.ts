@@ -9,7 +9,7 @@ import { createServerClient } from '@/utils/supabase/server';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
 import http from 'http';
 import https from 'https';
-import { getOrCreateCrmMapping } from '@/utils/customer-matching';
+import { getOrCreateCrmMapping, normalizeCrmCustomerData } from '@/utils/customer-matching';
 
 const TIMEZONE = 'Asia/Bangkok';
 
@@ -203,32 +203,62 @@ export async function POST(request: NextRequest) {
       crmCustomerId = profileCrmResult.crmCustomerId;
       stableHashId = profileCrmResult.stableHashId;
       
+      console.log('CRM mapping found:', {
+        crmCustomerId,
+        stableHashId,
+        confidence: profileCrmResult.confidence
+      });
+      
       // Fetch the full customer data if needed
       if (crmCustomerId) {
-        const { data: mappingData } = await supabase
+        const { data: mappingData, error: mappingError } = await supabase
           .from('crm_customer_mapping')
           .select('crm_customer_data')
           .eq('crm_customer_id', crmCustomerId)
           .eq('profile_id', token.sub)
           .single();
           
+        if (mappingError) {
+          console.error('Error fetching CRM mapping data:', mappingError);
+        }
+          
         if (mappingData?.crm_customer_data) {
-          crmCustomerData = mappingData.crm_customer_data;
+          // Normalize the CRM customer data to ensure consistency
+          crmCustomerData = normalizeCrmCustomerData(mappingData.crm_customer_data);
+          console.log('CRM customer data found:', {
+            name: crmCustomerData?.name,
+            customerName: crmCustomerData?.customer_name,
+            hasData: !!crmCustomerData,
+            dataKeys: crmCustomerData ? Object.keys(crmCustomerData) : [],
+            rawData: crmCustomerData ? JSON.stringify(crmCustomerData).substring(0, 200) + '...' : null // Log first 200 chars
+          });
+        } else {
+          console.log('No CRM customer data found for mapping');
         }
       }
+    } else {
+      console.log('No CRM mapping found for profile');
     }
     
     logTiming('CRM data processing');
 
     // Get customer name from CRM if available, otherwise use "New Customer"
     let customerName = "New Customer";
+    let isNewCustomer = true;
     
     // If we have CRM data, use that name
-    if (crmCustomerData?.name) {
-      customerName = crmCustomerData.name;
-    } 
-    // We'll keep it as "New Customer" for all users without CRM data
-    // This ensures consistency with LINE notifications
+    if (crmCustomerData) {
+      // Both name and customer_name should be set in normalized data
+      if (crmCustomerData.name) {
+        customerName = crmCustomerData.name;
+        isNewCustomer = false;
+        console.log('Using CRM customer name:', customerName);
+      } else {
+        console.log('CRM data found but no name available, using "New Customer"');
+      }
+    } else {
+      console.log('No CRM data found, using "New Customer"');
+    }
     
     // Retrieve CRM mappings and customer data
     let profileId = null;
@@ -296,10 +326,20 @@ export async function POST(request: NextRequest) {
         setTimeout(() => reject(new Error('Calendar event creation timed out')), 5000);
       });
       
+      // For new customers, use booking name in the calendar title instead of "New Customer"
+      const calendarTitle = isNewCustomer ? booking.name : customerName;
+      
+      console.log('Creating calendar event with title:', {
+        calendarTitle,
+        isNewCustomer,
+        originalCustomerName: customerName,
+        bookingName: booking.name
+      });
+      
       const createEventPromise = calendar.events.insert({
         calendarId,
         requestBody: {
-          summary: `${customerName} (${booking.phone_number}) (${booking.number_of_people}) - ${packageInfo} at ${bayDisplayName}`,
+          summary: `${calendarTitle} (${booking.phone_number}) (${booking.number_of_people}) - ${packageInfo} at ${bayDisplayName}`,
           description: `Customer Name: ${customerName}
 Booking Name: ${booking.name}
 Contact: ${booking.phone_number}
@@ -370,7 +410,8 @@ Booking ID: ${booking.id}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            userName: customerName,
+            // For new customers, use booking name instead of "New Customer"
+            userName: isNewCustomer ? booking.name : customerName,
             email: booking.email,
             date: formattedDate, // Use the formatted date
             startTime: booking.start_time,
@@ -412,7 +453,10 @@ Booking ID: ${booking.id}`,
         bookingName: booking.name,
         email: booking.email,
         phoneNumber: booking.phone_number,
-        bayNumber: bayDisplayName
+        bayNumber: bayDisplayName,
+        hasCrmData: !!crmCustomerData,
+        crmDataType: crmCustomerData ? typeof crmCustomerData : 'none',
+        crmDataKeys: crmCustomerData ? Object.keys(crmCustomerData) : []
       });
 
       // Send LINE notification with absolute URL
@@ -438,7 +482,8 @@ Booking ID: ${booking.id}`,
             profileId,
             crmCustomerId,
             stableHashId,
-            crmCustomerData,
+            // Pass the normalized CRM data
+            crmCustomerData: crmCustomerData,
             packageInfo,
             skipCrmMatch: true
           }),

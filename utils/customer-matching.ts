@@ -6,11 +6,13 @@ import type { Database } from '@/types/supabase';
 // Types
 export interface CrmCustomer {
   id: string;
-  name: string;
+  name: string; // This will store customer_name from CRM
   email?: string;
   phone_number?: string;
   stable_hash_id?: string;
   additional_data: Record<string, any>;
+  // Add customer_name as an alias for compatibility
+  customer_name?: string;
 }
 
 export interface Profile {
@@ -314,6 +316,7 @@ export async function matchProfileWithCrm(profileId: string): Promise<MatchResul
       const customer: CrmCustomer = {
         id: String(rawCustomer.id),
         name: String(rawCustomer.customer_name || ''),
+        customer_name: String(rawCustomer.customer_name || ''), // Add this for compatibility
         email: rawCustomer.email,
         phone_number: rawCustomer.contact_number,
         stable_hash_id: rawCustomer.stable_hash_id,
@@ -381,7 +384,12 @@ export async function matchProfileWithCrm(profileId: string): Promise<MatchResul
         const mappingData = {
           profile_id: profileId,
           crm_customer_id: bestMatch.customer.id,
-          crm_customer_data: bestMatch.customer,
+          crm_customer_data: {
+            ...bestMatch.customer,
+            // Ensure both name and customer_name are set for compatibility
+            name: bestMatch.customer.name || bestMatch.customer.customer_name,
+            customer_name: bestMatch.customer.customer_name || bestMatch.customer.name
+          },
           is_matched: true,
           match_method: matchMethod,
           match_confidence: bestMatch.confidence,
@@ -445,6 +453,27 @@ export async function matchProfileWithCrm(profileId: string): Promise<MatchResul
 }
 
 /**
+ * Normalize CRM customer data to ensure both name and customer_name are set
+ * This helps maintain compatibility between different data formats
+ */
+export function normalizeCrmCustomerData(customerData: any): CrmCustomer | null {
+  if (!customerData) return null;
+  
+  // Create a normalized copy
+  const normalized: CrmCustomer = {
+    ...customerData,
+    id: String(customerData.id || ''),
+    additional_data: customerData.additional_data || customerData
+  };
+  
+  // Ensure both name and customer_name are set
+  normalized.name = customerData.name || customerData.customer_name || '';
+  normalized.customer_name = customerData.customer_name || customerData.name || '';
+  
+  return normalized;
+}
+
+/**
  * Get the CRM customer mapped to a profile
  */
 export async function getCrmCustomerForProfile(profileId: string): Promise<CrmCustomer | null> {
@@ -463,7 +492,8 @@ export async function getCrmCustomerForProfile(profileId: string): Promise<CrmCu
     return null;
   }
   
-  return data.crm_customer_data as CrmCustomer;
+  // Normalize the data before returning
+  return normalizeCrmCustomerData(data.crm_customer_data);
 }
 
 /**
@@ -498,6 +528,8 @@ export async function getOrCreateCrmMapping(
   try {
     const supabase = createServerClient();
     
+    console.log(`[CRM Mapping] Starting for profile ${profileId} (source: ${source})`);
+    
     // STEP 1: Check for existing mapping (fast path)
     if (!forceRefresh) {
       // Modified query to handle multiple mappings - get all matches and sort by confidence
@@ -515,6 +547,12 @@ export async function getOrCreateCrmMapping(
         // Use the first mapping (highest confidence, most recent)
         const bestMapping = mappings[0];
         
+        console.log(`[CRM Mapping] Found existing mapping for profile ${profileId}:`, {
+          crmCustomerId: bestMapping.crm_customer_id,
+          stableHashId: bestMapping.stable_hash_id,
+          confidence: bestMapping.match_confidence
+        });
+        
         // Sync packages asynchronously without awaiting to keep operations fast
         syncPackagesForProfile(profileId).catch(err => {
           console.warn('Failed to sync packages for existing mapping:', err);
@@ -527,6 +565,8 @@ export async function getOrCreateCrmMapping(
           confidence: bestMapping.match_confidence,
           isNewMatch: false
         };
+      } else {
+        console.log(`[CRM Mapping] No existing mapping found for profile ${profileId}`);
       }
     }
     

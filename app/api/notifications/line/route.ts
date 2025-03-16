@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { createServerClient } from '@/utils/supabase/server';
-import { getOrCreateCrmMapping } from '@/utils/customer-matching';
+import { getOrCreateCrmMapping, normalizeCrmCustomerData } from '@/utils/customer-matching';
 
 interface BookingNotification {
   customerName: string;
@@ -48,13 +48,24 @@ export async function POST(request: NextRequest) {
     // Look up customer and package info
     // If CRM customer data is available, use that name, otherwise use the provided customerName or "New Customer"
     let customerLabel = "New Customer";
+    let isNewCustomer = true;
+    
+    // Normalize CRM customer data if available
+    const normalizedCrmData = sanitizedBooking.crmCustomerData ? 
+      normalizeCrmCustomerData(sanitizedBooking.crmCustomerData) : null;
     
     // If we have CRM customer data, use that name
-    if (sanitizedBooking.crmCustomerData && sanitizedBooking.crmCustomerData.name) {
-      customerLabel = sanitizedBooking.crmCustomerData.name;
-    } else if (sanitizedBooking.customerName && sanitizedBooking.customerName !== "New Customer") {
-      // If no CRM data but a specific customer name was provided that's not "New Customer"
-      customerLabel = sanitizedBooking.customerName;
+    if (normalizedCrmData) {
+      // Both name and customer_name should be set in normalized data
+      if (normalizedCrmData.name) {
+        customerLabel = normalizedCrmData.name;
+        isNewCustomer = false;
+        console.log('Using CRM customer name for LINE notification:', customerLabel);
+      } else {
+        console.log('CRM data found but no name available for LINE notification, using "New Customer"');
+      }
+    } else {
+      console.log('No CRM data found for LINE notification, using "New Customer"');
     }
     // Note: If customerName is "New Customer", we keep the default customerLabel value
     
@@ -127,6 +138,18 @@ export async function POST(request: NextRequest) {
       month: 'long' 
     }).replace(/\d+/, dayWithSuffix).replace(/(\w+)/, '$1,');
 
+    console.log('Preparing LINE notification with customer data:', {
+      customerLabel,
+      isNewCustomer,
+      bookingName: sanitizedBooking.bookingName,
+      hasCrmData: !!normalizedCrmData,
+      crmDataKeys: normalizedCrmData ? Object.keys(normalizedCrmData) : [],
+      crmName: normalizedCrmData?.name,
+      crmCustomerName: normalizedCrmData?.customer_name,
+      rawCrmData: normalizedCrmData ? 
+        JSON.stringify(normalizedCrmData).substring(0, 100) + '...' : null
+    });
+
     // Generate the notification message with consistent fallbacks
     const fullMessage = `Booking Notification
 Customer Name: ${customerLabel}
@@ -158,7 +181,8 @@ This booking has been auto-confirmed. No need to re-confirm with the customer. P
       groupId,
       messageLength: fullMessage.length,
       customerLabel,
-      bookingName: sanitizedBooking.bookingName
+      bookingName: sanitizedBooking.bookingName,
+      isNewCustomer
     });
 
     // Send message to LINE group using Messaging API
