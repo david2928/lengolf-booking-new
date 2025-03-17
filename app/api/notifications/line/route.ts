@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
-import { createServerClient } from '@/utils/supabase/server';
-import { getOrCreateCrmMapping, normalizeCrmCustomerData } from '@/utils/customer-matching';
+import { LINE_NOTIFY_TOKEN } from '@/lib/env';
 
 interface BookingNotification {
   customerName: string;
@@ -13,13 +11,30 @@ interface BookingNotification {
   bayNumber: string;
   duration: number;
   numberOfPeople: number;
-  crmCustomerId?: string;
-  profileId?: string;
-  skipCrmMatch?: boolean;
+  bookingName: string;
   packageInfo?: string;
-  bookingName?: string;
-  crmCustomerData?: any;
-  stableHashId?: string;
+  crmCustomerId?: string;
+  // Optional standardized data field from the formatter
+  standardizedData?: {
+    lineNotification: {
+      bookingName: string;
+      customerLabel: string;
+    },
+    // Common fields
+    bookingId: string;
+    customerName: string;
+    email: string;
+    phoneNumber: string;
+    date: string;
+    formattedDate: string;
+    startTime: string;
+    endTime: string;
+    bayName: string;
+    duration: number;
+    numberOfPeople: number;
+    isNewCustomer?: boolean;
+    crmCustomerId?: string;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -32,98 +47,51 @@ export async function POST(request: NextRequest) {
       groupIdLength: process.env.LINE_GROUP_ID?.length || 0
     });
     
-    // We're not verifying tokens for internal API calls
-    // This avoids 401 errors when called from other API routes
-    const booking: BookingNotification = await request.json();
+    const bookingData: BookingNotification = await request.json();
     
-    // Provide fallbacks for all important fields
-    const sanitizedBooking = {
-      ...booking,
-      profileId: booking.profileId || 'anonymous',
-      bayNumber: booking.bayNumber || 'No bay assigned',
-      packageInfo: booking.packageInfo || 'Normal Bay Rate',
-      bookingName: booking.bookingName || booking.customerName || 'Unknown Booking'
-    };
+    // Prepare the sanitized booking object
+    let sanitizedBooking: any;
     
-    // Look up customer and package info
-    // If CRM customer data is available, use that name, otherwise use the provided customerName or "New Customer"
-    let customerLabel = "New Customer";
-    let isNewCustomer = true;
-    
-    // Normalize CRM customer data if available
-    const normalizedCrmData = sanitizedBooking.crmCustomerData ? 
-      normalizeCrmCustomerData(sanitizedBooking.crmCustomerData) : null;
-    
-    // If we have CRM customer data, use that name
-    if (normalizedCrmData) {
-      // Both name and customer_name should be set in normalized data
-      if (normalizedCrmData.name) {
-        customerLabel = normalizedCrmData.name;
-        isNewCustomer = false;
-        console.log('Using CRM customer name for LINE notification:', customerLabel);
-      } else {
-        console.log('CRM data found but no name available for LINE notification, using "New Customer"');
-      }
+    // Check if we have standardized data from the formatter
+    if (bookingData.standardizedData) {
+      const std = bookingData.standardizedData;
+      
+      // Check if this is a new customer (no CRM ID)
+      const isNewCustomer = !bookingData.crmCustomerId && !std.crmCustomerId;
+      
+      // Use standardized data
+      sanitizedBooking = {
+        // Always use "New Customer" when there's no CRM ID, otherwise use customerLabel or customerName
+        customerName: isNewCustomer ? "New Customer" : (std.lineNotification.customerLabel || std.customerName),
+        bookingName: std.lineNotification.bookingName,
+        email: std.email,
+        phoneNumber: std.phoneNumber,
+        bookingDate: std.formattedDate,
+        bookingStartTime: std.startTime,
+        bookingEndTime: std.endTime,
+        bayNumber: std.bayName,
+        duration: std.duration,
+        numberOfPeople: std.numberOfPeople,
+        packageInfo: bookingData.packageInfo // Still use this from the original data
+      };
     } else {
-      console.log('No CRM data found for LINE notification, using "New Customer"');
+      // Fallback to legacy format for backward compatibility
+      sanitizedBooking = {
+        // For legacy format, check if we have a CRM ID
+        customerName: bookingData.crmCustomerId ? bookingData.customerName : "New Customer",
+        bookingName: bookingData.bookingName,
+        email: bookingData.email,
+        phoneNumber: bookingData.phoneNumber,
+        bookingDate: bookingData.bookingDate,
+        bookingStartTime: bookingData.bookingStartTime,
+        bookingEndTime: bookingData.bookingEndTime,
+        bayNumber: bookingData.bayNumber,
+        duration: bookingData.duration,
+        numberOfPeople: bookingData.numberOfPeople,
+        packageInfo: bookingData.packageInfo
+      };
     }
-    // Note: If customerName is "New Customer", we keep the default customerLabel value
     
-    // Determine booking type (package or normal)
-    let bookingType = "Normal Bay Rate";
-    if (sanitizedBooking.packageInfo) {
-      bookingType = sanitizedBooking.packageInfo;
-    }
-    // If we have stableHashId from the booking flow, use it directly
-    else if (sanitizedBooking.stableHashId && !sanitizedBooking.skipCrmMatch) {
-      try {
-        // Look up packages using the provided stable hash ID
-        const { data: packages, error: packagesError } = await createServerClient()
-          .from('crm_packages')
-          .select('*')
-          .eq('stable_hash_id', sanitizedBooking.stableHashId)
-          .gte('expiration_date', new Date().toISOString().split('T')[0])
-          .order('expiration_date', { ascending: true });
-        
-        if (packages && packages.length > 0) {
-          // Use the first valid package
-          bookingType = `Package (${packages[0].package_type_name})`;
-        }
-      } catch (error) {
-        console.error('Error looking up packages:', error);
-      }
-    }
-    // Look up package using profile ID as a fallback
-    else if (sanitizedBooking.profileId && !sanitizedBooking.skipCrmMatch) {
-      try {
-        // Use our efficient CRM mapping function
-        const crmMapping = await getOrCreateCrmMapping(sanitizedBooking.profileId, {
-          source: 'line'
-        });
-        
-        if (crmMapping && crmMapping.stableHashId) {
-          try {
-            // Look up packages
-            const { data: packages } = await createServerClient()
-              .from('crm_packages')
-              .select('*')
-              .eq('stable_hash_id', crmMapping.stableHashId)
-              .gte('expiration_date', new Date().toISOString().split('T')[0]) // Only active packages
-              .order('expiration_date', { ascending: true });
-            
-            if (packages && packages.length > 0) {
-              // Use the first valid package
-              bookingType = `Package (${packages[0].package_type_name})`;
-            }
-          } catch (error) {
-            console.error('Error looking up packages for mapping:', error);
-          }
-        }
-      } catch (error) {
-        console.error('Error during CRM mapping for LINE notification:', error);
-      }
-    }
-
     // Format date to "Thu, 6th March" format
     const dateObj = new Date(sanitizedBooking.bookingDate);
     const day = dateObj.getDate();
@@ -138,28 +106,16 @@ export async function POST(request: NextRequest) {
       month: 'long' 
     }).replace(/\d+/, dayWithSuffix).replace(/(\w+)/, '$1,');
 
-    console.log('Preparing LINE notification with customer data:', {
-      customerLabel,
-      isNewCustomer,
-      bookingName: sanitizedBooking.bookingName,
-      hasCrmData: !!normalizedCrmData,
-      crmDataKeys: normalizedCrmData ? Object.keys(normalizedCrmData) : [],
-      crmName: normalizedCrmData?.name,
-      crmCustomerName: normalizedCrmData?.customer_name,
-      rawCrmData: normalizedCrmData ? 
-        JSON.stringify(normalizedCrmData).substring(0, 100) + '...' : null
-    });
-
     // Generate the notification message with consistent fallbacks
     const fullMessage = `Booking Notification
-Customer Name: ${customerLabel}
+Customer Name: ${sanitizedBooking.customerName}
 Booking Name: ${sanitizedBooking.bookingName}
 Email: ${sanitizedBooking.email || 'Not provided'}
 Phone: ${sanitizedBooking.phoneNumber || 'Not provided'}
 Date: ${formattedDate}
 Time: ${sanitizedBooking.bookingStartTime} - ${sanitizedBooking.bookingEndTime}
 Bay: ${sanitizedBooking.bayNumber}
-Type: ${bookingType}
+Type: ${sanitizedBooking.packageInfo || 'Normal Bay Rate'}
 People: ${sanitizedBooking.numberOfPeople || '1'}
 Channel: Website
 
@@ -180,9 +136,8 @@ This booking has been auto-confirmed. No need to re-confirm with the customer. P
     console.log('Sending LINE message to group:', {
       groupId,
       messageLength: fullMessage.length,
-      customerLabel,
-      bookingName: sanitizedBooking.bookingName,
-      isNewCustomer
+      customerName: sanitizedBooking.customerName,
+      bookingName: sanitizedBooking.bookingName
     });
 
     // Send message to LINE group using Messaging API
@@ -216,9 +171,9 @@ This booking has been auto-confirmed. No need to re-confirm with the customer. P
     console.log('LINE notification sent successfully');
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in LINE notification:', error);
+    console.error('Error in LINE notification handler:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to send LINE notification' },
       { status: 500 }
     );
   }

@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 import { sendConfirmationEmail } from '@/lib/emailService';
-import { createServerClient } from '@/utils/supabase/server';
-import { getOrCreateCrmMapping } from '@/utils/customer-matching';
 
 interface EmailConfirmation {
   userName: string;
+  subjectName?: string;
   email: string;
   date: string;
   startTime: string;
@@ -15,97 +13,71 @@ interface EmailConfirmation {
   bayNumber?: string;
   phoneNumber?: string;
   packageInfo?: string;
-  // Additional fields for our internal use
-  userId?: string;
-  skipCrmMatch?: boolean;
-  stableHashId?: string;
-  crmCustomerId?: string;
-  crmCustomerData?: any;
+  // Optional standardized data field from the formatter
+  standardizedData?: {
+    emailData: {
+      userDisplayName: string;
+      subject: string;
+    },
+    // Common fields
+    bookingId: string;
+    customerName: string;
+    email: string;
+    phoneNumber: string;
+    date: string;
+    formattedDate: string;
+    startTime: string;
+    endTime: string;
+    bayName: string;
+    duration: number;
+    numberOfPeople: number;
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // We're not verifying tokens for internal API calls
-    // This avoids 401 errors when called from other API routes
     const bookingData: EmailConfirmation = await request.json();
 
-    // If we have a userId but no package info, try to find a package
-    if (bookingData.userId && !bookingData.packageInfo && !bookingData.skipCrmMatch) {
-      try {
-        // Use provided stableHashId if available
-        if (bookingData.stableHashId) {
-          // Look up packages using the provided stable hash ID
-          const supabase = createServerClient();
-          const { data: packages, error: packagesError } = await supabase
-            .from('crm_packages')
-            .select('*')
-            .eq('stable_hash_id', bookingData.stableHashId)
-            .gte('expiration_date', new Date().toISOString().split('T')[0]) // Only active packages
-            .order('expiration_date', { ascending: true });
-          
-          if (packagesError) {
-            console.error('Error looking up packages by stable hash ID:', packagesError);
-          } else if (packages && packages.length > 0) {
-            // Use the first package's type
-            bookingData.packageInfo = `Package (${packages[0].package_type_name})`;
-          }
-        }
-        // If no stableHashId was provided, try to find one through CRM mapping
-        else {
-          // Get CRM mapping from profile ID
-          const crmMapping = await getOrCreateCrmMapping(bookingData.userId, {
-            source: 'email'
-          });
-          
-          if (crmMapping && crmMapping.stableHashId) {
-            const supabase = createServerClient();
-            const { data: packages, error } = await supabase
-              .from('crm_packages')
-              .select('*')
-              .eq('stable_hash_id', crmMapping.stableHashId)
-              .gte('expiration_date', new Date().toISOString().split('T')[0]) // Only active packages
-              .order('expiration_date', { ascending: true });
-            
-            if (error) {
-              console.error('Error looking up packages with CRM mapping:', error);
-            } else if (packages && packages.length > 0) {
-              // Use the first package
-              bookingData.packageInfo = `Package (${packages[0].package_type_name})`;
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error looking up CRM data for email notification:', error);
-        // Continue without package info
-      }
-    }
-
-    // Send email confirmation
-    try {
+    // Check if we have standardized data from the formatter
+    if (bookingData.standardizedData) {
+      const std = bookingData.standardizedData;
+      
+      // Send email confirmation with standardized data
       await sendConfirmationEmail({
-        userName: bookingData.userName,
-        email: bookingData.email,
-        date: bookingData.date,
-        startTime: bookingData.startTime,
-        endTime: bookingData.endTime,
-        bayNumber: bookingData.bayNumber,
-        duration: bookingData.duration,
-        numberOfPeople: bookingData.numberOfPeople,
+        userName: bookingData.userName || std.emailData.userDisplayName,
+        subjectName: bookingData.subjectName || std.customerName,
+        email: std.email,
+        date: std.formattedDate,
+        startTime: std.startTime,
+        endTime: std.endTime,
+        bayNumber: std.bayName,
+        duration: std.duration,
+        numberOfPeople: std.numberOfPeople,
         packageInfo: bookingData.packageInfo
       });
       
       return NextResponse.json({ success: true });
-    } catch (error) {
-      console.error('Error sending confirmation email:', error);
-      return NextResponse.json(
-        { error: 'Failed to send email confirmation' },
-        { status: 500 }
-      );
     }
+
+    // Fallback to legacy format for backward compatibility
+    await sendConfirmationEmail({
+      userName: bookingData.userName,
+      subjectName: bookingData.subjectName || bookingData.userName,
+      email: bookingData.email,
+      date: bookingData.date,
+      startTime: bookingData.startTime,
+      endTime: bookingData.endTime,
+      bayNumber: bookingData.bayNumber,
+      duration: bookingData.duration,
+      numberOfPeople: bookingData.numberOfPeople,
+      packageInfo: bookingData.packageInfo
+    });
+    
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in email notification handler:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to send email confirmation' },
       { status: 500 }
     );
   }
