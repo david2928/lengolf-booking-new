@@ -160,10 +160,16 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
     }
   ];
   
-  // Execute notifications in parallel with a timeout
-  executeParallel(notificationTasks, { timeout: 10000 })
-    .then(() => console.log('All notifications sent'))
-    .catch(error => console.error('Error sending notifications:', error));
+  // Return the promise for all notifications completing
+  return executeParallel(notificationTasks, { timeout: 10000 })
+    .then(results => {
+      console.log('All notifications sent');
+      return { success: true, results };
+    })
+    .catch(error => {
+      console.error('Error sending notifications:', error);
+      return { success: false, error };
+    });
 }
 
 export async function POST(request: NextRequest) {
@@ -412,8 +418,8 @@ export async function POST(request: NextRequest) {
     });
     logTiming('Data formatting');
     
-    // Send notifications in parallel with the necessary data
-    sendNotifications(
+    // Send notifications in parallel and wait for them to complete
+    const notificationResults = await sendNotifications(
       formattedData,
       booking,
       bayDisplayName,
@@ -421,9 +427,10 @@ export async function POST(request: NextRequest) {
       stableHashId || undefined,
       packageInfo
     );
-
-    // 10. Trigger calendar creation and notifications in the background
-    // These are non-blocking - we'll return to the user before they complete
+    logTiming('Notifications completed');
+    
+    // 10. Trigger calendar creation in the background (still non-blocking)
+    // This is non-blocking - we'll return to the user before it completes
     
     // Format date and time for calendar
     const calendarDateTime = parse(`${booking.date} ${booking.start_time}`, 'yyyy-MM-dd HH:mm', new Date());
@@ -471,7 +478,7 @@ export async function POST(request: NextRequest) {
       });
     }, 0);
 
-    // 11. Return success response to user immediately
+    // 11. Return success response to user with notification status
     return NextResponse.json({
       success: true,
       booking,
@@ -480,6 +487,7 @@ export async function POST(request: NextRequest) {
       bayDisplayName,
       crmCustomerId,
       stableHashId,
+      notificationsSuccess: notificationResults.success,
       processingTime: Date.now() - apiStartTime
     });
   } catch (error) {
