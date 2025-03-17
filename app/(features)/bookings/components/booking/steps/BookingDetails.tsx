@@ -358,10 +358,15 @@ export function BookingDetails({
         throw new Error('Invalid response from booking creation');
       }
       
-      const { booking, bayDisplayName } = createData;
+      const { booking, bayDisplayName, notificationsSuccess } = createData;
       
       if (createData.crmCustomerId) {
         setCrmCustomerId(createData.crmCustomerId);
+      }
+      
+      // If notifications failed, show a warning but continue
+      if (notificationsSuccess === false) {
+        toast.error('Your booking was created, but there was an issue sending confirmation messages. Staff will be in touch shortly.');
       }
       
       // Step 2: Ensure we've shown the processing steps long enough for a good UX
