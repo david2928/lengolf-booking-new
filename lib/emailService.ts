@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 
 interface EmailConfirmation {
   userName: string;
+  subjectName?: string; // Name to use in email subject
   email: string;
   date: string;
   startTime: string;
@@ -27,7 +28,7 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function sendConfirmationEmail(booking: EmailConfirmation) {
-  // Create the email subject with the new format
+  // Create the email subject without the name
   const emailSubject = `LENGOLF Booking Confirmation - ${booking.date} at ${booking.startTime}`;
 
   const emailContent = `

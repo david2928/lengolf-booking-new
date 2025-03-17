@@ -148,9 +148,9 @@ export function BookingDetails({
   const [hasBookingError, setHasBookingError] = useState(false);
   const loadingSteps = [
     "Checking availability",
-    "Securing your booking slot",
-    "Sending confirmation details",
-    "Finalizing your booking"
+    "Creating your booking",
+    "Sending notifications",
+    "Booking confirmed!"
   ];
 
   useEffect(() => {
@@ -210,9 +210,14 @@ export function BookingDetails({
 
   useEffect(() => {
     if (isSubmitting && loadingStep < loadingSteps.length - 1) {
+      // Create a more consistent animation with timed steps
+      const stepTimes = [1000, 1500, 1500]; // Time to spend on each step
       const timer = setTimeout(() => {
-        setLoadingStep(prevStep => Math.min(prevStep + 1, loadingSteps.length - 2));
-      }, 1000);
+        setLoadingStep(prevStep => {
+          const nextStep = prevStep + 1;
+          return Math.min(nextStep, loadingSteps.length - 2);
+        });
+      }, stepTimes[loadingStep] || 1000);
       return () => clearTimeout(timer);
     }
   }, [isSubmitting, loadingStep, loadingSteps.length]);
@@ -261,21 +266,6 @@ export function BookingDetails({
     }
   };
 
-  // Helper function to show completion and wait before redirecting
-  const showCompletionAndRedirect = async (startTime: number, url: string) => {
-    // First ensure minimum animation duration for previous steps
-    await ensureMinimumAnimationDuration(startTime);
-    
-    // Show the final loading step (completion)
-    setLoadingStep(loadingSteps.length - 1);
-    
-    // Wait for 0.7 seconds to let user register the completion
-    await new Promise(resolve => setTimeout(resolve, 700));
-    
-    // Redirect to the specified URL
-    router.push(url);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -294,269 +284,104 @@ export function BookingDetails({
     setIsSubmitting(true);
     setShowLoadingOverlay(true);
     setLoadingStep(0);
-    const bookingId = generateBookingId();
-    const supabase = createClient();
-
+    
     try {
       if (!session?.user?.id) {
         throw new Error('User not authenticated');
       }
-
-      if (!profile) {
-        throw new Error('Profile not loaded');
-      }
-
-      // Update profile with latest customer info
-      const updateData: Partial<Profile> = {
-        updated_at: new Date().toISOString()
-      };
       
-      if (name !== profile.name && name !== profile.display_name) {
-        updateData.name = name;
-      }
-      if (email !== profile.email) {
-        updateData.email = email;
-      }
-      if (phoneNumber !== profile.phone_number) {
-        updateData.phone_number = phoneNumber;
-      }
+      // Check if we need to update the user profile
+      const profileNeedsUpdate = 
+        profile && (
+          profile.name !== name || 
+          profile.email !== email || 
+          profile.phone_number !== phoneNumber ||
+          profile.display_name !== name
+        );
       
       // Update profile if needed
-      if (Object.keys(updateData).length > 1) { // > 1 because we always include updated_at
-        const { error: updateProfileError } = await supabase
-          .from('profiles')
-          .update(updateData)
-          .eq('id', session.user.id);
-
-        if (updateProfileError) {
-          console.error('Error updating profile:', updateProfileError);
+      if (profileNeedsUpdate && session?.user?.id) {
+        const supabase = createClient();
+        
+        try {
+          // Only update fields that we know exist in the schema
+          const { data, error } = await supabase
+            .from('profiles')
+            .update({
+              display_name: name,
+              email: email,
+              phone_number: phoneNumber,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', session.user.id);
+        } catch (queryError) {
+          // Silent error handling to avoid exposing to users
         }
       }
 
-      // Create booking record
-      const { data: booking, error: bookingError } = await supabase
-        .from('bookings')
-        .insert({
-          id: bookingId,
-          user_id: session.user.id,
+      // Step 1: Create the booking record
+      setLoadingStep(0); // Checking availability
+      const createResponse = await fetch('/api/bookings/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.accessToken || ''}`
+        },
+        body: JSON.stringify({
           date: format(selectedDate, 'yyyy-MM-dd'),
           start_time: selectedTime,
           duration,
           number_of_people: numberOfPeople,
           name,
           email,
-          phone_number: phoneNumber,
-          status: 'confirmed'
+          phone_number: phoneNumber
         })
-        .select()
-        .single();
-
-      if (bookingError || !booking) {
-        console.error('Error creating booking:', bookingError);
-        toast.error('Failed to create booking. Please try again.');
-        return;
-      }
+      });
       
-      // Create calendar event (this will also handle CRM matching once)
-      setLoadingStep(prevStep => prevStep + 1);
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-        
-        const response = await fetch('/api/bookings/calendar', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.accessToken || ''}`
-          },
-          body: JSON.stringify({
-            bookingId: booking.id,
-            date: format(selectedDate, 'yyyy-MM-dd'),
-            startTime: selectedTime,
-            duration,
-            skipCrmMatch: true, // Skip the expensive matching algorithm - we'll use existing mapping
-          }),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          let errorMessage = 'Failed to create calendar event';
-          try {
-            const errorData = await response.json();
-            if (errorData.error) {
-              errorMessage = errorData.error;
-            }
-          } catch (parseError) {
-            // If we can't parse the error as JSON, use the status text
-            errorMessage = `API Error: ${response.status} ${response.statusText}`;
-          }
-          
-          if (errorMessage === 'No bays available for the selected time slot') {
-            // Delete the booking since no bay is available
-            const { error: deleteError } = await supabase
-              .from('bookings')
-              .delete()
-              .eq('id', booking.id);
-
-            if (deleteError) {
-              console.error('Error deleting booking:', deleteError);
-            }
-
-            setShowNoAvailabilityModal(true);
-            return;
-          }
-          
-          throw new Error(errorMessage);
-        }
-
-        const data = await response.json();
-        const { bay, warning, crmCustomerId: apiCrmCustomerId, packageInfo } = data;
-        
-        // Update CRM customer ID if returned from API
-        if (apiCrmCustomerId) {
-          setCrmCustomerId(apiCrmCustomerId);
-        }
-
-        // Update booking with bay information
-        const { error: updateError } = await supabase
-          .from('bookings')
-          .update({ bay })
-          .eq('id', booking.id);
-
-        if (updateError) {
-          console.error('Error updating booking:', updateError);
-          toast.error('Failed to update booking. Please try again.');
-          return;
-        }
-
-        // Wait for notifications to complete
-        setLoadingStep(2); // "Sending confirmation details"
+      if (!createResponse.ok) {
+        let errorMessage = 'Failed to create booking';
         try {
-          // Get the most up-to-date crmCustomerId
-          const currentCrmCustomerId = apiCrmCustomerId || crmCustomerId;
-          
-          // Prepare notification data
-          const notificationData = {
-            customerName: "New Customer",
-            bookingName: name,
-            email,
-            phoneNumber,
-            bookingDate: format(selectedDate, 'yyyy-MM-dd'),
-            bookingStartTime: selectedTime,
-            bookingEndTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
-            bayNumber: bay,
-            duration,
-            numberOfPeople,
-            crmCustomerId: currentCrmCustomerId, // Use the most up-to-date CRM ID
-            profileId: session.user.id,
-            packageInfo: packageInfo, // Add the package info to LINE notification
-            skipCrmMatch: true, // Skip redundant CRM matching
-            crmCustomerData: data.crmCustomerData
-          };
-          
-          const emailData = {
-            userName: name,
-            email,
-            phoneNumber,
-            date: format(selectedDate, 'MMMM d, yyyy'),
-            startTime: selectedTime,
-            endTime: format(addHours(new Date(`${format(selectedDate, 'yyyy-MM-dd')} ${selectedTime}`), duration), 'HH:mm'),
-            duration,
-            numberOfPeople,
-            bayNumber: bay,
-            userId: session.user.id,
-            packageInfo,
-            skipCrmMatch: true // Skip redundant CRM matching
-          };
-          
-          // Set timeout controllers for both notification requests
-          const lineController = new AbortController();
-          const emailController = new AbortController();
-          
-          // Set 10 second timeouts for notifications
-          const lineTimeoutId = setTimeout(() => lineController.abort(), 10000);
-          const emailTimeoutId = setTimeout(() => emailController.abort(), 10000);
-          
-          // Skip sending notifications directly from the frontend
-          // They will be sent by the calendar route on the server
-          // This prevents duplicate notifications
-          /*
-          const [lineResponse, emailResponse] = await Promise.allSettled([
-            fetch('/api/notifications/line', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session?.accessToken || ''}`
-              },
-              body: JSON.stringify(notificationData),
-              signal: lineController.signal
-            }),
-            fetch('/api/notifications/email', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session?.accessToken || ''}`
-              },
-              body: JSON.stringify(emailData),
-              signal: emailController.signal
-            })
-          ]);
-          */
-          
-          // Clean up timeout
-          clearTimeout(lineTimeoutId);
-          clearTimeout(emailTimeoutId);
-          
-          // Since we're no longer sending notifications from the frontend,
-          // we won't have notification errors here
-          
-          // Show completion animation and redirect
-          const confirmationUrl = `/bookings/confirmation?id=${bookingId}`;
-          await showCompletionAndRedirect(submissionStartTime, confirmationUrl);
-        } catch (error) {
-          console.error('Error creating booking:', error);
-          
-          // Ensure minimum animation duration and then show error
-          await ensureMinimumAnimationDuration(submissionStartTime);
-          
-          // Use the last step for error state
-          setLoadingStep(loadingSteps.length - 1);
-          
-          // Only set booking error, since notifications are now handled server-side
-          setHasBookingError(true);
-          
-          // Reset loading state after error is displayed
-          setTimeout(() => {
-            setIsSubmitting(false);
-          }, 3000);
+          const errorData = await createResponse.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (parseError) {
+          errorMessage = `API Error: ${createResponse.status} ${createResponse.statusText}`;
         }
-      } catch (error) {
-        console.error('Error in booking process:', error instanceof Error ? error.message : error);
-        
-        // Ensure minimum animation duration
-        await ensureMinimumAnimationDuration(submissionStartTime);
-        
-        setIsSubmitting(false);
-        setShowLoadingOverlay(false);
-        toast.error(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(errorMessage);
       }
+      
+      const createData = await createResponse.json();
+      
+      // Check if booking data exists in the response
+      if (!createData || !createData.booking) {
+        throw new Error('Invalid response from booking creation');
+      }
+      
+      const { booking, bayDisplayName } = createData;
+      
+      if (createData.crmCustomerId) {
+        setCrmCustomerId(createData.crmCustomerId);
+      }
+      
+      // Step 2: Ensure we've shown the processing steps long enough for a good UX
+      await ensureMinimumAnimationDuration(submissionStartTime, 3000);
+      
+      // Step 3: Booking confirmed, set to final step
+      setLoadingStep(loadingSteps.length - 1);
+      
+      // Wait for a moment to let the user see the confirmation step
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Redirect to confirmation page
+      const url = `/bookings/confirmation?id=${booking.id}`;
+      router.push(url);
+      
     } catch (error) {
-      console.error('Error in booking process:', error instanceof Error ? error.message : error);
-      
-      // Ensure minimum animation duration
-      await ensureMinimumAnimationDuration(submissionStartTime);
-      
+      console.error('Error in booking process:', error);
+      toast.error(error instanceof Error ? error.message : 'An error occurred during booking');
       setIsSubmitting(false);
       setShowLoadingOverlay(false);
-      toast.error(`Error creating booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      // Only clear state if not already cleared in the catch block
-      if (isSubmitting) {
-        setIsSubmitting(false);
-        setShowLoadingOverlay(false);
-      }
     }
   };
 

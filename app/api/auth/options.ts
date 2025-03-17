@@ -162,11 +162,14 @@ export const authOptions: NextAuthOptions = {
           .upsert({
             id: userId,
             email: user.email,
-            display_name: user.name,
+            display_name: existingProfile ? undefined : user.name,
             picture_url: user.image,
             provider: account?.provider,
             provider_id: account?.providerAccountId,
             updated_at: new Date().toISOString()
+          }, { 
+            onConflict: 'id',
+            ignoreDuplicates: false
           });
 
         if (error) {
