@@ -312,4 +312,86 @@ if (packages.length > 0) {
   // User has packages
   console.log(`User has ${packages.length} packages`);
 }
+```
+
+## Google Review Requests
+
+The system automatically schedules review requests to be sent to new customers 30 minutes after their session ends. This helps encourage customers to leave Google reviews while their experience is still fresh.
+
+### How it works
+
+1. When a new customer (without a stable hash ID) makes a booking, a review request is automatically scheduled
+2. 30 minutes after their session ends, the system sends either:
+   - An email with a discount voucher and a link to leave a Google review
+   - A LINE message with the same content, depending on the customer's login provider
+3. If a booking is canceled or deleted, the review request is automatically canceled
+
+### Configuration
+
+#### Using Supabase Cron (Recommended)
+
+The system uses [Supabase Cron](https://supabase.com/blog/supabase-cron), which is a Postgres extension that allows scheduling jobs directly within your Supabase database:
+
+1. Enable the `pg_cron` extension in your Supabase project:
+   ```sql
+   create extension if not exists pg_cron;
+   
+   -- Grant usage to postgres user
+   grant usage on schema cron to postgres;
+   ```
+
+2. Create a cron job to trigger the webhook:
+   ```sql
+   -- Check every 5 minutes for review requests that need to be sent
+   select cron.schedule(
+     'check-review-requests',
+     '*/5 * * * *',
+     $$
+     select
+       net.http_post(
+         url := 'https://your-app-url/api/notifications/process-review-requests',
+         headers := '{"Content-Type": "application/json", "Authorization": "Bearer ' || current_setting('app.cron_api_key') || '"}',
+         body := '{}'
+       ) as request_sent
+     $$
+   );
+   ```
+
+3. Store your API key securely using Postgres settings:
+   ```sql
+   alter database postgres set app.cron_api_key = 'your-secure-api-key';
+   ```
+
+This approach keeps everything within Supabase and doesn't require external services.
+
+#### Required Environment Variables
+
+```
+# For webhook authentication
+CRON_API_KEY=your_secure_api_key
+
+# For email delivery
+EMAIL_HOST=smtp.your-provider.com
+EMAIL_PORT=587
+EMAIL_USER=your-username
+EMAIL_PASS=your-password
+EMAIL_FROM=bookings@your-domain.com
+
+# For LINE messaging
+LINE_CHANNEL_ACCESS_TOKEN=your-line-channel-token
+
+# Voucher image URL
+REVIEW_VOUCHER_IMAGE_URL=https://your-domain.com/images/discount-voucher.jpg
+```
+
+### Testing
+
+Use the provided test script to manually send a review request:
+
+```bash
+# Send a test email review request
+node scripts/send-test-review-request.js --provider=email --to=user@example.com --name="John Doe"
+
+# Send a test LINE review request
+node scripts/send-test-review-request.js --provider=line --to=Uf4177a1781df7fd215e6d2749fd00296 --name="Jane Smith"
 ``` 

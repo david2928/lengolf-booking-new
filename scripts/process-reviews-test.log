@@ -1,0 +1,19 @@
+[2025-03-17T09:59:36.046Z] --- Starting test of process-review-requests endpoint ---
+[2025-03-17T09:59:36.051Z] API URL: http://localhost:3000
+[2025-03-17T09:59:36.051Z] API Key: 2f93c...5da42
+[2025-03-17T09:59:36.052Z] Testing authentication - making request without auth header...
+[2025-03-17T09:59:36.080Z] ✅ Authentication check passed - received 401 without auth header
+[2025-03-17T09:59:36.080Z] Making request with authorization...
+[2025-03-17T09:59:36.080Z] Full URL: http://localhost:3000/api/notifications/process-review-requests
+[2025-03-17T09:59:36.160Z] Response status: 200 OK
+[2025-03-17T09:59:36.162Z] Response headers: {"connection":"keep-alive","content-type":"application/json","date":"Mon, 17 Mar 2025 09:59:36 GMT","keep-alive":"timeout=5","transfer-encoding":"chunked","vary":"RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch"}
+[2025-03-17T09:59:36.162Z] Response body (raw): {"message":"No pending review requests"}
+[2025-03-17T09:59:36.163Z] Response parsed: {
+  "message": "No pending review requests"
+}
+[2025-03-17T09:59:36.163Z] ✅ Request successful
+[2025-03-17T09:59:36.163Z] Processed undefined review requests
+[2025-03-17T09:59:36.164Z]   ✅ Successful: undefined
+[2025-03-17T09:59:36.164Z]   ❌ Failed: undefined
+[2025-03-17T09:59:36.165Z] --- Test completed ---
+[2025-03-17T09:59:36.166Z] Script completed successfully

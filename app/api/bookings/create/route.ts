@@ -3,15 +3,20 @@ import { getToken } from 'next-auth/jwt';
 import { createServerClient } from '@/utils/supabase/server';
 import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
-import { parse, addHours } from 'date-fns';
+import { parse, addHours, addMinutes } from 'date-fns';
 import { zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
 import { getOrCreateCrmMapping, normalizeCrmCustomerData } from '@/utils/customer-matching';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
 import { BOOKING_CALENDARS } from '@/lib/bookingCalendarConfig';
 import { calendar } from '@/lib/googleApiConfig';
 import { v4 as uuidv4 } from 'uuid';
+import { nextTick } from 'node:process';
+import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
 
 const TIMEZONE = 'Asia/Bangkok';
+
+// Configuration for detailed booking process logging
+const ENABLE_DETAILED_LOGGING = process.env.ENABLE_BOOKING_DETAILED_LOGGING === 'true';
 
 // Type definitions for the availability check
 interface AvailabilityResult {
@@ -172,15 +177,73 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
     });
 }
 
+// Function to log booking steps to Supabase
+async function logBookingProcessStep({
+  bookingId,
+  userId,
+  step,
+  status,
+  durationMs,
+  totalDurationMs,
+  metadata = {}
+}: {
+  bookingId: string;
+  userId: string;
+  step: string;
+  status: 'success' | 'error' | 'info';
+  durationMs: number;
+  totalDurationMs: number;
+  metadata?: Record<string, any>;
+}) {
+  if (!ENABLE_DETAILED_LOGGING) return;
+
+  try {
+    const supabase = createServerClient();
+    await supabase
+      .from('booking_process_logs')
+      .insert({
+        booking_id: bookingId,
+        user_id: userId,
+        step,
+        status,
+        duration_ms: durationMs,
+        total_duration_ms: totalDurationMs,
+        metadata
+      });
+  } catch (error) {
+    // Don't let logging errors affect the booking process
+    console.error('Error logging booking process step:', error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Performance tracking
     const apiStartTime = Date.now();
     let lastCheckpoint = apiStartTime;
+    let bookingId = 'pending'; // Will be updated once we have a booking ID
+    let userId = ''; // Will be updated once we have authenticated
     
-    const logTiming = (step: string) => {
+    const logTiming = (step: string, status: 'success' | 'error' | 'info' = 'info', metadata: Record<string, any> = {}) => {
       const now = Date.now();
-      console.log(`[Timing] ${step}: ${now - lastCheckpoint}ms (total: ${now - apiStartTime}ms)`);
+      const stepDuration = now - lastCheckpoint;
+      const totalDuration = now - apiStartTime;
+      
+      console.log(`[Timing] ${step}: ${stepDuration}ms (total: ${totalDuration}ms)`);
+      
+      // Log to Supabase if we have a user ID
+      if (userId) {
+        logBookingProcessStep({
+          bookingId,
+          userId,
+          step,
+          status,
+          durationMs: stepDuration,
+          totalDurationMs: totalDuration,
+          metadata
+        });
+      }
+      
       lastCheckpoint = now;
     };
 
@@ -192,7 +255,8 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-    logTiming('Authentication');
+    userId = token.sub;
+    logTiming('Authentication', 'success');
 
     // 2. Parse request body
     const {
@@ -207,18 +271,29 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!name || !email || !phone_number || !date || !start_time || !duration || !number_of_people) {
+      logTiming('Request validation', 'error', { 
+        missing: [
+          !name ? 'name' : null,
+          !email ? 'email' : null,
+          !phone_number ? 'phone_number' : null,
+          !date ? 'date' : null,
+          !start_time ? 'start_time' : null,
+          !duration ? 'duration' : null,
+          !number_of_people ? 'number_of_people' : null
+        ].filter(Boolean)
+      });
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
-    logTiming('Request parsing');
+    logTiming('Request parsing', 'success');
 
     // 3. Format date and time for availability check
     const parsedDateTime = parse(`${date} ${start_time}`, 'yyyy-MM-dd HH:mm', new Date());
     const startDateTime = zonedTimeToUtc(parsedDateTime, TIMEZONE);
     const endDateTime = addHours(startDateTime, duration);
-    logTiming('Date parsing');
+    logTiming('Date parsing', 'success');
 
     // 4. Get base URL for API calls
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -315,12 +390,21 @@ export async function POST(request: NextRequest) {
       })()
     ]).catch(error => {
       console.error('Error in parallel operations:', error);
+      logTiming('Parallel operations failure', 'error', { error: error.message });
       return [{ available: false }, null];
     });
-    logTiming('Parallel operations (availability + CRM)');
+    
+    // Log more detailed info about the results
+    logTiming('Parallel operations (availability + CRM)', 'success', {
+      bayAvailability: availabilityResult?.available || false,
+      availableBays: (availabilityResult as any)?.allAvailableBays || [],
+      crmMatchFound: !!(crmMappingResult as any)?.crmCustomerId,
+      isNewCrmMatch: !!(crmMappingResult as any)?.isNewMatch
+    });
 
     // 6. Handle availability result
     if (!availabilityResult || !availabilityResult.available) {
+      logTiming('Bay availability check', 'error', { available: false });
       return NextResponse.json(
         { error: 'No bays available for the selected time slot' },
         { status: 400 }
@@ -337,11 +421,13 @@ export async function POST(request: NextRequest) {
     let stableHashId = null;
     let crmCustomerData = null;
     let customerName = null;
+    let isNewCustomer = true; // Flag to identify new customers
 
     if (crmMappingResult) {
       if ('crmCustomerId' in crmMappingResult) {
         crmCustomerId = crmMappingResult.crmCustomerId;
         stableHashId = crmMappingResult.stableHashId;
+        isNewCustomer = false; // Customer exists in CRM system
         
         // Extract CRM customer data if available
         if ('crmCustomerData' in crmMappingResult && crmMappingResult.crmCustomerData) {
@@ -379,13 +465,19 @@ export async function POST(request: NextRequest) {
 
     if (bookingError || !booking) {
       console.error('Error creating booking:', bookingError);
+      logTiming('Booking record creation', 'error', { 
+        error: bookingError?.message || 'Unknown error'
+      });
       return NextResponse.json(
         { error: 'Failed to create booking record' },
         { status: 500 }
       );
     }
-    logTiming('Booking record creation');
     
+    // Update bookingId once we have it
+    bookingId = booking.id;
+    logTiming('Booking record creation', 'success', { bookingId });
+
     // If we don't have a customer name from CRM, use the booking name
     if (!customerName) {
       customerName = booking.name;
@@ -393,13 +485,45 @@ export async function POST(request: NextRequest) {
     
     // Get package info using the centralized function
     const packageInfo = await getPackageInfo(stableHashId);
-    logTiming('Customer data lookup');
+    logTiming('Customer data lookup', 'success');
+
+    // Now log detailed CRM customer match information after package info is available
+    if (crmMappingResult && 'crmCustomerId' in crmMappingResult) {
+      // Log detailed CRM customer match information
+      logTiming('CRM customer match', 'success', {
+        crmCustomerId,
+        stableHashId,
+        matchedName: customerName,
+        isNewMatch: (crmMappingResult as any)?.isNewMatch || false,
+        confidence: (crmMappingResult as any)?.confidence,
+        crmCustomerDetails: {
+          name: crmCustomerData ? normalizeCrmCustomerData(crmCustomerData)?.name || null : null,
+          phone: crmCustomerData ? normalizeCrmCustomerData(crmCustomerData)?.phone_number || null : null,
+          email: crmCustomerData ? normalizeCrmCustomerData(crmCustomerData)?.email || null : null,
+          hasActivePackage: !!packageInfo && packageInfo !== 'Normal Bay Rate'
+        }
+      });
+    } else if (crmMappingResult) {
+      // Log failed CRM match
+      logTiming('CRM customer match', 'info', {
+        matched: false,
+        reason: 'No matching CRM customer found'
+      });
+    } else {
+      // Log failure in CRM matching process
+      logTiming('CRM customer match', 'error', {
+        matched: false,
+        reason: 'CRM matching process failed'
+      });
+    }
 
     // Update booking with package info
     await supabase
       .from('bookings')
       .update({ package_info: packageInfo })
       .eq('id', booking.id);
+    
+    logTiming('Package info update', 'success', { packageInfo });
     
     // Update the booking object with package info
     booking.package_info = packageInfo;
@@ -416,7 +540,7 @@ export async function POST(request: NextRequest) {
         displayName: bayDisplayName
       }
     });
-    logTiming('Data formatting');
+    logTiming('Data formatting', 'success');
     
     // Send notifications in parallel and wait for them to complete
     const notificationResults = await sendNotifications(
@@ -427,7 +551,38 @@ export async function POST(request: NextRequest) {
       stableHashId || undefined,
       packageInfo
     );
-    logTiming('Notifications completed');
+
+    // Log each notification type separately instead of logging them together
+    if (notificationResults.success) {
+      // Check individual notification results (if available)
+      if ('results' in notificationResults && Array.isArray(notificationResults.results)) {
+        // Email notification (first item in the results array)
+        const emailResult = notificationResults.results[0];
+        logTiming('Email notification', emailResult ? 'success' : 'error', {
+          success: !!emailResult,
+          recipient: booking.email,
+          statusCode: emailResult?.status
+        });
+        
+        // LINE notification (second item in the results array)
+        const lineResult = notificationResults.results[1];
+        logTiming('LINE notification', lineResult ? 'success' : 'error', {
+          success: !!lineResult,
+          statusCode: lineResult?.status
+        });
+      } else {
+        // If we don't have detailed results, log overall success
+        logTiming('Notifications', 'success', {
+          success: true
+        });
+      }
+    } else {
+      // Log notification failure
+      logTiming('Notifications', 'error', {
+        success: false,
+        error: (notificationResults as any).error?.message
+      });
+    }
     
     // 10. Trigger calendar creation in the background (still non-blocking)
     // This is non-blocking - we'll return to the user before it completes
@@ -448,6 +603,15 @@ export async function POST(request: NextRequest) {
       packageInfo
     };
     
+    // Log calendar creation initiation
+    logTiming('Calendar creation initiated', 'info', {
+      bookingId: booking.id,
+      bay: availableBay,
+      bayDisplayName,
+      startDateTime: calendarData.startDateTime,
+      endDateTime: calendarData.endDateTime
+    });
+
     // Use setTimeout to make this non-blocking
     setTimeout(() => {
       fetch(`${baseUrl}/api/bookings/calendar/create`, {
@@ -471,12 +635,95 @@ export async function POST(request: NextRequest) {
             .from('bookings')
             .update({ calendar_event_id: data.calendarEventId })
             .eq('id', booking.id);
+          
+          // Log successful calendar creation
+          if (ENABLE_DETAILED_LOGGING) {
+            logBookingProcessStep({
+              bookingId: booking.id,
+              userId,
+              step: 'Calendar creation completed',
+              status: 'success',
+              durationMs: data.processingTime || 0,
+              totalDurationMs: Date.now() - apiStartTime,
+              metadata: {
+                calendarEventId: data.calendarEventId,
+                processingTime: data.processingTime
+              }
+            });
+          }
         }
       })
       .catch(error => {
         console.error('Error in calendar creation:', error);
+        
+        // Log calendar creation error
+        if (ENABLE_DETAILED_LOGGING) {
+          logBookingProcessStep({
+            bookingId: booking.id,
+            userId,
+            step: 'Calendar creation error',
+            status: 'error',
+            durationMs: 0,
+            totalDurationMs: Date.now() - apiStartTime,
+            metadata: {
+              error: error.message
+            }
+          });
+        }
       });
     }, 0);
+
+    // After successful booking creation, schedule review request for new customers
+    if (isNewCustomer && token.sub) {
+      try {
+        // Check if this is a LINE user by examining the profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('provider, provider_id')
+          .eq('id', token.sub)
+          .single();
+        
+        // Determine the notification provider (LINE or email)
+        const provider = profile?.provider === 'line' ? 'line' : 'email';
+        
+        // Get the appropriate contact info based on the provider
+        // For LINE users, use provider_id (LINE user ID) instead of user_id
+        const contactInfo = provider === 'line' 
+          ? profile?.provider_id || '' // Use LINE provider_id
+          : booking.email;             // Use booking email for non-LINE users
+        
+        // Make sure we have valid contact info
+        if (!contactInfo) {
+          console.error('Missing contact info for review request', { provider, profile });
+          throw new Error('Missing contact info for review request');
+        }
+        
+        // Schedule the review request to be sent 30 minutes after booking ends
+        // The scheduler will calculate this based on booking details
+        const scheduled = await scheduleReviewRequest({
+          bookingId: booking.id,
+          userId: token.sub,
+          provider,
+          contactInfo
+          // No delayMinutes - use booking end time + 30 minutes
+        });
+        
+        if (scheduled) {
+          logTiming('Review request scheduling', 'success', { 
+            provider, 
+            bookingId: booking.id,
+            bookingDuration: booking.duration
+          });
+        } else {
+          logTiming('Review request scheduling', 'error', { error: 'Failed to schedule' });
+        }
+      } catch (reviewRequestError) {
+        // Log error but don't fail the booking process
+        logTiming('Review request scheduling', 'error', { 
+          error: reviewRequestError instanceof Error ? reviewRequestError.message : 'Unknown error'
+        });
+      }
+    }
 
     // 11. Return success response to user with notification status
     return NextResponse.json({
