@@ -132,6 +132,38 @@ export async function POST(request: NextRequest) {
       validRequests.map(async (request) => {
         console.log(`⏳ Processing request ID ${request.id} for ${request.provider}: ${request.contact_info}`);
         try {
+          // Look up the booking and customer information
+          const { data: bookingData, error: bookingError } = await supabase
+            .from('bookings')
+            .select('id, name, email, user_id')
+            .eq('id', request.booking_id)
+            .single();
+          
+          if (bookingError) {
+            console.error(`❌ Error retrieving booking ${request.booking_id}:`, bookingError);
+            throw new Error(`Failed to retrieve booking: ${bookingError.message}`);
+          }
+          
+          // Try to get customer name from CRM if possible
+          let customerName = bookingData.name; // Default to booking name
+          
+          // Check if there's a CRM mapping for this user
+          if (bookingData.user_id) {
+            const { data: crmMapping, error: crmError } = await supabase
+              .from('crm_customer_mapping')
+              .select('crm_customer_data')
+              .eq('profile_id', bookingData.user_id)
+              .eq('is_matched', true)
+              .order('match_confidence', { ascending: false })
+              .maybeSingle();
+            
+            if (!crmError && crmMapping?.crm_customer_data?.name) {
+              // Use customer name from CRM if available
+              customerName = crmMapping.crm_customer_data.name;
+              console.log(`ℹ️ Using CRM customer name: ${customerName}`);
+            }
+          }
+          
           // Send review request based on provider
           if (request.provider === 'line') {
             // Send LINE notification
@@ -149,7 +181,8 @@ export async function POST(request: NextRequest) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 userId: request.contact_info, // This is actually the LINE provider_id
-                bookingName: "Test User", // Hardcoded for testing
+                bookingName: bookingData.name,
+                customerName: customerName, // Use actual customer name
                 reviewUrl: GOOGLE_REVIEW_URL,
                 voucherImageUrl: lineVoucherUrl
               })
@@ -176,7 +209,8 @@ export async function POST(request: NextRequest) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 email: request.contact_info,
-                userName: "Test User", // Hardcoded for testing
+                userName: customerName, // Use actual customer name
+                bookingName: bookingData.name,
                 reviewUrl: GOOGLE_REVIEW_URL,
                 voucherImageUrl: emailVoucherUrl
               })

@@ -16,6 +16,7 @@ interface LineErrorResponse {
 interface ReviewRequestBody {
   userId: string;
   bookingName: string;
+  customerName?: string;
   bookingDate?: string;
   reviewUrl: string;
   voucherImageUrl: string;
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse request body
     const body: ReviewRequestBody = await request.json();
-    const { userId, bookingName, bookingDate, reviewUrl, voucherImageUrl } = body;
+    const { userId, bookingName, customerName, bookingDate, reviewUrl, voucherImageUrl } = body;
 
     // 3. Validate required fields
     if (!userId || !bookingName || !reviewUrl) {
@@ -44,6 +45,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use customer name if provided, otherwise use booking name or a generic greeting
+    const greeting = customerName ? `Hello ${customerName}! ` : '';
+    
     // 4. Build LINE message
     // Validate image URL - must be HTTPS for LINE API
     let safeVoucherImageUrl = voucherImageUrl;
@@ -70,7 +74,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           type: 'text',
-          text: `Thank you for visiting LENGOLF! We hope you enjoyed your golf session. ⛳🏌️‍♂`
+          text: `${greeting}Thank you for visiting LENGOLF! We hope you enjoyed your golf session. ⛳🏌️‍♂`
         },
         {
           type: 'text',
