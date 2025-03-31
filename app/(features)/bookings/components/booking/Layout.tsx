@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
-import { ChevronDownIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, Bars3Icon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, Bars3Icon, CurrencyDollarIcon, AcademicCapIcon, FireIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { Menu } from '@headlessui/react';
 
@@ -19,6 +19,29 @@ export function Layout({ children }: LayoutProps) {
   const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [showBayRates, setShowBayRates] = useState(false);
+  const [showPromotions, setShowPromotions] = useState(false);
+  const [showLessons, setShowLessons] = useState(false);
+  const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
+
+  // Sample promotion images - this would be replaced with your actual promotion images
+  const promotionImages = [
+    '/images/promotion_1.jpg',
+    '/images/promotion_2.jpg',
+    // Additional promotion images can be added here
+  ];
+  
+  // Control body scroll when modals are open
+  useEffect(() => {
+    if (showBayRates || showPromotions || showLessons) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [showBayRates, showPromotions, showLessons]);
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -59,15 +82,51 @@ export function Layout({ children }: LayoutProps) {
             </h1>
             
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setShowBayRates(!showBayRates)}
-                className="text-white hover:text-gray-200 flex items-center gap-2"
-              >
-                <span className="hidden md:inline">Bay Rates</span>
-                <span className="md:hidden px-3 py-1 rounded-full border-2 border-white text-sm font-medium hover:bg-white hover:text-green-800 transition-colors">
+              <div className="hidden md:flex gap-4 items-center">
+                <button
+                  onClick={() => setShowBayRates(!showBayRates)}
+                  className="text-white px-3 py-1.5 rounded-full border-2 border-white hover:bg-white hover:text-green-800 transition-colors flex items-center gap-1 font-medium"
+                >
+                  <CurrencyDollarIcon className="h-5 w-5" />
+                  <span>Bay Rates</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowPromotions(!showPromotions)}
+                  className="text-white px-3 py-1.5 rounded-full border-2 border-white hover:bg-white hover:text-green-800 transition-colors flex items-center gap-1 font-medium"
+                >
+                  <FireIcon className="h-5 w-5" />
+                  <span>Promotions</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowLessons(!showLessons)}
+                  className="text-white px-3 py-1.5 rounded-full border-2 border-white hover:bg-white hover:text-green-800 transition-colors flex items-center gap-1 font-medium"
+                >
+                  <AcademicCapIcon className="h-5 w-5" />
+                  <span>Lessons</span>
+                </button>
+              </div>
+              
+              {/* Mobile Buttons Row - Only show Rates and Promotions */}
+              <div className="md:hidden flex gap-2">
+                <button
+                  onClick={() => setShowBayRates(!showBayRates)}
+                  className="px-3 py-1 rounded-full border-2 border-white text-sm font-medium hover:bg-white hover:text-green-800 transition-colors flex items-center"
+                >
+                  <CurrencyDollarIcon className="h-4 w-4 mr-1" />
                   Rates
-                </span>
-              </button>
+                </button>
+                
+                <button
+                  onClick={() => setShowPromotions(!showPromotions)}
+                  className="px-3 py-1 rounded-full border-2 border-white text-sm font-medium hover:bg-white hover:text-green-800 transition-colors flex items-center"
+                >
+                  <FireIcon className="h-4 w-4 mr-1" />
+                  Promos
+                </button>
+              </div>
+              
               <div className="hidden md:flex gap-4">
                 <a 
                   href="https://www.len.golf" 
@@ -103,6 +162,19 @@ export function Layout({ children }: LayoutProps) {
                     <Menu.Item>
                       {({ active }) => (
                         <button
+                          onClick={() => setShowLessons(!showLessons)}
+                          className={`${
+                            active ? 'bg-gray-100' : ''
+                          } block w-full text-left px-4 py-2 text-sm text-gray-700 flex items-center`}
+                        >
+                          <AcademicCapIcon className="h-4 w-4 mr-2" />
+                          Golf Lessons
+                        </button>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
                           onClick={handleSignOut}
                           className={`${
                             active ? 'bg-gray-100' : ''
@@ -125,7 +197,10 @@ export function Layout({ children }: LayoutProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowBayRates(false)}>
           <div className="bg-white rounded-xl p-4 max-w-2xl w-full mx-4 md:mx-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl md:text-2xl font-bold text-gray-900">Bay Rates</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
+                <CurrencyDollarIcon className="h-6 w-6 mr-2 text-green-600" />
+                Bay Rates
+              </h3>
               <button onClick={() => setShowBayRates(false)} className="text-gray-500 hover:text-gray-700">
                 <XMarkIcon className="h-6 w-6" />
               </button>
@@ -139,6 +214,147 @@ export function Layout({ children }: LayoutProps) {
                 className="rounded-xl w-full h-auto object-contain"
                 priority
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Promotions Modal */}
+      {showPromotions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowPromotions(false)}>
+          <div className="bg-white rounded-xl p-4 max-w-2xl w-full mx-4 md:mx-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
+                <FireIcon className="h-6 w-6 mr-2 text-green-600" />
+                Promotions
+              </h3>
+              <button onClick={() => setShowPromotions(false)} className="text-gray-500 hover:text-gray-700">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="relative">
+              {promotionImages.length > 0 ? (
+                <div className="relative">
+                  <Image
+                    src={promotionImages[currentPromoIndex]}
+                    alt={`LENGOLF Promotion ${currentPromoIndex + 1}`}
+                    width={800}
+                    height={600}
+                    className="rounded-xl w-full h-auto object-contain"
+                    priority
+                  />
+                  
+                  {/* Navigation arrows (only show if there's more than one promotion) */}
+                  {promotionImages.length > 1 && (
+                    <div className="absolute inset-0 flex items-center justify-between pointer-events-none">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentPromoIndex((prevIndex) => 
+                            prevIndex === 0 ? promotionImages.length - 1 : prevIndex - 1
+                          );
+                        }}
+                        className="bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-2 rounded-full ml-2 pointer-events-auto"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                        </svg>
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentPromoIndex((prevIndex) => 
+                            (prevIndex + 1) % promotionImages.length
+                          );
+                        }}
+                        className="bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-2 rounded-full mr-2 pointer-events-auto"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Dots indicators (only show if there's more than one promotion) */}
+                  {promotionImages.length > 1 && (
+                    <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
+                      {promotionImages.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentPromoIndex(index);
+                          }}
+                          className={`w-2.5 h-2.5 rounded-full pointer-events-auto ${
+                            currentPromoIndex === index ? 'bg-white' : 'bg-white bg-opacity-50'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-10 bg-gray-50 rounded-xl">
+                  <p className="text-gray-500">No promotions available at the moment.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lessons Modal */}
+      {showLessons && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowLessons(false)}>
+          <div className="bg-white rounded-xl p-4 max-w-2xl w-full mx-4 md:mx-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
+                <AcademicCapIcon className="h-6 w-6 mr-2 text-green-600" />
+                Golf Lessons
+              </h3>
+              <button onClick={() => setShowLessons(false)} className="text-gray-500 hover:text-gray-700">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-2 bg-white rounded-xl">
+              <div className="text-center mb-4">
+                <Image
+                  src="/images/coaching_1.jpg"
+                  alt="LENGOLF Lessons"
+                  width={500}
+                  height={375}
+                  className="rounded-xl w-auto h-auto mx-auto object-contain mb-4"
+                />
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">Book Professional Golf Lessons</h4>
+                <p className="text-gray-600 mb-4">
+                  Improve your golf skills with our professional instructors. 
+                  Various lesson packages available for beginners to advanced players.
+                  <span className="font-medium block mt-1">Golf lessons can only be booked via LINE.</span>
+                </p>
+                <div className="flex flex-col sm:flex-row justify-center gap-3 mb-4">
+                  <a 
+                    href="https://lin.ee/uxQpIXn"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 bg-[#06C755] text-white px-4 py-2 rounded-lg hover:bg-[#05b04e] transition-colors"
+                  >
+                    <i className="fab fa-line text-xl"></i>
+                    Contact via LINE
+                  </a>
+                  <a 
+                    href="https://www.len.golf/lessons"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                    </svg>
+                    View for more information
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
