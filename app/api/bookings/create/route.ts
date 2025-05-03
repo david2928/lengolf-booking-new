@@ -80,7 +80,7 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
 }
 
 // Helper function to send notifications
-async function sendNotifications(formattedData: any, booking: any, bayDisplayName: string, crmCustomerId?: string, stableHashId?: string, packageInfo: string = 'Normal Bay Rate') {
+async function sendNotifications(formattedData: any, booking: any, bayDisplayName: string, crmCustomerId?: string, stableHashId?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   
   // Start both notifications in parallel using our utility
@@ -109,7 +109,8 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
           stableHashId,
           skipCrmMatch: true,
           packageInfo,
-          standardizedData: formattedData
+          standardizedData: formattedData,
+          customerNotes
         };
         
         const response = await fetch(`${baseUrl}/api/notifications/email`, {
@@ -149,7 +150,8 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
           stableHashId,
           skipCrmMatch: true,
           packageInfo,
-          standardizedData: formattedData
+          standardizedData: formattedData,
+          customerNotes
         };
         
         const response = await fetch(`${baseUrl}/api/notifications/line`, {
@@ -266,7 +268,8 @@ export async function POST(request: NextRequest) {
       date,
       start_time,
       duration,
-      number_of_people
+      number_of_people,
+      customer_notes
     } = await request.json();
 
     // Validate required fields
@@ -456,6 +459,7 @@ export async function POST(request: NextRequest) {
         start_time,
         duration,
         number_of_people,
+        customer_notes,
         user_id: token.sub,
         bay: availableBay,
         status: 'confirmed'
@@ -549,7 +553,8 @@ export async function POST(request: NextRequest) {
       bayDisplayName,
       crmCustomerId || undefined,
       stableHashId || undefined,
-      packageInfo
+      packageInfo,
+      customer_notes
     );
 
     // Log each notification type separately instead of logging them together

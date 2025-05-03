@@ -13,6 +13,7 @@ interface EmailConfirmation {
   bayNumber?: string;
   phoneNumber?: string;
   packageInfo?: string;
+  customerNotes?: string;
   // Optional standardized data field from the formatter
   standardizedData?: {
     emailData: {
@@ -36,7 +37,7 @@ interface EmailConfirmation {
 
 export async function POST(request: NextRequest) {
   try {
-    const bookingData: EmailConfirmation = await request.json();
+    const { customerNotes, ...bookingData }: EmailConfirmation & { customerNotes?: string } = await request.json();
 
     // Check if we have standardized data from the formatter
     if (bookingData.standardizedData) {
@@ -53,7 +54,8 @@ export async function POST(request: NextRequest) {
         bayNumber: std.bayName,
         duration: std.duration,
         numberOfPeople: std.numberOfPeople,
-        packageInfo: bookingData.packageInfo
+        packageInfo: bookingData.packageInfo,
+        customerNotes: customerNotes
       });
       
       return NextResponse.json({ success: true });
@@ -70,7 +72,8 @@ export async function POST(request: NextRequest) {
       bayNumber: bookingData.bayNumber,
       duration: bookingData.duration,
       numberOfPeople: bookingData.numberOfPeople,
-      packageInfo: bookingData.packageInfo
+      packageInfo: bookingData.packageInfo,
+      customerNotes: customerNotes
     });
     
     return NextResponse.json({ success: true });

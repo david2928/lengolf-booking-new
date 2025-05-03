@@ -14,6 +14,7 @@ interface BookingNotification {
   bookingName: string;
   packageInfo?: string;
   crmCustomerId?: string;
+  customerNotes?: string;
   // Optional standardized data field from the formatter
   standardizedData?: {
     lineNotification: {
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
       groupIdLength: process.env.LINE_GROUP_ID?.length || 0
     });
     
-    const bookingData: BookingNotification = await request.json();
+    const { customerNotes, ...bookingData }: BookingNotification & { customerNotes?: string } = await request.json();
     
     // Prepare the sanitized booking object
     let sanitizedBooking: any;
@@ -72,7 +73,9 @@ export async function POST(request: NextRequest) {
         bayNumber: std.bayName,
         duration: std.duration,
         numberOfPeople: std.numberOfPeople,
-        packageInfo: bookingData.packageInfo // Still use this from the original data
+        packageInfo: bookingData.packageInfo,
+        customerNotes: customerNotes,
+        crmCustomerId: bookingData.crmCustomerId || std.crmCustomerId
       };
     } else {
       // Fallback to legacy format for backward compatibility
@@ -88,7 +91,9 @@ export async function POST(request: NextRequest) {
         bayNumber: bookingData.bayNumber,
         duration: bookingData.duration,
         numberOfPeople: bookingData.numberOfPeople,
-        packageInfo: bookingData.packageInfo
+        packageInfo: bookingData.packageInfo,
+        customerNotes: customerNotes,
+        crmCustomerId: bookingData.crmCustomerId
       };
     }
     
@@ -118,6 +123,7 @@ Bay: ${sanitizedBooking.bayNumber}
 Type: ${sanitizedBooking.packageInfo || 'Normal Bay Rate'}
 People: ${sanitizedBooking.numberOfPeople || '1'}
 Channel: Website
+${sanitizedBooking.customerNotes ? `\nNotes: ${sanitizedBooking.customerNotes}` : ''}
 
 This booking has been auto-confirmed. No need to re-confirm with the customer. Please double check bay selection`.trim();
 

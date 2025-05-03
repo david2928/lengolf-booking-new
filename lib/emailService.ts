@@ -12,6 +12,7 @@ interface EmailConfirmation {
   bayNumber?: string;
   phoneNumber?: string;
   packageInfo?: string;
+  customerNotes?: string;
 }
 
 const transporter = nodemailer.createTransport({
@@ -71,6 +72,12 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
                 <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Number of People</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.numberOfPeople}</td>
             </tr>
+            ${booking.customerNotes ? `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Notes/Requests</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; white-space: pre-wrap;">${booking.customerNotes}</td>
+            </tr>
+            ` : ''}
         </table>
 
         <!-- Closing Message -->

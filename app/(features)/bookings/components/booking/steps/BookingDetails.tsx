@@ -137,6 +137,7 @@ export function BookingDetails({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
+  const [customerNotes, setCustomerNotes] = useState('');
   const [errors, setErrors] = useState({
     duration: '',
     phoneNumber: '',
@@ -334,7 +335,8 @@ export function BookingDetails({
           number_of_people: numberOfPeople,
           name,
           email,
-          phone_number: phoneNumber
+          phone_number: phoneNumber,
+          customer_notes: customerNotes
         })
       });
       
@@ -564,6 +566,24 @@ export function BookingDetails({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Add Customer Notes/Special Requests field */}
+        <div>
+          <label htmlFor="customerNotes" className="block text-sm font-medium text-gray-700 mb-1">
+            Notes / Requests (Optional)
+          </label>
+          <textarea
+            id="customerNotes"
+            value={customerNotes}
+            onChange={(e) => setCustomerNotes(e.target.value)}
+            rows={3}
+            className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 focus:border-green-500 focus:ring-1 focus:ring-green-500 focus:outline-none"
+            placeholder="e.g., Left-handed golfer, interested in coaching add-on, specific simulator bay preference?"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Mention equipment needs, promotions, coaching interest, or other requests here.
+          </p>
         </div>
 
         {/* Fine print about communications */}
