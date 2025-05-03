@@ -12,17 +12,12 @@ import { BookingDetails } from './components/booking/steps/BookingDetails';
 import { useBookingFlow } from './hooks/useBookingFlow';
 
 export default function BookingsPage() {
-  console.log('--- BookingsPage RENDER START ---');
   const router = useRouter();
   const { data: session, status } = useSession({
     required: false,
     onUnauthenticated() {
-      console.log('>>> useSession reported: UNauthenticated');
     },
   });
-
-  console.log('BookingsPage: useSession status:', status);
-  console.log('BookingsPage: useSession data:', session);
 
   const {
     currentStep,
@@ -34,9 +29,7 @@ export default function BookingsPage() {
     handleBack,
   } = useBookingFlow();
 
-  console.log('BookingsPage: Checking status before loading return:', status);
   if (status === 'loading') {
-    console.log('BookingsPage: Rendering LOADING state...');
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -46,11 +39,8 @@ export default function BookingsPage() {
     );
   }
   
-  console.log('BookingsPage: Rendering MAIN content (status is NOT loading)');
-
   const renderContent = () => (
     <div className="min-h-[36rem]">
-      {/* Page Title and Back Button */}
       <div className="mb-6 flex items-start">
         {currentStep > 1 && (
           <button
@@ -81,7 +71,6 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="relative">
         {currentStep === 1 && (
           <DateSelection onDateSelect={handleDateSelect} />
@@ -107,7 +96,6 @@ export default function BookingsPage() {
     </div>
   );
 
-  console.log('BookingsPage: Returning main layout with content');
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

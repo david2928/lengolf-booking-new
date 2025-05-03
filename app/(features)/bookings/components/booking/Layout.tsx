@@ -178,38 +178,36 @@ export function Layout({ children }: LayoutProps) {
                         </button>
                       )}
                     </Menu.Item>
-                    <Menu.Item>
-                      {/* --- Correct Conditional Auth Menu Item --- */}
-                      {status === 'authenticated' && (
-                        <Menu.Item>
-                          {({ active }) => (
-                            <button
-                              onClick={handleSignOut}
-                              className={`${
-                                active ? 'bg-gray-100' : ''
-                              } block w-full text-left px-4 py-2 text-sm text-gray-700`}
-                            >
-                              Logout
-                            </button>
-                          )}
-                        </Menu.Item>
-                      )}
-                      {status !== 'authenticated' && (
-                        <Menu.Item>
-                          {({ active }) => (
-                            <button
-                              onClick={() => signIn()}
-                              className={`${
-                                active ? 'bg-gray-100' : ''
-                              } block w-full text-left px-4 py-2 text-sm text-gray-700`}
-                            >
-                              Login
-                            </button>
-                          )}
-                        </Menu.Item>
-                      )}
-                      {/* --- End Correct Conditional --- */}
-                    </Menu.Item>
+                    {/* --- Correct Conditional Auth Menu Item --- */}
+                    {status === 'authenticated' && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            onClick={handleSignOut}
+                            className={`${
+                              active ? 'bg-gray-100' : ''
+                            } block w-full text-left px-4 py-2 text-sm text-gray-700`}
+                          >
+                            Logout
+                          </button>
+                        )}
+                      </Menu.Item>
+                    )}
+                    {status !== 'authenticated' && (
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            onClick={() => signIn()}
+                            className={`${
+                              active ? 'bg-gray-100' : ''
+                            } block w-full text-left px-4 py-2 text-sm text-gray-700`}
+                          >
+                            Login
+                          </button>
+                        )}
+                      </Menu.Item>
+                    )}
+                    {/* --- End Correct Conditional --- */}
                   </Menu.Items>
                 </Menu>
               </div>
