@@ -578,11 +578,11 @@ export function BookingDetails({
             value={customerNotes}
             onChange={(e) => setCustomerNotes(e.target.value)}
             rows={3}
-            className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 focus:border-green-500 focus:ring-1 focus:ring-green-500 focus:outline-none"
-            placeholder="e.g., Left-handed golfer, interested in coaching add-on, specific simulator bay preference?"
+            className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 focus:border-green-500 focus:ring-1 focus:ring-green-500 focus:outline-none text-sm sm:text-base"
+            placeholder="e.g., specific club preferences, coaching add-on interest, specific simulator bay?"
           />
-          <p className="mt-1 text-xs text-gray-500">
-            Mention equipment needs, promotions, coaching interest, or other requests here.
+          <p className="mt-1 text-xs sm:text-sm text-gray-500">
+            Mention specific club preferences, promotions, coaching interest, or other requests here.
           </p>
         </div>
 
