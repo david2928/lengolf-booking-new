@@ -25,6 +25,7 @@ export function Layout({ children }: LayoutProps) {
 
   // Sample promotion images - this would be replaced with your actual promotion images
   const promotionImages = [
+    '/images/promotion.jpg',
     '/images/promotion_1.jpg',
     '/images/promotion_2.jpg',
     // Additional promotion images can be added here
