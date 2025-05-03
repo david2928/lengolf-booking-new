@@ -192,33 +192,48 @@ export const authOptions: NextAuthOptions = {
       }
     },
     async session({ session, token }: { session: Session; token: JWT }) {
-      const supabase = createServerClient();
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('phone_number')
-        .eq('id', token.sub)
-        .single();
+      // --- TEMPORARILY SIMPLIFIED FOR DEBUGGING ---
+      // // Original code:
+      // const supabase = createServerClient();
+      // const { data: profile } = await supabase
+      //   .from('profiles')
+      //   .select('phone_number')
+      //   .eq('id', token.sub)
+      //   .single();
+      //
+      // return {
+      //   ...session,
+      //   user: {
+      //     ...session.user,
+      //     id: token.sub,
+      //     provider: token.provider as string,
+      //     phone: profile?.phone_number || null
+      //   },
+      //   accessToken: token.accessToken
+      // };
 
-      return {
-        ...session,
-        user: {
-          ...session.user,
-          id: token.sub,
-          provider: token.provider as string,
-          phone: profile?.phone_number || null
-        },
-        accessToken: token.accessToken
-      };
+      // Simplified return:
+      // If token exists, add basic info; otherwise, let NextAuth handle default.
+      if (token && token.sub) {
+        session.user.id = token.sub;
+        // session.user.provider = token.provider as string; // Optional: Keep if needed
+        // session.accessToken = token.accessToken; // Optional: Keep if needed
+      }
+      return session; // Return the potentially minimally modified session
+      // --- END TEMPORARY SIMPLIFICATION ---
     },
     async jwt({ token, user, account }: { token: JWT; user?: ExtendedUser; account?: Account | null }) {
-      if (user) {
-        token.sub = user.id;
-        token.provider = user.provider;
-      }
-      if (account) {
-        token.accessToken = account.access_token;
-      }
-      return token;
+      // --- TEMPORARILY SIMPLIFIED FOR DEBUGGING ---
+      // // Original code:
+      // if (user) {
+      //   token.sub = user.id;
+      //   token.provider = user.provider;
+      // }
+      // if (account) {
+      //   token.accessToken = account.access_token;
+      // }
+      return token; // Just return the token as is
+      // --- END TEMPORARY SIMPLIFICATION ---
     }
   },
   pages: {
@@ -228,6 +243,7 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 0, // Disable activity-based session extension
   },
   debug: false,
 }; 

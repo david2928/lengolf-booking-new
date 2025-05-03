@@ -139,7 +139,7 @@ export async function middleware(request: NextRequest) {
   
   // Redirect root to login UNLESS it's a Google Ads bot
   if (pathname === '/' && !isGoogleAdsBot) {
-    return NextResponse.redirect(new URL('/auth/login', request.url));
+    return NextResponse.redirect(new URL('/bookings', request.url));
   }
   
   // Allow Google Ads bots to access any page without authentication
@@ -153,12 +153,6 @@ export async function middleware(request: NextRequest) {
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
     });
-
-    // If no token and trying to access protected route, redirect to login
-    if (!token && pathname.startsWith('/bookings')) {
-      const callbackUrl = encodeURIComponent(request.nextUrl.pathname);
-      return NextResponse.redirect(new URL(`/auth/login?callbackUrl=${callbackUrl}`, request.url));
-    }
 
     return NextResponse.next();
   } catch (error) {

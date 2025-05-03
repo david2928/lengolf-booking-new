@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { format } from 'date-fns';
@@ -16,7 +16,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [showBayRates, setShowBayRates] = useState(false);
   const [showPromotions, setShowPromotions] = useState(false);
@@ -57,7 +57,7 @@ export function Layout({ children }: LayoutProps) {
     }
   };
 
-  if (session === null) {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
@@ -128,7 +128,8 @@ export function Layout({ children }: LayoutProps) {
                 </button>
               </div>
               
-              <div className="hidden md:flex gap-4">
+              {/* --- Desktop Auth Buttons --- */}
+              <div className="hidden md:flex gap-4 items-center">
                 <a 
                   href="https://www.len.golf" 
                   target="_blank" 
@@ -137,7 +138,11 @@ export function Layout({ children }: LayoutProps) {
                 >
                   Home Page
                 </a>
-                <button onClick={handleSignOut} className="text-white hover:text-gray-200">Logout</button>
+                {status === 'authenticated' ? (
+                  <button onClick={handleSignOut} className="text-white hover:text-gray-200">Logout</button>
+                ) : (
+                  <button onClick={() => signIn()} className="text-white hover:text-gray-200">Login</button>
+                )}
               </div>
               <div className="md:hidden">
                 <Menu as="div" className="relative">
@@ -174,16 +179,36 @@ export function Layout({ children }: LayoutProps) {
                       )}
                     </Menu.Item>
                     <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={handleSignOut}
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } block w-full text-left px-4 py-2 text-sm text-gray-700`}
-                        >
-                          Logout
-                        </button>
+                      {/* --- Correct Conditional Auth Menu Item --- */}
+                      {status === 'authenticated' && (
+                        <Menu.Item>
+                          {({ active }) => (
+                            <button
+                              onClick={handleSignOut}
+                              className={`${
+                                active ? 'bg-gray-100' : ''
+                              } block w-full text-left px-4 py-2 text-sm text-gray-700`}
+                            >
+                              Logout
+                            </button>
+                          )}
+                        </Menu.Item>
                       )}
+                      {status !== 'authenticated' && (
+                        <Menu.Item>
+                          {({ active }) => (
+                            <button
+                              onClick={() => signIn()}
+                              className={`${
+                                active ? 'bg-gray-100' : ''
+                              } block w-full text-left px-4 py-2 text-sm text-gray-700`}
+                            >
+                              Login
+                            </button>
+                          )}
+                        </Menu.Item>
+                      )}
+                      {/* --- End Correct Conditional --- */}
                     </Menu.Item>
                   </Menu.Items>
                 </Menu>
