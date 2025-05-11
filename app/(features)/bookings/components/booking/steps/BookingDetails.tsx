@@ -517,7 +517,11 @@ export function BookingDetails({
                   value={phoneNumber}
                   onChange={setPhoneNumber}
                   className={`w-full h-12 px-3 py-2 rounded-lg bg-gray-50 focus:outline-none border focus:border-green-500 focus:ring-1 focus:ring-green-500 custom-phone-input ${
-                    errors.phoneNumber ? 'border-red-500' : 'border-gray-200'
+                    errors.phoneNumber 
+                      ? 'border-red-500' 
+                      : (phoneNumber && isValidPhoneNumber(phoneNumber || '')) 
+                      ? 'border-green-500' 
+                      : 'border-gray-200'
                   }`}
                 />
               </div>
