@@ -64,6 +64,7 @@ export interface Database {
           number_of_people: number
           bay: string | null
           status: 'confirmed' | 'cancelled'
+          calendar_event_id?: string | null
           created_at: string
           updated_at: string
         }
@@ -79,6 +80,7 @@ export interface Database {
           number_of_people: number
           bay?: string | null
           status?: 'confirmed' | 'cancelled'
+          calendar_event_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -94,6 +96,7 @@ export interface Database {
           number_of_people?: number
           bay?: string | null
           status?: 'confirmed' | 'cancelled'
+          calendar_event_id?: string | null
           created_at?: string
           updated_at?: string
         }

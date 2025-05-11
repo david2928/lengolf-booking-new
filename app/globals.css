@@ -23,3 +23,76 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom styles for react-phone-number-input */
+.custom-phone-input {
+  /* Add overall left padding to the main wrapper */
+  padding-left: 0.75rem; /* px-3 */
+  /* Ensure other paddings (top, bottom, right) on the wrapper are as intended or from Tailwind classes */
+  /* For example, if your other inputs have py-2, the PhoneInput wrapper also needs it if not handled by TW classes */
+}
+
+.custom-phone-input .PhoneInputInput {
+  /* Match padding of other inputs, but left padding is now handled by the wrapper */
+  padding-top: 0.5rem; /* py-2 */
+  padding-bottom: 0.5rem; /* py-2 */
+  padding-left: 0; /* Left padding is now on .custom-phone-input wrapper */
+  padding-right: 0.75rem; /* px-3 for the right side of the text input */
+
+  /* Ensure it takes full width within its container */
+  width: 100%;
+
+  /* Remove default browser focus outline if wrapper handles focus */
+  outline: none;
+
+  /* Remove default border if wrapper handles border */
+  border: none;
+
+  /* Ensure the input field itself doesn't have a conflicting background if the wrapper sets one */
+  background-color: transparent;
+  
+  /* Inherit font properties */
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.custom-phone-input .PhoneInputCountry {
+  /* Align country select with the input part */
+  /* display: flex; Remove this as it might not be needed and can alter layout */
+  /* align-items: center; Remove this as it might not be needed */
+}
+
+.custom-phone-input .PhoneInputCountrySelect {
+  display: flex;
+  align-items: center;
+  /* Remove padding-left from here as it's now on the main wrapper */
+  /* padding-left: 0.75rem; */ 
+  /* You might want to adjust other padding here if the clickable area is too small/large,
+     but primarily this is for centering the flag icon. */
+  /* padding-right: 0.25rem; */ /* Example right padding for the selector itself */
+}
+
+.custom-phone-input .PhoneInputCountryIcon {
+  /* This ensures the flag is treated as a block-level element within the flex container,
+     which can help with consistent alignment. Adjust margin as needed. */
+  display: block; 
+  margin-right: 0.375rem; /* approx 6px, adjust for spacing between flag and the +66 text */
+  /* If flags appear too large or small, you can constrain them, e.g.: */
+  /* max-height: 1.2em; */
+  /* max-width: 1.8em; */
+}
+
+/* Adjust height of the input to match others if padding isn't enough */
+/* For example, if other inputs are h-10 (2.5rem) and py-2 (0.5rem padding top/bottom) */
+/* The input field content area is 1.5rem. Check computed height of other inputs. */
+/* .custom-phone-input .PhoneInputInput,
+.custom-phone-input .PhoneInputCountrySelect {
+  height: 2.5rem; /* Example: Adjust to match computed height of other inputs */
+/*   box-sizing: border-box;
+} */
+
+/* Ensure the flag icon is reasonably sized if needed */
+/* .custom-phone-input .PhoneInputCountryIcon {
+  width: 1.5em; 
+  height: 1.5em;
+} */

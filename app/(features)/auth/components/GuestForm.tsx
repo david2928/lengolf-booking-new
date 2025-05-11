@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 
 interface GuestFormProps {
   onClose: () => void;
@@ -10,14 +12,14 @@ interface GuestFormProps {
 interface GuestFormData {
   name: string;
   email: string;
-  phone: string;
+  phone: string | undefined;
 }
 
 export default function GuestForm({ onClose }: GuestFormProps) {
   const [formData, setFormData] = useState<GuestFormData>({
     name: '',
     email: '',
-    phone: '',
+    phone: undefined,
   });
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,6 +28,19 @@ export default function GuestForm({ onClose }: GuestFormProps) {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
+
+    // Validate form data
+    if (!formData.name || !formData.email || !formData.phone) {
+      setError('All fields are required.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!isValidPhoneNumber(formData.phone || '')) {
+      setError('Please enter a valid phone number.');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const result = await signIn('guest', {
@@ -95,15 +110,21 @@ export default function GuestForm({ onClose }: GuestFormProps) {
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
               Phone
             </label>
-            <input
-              type="tel"
+            <PhoneInput
+              international
+              defaultCountry="TH"
               id="phone"
-              required
-              disabled={isSubmitting}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              placeholder="Enter phone number"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, phone: value })}
+              disabled={isSubmitting}
+              className="mt-1 block w-full rounded-md border border-gray-300 custom-phone-input focus-within:ring-1 focus-within:ring-indigo-600 focus-within:border-indigo-600"
             />
+            {!formData.phone && !error && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Please select your country code and enter your phone number.
+                </p>
+            )}
           </div>
 
           <div className="flex justify-end space-x-3">

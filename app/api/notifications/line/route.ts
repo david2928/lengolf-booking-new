@@ -15,6 +15,7 @@ interface BookingNotification {
   packageInfo?: string;
   crmCustomerId?: string;
   customerNotes?: string;
+  bookingId?: string;
   // Optional standardized data field from the formatter
   standardizedData?: {
     lineNotification: {
@@ -111,8 +112,12 @@ export async function POST(request: NextRequest) {
       month: 'long' 
     }).replace(/\d+/, dayWithSuffix).replace(/(\w+)/, '$1,');
 
+    // Attempt to get bookingId from standardizedData first, then from top-level bookingData
+    const bookingId = bookingData.standardizedData?.bookingId || bookingData.bookingId;
+    const bookingIdString = bookingId ? ` (ID: ${bookingId})` : '';
+
     // Generate the notification message with consistent fallbacks
-    const fullMessage = `Booking Notification
+    const fullMessage = `Booking Notification${bookingIdString}
 Customer Name: ${sanitizedBooking.customerName}
 Booking Name: ${sanitizedBooking.bookingName}
 Email: ${sanitizedBooking.email || 'Not provided'}

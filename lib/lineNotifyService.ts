@@ -16,6 +16,8 @@ interface BookingNotification {
   packageInfo?: string;
   bookingName?: string;
   crmCustomerData?: any;
+  bookingId?: string;
+  channel?: string;
 }
 
 export async function sendBookingNotification(booking: BookingNotification) {

@@ -635,27 +635,63 @@ export async function POST(request: NextRequest) {
       })
       .then(data => {
         if (data.calendarEventId) {
-          // Update booking with calendar event ID
+          const eventId = data.calendarEventId;
+          const bookingToUpdateId = booking.id; // Capture booking id for use in this scope
+          
+          // Update booking with calendar event ID using the existing Anon Key client
+          // Add proper error handling
           supabase
             .from('bookings')
-            .update({ calendar_event_id: data.calendarEventId })
-            .eq('id', booking.id);
-          
-          // Log successful calendar creation
-          if (ENABLE_DETAILED_LOGGING) {
-            logBookingProcessStep({
-              bookingId: booking.id,
-              userId,
-              step: 'Calendar creation completed',
-              status: 'success',
-              durationMs: data.processingTime || 0,
-              totalDurationMs: Date.now() - apiStartTime,
-              metadata: {
-                calendarEventId: data.calendarEventId,
-                processingTime: data.processingTime
+            .update({ calendar_event_id: eventId })
+            .eq('id', bookingToUpdateId) // Essential: target the correct booking
+            .then(({ error: updateError }) => {
+              if (updateError) {
+                console.error(`[Booking Create API - Async] Failed to update booking ${bookingToUpdateId} with event ID ${eventId}:`, updateError);
+                // Log the error to booking_process_logs if needed
+                if (ENABLE_DETAILED_LOGGING && userId) {
+                     logBookingProcessStep({
+                        bookingId: bookingToUpdateId,
+                        userId,
+                        step: 'Update booking with calendar_event_id',
+                        status: 'error',
+                        durationMs: 0, // Duration isn't tracked precisely here
+                        totalDurationMs: Date.now() - apiStartTime,
+                        metadata: { error: updateError.message, eventId: eventId }
+                    });
+                }
+              } else {
+                console.log(`[Booking Create API - Async] Successfully updated booking ${bookingToUpdateId} with event ID ${eventId}`);
+                // Log successful calendar creation AND booking update
+                if (ENABLE_DETAILED_LOGGING && userId) {
+                  logBookingProcessStep({
+                    bookingId: bookingToUpdateId,
+                    userId,
+                    step: 'Calendar creation completed & booking updated',
+                    status: 'success',
+                    durationMs: data.processingTime || 0, // From calendar API response
+                    totalDurationMs: Date.now() - apiStartTime,
+                    metadata: {
+                      calendarEventId: eventId,
+                      processingTime: data.processingTime
+                    }
+                  });
+                }
               }
             });
-          }
+        } else {
+            // Handle case where calendarEventId is missing from the response
+            console.error(`[Booking Create API - Async] Calendar API call succeeded but event ID was missing for booking ${booking.id}. Response data:`, data);
+             if (ENABLE_DETAILED_LOGGING && userId) {
+                logBookingProcessStep({
+                    bookingId: booking.id,
+                    userId,
+                    step: 'Update booking with calendar_event_id',
+                    status: 'error',
+                    durationMs: 0,
+                    totalDurationMs: Date.now() - apiStartTime,
+                    metadata: { error: 'Calendar event ID missing in calendar API response', responseData: data }
+                });
+            }
         }
       })
       .catch(error => {

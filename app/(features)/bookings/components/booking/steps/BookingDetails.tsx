@@ -7,12 +7,13 @@ import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
-import { sendBookingNotification } from '@/lib/lineNotifyService';
 import { useSession } from 'next-auth/react';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import type { Session } from 'next-auth';
 import { matchProfileWithCrm } from '@/utils/customer-matching';
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 
 interface Profile {
   name: string;
@@ -20,24 +21,6 @@ interface Profile {
   phone_number: string | null;
   display_name: string;
   updated_at?: string;
-}
-
-interface BookingNotification {
-  customerName: string;
-  email: string;
-  phoneNumber: string;
-  bookingDate: string;
-  bookingStartTime: string;
-  bookingEndTime: string;
-  bayNumber: string;
-  duration: number;
-  numberOfPeople: number;
-  crmCustomerId?: string;
-  profileId?: string;
-  skipCrmMatch?: boolean;
-  packageInfo?: string;
-  bookingName?: string;
-  crmCustomerData?: any;
 }
 
 // Define the session user type to match what we actually have
@@ -130,7 +113,7 @@ export function BookingDetails({
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
   const [duration, setDuration] = useState<number>(1);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [numberOfPeople, setNumberOfPeople] = useState(1);
@@ -181,7 +164,16 @@ export function BookingDetails({
             // Prefill the form with user data
             setName(data.display_name || data.name || session?.user?.name || '');
             setEmail(data.email || session?.user?.email || '');
-            setPhoneNumber(data.phone_number || session?.user?.phone || '');
+            
+            let initialPhoneNumber = data.phone_number || session?.user?.phone || '';
+            if (initialPhoneNumber && !initialPhoneNumber.startsWith('+')) {
+              // Basic assumption: if it's a 10-digit number starting with 0, assume it's a Thai number
+              if (initialPhoneNumber.length === 10 && initialPhoneNumber.startsWith('0')) {
+                initialPhoneNumber = '+66' + initialPhoneNumber.substring(1);
+              }
+              // Add more rules if necessary for other common local formats
+            }
+            setPhoneNumber(initialPhoneNumber || undefined); // Set to undefined if empty for placeholder to show
             
             // Get any existing CRM mapping from our database directly
             // Skip the unnecessary API call to /api/crm/match which is slow
@@ -223,34 +215,34 @@ export function BookingDetails({
     }
   }, [isSubmitting, loadingStep, loadingSteps.length]);
 
-  const validatePhoneNumber = (phone: string) => {
-    // Allow international format with + prefix and 10-15 digits
-    const phoneRegex = /^\+?[0-9]{10,15}$/;
-    return phoneRegex.test(phone);
-  };
-
   const validateForm = () => {
-    if (!name || !phoneNumber || !email) {
-      toast.error('Please fill in all required fields');
-      return false;
+    let currentErrors = { duration: '', phoneNumber: '', email: '', name: '' };
+    let isValid = true;
+
+    if (!name) {
+      currentErrors.name = 'Name is required';
+      isValid = false;
+    }
+    if (!email) {
+      currentErrors.email = 'Email is required';
+      isValid = false;
+    }
+    // Updated phone number validation
+    if (!phoneNumber) {
+      currentErrors.phoneNumber = 'Phone number is required';
+      isValid = false;
+    } else if (!isValidPhoneNumber(phoneNumber)) {
+      currentErrors.phoneNumber = 'Please enter a valid phone number';
+      isValid = false;
     }
 
-    if (!validatePhoneNumber(phoneNumber)) {
-      toast.error('Please enter a valid phone number');
-      return false;
-    }
+    setErrors(currentErrors);
 
-    return true;
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^\d+]/g, '');
-    // Allow + only at the start
-    if (value === '+' || (value.startsWith('+') && value.length <= 16)) {
-      setPhoneNumber(value);
-    } else if (!value.includes('+') && value.length <= 15) {
-      setPhoneNumber(value);
+    if (!isValid) {
+      // Consolidate toast messages or show one generic message
+      toast.error('Please fill in all required fields correctly.');
     }
+    return isValid;
   };
 
   const generateBookingId = () => {
@@ -518,23 +510,23 @@ export function BookingDetails({
                 Phone Number
               </label>
               <div className="relative">
-                <input
-                  type="tel"
+                <PhoneInput
+                  international
+                  defaultCountry="TH"
+                  placeholder="Enter phone number"
                   value={phoneNumber}
-                  onChange={handlePhoneChange}
-                  className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
-                    !phoneNumber
-                      ? 'border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
-                      : validatePhoneNumber(phoneNumber.replace(/\D/g, ''))
-                      ? 'border border-green-500'
-                      : 'border border-gray-200 focus:border-green-500 focus:ring-1 focus:ring-green-500'
+                  onChange={setPhoneNumber}
+                  className={`w-full h-12 px-3 py-2 rounded-lg bg-gray-50 focus:outline-none border focus:border-green-500 focus:ring-1 focus:ring-green-500 custom-phone-input ${
+                    errors.phoneNumber ? 'border-red-500' : 'border-gray-200'
                   }`}
-                  placeholder="e.g., 0812345678"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-               Format: 0812345678 or +XX-XXX-XXXX (min. 10 digits)
-              </p>
+              {/* Helper text to guide country selection if number is empty */}
+              {!phoneNumber && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Please select your country code and enter your phone number.
+                </p>
+              )}
               {errors.phoneNumber && (
                 <p className="mt-1 text-sm text-red-600">{errors.phoneNumber}</p>
               )}
@@ -605,19 +597,18 @@ export function BookingDetails({
           </button>
           <button
             type="submit"
-            onClick={handleSubmit}
             disabled={
               isSubmitting || 
               !duration || 
               !phoneNumber || 
-              !validatePhoneNumber(phoneNumber) || 
+              !isValidPhoneNumber(phoneNumber || '') ||
               !name ||
               !email
             }
             className={`py-2 px-6 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
               isSubmitting
                 ? 'bg-green-600 opacity-75'
-                : duration && phoneNumber && validatePhoneNumber(phoneNumber) && name && email
+                : (duration && phoneNumber && isValidPhoneNumber(phoneNumber || '') && name && email)
                 ? 'bg-green-600 hover:bg-green-700'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
