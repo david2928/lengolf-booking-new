@@ -521,16 +521,42 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Update booking with package info
-    await supabase
+    // Derive booking_type and package_name from packageInfo string
+    let derivedBookingType: string;
+    let derivedPackageName: string | null = null;
+
+    const packagePrefix = 'Package (';
+    if (packageInfo.startsWith(packagePrefix) && packageInfo.endsWith(')')) {
+      derivedBookingType = 'Package';
+      derivedPackageName = packageInfo.substring(packagePrefix.length, packageInfo.length - 1);
+    } else {
+      derivedBookingType = packageInfo; // e.g., "Normal Bay Rate", "Coaching", etc.
+      // derivedPackageName remains null
+    }
+
+    // Update booking with booking_type and package_name
+    const { error: updateBookingTypeError } = await supabase
       .from('bookings')
-      .update({ package_info: packageInfo })
+      .update({ 
+        booking_type: derivedBookingType,
+        package_name: derivedPackageName
+      })
       .eq('id', booking.id);
+
+    if (updateBookingTypeError) {
+      console.error('Error updating booking with type and package name:', updateBookingTypeError);
+      logTiming('Booking type/package update', 'error', { error: updateBookingTypeError.message });
+      // Decide if this is a critical error to stop the process
+    } else {
+      logTiming('Booking type/package update', 'success', { booking_type: derivedBookingType, package_name: derivedPackageName });
+    }
     
-    logTiming('Package info update', 'success', { packageInfo });
-    
-    // Update the booking object with package info
-    booking.package_info = packageInfo;
+    // Update the local booking object with these details
+    // Also, set package_info on the local object for compatibility with formatBookingData if it expects it.
+    // This assumes 'booking' type might need casting or is flexible.
+    booking.booking_type = derivedBookingType;
+    booking.package_name = derivedPackageName;
+    (booking as any).package_info = packageInfo; // For downstream compatibility (e.g. formatBookingData)
 
     // 9. Format booking data for all services
     const formattedData = formatBookingData({
@@ -638,40 +664,66 @@ export async function POST(request: NextRequest) {
           const eventId = data.calendarEventId;
           const bookingToUpdateId = booking.id; // Capture booking id for use in this scope
           
-          // Update booking with calendar event ID using the existing Anon Key client
-          // Add proper error handling
+          // Determine calendarId based on the booking's bay
+          // booking.bay should be available here from the earlier insert/select
+          const bookedBay = booking.bay; // Assuming booking object is in scope and has .bay
+          const calendarIdForUpdate = bookedBay ? BOOKING_CALENDARS[bookedBay as keyof typeof BOOKING_CALENDARS] : undefined;
+
+          if (!calendarIdForUpdate) {
+            console.error(`[Booking Create API - Async] Could not determine calendarId for booking ${bookingToUpdateId} with bay ${bookedBay}. Cannot update calendar_events.`);
+            if (ENABLE_DETAILED_LOGGING && userId) {
+              logBookingProcessStep({
+                bookingId: bookingToUpdateId,
+                userId,
+                step: 'Update booking with calendar_events',
+                status: 'error',
+                durationMs: 0,
+                totalDurationMs: Date.now() - apiStartTime,
+                metadata: { error: 'Could not determine calendarId for update', eventId: eventId, bay: bookedBay }
+              });
+            }
+            return; // Stop if no calendarId can be found
+          }
+
+          const newCalendarEventsEntry = [{
+            eventId: eventId,
+            calendarId: calendarIdForUpdate,
+            status: "confirmed"
+          }];
+          
+          // Update booking with the new calendar_events field
           supabase
             .from('bookings')
-            .update({ calendar_event_id: eventId })
+            .update({ calendar_events: newCalendarEventsEntry }) // Update calendar_events
             .eq('id', bookingToUpdateId) // Essential: target the correct booking
-            .then(({ error: updateError }) => {
+            .then(({ error: updateError }) => { // Destructure error from the promise result
               if (updateError) {
-                console.error(`[Booking Create API - Async] Failed to update booking ${bookingToUpdateId} with event ID ${eventId}:`, updateError);
+                console.error(`[Booking Create API - Async] Failed to update booking ${bookingToUpdateId} with calendar_events ${JSON.stringify(newCalendarEventsEntry)}:`, updateError);
                 // Log the error to booking_process_logs if needed
                 if (ENABLE_DETAILED_LOGGING && userId) {
                      logBookingProcessStep({
                         bookingId: bookingToUpdateId,
                         userId,
-                        step: 'Update booking with calendar_event_id',
+                        step: 'Update booking with calendar_events', // Updated step name
                         status: 'error',
                         durationMs: 0, // Duration isn't tracked precisely here
                         totalDurationMs: Date.now() - apiStartTime,
-                        metadata: { error: updateError.message, eventId: eventId }
+                        metadata: { error: updateError.message, eventDetails: newCalendarEventsEntry }
                     });
                 }
               } else {
-                console.log(`[Booking Create API - Async] Successfully updated booking ${bookingToUpdateId} with event ID ${eventId}`);
+                console.log(`[Booking Create API - Async] Successfully updated booking ${bookingToUpdateId} with calendar_events ${JSON.stringify(newCalendarEventsEntry)}`);
                 // Log successful calendar creation AND booking update
                 if (ENABLE_DETAILED_LOGGING && userId) {
                   logBookingProcessStep({
                     bookingId: bookingToUpdateId,
                     userId,
-                    step: 'Calendar creation completed & booking updated',
+                    step: 'Calendar creation completed & booking updated with calendar_events', // Updated step name
                     status: 'success',
                     durationMs: data.processingTime || 0, // From calendar API response
                     totalDurationMs: Date.now() - apiStartTime,
                     metadata: {
-                      calendarEventId: eventId,
+                      calendarEvents: newCalendarEventsEntry,
                       processingTime: data.processingTime
                     }
                   });
@@ -685,7 +737,7 @@ export async function POST(request: NextRequest) {
                 logBookingProcessStep({
                     bookingId: booking.id,
                     userId,
-                    step: 'Update booking with calendar_event_id',
+                    step: 'Update booking with calendar_event_id', // This log can remain or be updated
                     status: 'error',
                     durationMs: 0,
                     totalDurationMs: Date.now() - apiStartTime,
