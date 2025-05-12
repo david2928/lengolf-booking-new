@@ -1,0 +1,186 @@
+# Design Document: LENGOLF VIP LINE Integration
+
+## 1. Introduction & Goals
+
+This document outlines the design for integrating a "LENGOLF VIP" feature into the Lengolf ecosystem via a LINE Rich Menu **and the main website**. The primary goal is to provide existing customers with self-service capabilities directly within the LINE app **or via their web browser**, enhancing customer engagement and convenience.
+
+**Access Points:**
+
+*   **LINE:** Via a Rich Menu driving LIFF views.
+*   **Website:** Via a new "My Account" / "VIP Access" section in the main navigation for logged-in users.
+
+**Key Data Entities Involved:**
+
+*   **`profiles` (Supabase Table):** Stores authentication-related user data (e.g., from NextAuth). Key fields: `id` (UUID, primary key), `provider` (e.g., 'line'), `provider_id` (e.g., LINE User ID), `display_name`, `email`. **Will add `marketing_preference` (BOOLEAN, NOT NULL, DEFAULT TRUE)**.
+*   **`customers` (Supabase Table):** **Confirmed** source of customer data, synced from an external CRM/POS. Key fields: `id` (CRM/POS primary key), `customer_name`, `contact_number`, `email`, `stable_hash_id` (MD5 of name+phone for robust linking).
+*   **`crm_customer_mapping` (Supabase Table):** Links authenticated users (`profiles`) to customer records (`customers`). Key fields: `profile_id` (FK to `profiles.id`), `crm_customer_id` (FK to `customers.id`, NULLABLE), `stable_hash_id` (from `customers`, NULLABLE), `crm_customer_data` (cached customer details), `is_matched` (BOOLEAN, indicates if a link to a `customers` record was successful). **Supports placeholder records where `is_matched = false` and CRM IDs are NULL.**
+*   **`bookings` (Supabase Table):** Stores booking details. Key field for linking: `user_id` (FK to `profiles.id`).
+*   **`crm_packages` (Supabase Table):** Stores customer package information. Linked via `stable_hash_id`.
+
+**Key Features (P0):**
+
+*   User authentication and account linking between LINE/Web session and the Lengolf CRM customer record.
+*   Viewing and managing personal profile information (`name`, `email`, `marketing_preference`).
+*   Viewing past and future bookings.
+*   Modifying (`date`, `start_time`, `duration`) and cancelling upcoming, confirmed bookings.
+*   Viewing active and past lesson/practice packages and their usage (if linked to a customer).
+
+## 2. User Experience Flow
+
+### 2.1. Initial Access & Account Linking (P0)
+
+This flow applies whether the user accesses via the LINE Rich Menu or the main website's "VIP Access" link.
+
+1.  **Trigger**: User initiates access (LINE Rich Menu or Website Link).
+2.  **Authentication**: User authenticates via NextAuth.js, establishing a session with their `profiles.id`. **During sign-in/session validation (e.g., NextAuth callback):**
+    *   The system calls logic (e.g., adapted `getOrCreateCrmMapping`) to check/create the link.
+3.  **Customer Profile Link Check (Backend Logic / Implicit in Session)**:
+    *   Using the `profiles.id`, the system checks `crm_customer_mapping`.
+    *   **Case A: Linked & Matched**: Record exists with `is_matched = true`. System retrieves `crm_customer_id` / `stable_hash_id`. Proceed to VIP interface (Section 2.2).
+    *   **Case B: Placeholder Mapping**: Record exists with `is_matched = false`. Proceed to VIP interface (Section 2.2) with limited functionality.
+    *   **Case C: No Mapping Record (Should be handled by Step 2)**: If somehow no record exists, proceed to Automatic Matching Attempt (Step 4) or Placeholder Creation (Step 5) within the sign-in flow.
+4.  **Automatic Matching Attempt (Part of Step 2 Logic)**:
+    *   If no mapping exists or an explicit check is triggered, call `getOrCreateCrmMapping(profiles.id, profile_data)`. This function attempts to find a matching `customers` record.
+    *   **Match Found**: `getOrCreateCrmMapping` creates/updates the `crm_customer_mapping` record, setting `is_matched = true` and storing `crm_customer_id` / `stable_hash_id`. Proceeds as Case A.
+    *   **No Match Found**: Indicates user likely not in the synced `customers` table yet. Proceed to Placeholder Creation (Step 5).
+5.  **Placeholder Mapping Creation (Part of Step 2 Logic / Fallback)**:
+    *   **Requirement:** Handle the "No Match Found" case from Step 4.
+    *   **Action:** The logic (e.g., `getOrCreateCrmMapping`) explicitly `INSERT`s a placeholder record into `crm_customer_mapping` for this `profiles.id`. Set `is_matched = false`, and `crm_customer_id` / `stable_hash_id` to `null`. Proceeds as Case B.
+6.  **Manual Linking Fallback Page (`/vip/link-account`)**:
+    *   **Purpose**: Accessible to users whose status is `linked_unmatched` (`is_matched = false`). Allows them to attempt linking using their phone number.
+    *   **Flow**:
+        *   Displays user's Name (from `profiles.display_name`).
+        *   Prompts for Phone Number.
+        *   **(Backend API `POST /api/vip/link-account`)**:
+            *   Receives authenticated `profiles.id` and submitted Phone Number.
+            *   Searches `customers` table using the submitted Phone Number and potentially other `profiles` data.
+            *   **Match Found (with high confidence)**: Updates the `crm_customer_mapping` record for `profiles.id`, setting `is_matched = true` and populating `crm_customer_id`, `stable_hash_id`, and `crm_customer_data`. Redirects to VIP main page. *(P0: No explicit user confirmation needed - automatic link on match)*.
+            *   **No Match Found / Low Confidence**: Informs user, mapping remains `is_matched = false`.
+
+### 2.2. Authenticated VIP Interface (P0)
+
+*   Accessible after successful **authentication** (Step 2). Accessed via `/vip/*` routes.
+*   A layout (`VipLayout`) checks authentication and fetches the VIP status (`GET /api/vip/status`).
+*   The *content and functionality* displayed depend on the **linking status (`is_matched`)** from `crm_customer_mapping`:
+    *   **Linked & Matched (`is_matched = true`):** Full access to Profile, Bookings, Packages sections.
+    *   **Placeholder Mapping (`is_matched = false`):**
+        *   Access to Profile (editing name, email, marketing preference).
+        *   Bookings/Packages sections show an `EmptyState` component (e.g., "Link your account to view bookings/packages.") with a CTA linking to `/vip/link-account`.
+
+**Navigation Options (within VIP Layout):**
+
+*   My Profile (`/vip/profile`)
+*   My Bookings (`/vip/bookings`)
+*   Packages (`/vip/packages`)
+*   (Future: VIP Program)
+*   Link Account (`/vip/link-account` - potentially shown conditionally if `is_matched = false`)
+
+### 2.3. My Profile (P0)
+
+*   **Access**: `/vip/profile`.
+*   **Interface**: Web page component (`ProfileView`).
+*   **Functionality**:
+    *   Fetches profile data (`GET /api/vip/profile`).
+    *   Displays current Name (from `profiles.display_name`), Email (from `profiles.email`), Phone Number (from linked `customers.contact_number` if `is_matched = true`, otherwise potentially empty or from `profiles`).
+    *   Allows editing Name and Email (updates `profiles` table via `PUT /api/vip/profile`).
+    *   Allows managing Marketing Preferences toggle (updates `profiles.marketing_preference` via `PUT /api/vip/profile`).
+    *   Phone number (if shown from `customers`) is not editable here.
+
+### 2.4. My Bookings (P0)
+
+*   **Access**: `/vip/bookings`.
+*   **Interface**: Web page component (`BookingsList`).
+*   **Functionality**:
+    *   If `is_matched = false`, shows `EmptyState`.
+    *   If `is_matched = true`:
+        *   Fetches bookings (`GET /api/vip/bookings` where `user_id = <current_profile_id>`).
+        *   Displays lists of Future and Past Bookings (with pagination/filtering).
+        *   Allows **Modification** of future, confirmed bookings:
+            *   User selects booking. Triggers `BookingModifyModal`.
+            *   Modal allows changing `date`, `start_time`, `duration`.
+            *   On submit, calls `PUT /api/vip/bookings/{id}/modify`. Backend verifies ownership, checks availability (`/api/availability/check`), auto-assigns bay for the new slot, updates `bookings` record.
+            *   Triggers **async** Google Calendar update and Staff LINE notification.
+        *   Allows **Cancellation** of future, confirmed bookings:
+            *   User selects booking. Triggers `BookingCancelModal`.
+            *   On confirm, calls `POST /api/vip/bookings/{id}/cancel`. Backend verifies ownership, updates `bookings` status.
+            *   Triggers **async** Google Calendar update and Staff LINE notification.
+
+### 2.5. Packages (P0)
+
+*   **Access**: `/vip/packages`.
+*   **Interface**: Web page component (`PackagesView`).
+*   **Functionality**:
+    *   If `is_matched = false`, shows `EmptyState`.
+    *   If `is_matched = true`:
+        *   Fetches packages (`GET /api/vip/packages`). Backend uses `profiles.id` -> `crm_customer_mapping` -> `stable_hash_id` -> queries `crm_packages`.
+        *   Displays **Active Packages** and **Past/Expired Packages** with details (Name, Dates, Usage). Uses `PackageListItem`.
+
+### 2.6. VIP Program (Future)
+
+*   Details TBD.
+
+## 3. Technical Design & Implementation (High-Level Summary)
+
+*(Refer to `TECHNICAL_DESIGN_LENGOLF_VIP.md` for full details)*
+
+### 3.1. LINE Integration & Frontend
+
+*   **LINE Access:** Use **LIFF** for rendering the `/vip/*` Next.js pages within the LINE app via Rich Menu links.
+*   **Website Access:** Standard navigation links to `/vip/*` pages for logged-in users.
+*   **UI:** React components under `src/components/vip/`, pages under `app/vip/`. Responsive design.
+
+### 3.2. Authentication & Authorization
+
+*   **Authentication:** Existing NextAuth.js setup.
+*   **User-Customer Link:** `crm_customer_mapping` table, including handling of `is_matched = false` placeholder records created during sign-in/session validation if no CRM match is found.
+*   **Authorization:** API routes protected by NextAuth session check. Data access scoped by `profiles.id` (for `profiles`, `bookings`) or via lookup through `crm_customer_mapping` (for `customers`, `crm_packages`). RLS policies enforce ownership at the database level.
+
+### 3.3. API Endpoints
+
+*   VIP-specific endpoints under `/api/vip/` (status, link-account, profile, bookings, packages, booking modify, booking cancel). See technical design for full specs.
+
+### 3.4. Database Considerations
+
+*   **Schema:** Add `marketing_preference` to `profiles`. Ensure `crm_customer_mapping` supports nullable CRM IDs and the `is_matched` flag.
+*   **RLS:** **Implement Row Level Security** on `profiles`, `bookings`, `crm_customer_mapping`, `crm_packages`, and potentially `customers` to enforce data access based on authenticated user ID (`auth.uid()`). Ensure `anon` role policies are reviewed/added only if specific public access is needed elsewhere.
+*   **Indexes:** Ensure appropriate indexes (see technical design).
+
+### 3.5. Security Considerations
+
+*   Secure APIs (AuthN/AuthZ).
+*   Input validation.
+*   Implement RLS.
+
+### 3.6. Phone Number Verification for Manual Linking (P0 Decision)
+
+*   Implement **Option 1 (No Direct Verification)**. If `POST /api/vip/link-account` finds a high-confidence match based on the user-provided phone number, the link in `crm_customer_mapping` (`is_matched = true`) is created automatically without OTP or explicit user confirmation ("Is this you?").
+
+### 3.7. Error Handling & User Feedback
+
+*   Provide clear, user-friendly feedback for API errors, validation issues, confirmation prompts, and success messages using consistent UI patterns (e.g., toasts, inline messages). Map backend errors to appropriate frontend messages (e.g., distinguish "slot unavailable" from "general error").
+
+## 4. Impact on Existing Systems
+
+*   **Database:** Schema change (`profiles`), RLS policy additions.
+*   **API Reusability:** Assess shared logic (e.g., availability check, notifications, calendar updates) for use by both VIP and backoffice APIs.
+*   **Notifications:** Ensure VIP actions (modify/cancel) trigger existing staff LINE notification system.
+*   **Calendar:** Ensure VIP actions trigger existing Google Calendar update system (async).
+
+## 5. Open Questions / Considerations
+
+*(Refined based on Technical Design)*
+
+1.  **`getOrCreateCrmMapping` Adaptation:** Careful implementation of the placeholder record creation (`is_matched = false`) within this utility or the calling code (e.g., NextAuth callback) is crucial for the onboarding flow.
+2.  **Async Task Reliability:** Implement async calendar/notification triggers using the application's established pattern (e.g., direct async calls, Supabase Functions) and ensure reliability and error handling.
+3.  **RLS & `anon` Role Interaction:** Thoroughly review if enabling RLS on tables impacts any existing functionality relying on unauthenticated (`anon`) access, and add specific `anon` policies only if necessary.
+4.  **Matching Logic Edge Cases:** Monitor the effectiveness of the automatic matching logic long-term.
+
+## 6. Potential Future Enhancements
+
+*   Proactive LINE notifications (reminders, package expiry).
+*   VIP dashboard summary page.
+*   Improved matching UX (e.g., confirmation prompts).
+*   Detailed package usage history.
+*   OTP verification for manual linking.
+
+This document outlines the design for the LENGOLF VIP feature integration. It incorporates an understanding of the existing system and decisions made during the design process. Further refinement of UI/UX details and specific implementation logic will occur during development. 
