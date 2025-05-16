@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
         scheduled_time: scheduledTime,
         provider,
         contact_info: contactInfo,
-        sent: false
+        sent: false,
+        status: 'pending'
       })
       .select()
       .single();

@@ -769,46 +769,89 @@ export async function POST(request: NextRequest) {
     // After successful booking creation, schedule review request for new customers
     if (isNewCustomer && token.sub) {
       try {
-        // Check if this is a LINE user by examining the profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('provider, provider_id')
-          .eq('id', token.sub)
-          .single();
-        
-        // Determine the notification provider (LINE or email)
-        const provider = profile?.provider === 'line' ? 'line' : 'email';
-        
-        // Get the appropriate contact info based on the provider
-        // For LINE users, use provider_id (LINE user ID) instead of user_id
-        const contactInfo = provider === 'line' 
-          ? profile?.provider_id || '' // Use LINE provider_id
-          : booking.email;             // Use booking email for non-LINE users
-        
-        // Make sure we have valid contact info
-        if (!contactInfo) {
-          console.error('Missing contact info for review request', { provider, profile });
-          throw new Error('Missing contact info for review request');
+        // Check if a review request has already been successfully sent to this user
+        const { data: existingSentRequest, error: sentCheckError } = await supabase
+          .from('scheduled_review_requests')
+          .select('id')
+          .eq('user_id', token.sub)
+          .eq('status', 'sent') // Check for successfully sent surveys
+          .limit(1)
+          .maybeSingle();
+
+        if (sentCheckError) {
+          console.error('Error checking for existing sent review requests:', sentCheckError);
+          // Log timing for this error
+          logTiming('Review request pre-check', 'error', { 
+            userId: token.sub, 
+            error: 'Failed to check for existing sent requests' 
+          });
+          // Depending on policy, you might want to not schedule if this check fails.
+          // For now, it will proceed if the check errors out (existingSentRequest would be null).
         }
-        
-        // Schedule the review request to be sent 30 minutes after booking ends
-        // The scheduler will calculate this based on booking details
-        const scheduled = await scheduleReviewRequest({
-          bookingId: booking.id,
-          userId: token.sub,
-          provider,
-          contactInfo
-          // No delayMinutes - use booking end time + 30 minutes
-        });
-        
-        if (scheduled) {
-          logTiming('Review request scheduling', 'success', { 
-            provider, 
-            bookingId: booking.id,
-            bookingDuration: booking.duration
+
+        if (existingSentRequest) {
+          logTiming('Review request skipped', 'info', { 
+            reason: 'User has already received a successfully sent survey', 
+            userId: token.sub,
+            existingRequestId: existingSentRequest.id
           });
         } else {
-          logTiming('Review request scheduling', 'error', { error: 'Failed to schedule' });
+          // Proceed with scheduling if no prior 'sent' survey
+          // Check if this is a LINE user by examining the profile
+          const { data: profile, error: profileError } = await supabase // Added error capture for profile fetch
+            .from('profiles')
+            .select('provider, provider_id')
+            .eq('id', token.sub)
+            .single();
+
+          if (profileError) {
+            console.error('Error fetching user profile for review request:', profileError);
+            logTiming('Review request scheduling', 'error', { 
+              error: 'Failed to fetch user profile', 
+              userId: token.sub 
+            });
+            // throw new Error('Failed to fetch user profile for review request'); // Or handle differently
+          } else {
+            // Determine the notification provider (LINE or email)
+            const provider = profile?.provider === 'line' ? 'line' : 'email';
+            
+            // Get the appropriate contact info based on the provider
+            // For LINE users, use provider_id (LINE user ID) instead of user_id
+            const contactInfo = provider === 'line' 
+              ? profile?.provider_id || '' // Use LINE provider_id
+              : booking.email;             // Use booking email for non-LINE users
+            
+            // Make sure we have valid contact info
+            if (!contactInfo) {
+              console.error('Missing contact info for review request', { provider, profileFromDb: profile }); // Renamed for clarity
+              logTiming('Review request scheduling', 'error', { 
+                error: 'Missing contact info', 
+                userId: token.sub, 
+                provider 
+              });
+              // Potentially throw new Error('Missing contact info for review request');
+            } else {
+              // Schedule the review request to be sent 30 minutes after booking ends
+              // The scheduler will calculate this based on booking details
+              const scheduled = await scheduleReviewRequest({
+                bookingId: booking.id,
+                userId: token.sub,
+                provider,
+                contactInfo
+                // No delayMinutes - use booking end time + 30 minutes
+              });
+              
+              if (scheduled) {
+                logTiming('Review request scheduling', 'success', { 
+                  provider, 
+                  bookingId: booking.id,
+                  bookingDuration: booking.duration
+                });
+              } else {
+                logTiming('Review request scheduling', 'error', { error: 'Failed to schedule via scheduleReviewRequest lib function' });
+              }
+            }
+          }
         }
       } catch (reviewRequestError) {
         // Log error but don't fail the booking process
