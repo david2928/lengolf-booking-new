@@ -122,7 +122,7 @@
                     resultElement.textContent = 'Loading...';
 
                     // Define the base URL for the Next.js API
-                    const nextApiBaseUrl = 'http://localhost:3000';
+                    const nextApiBaseUrl = window.location.origin;
 
                     // Special handling for dynamic endpoints or specific payload structures
                     if (this.id === 'getBookingsBtn') {
