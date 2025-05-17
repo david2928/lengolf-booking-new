@@ -23,6 +23,14 @@ interface CancelPayload {
   cancellation_reason?: string | null;
 }
 
+interface ModifyRouteContextParams {
+  bookingId: string;
+}
+
+interface ModifyRouteContext {
+  params: Promise<ModifyRouteContextParams>;
+}
+
 // Helper to map Bay Name (e.g., "Bay 1") to bay_id (e.g., "bay_1")
 // This is a simplistic assumption, a more robust mapping might be needed
 // based on how BOOKING_CALENDARS keys are structured or if a separate mapping exists.
@@ -41,7 +49,7 @@ async function triggerStaffNotification(bookingId: string, details: any) {
 }
 
 // Changed from PUT to POST
-export async function POST(request: NextRequest, { params }: { params: { bookingId: string } }) {
+export async function POST(request: NextRequest, context: ModifyRouteContext) {
   const session = await getServerSession(authOptions) as VipBookingOpSession | null;
 
   if (!session?.user?.id || !session.accessToken) {
@@ -58,6 +66,7 @@ export async function POST(request: NextRequest, { params }: { params: { booking
     return NextResponse.json({ error: 'Server configuration error: Supabase connection details missing.' }, { status: 500 });
   }
   
+  const params = await context.params;
   const { bookingId } = params;
   let payload: CancelPayload = {};
 

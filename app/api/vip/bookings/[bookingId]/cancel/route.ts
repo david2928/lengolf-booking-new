@@ -20,7 +20,15 @@ interface CancelPayload {
   cancellation_reason?: string | null;
 }
 
-export async function POST(request: NextRequest, { params }: { params: { bookingId: string } }) {
+interface CancelRouteContextParams {
+  bookingId: string;
+}
+
+interface CancelRouteContext {
+  params: Promise<CancelRouteContextParams>;
+}
+
+export async function POST(request: NextRequest, context: CancelRouteContext) {
   const session = await getServerSession(authOptions) as VipBookingOpSession | null;
 
   if (!session?.user?.id || !session.accessToken) {
@@ -37,6 +45,7 @@ export async function POST(request: NextRequest, { params }: { params: { booking
     return NextResponse.json({ error: 'Server configuration error: Supabase connection details missing.' }, { status: 500 });
   }
   
+  const params = await context.params;
   const { bookingId } = params;
   let payload: CancelPayload = {};
 
