@@ -304,26 +304,36 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account }: { token: JWT; user?: ExtendedUser; account?: Account | null }) {
       console.log("[NextAuth Callback: jwt] Initial token:", JSON.stringify(token, null, 2));
       if (user) {
-        console.log("[NextAuth Callback: jwt] User object present (sign-in/update):", JSON.stringify(user, null, 2));
-      }
-      if (account) {
-        console.log("[NextAuth Callback: jwt] Account object present (sign-in):", JSON.stringify(account, null, 2));
-      }
-
-      if (user) {
+        console.log("[NextAuth Callback: jwt] User object present:", JSON.stringify(user, null, 2));
         token.sub = user.id;
         if (user.provider) {
-            token.provider = user.provider; 
+          token.provider = user.provider;
         }
         if ((user as any).supabaseAccessToken) {
           (token as any).supabaseAccessToken = (user as any).supabaseAccessToken;
-          console.log("[NextAuth Callback: jwt] Transferred supabaseAccessToken from user object to token.");
-        } else if (!token.sub) {
-            console.error("[NextAuth Callback: jwt] user.id (token.sub) is not set. Supabase JWT cannot be reliably used.");
+          console.log("[NextAuth Callback: jwt] Transferred supabaseAccessToken from user to token.");
         }
       }
-      
-      console.log("[NextAuth Callback: jwt] Final token for Supabase:", JSON.stringify((token as any).supabaseAccessToken ? 'JWT Present' : null));
+
+      if (!(token as any).supabaseAccessToken && token.sub && process.env.SUPABASE_JWT_SECRET) {
+        console.log(`[NextAuth Callback: jwt] supabaseAccessToken missing in token. Attempting to re-mint for user ID: ${token.sub}`);
+        const supabaseJwtPayload = {
+          sub: token.sub,
+          role: 'authenticated',
+          exp: Math.floor(Date.now() / 1000) + (60 * 60),
+        };
+        try {
+          const newSupabaseToken = jwt.sign(supabaseJwtPayload, process.env.SUPABASE_JWT_SECRET);
+          (token as any).supabaseAccessToken = newSupabaseToken;
+          console.log("[NextAuth Callback: jwt] Re-minted and added supabaseAccessToken to token.");
+        } catch (jwtError) {
+          console.error("[NextAuth Callback: jwt] Error re-minting Supabase JWT:", jwtError);
+        }
+      } else if (!(token as any).supabaseAccessToken && token.sub && !process.env.SUPABASE_JWT_SECRET) {
+          console.warn("[NextAuth Callback: jwt] SUPABASE_JWT_SECRET not set. Cannot re-mint Supabase JWT.");
+      }
+
+      console.log("[NextAuth Callback: jwt] Final supabaseAccessToken status:", (token as any).supabaseAccessToken ? 'Present' : 'Missing');
       console.log("[NextAuth Callback: jwt] Final full token:", JSON.stringify(token, null, 2));
       return token;
     }
