@@ -51,3 +51,4 @@ Thumbs.db
 key.json
 **/key.json
 # Log files\nscripts/customer-matching.log\nscripts/*.log
+/node_modules/.package-lock.json
