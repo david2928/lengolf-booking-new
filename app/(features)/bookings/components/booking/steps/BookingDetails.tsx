@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { format, addHours } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
+import type { Database } from '@/types/supabase';
 import { useRouter } from 'next/navigation';
-import { User } from '@supabase/supabase-js';
+import { User, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { v4 as uuidv4 } from 'uuid';
@@ -112,6 +113,7 @@ export function BookingDetails({
   const router = useRouter();
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
   const [duration, setDuration] = useState<number>(1);
+  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
   const [email, setEmail] = useState('');
@@ -144,13 +146,47 @@ export function BookingDetails({
   }, [status, router]);
 
   useEffect(() => {
+    // Enhanced logging for session and accessToken
+    console.log("[BookingDetails SupabaseSetupEffect] Status:", status);
+    if (session) {
+      console.log("[BookingDetails SupabaseSetupEffect] Session object:", JSON.stringify(session, null, 2));
+      console.log("[BookingDetails SupabaseSetupEffect] Session Access Token for Supabase:", session.accessToken);
+    } else {
+      console.log("[BookingDetails SupabaseSetupEffect] No session object.");
+    }
+
+    const client = createClient(); // Get the singleton instance from '@/utils/supabase/client'
+
+    const setupSupabaseAuth = async () => {
+      if (session?.accessToken) {
+        console.log("[BookingDetails SupabaseSetupEffect] Setting Supabase client auth WITH session.accessToken:", session.accessToken);
+        await client.auth.setSession({ 
+          access_token: session.accessToken,
+          refresh_token: '' // Provide an empty string for the required refresh_token field
+        });
+      } else {
+        console.log("[BookingDetails SupabaseSetupEffect] No session.accessToken. Signing out Supabase client to ensure anon state.");
+        // Use signOut() to clear the session on the client instance and revert to anon.
+        await client.auth.signOut();
+      }
+      setSupabase(client);
+    };
+
+    if (status !== 'loading') { // Only run if session status is determined
+      setupSupabaseAuth();
+    } else {
+      console.log("[BookingDetails SupabaseSetupEffect] Supabase client setup deferred as session status is loading.");
+    }
+  }, [session, status]);
+
+  useEffect(() => {
     const fetchProfile = async () => {
-      if (session?.user?.id) {
+      console.log("[BookingDetails Effect 2] fetchProfile called. Supabase client defined?", !!supabase, "Session user ID:", session?.user?.id);
+      if (supabase && session?.user?.id) {
         try {
           const userId = session.user.id;
-          const supabase = createClient();
           const { data, error } = await supabase
-            .from('profiles')
+            .from('profiles_vip_staging')
             .select('*')
             .eq('id', userId)
             .single();
@@ -179,7 +215,7 @@ export function BookingDetails({
             // Skip the unnecessary API call to /api/crm/match which is slow
             try {
               const { data: mapping } = await supabase
-                .from('crm_customer_mapping')
+                .from('crm_customer_mapping_vip_staging')
                 .select('crm_customer_id')
                 .eq('profile_id', userId)
                 .eq('is_matched', true)
@@ -189,7 +225,11 @@ export function BookingDetails({
                 setCrmCustomerId(mapping.crm_customer_id);
               }
             } catch (error) {
-              console.error('Error checking CRM mapping:', error);
+              if (supabase) {
+                console.error('Error checking CRM mapping:', error);
+              } else {
+                console.error('Supabase client not initialized for CRM mapping check.');
+              }
             }
           }
         } catch (err) {
@@ -199,7 +239,7 @@ export function BookingDetails({
     };
 
     fetchProfile();
-  }, [session?.user?.id, session?.user?.name, session?.user?.email, session?.user?.phone]);
+  }, [supabase, session?.user?.id, session?.user?.name, session?.user?.email, session?.user?.phone]);
 
   useEffect(() => {
     if (isSubmitting && loadingStep < loadingSteps.length - 1) {
@@ -262,6 +302,12 @@ export function BookingDetails({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!supabase) {
+      toast.error('Booking system is not ready. Please try again in a moment.');
+      console.error('Attempted to submit booking but Supabase client is not initialized.');
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -294,22 +340,15 @@ export function BookingDetails({
       
       // Update profile if needed
       if (profileNeedsUpdate && session?.user?.id) {
-        const supabase = createClient();
-        
-        try {
-          // Only update fields that we know exist in the schema
-          const { data, error } = await supabase
-            .from('profiles')
-            .update({
-              display_name: name,
-              email: email,
-              phone_number: phoneNumber,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', session.user.id);
-        } catch (queryError) {
-          // Silent error handling to avoid exposing to users
-        }
+        const { data, error } = await supabase
+          .from('profiles_vip_staging')
+          .update({
+            display_name: name,
+            email: email,
+            phone_number: phoneNumber,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', session.user.id);
       }
 
       // Step 1: Create the booking record

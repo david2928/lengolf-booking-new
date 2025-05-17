@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { createServerClient } from '@/utils/supabase/server';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
 import { parse, addHours, addMinutes } from 'date-fns';
@@ -12,6 +13,26 @@ import { calendar } from '@/lib/googleApiConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { nextTick } from 'node:process';
 import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
+
+// Create a dedicated Supabase client instance for admin operations within this route
+// This client will use the Service Role Key.
+let supabaseAdminClient: SupabaseClient<Database> | null = null;
+const getSupabaseAdminClient = () => {
+  if (!supabaseAdminClient) {
+    supabaseAdminClient = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!, // CRITICAL: Use the Service Role Key
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false
+        }
+      }
+    );
+  }
+  return supabaseAdminClient;
+};
 
 const TIMEZONE = 'Asia/Bangkok';
 
@@ -52,7 +73,7 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
   // If we have a stable hash ID, try to get package info
   if (stableHashId) {
     try {
-      const supabase = createServerClient();
+      const supabase = getSupabaseAdminClient();
       const { data: packages } = await supabase
         .from('crm_packages')
         .select('*')
@@ -200,7 +221,7 @@ async function logBookingProcessStep({
   if (!ENABLE_DETAILED_LOGGING) return;
 
   try {
-    const supabase = createServerClient();
+    const supabase = getSupabaseAdminClient();
     await supabase
       .from('booking_process_logs')
       .insert({
@@ -359,9 +380,9 @@ export async function POST(request: NextRequest) {
         
         try {
           // First check for existing mapping
-          const supabase = createServerClient();
+          const supabase = getSupabaseAdminClient();
           const { data: mapping, error: mappingError } = await supabase
-            .from('crm_customer_mapping')
+            .from('crm_customer_mapping_vip_staging')
             .select('crm_customer_id, stable_hash_id, crm_customer_data')
             .eq('profile_id', token.sub)
             .eq('is_matched', true)
@@ -447,9 +468,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Create booking record in Supabase
-    const supabase = createServerClient();
+    const supabase = getSupabaseAdminClient();
     const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
+      .from('bookings_vip_staging')
       .insert({
         id: generateBookingId(),
         name,
@@ -536,7 +557,7 @@ export async function POST(request: NextRequest) {
 
     // Update booking with booking_type and package_name
     const { error: updateBookingTypeError } = await supabase
-      .from('bookings')
+      .from('bookings_vip_staging')
       .update({ 
         booking_type: derivedBookingType,
         package_name: derivedPackageName
@@ -692,8 +713,8 @@ export async function POST(request: NextRequest) {
           }];
           
           // Update booking with the new calendar_events field
-          supabase
-            .from('bookings')
+          getSupabaseAdminClient()
+            .from('bookings_vip_staging')
             .update({ calendar_events: newCalendarEventsEntry }) // Update calendar_events
             .eq('id', bookingToUpdateId) // Essential: target the correct booking
             .then(({ error: updateError }) => { // Destructure error from the promise result
@@ -770,7 +791,7 @@ export async function POST(request: NextRequest) {
     if (isNewCustomer && token.sub) {
       try {
         // Check if a review request has already been successfully sent to this user
-        const { data: existingSentRequest, error: sentCheckError } = await supabase
+        const { data: existingSentRequest, error: sentCheckError } = await getSupabaseAdminClient()
           .from('scheduled_review_requests')
           .select('id')
           .eq('user_id', token.sub)
@@ -798,8 +819,8 @@ export async function POST(request: NextRequest) {
         } else {
           // Proceed with scheduling if no prior 'sent' survey
           // Check if this is a LINE user by examining the profile
-          const { data: profile, error: profileError } = await supabase // Added error capture for profile fetch
-            .from('profiles')
+          const { data: profile, error: profileError } = await getSupabaseAdminClient()
+            .from('profiles_vip_staging') // Ensure using staging table
             .select('provider, provider_id')
             .eq('id', token.sub)
             .single();

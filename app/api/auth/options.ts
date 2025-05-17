@@ -2,7 +2,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import FacebookProvider from 'next-auth/providers/facebook';
 import LineProvider from 'next-auth/providers/line';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { createServerClient } from '@/utils/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { getOrCreateCrmMapping } from '@/utils/customer-matching';
 import { v4 as uuidv4 } from 'uuid';
 import type { NextAuthOptions } from 'next-auth';
@@ -11,10 +11,28 @@ import type { Session } from 'next-auth';
 import type { User } from 'next-auth';
 import type { Account } from 'next-auth';
 import type { Profile as OAuthProfile } from 'next-auth';
+import jwt from 'jsonwebtoken'; // For minting Supabase JWT
+
+console.log(`[Auth Options] Current NODE_ENV: ${process.env.NODE_ENV}`);
 
 if (!process.env.NEXTAUTH_SECRET) {
   throw new Error('Please provide process.env.NEXTAUTH_SECRET');
 }
+
+// Create a dedicated Supabase client instance for admin operations within auth options
+// This client will use the Service Role Key.
+const supabaseAdminClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!, // CRITICAL: Use the Service Role Key
+  {
+    auth: {
+      // Recommended to ensure service role client doesn't accidentally use user sessions
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false
+    }
+  }
+);
 
 // Extend the User type to include our custom fields
 interface ExtendedUser extends User {
@@ -24,6 +42,35 @@ interface ExtendedUser extends User {
 }
 
 export const authOptions: NextAuthOptions = {
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === "production" 
+            ? `__Secure-next-auth.session-token` 
+            : `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "none",
+        path: "/",
+        secure: true,
+        // Domain can be omitted to default to the current host,
+        // or set explicitly if needed for subdomains in production
+        // domain: process.env.NODE_ENV === "production" ? ".yourdomain.com" : "localhost",
+      },
+    },
+    // You can add configurations for other cookies like csrfToken, pkceCode if needed
+    // For example, for CSRF token if you face issues with it:
+    // csrfToken: {
+    //   name: process.env.NODE_ENV === "production" 
+    //         ? `__Host-next-auth.csrf-token` 
+    //         : `next-auth.csrf-token`,
+    //   options: {
+    //     httpOnly: true,
+    //     sameSite: "none", // Adjust if necessary, often 'lax' is fine for CSRF
+    //     path: "/",
+    //     secure: process.env.NODE_ENV === "production",
+    //   },
+    // },
+  },
   providers: [
     GoogleProvider({
       clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
@@ -78,10 +125,10 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const supabase = createServerClient();
+        const supabase = supabaseAdminClient;
         
         const { data: existingProfile } = await supabase
-          .from('profiles')
+          .from('profiles_vip_staging')
           .select('*')
           .eq('email', credentials.email)
           .eq('provider', 'guest')
@@ -89,7 +136,7 @@ export const authOptions: NextAuthOptions = {
 
         if (existingProfile) {
           const { data: profile } = await supabase
-            .from('profiles')
+            .from('profiles_vip_staging')
             .update({
               display_name: credentials.name,
               phone_number: credentials.phone,
@@ -112,7 +159,7 @@ export const authOptions: NextAuthOptions = {
 
         const guestId = uuidv4();
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('profiles_vip_staging')
           .insert({
             id: guestId,
             email: credentials.email,
@@ -142,98 +189,143 @@ export const authOptions: NextAuthOptions = {
       account: Account | null; 
       profile?: OAuthProfile;
     }) {
-      const supabase = createServerClient();
+      const supabase = supabaseAdminClient;
+      console.log("[NextAuth Callback: signIn] User:", JSON.stringify(user, null, 2));
+      console.log("[NextAuth Callback: signIn] Account:", JSON.stringify(account, null, 2));
 
       try {
         if (account?.provider === 'guest') {
-          return true;
-        }
+          console.log("[NextAuth Callback: signIn] Guest user, proceeding.");
+          if (!user.id) {
+            console.error("[NextAuth Callback: signIn] Guest user object missing id. Cannot mint Supabase JWT.");
+            return false;
+          }
+        } else {
+          const { data: existingProfile } = await supabase
+            .from('profiles_vip_staging')
+            .select('id, display_name')
+            .eq('provider_id', account?.providerAccountId)
+            .eq('provider', account?.provider)
+            .single();
+          
+          console.log("[NextAuth Callback: signIn] Existing Profile:", JSON.stringify(existingProfile, null, 2));
 
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('provider_id', account?.providerAccountId)
-          .single();
+          const userIdFromSupabase = existingProfile?.id || uuidv4();
+          console.log("[NextAuth Callback: signIn] Determined Supabase userId:", userIdFromSupabase);
 
-        const userId = existingProfile?.id || uuidv4();
-
-        const { error } = await supabase
-          .from('profiles')
-          .upsert({
-            id: userId,
+          const profileDataToUpsert: any = {
+            id: userIdFromSupabase,
             email: user.email,
-            display_name: existingProfile ? undefined : user.name,
             picture_url: user.image,
             provider: account?.provider,
             provider_id: account?.providerAccountId,
             updated_at: new Date().toISOString()
-          }, { 
-            onConflict: 'id',
-            ignoreDuplicates: false
-          });
+          };
 
-        if (error) {
-          console.error('Failed to upsert profile:', error);
-          return false;
+          if (!existingProfile || existingProfile.display_name !== user.name) {
+             profileDataToUpsert.display_name = user.name;
+          }
+
+          const { error } = await supabase
+            .from('profiles_vip_staging')
+            .upsert(profileDataToUpsert, { 
+              onConflict: 'id',
+              ignoreDuplicates: false
+            });
+
+          if (error) {
+            console.error('[NextAuth Callback: signIn] Failed to upsert profile:', error);
+            return false;
+          }
+          console.log("[NextAuth Callback: signIn] Profile upserted successfully for userId:", userIdFromSupabase);
+          user.id = userIdFromSupabase;
+        }
+        
+        if(account?.provider) user.provider = account.provider;
+        else if (!user.provider && user.id) {
+          const { data: guestProfile } = await supabase.from('profiles_vip_staging').select('provider').eq('id', user.id).single();
+          if (guestProfile?.provider) user.provider = guestProfile.provider;
         }
 
-        user.id = userId;
+        if (process.env.SUPABASE_JWT_SECRET && user.id) {
+          const supabaseJwtPayload = {
+            sub: user.id,
+            role: 'authenticated',
+            exp: Math.floor(Date.now() / 1000) + (60 * 60),
+          };
+          try {
+            const supabaseToken = jwt.sign(supabaseJwtPayload, process.env.SUPABASE_JWT_SECRET);
+            (user as any).supabaseAccessToken = supabaseToken;
+            console.log("[NextAuth Callback: signIn] Minted Supabase JWT for user:", user.id);
+          } catch (jwtError) {
+            console.error("[NextAuth Callback: signIn] Error minting Supabase JWT:", jwtError);
+          }
+        } else {
+          console.warn("[NextAuth Callback: signIn] SUPABASE_JWT_SECRET not set or user.id missing. Cannot mint Supabase JWT.");
+        }
         
-        // Attempt to match the user with a CRM customer in the background
-        // This allows the login to proceed regardless of mapping success
-        getOrCreateCrmMapping(userId, { source: 'auth' }).catch(error => {
-          console.error('Unexpected error in background CRM mapping:', error);
+        console.log("[NextAuth Callback: signIn] Attempting background CRM mapping for userId:", user.id);
+        getOrCreateCrmMapping(user.id, { source: 'auth' }).catch(crmError => {
+          console.error('[NextAuth Callback: signIn] Unexpected error in background CRM mapping:', crmError);
         });
 
+        console.log("[NextAuth Callback: signIn] Completed successfully for user.id:", user.id);
         return true;
       } catch (error) {
-        console.error('Sign-in process error:', error);
+        console.error('[NextAuth Callback: signIn] Sign-in process error:', error);
         return false;
       }
     },
     async session({ session, token }: { session: Session; token: JWT }) {
-      // --- TEMPORARILY SIMPLIFIED FOR DEBUGGING ---
-      // // Original code:
-      // const supabase = createServerClient();
-      // const { data: profile } = await supabase
-      //   .from('profiles')
-      //   .select('phone_number')
-      //   .eq('id', token.sub)
-      //   .single();
-      //
-      // return {
-      //   ...session,
-      //   user: {
-      //     ...session.user,
-      //     id: token.sub,
-      //     provider: token.provider as string,
-      //     phone: profile?.phone_number || null
-      //   },
-      //   accessToken: token.accessToken
-      // };
+      console.log("[NextAuth Callback: session] Original session:", JSON.stringify(session, null, 2));
+      console.log("[NextAuth Callback: session] Token received:", JSON.stringify(token, null, 2));
 
-      // Simplified return:
-      // If token exists, add basic info; otherwise, let NextAuth handle default.
       if (token && token.sub) {
         session.user.id = token.sub;
-        // session.user.provider = token.provider as string; // Optional: Keep if needed
-        // session.accessToken = token.accessToken; // Optional: Keep if needed
+        if (token.provider) {
+          (session.user as ExtendedUser).provider = token.provider as string;
+        }
+        
+        if ((token as any).supabaseAccessToken) {
+            (session as any).accessToken = (token as any).supabaseAccessToken as string;
+            console.log("[NextAuth Callback: session] Using supabaseAccessToken for session.accessToken");
+        } else {
+            (session as any).accessToken = null; 
+            console.warn("[NextAuth Callback: session] supabaseAccessToken not found in token. session.accessToken set to null.");
+        }
+      } else {
+        console.warn("[NextAuth Callback: session] Token or token.sub is missing.");
+        (session as any).accessToken = null;
       }
-      return session; // Return the potentially minimally modified session
-      // --- END TEMPORARY SIMPLIFICATION ---
+      
+      console.log("[NextAuth Callback: session] Modified session:", JSON.stringify(session, null, 2));
+      return session;
     },
     async jwt({ token, user, account }: { token: JWT; user?: ExtendedUser; account?: Account | null }) {
-      // --- TEMPORARILY SIMPLIFIED FOR DEBUGGING ---
-      // // Original code:
-      // if (user) {
-      //   token.sub = user.id;
-      //   token.provider = user.provider;
-      // }
-      // if (account) {
-      //   token.accessToken = account.access_token;
-      // }
-      return token; // Just return the token as is
-      // --- END TEMPORARY SIMPLIFICATION ---
+      console.log("[NextAuth Callback: jwt] Initial token:", JSON.stringify(token, null, 2));
+      if (user) {
+        console.log("[NextAuth Callback: jwt] User object present (sign-in/update):", JSON.stringify(user, null, 2));
+      }
+      if (account) {
+        console.log("[NextAuth Callback: jwt] Account object present (sign-in):", JSON.stringify(account, null, 2));
+      }
+
+      if (user) {
+        token.sub = user.id;
+        if (user.provider) {
+            token.provider = user.provider; 
+        }
+        if ((user as any).supabaseAccessToken) {
+          (token as any).supabaseAccessToken = (user as any).supabaseAccessToken;
+          console.log("[NextAuth Callback: jwt] Transferred supabaseAccessToken from user object to token.");
+        } else if (!token.sub) {
+            console.error("[NextAuth Callback: jwt] user.id (token.sub) is not set. Supabase JWT cannot be reliably used.");
+        }
+      }
+      
+      console.log("[NextAuth Callback: jwt] Final token for Supabase:", JSON.stringify((token as any).supabaseAccessToken ? 'JWT Present' : null));
+      console.log("[NextAuth Callback: jwt] Final full token:", JSON.stringify(token, null, 2));
+      return token;
     }
   },
   pages: {
