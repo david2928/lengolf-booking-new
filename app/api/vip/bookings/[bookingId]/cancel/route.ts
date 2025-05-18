@@ -188,12 +188,15 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       .catch(err => console.error('[VIP Cancel] Failed to send VIP cancellation notification:', err));
     
     // Calendar deletion
-    const googleCalendarEventId = currentBooking.calendar_events?.google_calendar_event_id;
-    if (googleCalendarEventId && currentBooking.bay) {
+    const googleCalendarEventId = currentBooking.calendar_events && currentBooking.calendar_events[0]?.eventId;
+    const googleCalendarId = currentBooking.calendar_events && currentBooking.calendar_events[0]?.calendarId;
+
+    // Ensure bay is also present as it is used in deleteCalendarEventForBooking
+    if (googleCalendarEventId && googleCalendarId && currentBooking.bay) { 
       deleteCalendarEventForBooking(bookingId, googleCalendarEventId, currentBooking.bay)
         .catch(err => console.error('[VIP Cancel] Failed to delete calendar event:', err));
     } else {
-        console.warn(`[VIP Cancel] Missing Google Calendar Event ID or bay for booking ${bookingId}, skipping calendar deletion.`);
+        console.warn(`[VIP Cancel] Missing Google Calendar Event ID, Calendar ID, or bay for booking ${bookingId}, skipping calendar deletion. EventID: ${googleCalendarEventId}, CalendarID: ${googleCalendarId}, Bay: ${currentBooking.bay}`);
     }
     
     // The triggerCalendarUpdateForCancel seems to be from the example, not used in current VIP logic.

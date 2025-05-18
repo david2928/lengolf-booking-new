@@ -201,151 +201,223 @@ export const authOptions: NextAuthOptions = {
             return false;
           }
         } else {
+          // For OAuth providers or any provider that's not 'guest'
           const { data: existingProfile } = await supabase
             .from('profiles_vip_staging')
             .select('id, display_name')
-            .eq('provider_id', account?.providerAccountId)
+            .eq('provider_id', account?.providerAccountId) // Use providerAccountId for OAuth
             .eq('provider', account?.provider)
             .single();
           
           console.log("[NextAuth Callback: signIn] Existing Profile:", JSON.stringify(existingProfile, null, 2));
 
-          const userIdFromSupabase = existingProfile?.id || uuidv4();
+          const userIdFromSupabase = existingProfile?.id || uuidv4(); // Use existing Supabase ID or generate new
           console.log("[NextAuth Callback: signIn] Determined Supabase userId:", userIdFromSupabase);
 
+          // Prepare data for upsert
           const profileDataToUpsert: any = {
-            id: userIdFromSupabase,
-            email: user.email,
-            picture_url: user.image,
+            id: userIdFromSupabase, // This is the Supabase User ID
+            email: user.email, // Email from provider
+            picture_url: user.image, // Picture from provider
             provider: account?.provider,
             provider_id: account?.providerAccountId,
             updated_at: new Date().toISOString()
           };
-
+          
+          // Only update display_name if it's different or new
           if (!existingProfile || existingProfile.display_name !== user.name) {
-             profileDataToUpsert.display_name = user.name;
+             profileDataToUpsert.display_name = user.name; // Name from provider
           }
 
           const { error } = await supabase
             .from('profiles_vip_staging')
             .upsert(profileDataToUpsert, { 
-              onConflict: 'id',
-              ignoreDuplicates: false
+              onConflict: 'id', // Upsert based on the Supabase user ID
+              ignoreDuplicates: false // Ensure data is updated if it exists
             });
 
           if (error) {
             console.error('[NextAuth Callback: signIn] Failed to upsert profile:', error);
-            return false;
+            return false; // Prevent sign-in if Supabase profile update fails
           }
           console.log("[NextAuth Callback: signIn] Profile upserted successfully for userId:", userIdFromSupabase);
+          // Ensure the user object passed to the jwt callback has the correct Supabase ID
           user.id = userIdFromSupabase;
         }
         
+        // Ensure provider is set on the user object for the jwt callback
         if(account?.provider) user.provider = account.provider;
-        else if (!user.provider && user.id) {
+        else if (!user.provider && user.id) { // For guest provider that might not have account object
           const { data: guestProfile } = await supabase.from('profiles_vip_staging').select('provider').eq('id', user.id).single();
           if (guestProfile?.provider) user.provider = guestProfile.provider;
         }
 
-        if (process.env.SUPABASE_JWT_SECRET && user.id) {
-          const supabaseJwtPayload = {
-            sub: user.id,
-            role: 'authenticated',
-            exp: Math.floor(Date.now() / 1000) + (60 * 60),
-          };
+        // Attempt to create/refresh CRM mapping record
+        if (user.id) {
           try {
-            const supabaseToken = jwt.sign(supabaseJwtPayload, process.env.SUPABASE_JWT_SECRET);
-            (user as any).supabaseAccessToken = supabaseToken;
-            console.log("[NextAuth Callback: signIn] Minted Supabase JWT for user:", user.id);
-          } catch (jwtError) {
-            console.error("[NextAuth Callback: signIn] Error minting Supabase JWT:", jwtError);
+            // Corrected call to getOrCreateCrmMapping
+            await getOrCreateCrmMapping(user.id, { source: 'auth' });
+            console.log("[NextAuth Callback: signIn] CRM mapping processed for user:", user.id);
+          } catch (mappingError) {
+            console.error('[NextAuth Callback: signIn] Error processing CRM mapping:', mappingError);
+            // Decide if this should prevent sign-in, currently it doesn't
           }
         } else {
-          console.warn("[NextAuth Callback: signIn] SUPABASE_JWT_SECRET not set or user.id missing. Cannot mint Supabase JWT.");
+            console.warn("[NextAuth Callback: signIn] User ID not available for CRM mapping.");
         }
-        
-        console.log("[NextAuth Callback: signIn] Attempting background CRM mapping for userId:", user.id);
-        getOrCreateCrmMapping(user.id, { source: 'auth' }).catch(crmError => {
-          console.error('[NextAuth Callback: signIn] Unexpected error in background CRM mapping:', crmError);
-        });
 
-        console.log("[NextAuth Callback: signIn] Completed successfully for user.id:", user.id);
-        return true;
-      } catch (error) {
-        console.error('[NextAuth Callback: signIn] Sign-in process error:', error);
-        return false;
+        return true; // Proceed with sign-in
+      } catch (e) {
+        console.error("[NextAuth Callback: signIn] Error in signIn callback:", e);
+        return false; // Prevent sign-in on any other error
       }
     },
+
     async session({ session, token }: { session: Session; token: JWT }) {
       console.log("[NextAuth Callback: session] Original session:", JSON.stringify(session, null, 2));
       console.log("[NextAuth Callback: session] Token received:", JSON.stringify(token, null, 2));
 
-      if (token && token.sub) {
-        session.user.id = token.sub;
-        if (token.provider) {
-          (session.user as ExtendedUser).provider = token.provider as string;
-        }
-        
-        if ((token as any).supabaseAccessToken) {
-            (session as any).accessToken = (token as any).supabaseAccessToken as string;
-            console.log("[NextAuth Callback: session] Using supabaseAccessToken for session.accessToken");
-        } else {
-            (session as any).accessToken = null; 
-            console.warn("[NextAuth Callback: session] supabaseAccessToken not found in token. session.accessToken set to null.");
-        }
-      } else {
-        console.warn("[NextAuth Callback: session] Token or token.sub is missing.");
-        (session as any).accessToken = null;
+      if (token.sub && session.user) {
+        session.user.id = token.sub; // Use 'sub' from token as user.id in session
       }
-      
+      if (token.provider && session.user) {
+        (session.user as ExtendedUser).provider = token.provider as string;
+      }
+      if (token.supabaseAccessToken) {
+        session.accessToken = token.supabaseAccessToken as string; // Pass Supabase token to session
+        console.log("[NextAuth Callback: session] Using supabaseAccessToken for session.accessToken");
+      } else {
+        console.warn("[NextAuth Callback: session] supabaseAccessToken is missing in token. Session will not have it.");
+      }
+      // Add any other properties from token to session as needed
+      // session.user.role = token.role // Example if role is in token
+
       console.log("[NextAuth Callback: session] Modified session:", JSON.stringify(session, null, 2));
       return session;
     },
-    async jwt({ token, user, account }: { token: JWT; user?: ExtendedUser; account?: Account | null }) {
+
+    async jwt({ token, user, account, trigger, session: updateSession }: { 
+      token: JWT; 
+      user?: ExtendedUser; 
+      account?: Account | null;
+      trigger?: "signIn" | "signUp" | "update"; // `trigger` and `session` are for v4+
+      session?: any; // Session data when `trigger` is "update"
+    }) {
+      console.log(`[NextAuth Callback: jwt] Trigger: ${trigger}`);
       console.log("[NextAuth Callback: jwt] Initial token:", JSON.stringify(token, null, 2));
       if (user) {
         console.log("[NextAuth Callback: jwt] User object present:", JSON.stringify(user, null, 2));
-        token.sub = user.id;
-        if (user.provider) {
-          token.provider = user.provider;
-        }
-        if ((user as any).supabaseAccessToken) {
-          (token as any).supabaseAccessToken = (user as any).supabaseAccessToken;
-          console.log("[NextAuth Callback: jwt] Transferred supabaseAccessToken from user to token.");
-        }
+      }
+      if (account) {
+        console.log("[NextAuth Callback: jwt] Account object present:", JSON.stringify(account, null, 2));
       }
 
-      if (!(token as any).supabaseAccessToken && token.sub && process.env.SUPABASE_JWT_SECRET) {
-        console.log(`[NextAuth Callback: jwt] supabaseAccessToken missing in token. Attempting to re-mint for user ID: ${token.sub}`);
-        const supabaseJwtPayload = {
-          sub: token.sub,
-          role: 'authenticated',
-          exp: Math.floor(Date.now() / 1000) + (60 * 60),
-        };
+      // START OF NEW REFRESH LOGIC
+      // Check if Supabase access token exists and is expiring soon or already expired
+      if (token.supabaseAccessToken && typeof token.supabaseAccessToken === 'string') {
         try {
-          const newSupabaseToken = jwt.sign(supabaseJwtPayload, process.env.SUPABASE_JWT_SECRET);
-          (token as any).supabaseAccessToken = newSupabaseToken;
-          console.log("[NextAuth Callback: jwt] Re-minted and added supabaseAccessToken to token.");
-        } catch (jwtError) {
-          console.error("[NextAuth Callback: jwt] Error re-minting Supabase JWT:", jwtError);
+          const decodedSupabaseToken = jwt.decode(token.supabaseAccessToken) as { exp?: number; sub?: string, role?: string };
+          // Ensure all necessary parts of the decoded token are present
+          if (decodedSupabaseToken && typeof decodedSupabaseToken.exp === 'number' && typeof decodedSupabaseToken.sub === 'string') {
+            const nowInSeconds = Math.floor(Date.now() / 1000);
+            const fiveMinutesInSeconds = 5 * 60; // 5 minutes buffer
+
+            if (decodedSupabaseToken.exp < (nowInSeconds + fiveMinutesInSeconds)) {
+              console.log("[NextAuth Callback: jwt] Supabase access token is expiring or expired. Re-minting...");
+              if (process.env.SUPABASE_JWT_SECRET) {
+                const newPayload = {
+                  sub: decodedSupabaseToken.sub,
+                  role: decodedSupabaseToken.role || 'authenticated',
+                  // Add any other consistent claims that were in the original token if necessary, e.g., aud, iss
+                };
+                const newSupabaseAccessToken = jwt.sign(
+                  newPayload,
+                  process.env.SUPABASE_JWT_SECRET,
+                  { expiresIn: '1h' } // New 1-hour expiry
+                );
+                token.supabaseAccessToken = newSupabaseAccessToken;
+                console.log("[NextAuth Callback: jwt] Supabase access token re-minted.");
+              } else {
+                console.error("[NextAuth Callback: jwt] Cannot re-mint Supabase token: Missing JWT secret.");
+              }
+            } else {
+              // console.log("[NextAuth Callback: jwt] Supabase access token is still valid."); // Can be verbose
+            }
+          } else {
+            console.warn("[NextAuth Callback: jwt] Could not decode Supabase token or essential claims (exp, sub) missing for refresh check.");
+          }
+        } catch (e) {
+          console.error("[NextAuth Callback: jwt] Error decoding existing Supabase access token during refresh check:", e);
         }
-      } else if (!(token as any).supabaseAccessToken && token.sub && !process.env.SUPABASE_JWT_SECRET) {
-          console.warn("[NextAuth Callback: jwt] SUPABASE_JWT_SECRET not set. Cannot re-mint Supabase JWT.");
+      }
+      // END OF NEW REFRESH LOGIC
+
+      // This block runs on initial sign-in/link when `user` and `account` are present
+      // It sets up the token with user details and the initial Supabase access token.
+      if (account && user && user.id) { 
+        token.sub = user.id; // `sub` claim should be the user's Supabase ID
+        token.userId = user.id; 
+        token.name = user.name;
+        token.email = user.email; 
+        token.picture = user.image;
+        token.provider = account.provider || user.provider;
+
+        // Mint Supabase JWT only if it's not already present (e.g. from refresh logic above)
+        // or if we want to ensure it's freshly minted on any new account link/sign-in event.
+        // The refresh logic above should handle subsequent calls.
+        // This check ensures it's minted if it wasn't (e.g. very first sign-in).
+        if (!token.supabaseAccessToken && process.env.SUPABASE_JWT_SECRET) {
+          const payload = {
+            sub: user.id, 
+            role: 'authenticated', 
+            // email: user.email, // Optional: include email if needed in JWT claims
+            // user_metadata: { name: user.name, picture: user.image } // Optional
+          };
+          const supabaseAccessToken = jwt.sign(
+            payload,
+            process.env.SUPABASE_JWT_SECRET,
+            { expiresIn: '1h' }
+          );
+          token.supabaseAccessToken = supabaseAccessToken;
+          console.log("[NextAuth Callback: jwt] Supabase access token minted for new sign-in/account link for user:", user.id);
+        } else if (!token.supabaseAccessToken && !process.env.SUPABASE_JWT_SECRET) { // Log error if secret missing and token not there
+          console.error("[NextAuth Callback: jwt] SUPABASE_JWT_SECRET is not set. Cannot mint Supabase JWT for user:", user.id);
+        }
+        
+        // Store LINE access token if available (this is different from Supabase token)
+        if (account.provider === 'line' && account.access_token) {
+          token.lineAccessToken = account.access_token;
+          // Check if expires_at is in seconds and convert to milliseconds
+          token.lineExpiresAt = account.expires_at ? (account.expires_at * 1000) : undefined; 
+        }
+      }
+      
+      // Handle session updates if `trigger` is "update" (NextAuth v4 feature)
+      if (trigger === "update" && updateSession) {
+        console.log("[NextAuth Callback: jwt] Handling update trigger with session:", JSON.stringify(updateSession, null, 2));
+        if (updateSession.name) token.name = updateSession.name;
+        if (updateSession.picture) token.picture = updateSession.picture;
+        // Add any other fields from `updateSession` that you want to be reflected in the JWT `token`
       }
 
-      console.log("[NextAuth Callback: jwt] Final supabaseAccessToken status:", (token as any).supabaseAccessToken ? 'Present' : 'Missing');
+      console.log("[NextAuth Callback: jwt] Final supabaseAccessToken status:", token.supabaseAccessToken ? "Present" : "Absent");
       console.log("[NextAuth Callback: jwt] Final full token:", JSON.stringify(token, null, 2));
       return token;
     }
   },
+  // ... rest of the authOptions (secret, pages, etc.)
+  secret: process.env.NEXTAUTH_SECRET,
   pages: {
-    signIn: '/auth/login',
-    error: '/auth/error',
+    signIn: '/auth/login', // Default sign-in page
+    // signOut: '/auth/signout',
+    error: '/auth/error', // Error code passed in query string as ?error=
+    // verifyRequest: '/auth/verify-request', // (used for email/passwordless login)
+    // newUser: null // If you want to redirect new users to a specific page
   },
   session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 0, // Disable activity-based session extension
+    strategy: 'jwt', // Using JWT strategy
+    // maxAge: 30 * 24 * 60 * 60, // 30 days for session JWT itself
+    // updateAge: 24 * 60 * 60, // 24 hours to update session JWT
   },
-  debug: false,
-}; 
+  // debug: process.env.NODE_ENV === 'development', // Enable debug messages in development
+};

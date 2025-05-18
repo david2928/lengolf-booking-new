@@ -2,19 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --primary-color: #005a32;
-  --neutral-color: #000000;
-  --accent-color: #ffffff;
-  --background-color: #f0f0f0;
-  --foreground-color: #171717;
-  --footer-bg-color: #f5fef9;
-  --footer-heading-color: #2b6f36;
-  --footer-text-color: #9fa4a5;
+@layer base {
+  :root {
+    --background: 0 0% 100%; /* #f0f0f0 as HSL */
+    --foreground: 0 0% 3.9%; /* Default dark text */
+    
+    --card: 0 0% 100%; /* Card background (white) */
+    --card-foreground: 0 0% 3.9%; /* Card text */
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    
+    --primary: 151 100% 17.6%; /* Lengolf Green #005a32 */
+    --primary-foreground: 0 0% 98%; /* Text on primary (light) */
+    
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%; /* Muted text */
+    
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    
+    --radius: 0.5rem;
+
+    /* Your existing custom variables - ensure they align or are mapped */
+    --primary-color: #005a32; /* Matches --primary */
+    --neutral-color: #000000;
+    /* --accent-color: #ffffff; /* Consider mapping to --accent or use as is if distinct */
+    --background-color: #f0f0f0; /* Matches --background */
+    --foreground-color: #171717; /* Matches --foreground (mostly) */
+    --footer-bg-color: #f5fef9;
+    --footer-heading-color: #2b6f36;
+    --footer-text-color: #9fa4a5;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%; /* Standard dark background */
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%; 
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+
+    /* Adjust your custom variables for dark mode */
+    --primary-color: #006a3b;
+    --background-color: #121212; 
+    --foreground-color: #e0e0e0;
+    --footer-bg-color: #1a1a1a;
+    --footer-heading-color: #4caf50;
+    --footer-text-color: #a0aec0;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
 }
 
 body {
-  @apply min-h-screen bg-gray-50;
+  @apply min-h-screen;
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
@@ -96,3 +169,12 @@ body {
   width: 1.5em; 
   height: 1.5em;
 } */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

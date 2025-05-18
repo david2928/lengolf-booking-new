@@ -15,133 +15,264 @@ The goal is to detail the required database changes, API endpoints, frontend com
 
 ## 3. Database Schema Modifications
 
-1.  **`profiles` Table:**
-    *   Add a new column: `marketing_preference`
-        *   Type: `BOOLEAN`
-        *   Default: `TRUE`
-        *   Nullable: `FALSE` (Set default `TRUE` during migration)
+1.  **`profiles` Table (specifically `profiles_vip_staging`):**
+    *   The column `marketing_preference` has been **removed** from this table. It is now managed in `vip_customer_data`.
+    *   Add a new column: `vip_customer_data_id`
+        *   Type: `UUID`
+        *   Nullable: `TRUE`
+        *   Foreign Key: References `public.vip_customer_data(id)`
+        *   `ON DELETE SET NULL` (or `ON DELETE RESTRICT` depending on desired behavior if a `vip_customer_data` record is deleted)
+    *   *Migration SQL for adding `vip_customer_data_id` (assuming `profiles_vip_staging`):*
+        ```sql
+        ALTER TABLE public.profiles_vip_staging
+        ADD COLUMN IF NOT EXISTS vip_customer_data_id UUID REFERENCES public.vip_customer_data(id) ON DELETE SET NULL;
+        
+        COMMENT ON COLUMN public.profiles_vip_staging.vip_customer_data_id IS 'Foreign key linking to the central VIP customer data record.';
+        ```
+    *   *Migration SQL for removing `marketing_preference` (assuming `profiles_vip_staging`):*
+        ```sql
+        ALTER TABLE public.profiles_vip_staging
+        DROP COLUMN IF EXISTS marketing_preference;
+        ```
+
+2.  **`vip_customer_data` Table:**
+    *   Purpose: Centralizes VIP-specific, user-editable data and links to CRM and VIP Tiers.
+    *   Columns:
+        *   `id` (UUID, Primary Key, default: `gen_random_uuid()`)
+        *   `vip_display_name` (TEXT, NULLABLE)
+        *   `vip_email` (TEXT, NULLABLE)
+        *   `vip_marketing_preference` (BOOLEAN, NULLABLE, DEFAULT TRUE)
+        *   `stable_hash_id` (TEXT, NULLABLE, for linking to `customers` table via their `stable_hash_id`)
+        *   `vip_phone_number` (TEXT, NULLABLE)
+        *   `vip_tier_id` (INTEGER, NULLABLE, Foreign Key to `public.vip_tiers(id) ON DELETE SET NULL`)
+        *   `created_at` (TIMESTAMPTZ, default: `now()`)
+        *   `updated_at` (TIMESTAMPTZ, default: `now()`)
     *   *Migration SQL:*
         ```sql
-        -- Add the column, allowing NULLs temporarily for existing rows
-        ALTER TABLE public.profiles
-        ADD COLUMN IF NOT EXISTS marketing_preference BOOLEAN;
+        CREATE TABLE IF NOT EXISTS public.vip_customer_data (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            vip_display_name TEXT,
+            vip_email TEXT,
+            vip_marketing_preference BOOLEAN DEFAULT TRUE,
+            stable_hash_id TEXT,
+            vip_phone_number TEXT,
+            vip_tier_id INTEGER REFERENCES public.vip_tiers(id) ON DELETE SET NULL,
+            created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+            updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+        );
 
-        -- Set the default value for future inserts
-        ALTER TABLE public.profiles
-        ALTER COLUMN marketing_preference SET DEFAULT TRUE;
-
-        -- Update existing rows to the default value
-        UPDATE public.profiles
-        SET marketing_preference = TRUE
-        WHERE marketing_preference IS NULL;
-
-        -- Make the column NOT NULL after ensuring all rows have a value
-        ALTER TABLE public.profiles
-        ALTER COLUMN marketing_preference SET NOT NULL;
+        COMMENT ON TABLE public.vip_customer_data IS 'Stores VIP customer specific data, including preferences and links.';
+        COMMENT ON COLUMN public.vip_customer_data.stable_hash_id IS 'Can be used to link to the CRM customers table if a stable_hash_id exists.';
+        COMMENT ON COLUMN public.vip_customer_data.vip_tier_id IS 'Foreign key to the vip_tiers table.';
+        
+        -- Trigger to automatically update updated_at
+        CREATE TRIGGER handle_updated_at
+        BEFORE UPDATE ON public.vip_customer_data
+        FOR EACH ROW
+        EXECUTE FUNCTION moddatetime (updated_at);
         ```
 
-2.  **`crm_customer_mapping` Table:**
-    *   Ensure the table structure supports placeholder records where `is_matched = false` and `crm_customer_id` / `stable_hash_id` can be `NULL`. The existing logic creating placeholder records confirms this capability.
+3.  **`vip_tiers` Table:**
+    *   Purpose: Dimension table for VIP tier definitions.
+    *   Columns:
+        *   `id` (SERIAL, Primary Key) - Changed from INTEGER to SERIAL for auto-increment.
+        *   `tier_name` (TEXT, NOT NULL, UNIQUE)
+        *   `description` (TEXT, NULLABLE)
+        *   `status` (TEXT, NULLABLE, e.g., 'active', 'inactive', default: 'active')
+        *   `sort_order` (INTEGER, NULLABLE, default: 0)
+        *   `created_at` (TIMESTAMPTZ, default: `now()`)
+        *   `updated_at` (TIMESTAMPTZ, default: `now()`)
+    *   *Migration SQL:*
+        ```sql
+        CREATE TABLE IF NOT EXISTS public.vip_tiers (
+            id SERIAL PRIMARY KEY,
+            tier_name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            status TEXT DEFAULT 'active',
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+            updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+        );
 
-3.  **Indexes (Recommendations):**
-    *   `profiles`: Ensure index on `id` (primary key).
-    *   `crm_customer_mapping`: Ensure indexes on `profile_id` (for lookups) and potentially `(profile_id, is_matched)`.
-    *   `bookings`: Ensure index on `user_id` (for fetching user's bookings).
-    *   `crm_packages`: Ensure index on `stable_hash_id` (for fetching customer's packages).
+        COMMENT ON TABLE public.vip_tiers IS 'Dimension table for VIP tier definitions.';
+        
+        -- Trigger to automatically update updated_at
+        CREATE TRIGGER handle_updated_at
+        BEFORE UPDATE ON public.vip_tiers
+        FOR EACH ROW
+        EXECUTE FUNCTION moddatetime (updated_at);
+        ```
 
-4.  **Row Level Security (RLS) Policies:**
-    *   **Requirement:** Enable RLS on relevant tables.
-    *   **Verification Needed:** Confirm the exact function in Supabase policies to get the authenticated user's ID (likely `auth.uid()`, which corresponds to `profiles.id`).
-    *   **`profiles` Table:**
+4.  **`crm_customer_mapping` Table (specifically `crm_customer_mapping_vip_staging`):**
+    *   No changes required by this specific update, but its role in linking `profiles_vip_staging` to CRM `customers` (often via `stable_hash_id`) remains. `vip_customer_data.stable_hash_id` now provides a more direct route for profile-to-CRM linkage for VIP data.
+
+5.  **Indexes (Recommendations):**
+    *   `profiles_vip_staging`: Ensure index on `id` (primary key), and `vip_customer_data_id`.
+    *   `vip_customer_data`: Ensure index on `id` (primary key), `stable_hash_id`, `vip_tier_id`.
+    *   `vip_tiers`: Ensure index on `id` (primary key), `tier_name`.
+    *   `crm_customer_mapping_vip_staging`: Ensure indexes on `profile_id` and `stable_hash_id`.
+    *   `bookings`: Ensure index on `user_id`.
+    *   `crm_packages`: Ensure index on `stable_hash_id`.
+
+6.  **Row Level Security (RLS) Policies:**
+    *   **Requirement:** Enable RLS on relevant tables. Tables are `profiles_vip_staging`, `vip_customer_data`, `vip_tiers`.
+    *   **`profiles_vip_staging` Table:**
         ```sql
         -- Drop existing policies if necessary before creating new ones
-        DROP POLICY IF EXISTS "Allow individual user access" ON public.profiles;
+        DROP POLICY IF EXISTS "Allow individual user access" ON public.profiles_vip_staging;
         -- Allow users to select/update their own profile
-        CREATE POLICY "Allow individual user access" ON public.profiles
-        FOR ALL -- Grants SELECT, INSERT, UPDATE, DELETE
+        CREATE POLICY "Allow individual user access" ON public.profiles_vip_staging
+        FOR ALL
         USING (auth.uid() = id)
-        WITH CHECK (auth.uid() = id); -- Ensures users can only insert/update their own profile
+        WITH CHECK (auth.uid() = id);
         ```
-    *   **`bookings` Table:**
+    *   **`vip_customer_data` Table:**
+        ```sql
+        DROP POLICY IF EXISTS "Allow individual user CRUD on linked vip_customer_data" ON public.vip_customer_data;
+        -- Allow users to select/insert/update/delete their own vip_customer_data record,
+        -- linked via profiles_vip_staging.vip_customer_data_id
+        CREATE POLICY "Allow individual user CRUD on linked vip_customer_data" ON public.vip_customer_data
+        FOR ALL
+        USING (
+          EXISTS (
+            SELECT 1
+            FROM public.profiles_vip_staging pvs
+            WHERE pvs.id = auth.uid() AND pvs.vip_customer_data_id = public.vip_customer_data.id
+          )
+        )
+        WITH CHECK (
+          EXISTS (
+            SELECT 1
+            FROM public.profiles_vip_staging pvs
+            WHERE pvs.id = auth.uid() AND pvs.vip_customer_data_id = public.vip_customer_data.id
+          )
+          OR 
+          -- Allow insert if the user is creating a new record that will be linked.
+          -- This might be complex to enforce perfectly here if ID is client-generated before link.
+          -- Simpler: allow insert if auth.uid() exists, then link in transaction.
+          -- For now, focusing on access post-link. API handles creation and linking.
+          (
+            -- This condition is more for API-driven inserts where linking happens immediately.
+            -- Direct inserts might need a different strategy or rely on service_role.
+            auth.uid() IS NOT NULL 
+          )
+        );
+
+        -- A more permissive SELECT if needed by other logic (e.g. admin) would be separate.
+        -- For user-facing operations, the above should suffice.
+        -- Ensure users can create a new record: API will insert then update profiles_vip_staging.vip_customer_data_id.
+        -- The RLS for INSERT without an existing link needs careful thought.
+        -- A simpler INSERT RLS:
+        -- CREATE POLICY "Allow authenticated user to insert into vip_customer_data" ON public.vip_customer_data
+        -- FOR INSERT
+        -- TO authenticated
+        -- WITH CHECK (true); -- API must then ensure it's linked to the correct profiles_vip_staging.id
+        ```
+    *   **`vip_tiers` Table:**
+        ```sql
+        DROP POLICY IF EXISTS "Allow all authenticated read access to vip_tiers" ON public.vip_tiers;
+        -- Generally, tier definitions are public or readable by all authenticated users.
+        CREATE POLICY "Allow all authenticated read access to vip_tiers" ON public.vip_tiers
+        FOR SELECT
+        TO authenticated
+        USING (true);
+        -- Admin/service_role would have policies for CUD operations on tiers.
+        ```
+    *   **`bookings` Table:** (Ensure `user_id` corresponds to `auth.uid()`)
         ```sql
         DROP POLICY IF EXISTS "Allow individual user access to bookings" ON public.bookings;
-        -- Allow users to select/update/delete their own bookings
         CREATE POLICY "Allow individual user access to bookings" ON public.bookings
         FOR ALL
         USING (auth.uid() = user_id)
         WITH CHECK (auth.uid() = user_id);
         ```
-    *   **`crm_customer_mapping` Table:**
+    *   **`crm_customer_mapping_vip_staging` Table:**
         ```sql
-        DROP POLICY IF EXISTS "Allow individual read access to own mapping" ON public.crm_customer_mapping;
-        -- Allow users to select their own mapping record
-        CREATE POLICY "Allow individual read access to own mapping" ON public.crm_customer_mapping
+        DROP POLICY IF EXISTS "Allow individual read access to own mapping" ON public.crm_customer_mapping_vip_staging;
+        CREATE POLICY "Allow individual read access to own mapping" ON public.crm_customer_mapping_vip_staging
         FOR SELECT
         USING (auth.uid() = profile_id);
-        -- INSERT/UPDATE should be handled by secure backend functions/APIs only, not direct user writes.
         ```
-    *   **`customers` Table:**
-        *   Users should not have direct access. Access should be via backend APIs that join through `crm_customer_mapping`. Consider adding a restrictive policy if RLS is enabled globally on this table.
+    *   **`customers` Table:** (Access via backend APIs)
         ```sql
-        -- Example: Deny direct access unless coming from a specific role (e.g., service_role)
-        -- Or allow select only if linked via mapping:
-        DROP POLICY IF EXISTS "Allow linked user read access" ON public.customers;
-        CREATE POLICY "Allow linked user read access" ON public.customers
+        DROP POLICY IF EXISTS "Allow linked user read access via stable_hash_id" ON public.customers;
+        CREATE POLICY "Allow linked user read access via stable_hash_id" ON public.customers
         FOR SELECT
         USING (
-          EXISTS (
+          EXISTS ( -- If linked via vip_customer_data's stable_hash_id
             SELECT 1
-            FROM public.crm_customer_mapping mapping
-            WHERE mapping.profile_id = auth.uid()
-              AND mapping.is_matched = true
-              AND mapping.crm_customer_id = public.customers.id -- Adjust column name if needed
+            FROM public.profiles_vip_staging pvs
+            JOIN public.vip_customer_data vcd ON pvs.vip_customer_data_id = vcd.id
+            WHERE pvs.id = auth.uid()
+              AND vcd.stable_hash_id IS NOT NULL
+              AND vcd.stable_hash_id = public.customers.stable_hash_id
+          ) OR EXISTS ( -- Or if linked via crm_customer_mapping_vip_staging's stable_hash_id
+            SELECT 1
+            FROM public.crm_customer_mapping_vip_staging ccms
+            WHERE ccms.profile_id = auth.uid()
+              AND ccms.is_matched = true
+              AND ccms.stable_hash_id IS NOT NULL
+              AND ccms.stable_hash_id = public.customers.stable_hash_id
           )
         );
         ```
-    *   **`crm_packages` Table:**
-        *   Similar to `customers`, access should be restricted.
+    *   **`crm_packages` Table:** (Access via backend APIs based on `stable_hash_id`)
         ```sql
-        DROP POLICY IF EXISTS "Allow linked user read access to packages" ON public.crm_packages;
-        CREATE POLICY "Allow linked user read access to packages" ON public.crm_packages
+        DROP POLICY IF EXISTS "Allow linked user read access to packages via stable_hash_id" ON public.crm_packages;
+        CREATE POLICY "Allow linked user read access to packages via stable_hash_id" ON public.crm_packages
         FOR SELECT
         USING (
-          EXISTS (
+          EXISTS ( -- If linked via vip_customer_data's stable_hash_id
             SELECT 1
-            FROM public.crm_customer_mapping mapping
-            WHERE mapping.profile_id = auth.uid()
-              AND mapping.is_matched = true
-              AND mapping.stable_hash_id = public.crm_packages.stable_hash_id
+            FROM public.profiles_vip_staging pvs
+            JOIN public.vip_customer_data vcd ON pvs.vip_customer_data_id = vcd.id
+            WHERE pvs.id = auth.uid()
+              AND vcd.stable_hash_id IS NOT NULL
+              AND vcd.stable_hash_id = public.crm_packages.stable_hash_id
+          ) OR EXISTS ( -- Or if linked via crm_customer_mapping_vip_staging's stable_hash_id
+            SELECT 1
+            FROM public.crm_customer_mapping_vip_staging ccms
+            WHERE ccms.profile_id = auth.uid()
+              AND ccms.is_matched = true
+              AND ccms.stable_hash_id IS NOT NULL
+              AND ccms.stable_hash_id = public.crm_packages.stable_hash_id
           )
         );
         ```
-    *   **Important:** Applying RLS will block access via the `anon` key unless specific permissive policies for the `anon` role are added. Review if any public access is needed via `anon`.
+    *   **Important:** Applying RLS will block access via the `anon` key unless specific permissive policies for the `anon` role are added.
 
 ## 4. API Endpoint Specifications
 
-All VIP API endpoints below require the user to be authenticated via NextAuth.js. Middleware should enforce this.
+All VIP API endpoints below require the user to be authenticated via NextAuth.js. Middleware should enforce this. The table names `profiles` and `crm_customer_mapping` in the original spec should be interpreted as `profiles_vip_staging` and `crm_customer_mapping_vip_staging` respectively, unless explicitly referring to the CRM's `customers` table.
 
 1.  **`GET /api/vip/status`**
-    *   **Purpose:** Check if the authenticated user is linked to a matched CRM customer.
+    *   **Purpose:** Check if the authenticated user is linked to a matched CRM customer. This now also considers `vip_customer_data.stable_hash_id`.
     *   **Authorization:** Authenticated user.
     *   **Logic:**
         1.  Get `profile_id` from session.
-        2.  Query `crm_customer_mapping` WHERE `profile_id` = session `profile_id`.
-        3.  If record exists AND `is_matched = true`, return `linked_matched`.
-        4.  If record exists AND `is_matched = false`, return `linked_unmatched`.
-        5.  If no record exists, return `not_linked`. (The system should aim to create placeholders proactively, so `not_linked` might be rare after initial login).
+        2.  Query `profiles_vip_staging` for `vip_customer_data_id`.
+        3.  If `vip_customer_data_id` exists, query `vip_customer_data` for `stable_hash_id`.
+            *   If `stable_hash_id` from `vip_customer_data` exists, check against `customers` table.
+                *   If match in `customers`, return `linked_matched` with `crmCustomerId` and `stableHashId`.
+                *   If no match in `customers`, return `linked_unmatched` (or a new status like `vip_data_exists_crm_unmatched`) with `stableHashId` from `vip_customer_data`.
+        4.  If no `stable_hash_id` from `vip_customer_data` (or no `vip_customer_data_id`), then check `crm_customer_mapping_vip_staging` for `profile_id`.
+            *   If record exists AND `is_matched = true` and `stable_hash_id` (or `crm_customer_id`) present, check against `customers`.
+                *   If match, return `linked_matched` with `crmCustomerId` and `stableHashId`.
+            *   If record exists AND `is_matched = false` (or no CRM link established), return `linked_unmatched`.
+        5.  If no relevant records found, return `not_linked`.
     *   **Response (Success - 200 OK):**
         ```json
         {
-          "status": "linked_matched" | "linked_unmatched" | "not_linked",
-          "crmCustomerId": "string | null", // Populated if linked_matched
-          "stableHashId": "string | null"  // Populated if linked_matched
+          "status": "linked_matched" | "linked_unmatched" | "not_linked" | "vip_data_exists_crm_unmatched",
+          "crmCustomerId": "string | null", 
+          "stableHashId": "string | null"
         }
         ```
     *   **Response (Error - 401/500):** Standard error format.
 
 2.  **`POST /api/vip/link-account`**
-    *   **Purpose:** Attempt to manually link the authenticated user to a CRM customer using a provided phone number.
-    *   **Authorization:** Authenticated user (ideally whose status is `linked_unmatched` or `not_linked`).
+    *   **Purpose:** Attempt to manually link the authenticated user to a CRM customer using a provided phone number. This should now create/update `vip_customer_data` with the `stable_hash_id` if a match is found, and link it to `profiles_vip_staging`.
+    *   **Authorization:** Authenticated user.
     *   **Request Body:**
         ```json
         {
@@ -150,18 +281,24 @@ All VIP API endpoints below require the user to be authenticated via NextAuth.js
         ```
     *   **Logic:**
         1.  Get `profile_id` from session.
-        2.  Validate `phoneNumber` format.
-        3.  Fetch user's profile data (`name`, `email`) from `profiles` using `profile_id`.
-        4.  Use matching logic (similar to `getOrCreateCrmMapping` / `matchProfileWithCrm`) to search `customers` table using the provided `phoneNumber` and fetched profile data.
-        5.  If high-confidence match found:
-            *   Upsert `crm_customer_mapping` record for `profile_id`, setting `is_matched = true`, `crm_customer_id`, `stable_hash_id`, `crm_customer_data`.
-            *   Return success.
-        6.  If no/low-confidence match found:
-            *   Return failure/not found status. The `crm_customer_mapping` record remains `is_matched = false`.
+        2.  Validate `phoneNumber`.
+        3.  Search `customers` table using `phoneNumber`.
+        4.  If high-confidence match found (get `stable_hash_id` and `crm_customer_id` from `customers`):
+            *   Fetch `profiles_vip_staging.vip_customer_data_id`.
+            *   If `vip_customer_data_id` exists:
+                *   Update `vip_customer_data` SET `stable_hash_id` = matched `stable_hash_id`.
+            *   Else (no `vip_customer_data_id`):
+                *   Create new `vip_customer_data` record with `stable_hash_id` = matched `stable_hash_id`, (and copy `vip_display_name`, `vip_email` from `profiles_vip_staging` if desired as initial values).
+                *   Get the new `vip_customer_data.id`.
+                *   Update `profiles_vip_staging` SET `vip_customer_data_id` = new `vip_customer_data.id`.
+            *   Optionally, also update `crm_customer_mapping_vip_staging` for consistency or if other systems rely on it.
+            *   Return success with `crmCustomerId` and `stableHashId`.
+        5.  If no match, return failure.
     *   **Response (Success - 200 OK):**
         ```json
         {
-          "success": true,
+          "message": "Account linked successfully.", // Updated message
+          "status": "linked_matched", // New status field
           "crmCustomerId": "string",
           "stableHashId": "string"
         }
@@ -169,55 +306,94 @@ All VIP API endpoints below require the user to be authenticated via NextAuth.js
     *   **Response (Not Found - 404 Not Found):**
         ```json
         {
-          "success": false,
-          "error": "No matching customer account found."
+          "error": "No matching customer account found." // Updated key to error
         }
         ```
     *   **Response (Error - 400/401/500):** Standard error format.
 
 3.  **`GET /api/vip/profile`**
-    *   **Purpose:** Fetch profile data for the authenticated user.
+    *   **Purpose:** Fetch profile data for the authenticated user, prioritizing `vip_customer_data`.
     *   **Authorization:** Authenticated user.
     *   **Logic:**
-        1.  Get `profile_id` from session.
-        2.  Query `profiles` table WHERE `id` = `profile_id` to get `name`, `email`, `pictureUrl`, `marketingPreference`.
-        3.  Query `crm_customer_mapping` WHERE `profile_id` = `profile_id`.
-        4.  If `mapping.is_matched = true`, query `customers` table WHERE `id` = `mapping.crm_customer_id` to get `contact_number`.
-        5.  Assemble response, prioritizing `customers.contact_number` if available, otherwise fallback to `profiles.phone_number` (if it exists).
+        1.  Get `profile_id` (user's UUID) from session.
+        2.  Query `profiles_vip_staging` for `id, email, display_name, picture_url, phone_number, vip_customer_data_id`.
+        3.  Initialize `name` from `profiles_vip_staging.display_name`, `email` from `profiles_vip_staging.email`, `phoneNumber` from `profiles_vip_staging.phone_number`.
+        4.  Initialize `marketingPreference = null`, `vipTierInfo = null`.
+        5.  If `profiles_vip_staging.vip_customer_data_id` exists:
+            *   Query `vip_customer_data` for `vip_display_name, vip_email, vip_marketing_preference, stable_hash_id, vip_phone_number, vip_tier_id` using `vip_customer_data_id`.
+            *   If data found:
+                *   Override `name` with `vip_data.vip_display_name` if not null.
+                *   Override `email` with `vip_data.vip_email` if not null.
+                *   Set `marketingPreference` from `vip_data.vip_marketing_preference`.
+                *   Set `stableHashIdToUse = vip_data.stable_hash_id`.
+                *   If `vip_data.vip_phone_number` is not null, set `phoneNumber = vip_data.vip_phone_number`.
+                *   If `vip_data.vip_tier_id` exists, query `vip_tiers` for `id, tier_name, description`. Store as `vipTierInfo`.
+        6.  Determine `crmStatus`, `crmCustomerId`, `finalStableHashId`:
+            *   If `stableHashIdToUse` (from `vip_customer_data`):
+                *   Query `customers` using `stableHashIdToUse`.
+                *   If match: `crmStatus = 'linked_matched'`, `crmCustomerId = customers.id`, `finalStableHashId = customers.stable_hash_id`. If `customers.contact_number` exists, it takes precedence for `phoneNumber`.
+                *   Else: `crmStatus = 'linked_unmatched'` (or `vip_data_exists_crm_unmatched`), `finalStableHashId = stableHashIdToUse`.
+            *   Else (no `stableHashIdToUse` from `vip_customer_data`):
+                *   Query `crm_customer_mapping_vip_staging` using `profile_id`.
+                *   If mapping found with `is_matched=true` and `stable_hash_id`: Query `customers` by `stable_hash_id`. If match, update `phoneNumber` if `customers.contact_number` exists. Set `crmStatus`, `crmCustomerId`, `finalStableHashId`.
+                *   Else if mapping found with `is_matched=true` and `crm_customer_id` (fallback): Query `customers` by `crm_customer_id`. Update `phoneNumber` if exists. Set `crmStatus`, `crmCustomerId`.
+                *   Else `crmStatus = 'linked_unmatched'` or `not_linked`.
     *   **Response (Success - 200 OK):**
         ```json
         {
-          "id": "string", // profile_id
-          "name": "string | null",
-          "email": "string | null",
-          "phoneNumber": "string | null", // From linked customer preferred, else profile
-          "pictureUrl": "string | null",
-          "marketingPreference": true | false
+          "id": "string", // profile_id from profiles_vip_staging
+          "name": "string | null", // from vip_customer_data or profiles_vip_staging
+          "email": "string | null", // from vip_customer_data or profiles_vip_staging
+          "phoneNumber": "string | null", // Resolved: CRM > vip_customer_data > profiles_vip_staging
+          "pictureUrl": "string | null", // from profiles_vip_staging
+          "marketingPreference": true | false | null, // from vip_customer_data
+          "crmStatus": "linked_matched" | "linked_unmatched" | "not_linked" | "vip_data_exists_crm_unmatched",
+          "crmCustomerId": "string | null",
+          "stableHashId": "string | null", // The definitive stable_hash_id after resolution
+          "vipTier": { // from vip_tiers
+            "id": 1,
+            "name": "Eagle",
+            "description": "string | null"
+          } | null
         }
         ```
     *   **Response (Error - 401/404/500):** Standard error format.
 
 4.  **`PUT /api/vip/profile`**
-    *   **Purpose:** Update editable profile data (`name`, `email`, `marketingPreference`).
+    *   **Purpose:** Update editable profile data, primarily in `vip_customer_data`. Creates `vip_customer_data` if not linked.
     *   **Authorization:** Authenticated user.
     *   **Request Body:**
         ```json
         {
-          "name": "string", // Optional
-          "email": "string", // Optional
-          "marketingPreference": true | false // Optional
+          "display_name": "string", // Optional, updates vip_customer_data.vip_display_name
+          "email": "string", // Optional, updates vip_customer_data.vip_email
+          "marketingPreference": true | false, // Optional, updates vip_customer_data.vip_marketing_preference
+          "vip_phone_number": "string | null" // Optional, updates vip_customer_data.vip_phone_number
         }
         ```
     *   **Logic:**
-        1.  Get `profile_id` from session.
-        2.  Validate input fields (e.g., email format).
-        3.  Construct update object with only provided fields.
-        4.  Update `profiles` table SET `field` = `value` WHERE `id` = `profile_id`.
+        1.  Get `profile_id` from session. Validate inputs.
+        2.  Fetch `profiles_vip_staging` for `id, vip_customer_data_id, display_name, email`.
+        3.  If no `vip_customer_data_id` on `profiles_vip_staging`:
+            *   Create new `vip_customer_data` record.
+                *   `vip_display_name` = `req.display_name` ?? `profiles_vip_staging.display_name`.
+                *   `vip_email` = `req.email` ?? `profiles_vip_staging.email`.
+                *   `vip_marketing_preference` = `req.marketingPreference`.
+                *   `vip_phone_number` = `req.vip_phone_number`.
+                *   `vip_tier_id` remains null (tier not updatable via this endpoint).
+            *   Get new `vip_customer_data.id` (`newVipDataId`).
+            *   Update `profiles_vip_staging` SET `vip_customer_data_id = newVipDataId`.
+            *   Set `targetVipDataId = newVipDataId`.
+        4.  Else (`vip_customer_data_id` exists):
+            *   `targetVipDataId = profiles_vip_staging.vip_customer_data_id`.
+            *   Construct update payload for `vip_customer_data` with `req.display_name`, `req.email`, `req.marketingPreference`, `req.vip_phone_number` if provided.
+            *   Update `vip_customer_data` WHERE `id = targetVipDataId`.
+        5.  Track `updatedFieldsAccumulator`.
     *   **Response (Success - 200 OK):**
         ```json
         {
-          "success": true,
-          "updatedFields": ["name", "marketingPreference"] // Example: list of fields that were updated
+          "message": "Profile updated successfully.", // Updated message
+          "updatedFields": ["display_name", "marketingPreference", "vip_phone_number"] // Example
         }
         ```
     *   **Response (Error - 400/401/500):** Standard error format.
@@ -316,7 +492,7 @@ All VIP API endpoints below require the user to be authenticated via NextAuth.js
     *   **Authorization:** Authenticated user.
     *   **Logic:**
         1.  Get `profile_id` from session.
-        2.  Query `crm_customer_mapping` WHERE `profile_id` = `profile_id`.
+        2.  Query `crm_customer_mapping_vip_staging` WHERE `profile_id` = `profile_id`.
         3.  If no mapping found OR `is_matched = false`, return empty lists.
         4.  Extract `stable_hash_id` from the mapping.
         5.  Query `crm_packages` WHERE `stable_hash_id` = retrieved hash.
@@ -362,18 +538,13 @@ Pages under `app/vip/`: `layout.tsx`, `page.tsx` (dashboard/entry - maybe redire
 
 ## 6. Core Logic Implementation Notes
 
-*   **Placeholder Mapping Creation:** The primary trigger for checking/creating the mapping should be during user sign-in or initial session validation.
-    *   **Recommended Approach:** Modify the NextAuth `signIn` or `session` callback in `app/api/auth/[...nextauth]/options.ts`.
-    *   After successfully authenticating a user (`profiles.id` is known), call `getOrCreateCrmMapping(profile_id, profile_data)`.
-    *   Adapt `getOrCreateCrmMapping` (in `utils/customer-matching.ts`):
-        *   If it finds a match, it should still create/update the `crm_customer_mapping` record with `is_matched = true`.
-        *   **If it does NOT find a match**, it should `INSERT` a record into `crm_customer_mapping` with `profile_id`, `is_matched = false`, and `crm_customer_id = NULL`, `stable_hash_id = NULL`.
-        *   Return the mapping record (or its status) so the session callback potentially stores `is_matched` status in the session token for quick access.
-*   **Staff Notifications (`src/lib/line-messaging.ts`):**
-    *   Modify or create functions to send notifications for:
-        *   VIP Booking Modification: "VIP [User Name] modified booking [Booking ID] to [New Date/Time/Bay]."
-        *   VIP Booking Cancellation: "VIP [User Name] cancelled booking [Booking ID] ([Date/Time])."
-    *   Ensure these functions are called asynchronously from the relevant API endpoints (`PUT /modify`, `POST /cancel`).
+*   **Placeholder Mapping Creation:** Logic during user sign-in/session validation (NextAuth callback) needs to check `profiles_vip_staging.vip_customer_data_id`.
+    *   If `vip_customer_data_id` is NULL, the system could proactively create an empty `vip_customer_data` record and link it by updating `profiles_vip_staging.vip_customer_data_id`. This ensures a `vip_customer_data` record always exists for a VIP profile.
+    *   Alternatively, `vip_customer_data` creation can be lazy (e.g., on first PUT to profile, or when linking account). Current API PUT handles this.
+    *   The `getOrCreateCrmMapping` logic should focus on the `crm_customer_mapping_vip_staging` table for CRM matching status, while `vip_customer_data` holds user-editable VIP data and potentially a `stable_hash_id` for a more direct CRM link.
+
+*   **Staff Notifications (`src/lib/line-messaging.ts`):** No direct changes from this, but ensure user name for notifications comes from the resolved profile name.
+
 *   **Google Calendar Updates:**
     *   Need corresponding async handlers (potentially triggered via Supabase Edge Functions listening to DB changes, or explicit API calls from modify/cancel endpoints).
     *   Modification Handler: Needs original event details (likely stored in `bookings` table or fetched) and new details to update the Google Calendar event.
@@ -381,12 +552,60 @@ Pages under `app/vip/`: `layout.tsx`, `page.tsx` (dashboard/entry - maybe redire
     *   Ensure robust error handling for calendar API interactions.
 *   **Availability Check (`app/api/availability/check/route.ts`):** This existing endpoint seems suitable for use by the booking modification logic. Ensure it correctly handles the `duration` parameter.
 
-## 7. Deployment Considerations
+## 7. Deployment Considerations & RLS Integration
 
-*   Ensure new environment variables (if any) are added to Vercel/deployment environment.
-*   Database migrations for `profiles` table change need to be created and run.
-*   RLS policies need to be scripted and applied to the Supabase database. Test thoroughly.
-*   Review Supabase compute usage if adding Edge Functions for async tasks.
+Successfully deploying the VIP feature with its associated database changes and Row Level Security (RLS) requires careful planning and execution. This section consolidates key considerations derived from `AUTH_RLS_DISCOVERY_LOG.md` and `RLS_IMPLEMENTATION_TASKS.md`.
+
+### 7.1 Core RLS Principles & NextAuth Integration
+
+*   **`auth.uid()` as the Source of Truth:** RLS policies heavily rely on Supabase's `auth.uid()` function. This function derives the user's ID from the `sub` (subject) claim of the JWT presented with each request. It is critical that the NextAuth `jwt` callback correctly populates `token.sub` with the user's `public.profiles.id` (or `public.profiles_vip_staging.id`). The NextAuth `session` callback must then propagate this as `session.user.id` for client-side use.
+*   **Client-Side Supabase Client:** For client-side components interacting with Supabase and requiring authenticated user context (e.g., fetching user-specific data), the global Supabase client initialized with an `ANON_KEY` is insufficient. Instead, components must:
+    *   Use `createBrowserClient` from `@supabase/ssr`.
+    *   Obtain the current session using `useSession()` from `next-auth/react`.
+    *   Initialize `createBrowserClient` with `session.accessToken` (the Supabase JWT) when the session is available. This ensures client-side requests are made with the user's authenticated identity, allowing RLS policies to be correctly applied.
+*   **`SERVICE_ROLE_KEY` for Backend Operations:** Backend API routes (e.g., `app/api/vip/...`) that perform privileged operations or need to bypass RLS for administrative tasks should use a Supabase client initialized with the `SERVICE_ROLE_KEY`. This key bypasses all RLS policies.
+
+### 7.2 Order of Operations for RLS Enablement
+
+A critical learning (`AUTH_RLS_DISCOVERY_LOG.md`, point 6) is the order of operations:
+
+1.  **Application Code Preparedness:** Before enabling RLS `WITH CHECK` policies (for `INSERT` or `UPDATE`) on database tables, the application code that writes to these tables **MUST** be updated to correctly populate the necessary foreign key or user identifier columns (e.g., `user_id` in `bookings`, `profile_id` in `crm_customer_mapping_vip_staging`, or the linking ID for `vip_customer_data`).
+2.  **RLS Policy Application:** Only after the application code is confirmed to provide compliant data should RLS policies be enabled and forced on the tables.
+    Failure to follow this order will result in "new row violates row-level security policy" errors for `INSERT` or `UPDATE` operations.
+
+### 7.3 Key Deployment Phases (derived from `RLS_IMPLEMENTATION_TASKS.md`)
+
+While `RLS_IMPLEMENTATION_TASKS.md` outlines a comprehensive phased RLS rollout for the entire application, the deployment of the VIP feature and its specific tables (`vip_customer_data`, `vip_tiers`) must align with these principles.
+
+*   **Production Data & Application Preparedness (Phase 1):**
+    *   Ensure existing production application logic correctly populates identifying columns (e.g., `user_id` in `bookings`, `profile_id` in `crm_customer_mapping_vip_staging`) that RLS policies might depend on, even if those policies are not yet active on all tables.
+    *   Verify `profiles_vip_staging.id` is the definitive `auth.uid()` source for VIP users.
+*   **Staging Environment (Phase 2 - As followed for VIP development):**
+    *   VIP features were developed against `_vip_staging` tables with RLS enabled, which served as a crucial testing ground.
+    *   Client-side calls in VIP components were updated to use `session.accessToken`.
+*   **Go-Live - RLS on Production & VIP Launch (Phase 4):**
+    *   **Final Preparations (Sub-Phase 4.1):**
+        *   Develop and test RLS rollback scripts for all relevant production tables (core tables and new VIP tables).
+        *   Schedule a maintenance window.
+    *   **RLS Enablement & VIP Launch (Sub-Phase 4.2):**
+        1.  Apply RLS policies to core production tables (`profiles`, `bookings`, `crm_customer_mapping_vip_staging`) if not already fully RLS-protected according to the new standards.
+        2.  Thoroughly test the *existing production application* against these RLS-enabled core tables.
+        3.  Apply RLS policies to the new production tables: `public.vip_customer_data` and `public.vip_tiers`.
+        4.  Deploy the new VIP application code (frontend and backend APIs) configured to use the production tables.
+        5.  Conduct comprehensive testing of all VIP features in the live production environment.
+        6.  Monitor systems closely for any RLS-related errors or performance issues.
+    *   **Cleanup (Sub-Phase 4.3):**
+        *   **Critically review and remove or significantly restrict any temporary broad `SELECT` policies for the `anon` role** that might have been in place on any table. This is vital for security hardening.
+        *   Decommission `_vip_staging` tables after successful launch and stabilization.
+
+### 7.4 Specific Deployment Steps for New VIP Tables
+
+1.  **Migrations First:** Deploy and run migrations to create `public.vip_tiers` and `public.vip_customer_data` tables, and to add `vip_customer_data_id` to `public.profiles_vip_staging`.
+2.  **RLS Policies for VIP Tables:** Apply the RLS policies defined in Section 3.6 for `vip_customer_data` and `vip_tiers`.
+3.  **Application Deployment:** Deploy the VIP backend and frontend code that interacts with these new tables.
+4.  **Backfill (If Necessary):** Run any backfill scripts (like the one for populating `vip_customer_data` for existing users) *after* the tables and RLS are in place, using a `service_role` client for the script.
+
+This structured approach ensures that RLS enhances security without disrupting existing functionality and that new features are launched robustly.
 
 ## 8. Open Technical Questions/Risks
 

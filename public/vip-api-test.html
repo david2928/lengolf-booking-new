@@ -54,7 +54,7 @@
         <div class="endpoint">
             <h2>PUT /api/vip/profile</h2>
             <label for="profilePayload">JSON Payload:</label>
-            <textarea id="profilePayload" rows="5" placeholder='{ "display_name": "New Name", "email": "new@example.com", "marketingPreference": false }'></textarea>
+            <textarea id="profilePayload" rows="5" placeholder='{ "vip_display_name": "New VIP Name", "vip_email": "new_vip@example.com", "vip_marketing_preference": false, "vip_phone_number": "08012345678" }'></textarea>
             <button data-endpoint="/api/vip/profile" data-method="PUT" data-resultid="updateProfileResult" data-payload-textarea="profilePayload">Update Profile</button>
             <pre id="updateProfileResult"></pre>
         </div>

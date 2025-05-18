@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useVipStatus } from '@/components/providers/VipStatusProvider';
 import { createClient } from '@/utils/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
-import { ChevronDownIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, Bars3Icon, CurrencyDollarIcon, AcademicCapIcon, FireIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, Bars3Icon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, UserCircleIcon, TicketIcon, LinkIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { Menu } from '@headlessui/react';
 
@@ -16,7 +18,8 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
+  const { vipProfile, isLoading: vipLoading, error: vipError, refetchVipProfile } = useVipStatus();
   const [isLoading, setIsLoading] = useState(false);
   const [showBayRates, setShowBayRates] = useState(false);
   const [showPromotions, setShowPromotions] = useState(false);
@@ -57,7 +60,7 @@ export function Layout({ children }: LayoutProps) {
     }
   };
 
-  if (status === 'loading') {
+  if (sessionStatus === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
@@ -107,6 +110,29 @@ export function Layout({ children }: LayoutProps) {
                   <AcademicCapIcon className="h-5 w-5" />
                   <span>Lessons</span>
                 </button>
+
+                {/* VIP Links - Desktop */}
+                {sessionStatus === 'authenticated' && !vipLoading && vipProfile && (
+                  <>
+                    {vipProfile.crmStatus === 'linked_matched' ? (
+                      <>
+                        <Link href="/vip" className="text-white px-3 py-1.5 rounded-full border-2 border-yellow-400 hover:bg-yellow-400 hover:text-green-800 transition-colors flex items-center gap-1 font-medium">
+                          <UserCircleIcon className="h-5 w-5" />
+                          <span>VIP Dashboard</span>
+                        </Link>
+                        <Link href="/vip/bookings" className="text-white px-3 py-1.5 rounded-full border-2 border-yellow-400 hover:bg-yellow-400 hover:text-green-800 transition-colors flex items-center gap-1 font-medium">
+                          <TicketIcon className="h-5 w-5" />
+                          <span>VIP Bookings</span>
+                        </Link>
+                      </>
+                    ) : (
+                      <Link href="/vip/link-account" className="text-white px-3 py-1.5 rounded-full border-2 border-blue-400 hover:bg-blue-400 hover:text-green-800 transition-colors flex items-center gap-1 font-medium">
+                        <LinkIcon className="h-5 w-5" />
+                        <span>Link VIP Account</span>
+                      </Link>
+                    )}
+                  </>
+                )}
               </div>
               
               {/* Mobile Buttons Row - Only show Rates and Promotions */}
@@ -138,7 +164,7 @@ export function Layout({ children }: LayoutProps) {
                 >
                   Home Page
                 </a>
-                {status === 'authenticated' ? (
+                {sessionStatus === 'authenticated' ? (
                   <button onClick={handleSignOut} className="text-white hover:text-gray-200">Logout</button>
                 ) : (
                   <button onClick={() => signIn()} className="text-white hover:text-gray-200">Login</button>
@@ -150,7 +176,57 @@ export function Layout({ children }: LayoutProps) {
                     <span className="sr-only">Open menu</span>
                     <Bars3Icon className="h-6 w-6" />
                   </Menu.Button>
-                  <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                    {/* VIP Links - Mobile */}
+                    {sessionStatus === 'authenticated' && !vipLoading && vipProfile && (
+                      <>
+                        {vipProfile.crmStatus === 'linked_matched' ? (
+                          <>
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  href="/vip"
+                                  className={`${
+                                    active ? 'bg-gray-100' : ''
+                                  } group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-green-700`}
+                                >
+                                  <UserCircleIcon className="mr-2 h-5 w-5 text-yellow-500" />
+                                  VIP Dashboard
+                                </Link>
+                              )}
+                            </Menu.Item>
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  href="/vip/bookings"
+                                  className={`${
+                                    active ? 'bg-gray-100' : ''
+                                  } group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-green-700`}
+                                >
+                                  <TicketIcon className="mr-2 h-5 w-5 text-yellow-500" />
+                                  VIP Bookings
+                                </Link>
+                              )}
+                            </Menu.Item>
+                          </>
+                        ) : (
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                href="/vip/link-account"
+                                className={`${
+                                  active ? 'bg-gray-100' : ''
+                                } group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-700`}
+                              >
+                                <LinkIcon className="mr-2 h-5 w-5 text-blue-500" />
+                                Link VIP Account
+                              </Link>
+                            )}
+                          </Menu.Item>
+                        )}
+                        <div className="my-1 h-px bg-gray-200" /> {/* Divider */}
+                      </>
+                    )}
                     <Menu.Item>
                       {({ active }) => (
                         <a
@@ -159,7 +235,7 @@ export function Layout({ children }: LayoutProps) {
                           rel="noopener noreferrer"
                           className={`${
                             active ? 'bg-gray-100' : ''
-                          } block px-4 py-2 text-sm text-gray-700`}
+                          } group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50`}
                         >
                           Home Page
                         </a>
@@ -171,36 +247,36 @@ export function Layout({ children }: LayoutProps) {
                           onClick={() => setShowLessons(!showLessons)}
                           className={`${
                             active ? 'bg-gray-100' : ''
-                          } block w-full text-left px-4 py-2 text-sm text-gray-700 flex items-center`}
+                          } group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50`}
                         >
-                          <AcademicCapIcon className="h-4 w-4 mr-2" />
+                          <AcademicCapIcon className="mr-2 h-5 w-5" />
                           Golf Lessons
                         </button>
                       )}
                     </Menu.Item>
                     {/* --- Correct Conditional Auth Menu Item --- */}
-                    {status === 'authenticated' && (
+                    {sessionStatus === 'authenticated' && (
                       <Menu.Item>
                         {({ active }) => (
                           <button
                             onClick={handleSignOut}
                             className={`${
                               active ? 'bg-gray-100' : ''
-                            } block w-full text-left px-4 py-2 text-sm text-gray-700`}
+                            } block w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50`}
                           >
                             Logout
                           </button>
                         )}
                       </Menu.Item>
                     )}
-                    {status !== 'authenticated' && (
+                    {sessionStatus !== 'authenticated' && (
                       <Menu.Item>
                         {({ active }) => (
                           <button
                             onClick={() => signIn()}
                             className={`${
                               active ? 'bg-gray-100' : ''
-                            } block w-full text-left px-4 py-2 text-sm text-gray-700`}
+                            } block w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50`}
                           >
                             Login
                           </button>

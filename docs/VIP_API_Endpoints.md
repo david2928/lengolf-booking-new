@@ -79,19 +79,27 @@ This document provides a detailed specification for the backend API endpoints de
 ### `GET /api/vip/profile`
 
 *   **Task ID:** VIP-BE-005
-*   **Description:** Fetches the authenticated user's profile data. This combines information from the `profiles` table and the linked `customers` table (if a match exists).
+*   **Description:** Fetches the authenticated user's profile data. This combines information from the `profiles_vip_staging` table, the linked `vip_customer_data` table, and potentially the `customers` (CRM) table.
 *   **Authentication:** Required (NextAuth).
 *   **Request Body:** None.
 *   **Query Parameters:** None.
 *   **Success Response (200 OK):**
     ```json
     {
-      "name": "User Display Name", // from profiles.display_name
-      "email": "user@example.com", // from profiles.email
-      "phoneNumber": "0812345678", // from customers.contact_number if linked_matched, else null or from profiles
-      "pictureUrl": "url-to-profile-picture", // from profiles.picture_url or similar
-      "marketingPreference": true, // from profiles.marketing_preference
-      "isMatched": true // boolean indicating if linked to a CRM record
+      "id": "user-profile-uuid", // from profiles_vip_staging.id
+      "name": "User Display Name", // from vip_customer_data.vip_display_name, fallback to profiles_vip_staging.display_name
+      "email": "user@example.com", // from vip_customer_data.vip_email, fallback to profiles_vip_staging.email
+      "phoneNumber": "0812345678", // Resolved: 1. CRM customers.contact_number, 2. vip_customer_data.vip_phone_number, 3. profiles_vip_staging.phone_number
+      "pictureUrl": "url-to-profile-picture", // from profiles_vip_staging.picture_url
+      "marketingPreference": true, // from vip_customer_data.vip_marketing_preference
+      "crmStatus": "linked_matched" | "linked_unmatched" | "not_linked", // Status of CRM linking
+      "crmCustomerId": "some-crm-customer-id" | null, // CRM customer ID if linked
+      "stableHashId": "some-stable-hash-id" | null, // Stable hash ID, primarily from vip_customer_data or crm_customer_mapping_vip_staging
+      "vipTier": { // Information about the user's VIP tier
+        "id": 1,
+        "name": "Eagle",
+        "description": "Preferred benefits for Eagle tier members"
+      } | null // Null if not tiered or tier info not found
     }
     ```
 *   **Error Responses:**
@@ -102,14 +110,15 @@ This document provides a detailed specification for the backend API endpoints de
 ### `PUT /api/vip/profile`
 
 *   **Task ID:** VIP-BE-006
-*   **Description:** Updates the authenticated user's editable profile data in the `profiles` table.
+*   **Description:** Updates the authenticated user's editable profile data, primarily in the `vip_customer_data` table. Creates a `vip_customer_data` record if one doesn't exist and links it to the user's profile.
 *   **Authentication:** Required (NextAuth).
 *   **Request Body (Fields are optional):**
     ```json
     {
-      "name": "New User Display Name",
-      "email": "new_user@example.com",
-      "marketingPreference": false
+      "display_name": "New User Display Name", // Updates vip_customer_data.vip_display_name
+      "email": "new_user@example.com",       // Updates vip_customer_data.vip_email
+      "marketingPreference": false,          // Updates vip_customer_data.vip_marketing_preference
+      "vip_phone_number": "0987654321"       // Updates vip_customer_data.vip_phone_number, can be null
     }
     ```
 *   **Query Parameters:** None.
@@ -117,7 +126,7 @@ This document provides a detailed specification for the backend API endpoints de
     ```json
     {
       "message": "Profile updated successfully.",
-      "updatedFields": ["name", "email", "marketingPreference"] // List of fields that were actually updated
+      "updatedFields": ["display_name", "email", "marketingPreference", "vip_phone_number"] // List of fields that were actually updated
     }
     ```
 *   **Error Responses:**
@@ -282,4 +291,19 @@ This document provides a detailed specification for the backend API endpoints de
 *   **Error Responses:**
     *   `401 Unauthorized`: If the user is not authenticated.
     *   `403 Forbidden`: If the user is authenticated but not linked/matched to a CRM customer.
-    *   `500 Internal Server Error`: For unexpected server issues. 
+    *   `500 Internal Server Error`: For unexpected server issues.
+
+## 6. Deployment & RLS Security Notes
+
+All LENGOLF VIP API endpoints detailed in this document operate under the assumption that Supabase Row Level Security (RLS) is enabled and correctly configured for the relevant tables (`profiles_vip_staging`, `vip_customer_data`, `vip_tiers`, `bookings`, `crm_customer_mapping_vip_staging`, `customers`, `crm_packages`).
+
+*   **User Context (`auth.uid()`):** Backend logic within these API routes relies on `auth.uid()` (derived from the authenticated user's JWT `sub` claim, which should correspond to `profiles_vip_staging.id`) to scope data access. RLS policies on the database tables enforce these access controls.
+*   **Client-Side Authentication:** Frontend clients calling these APIs must present a valid JWT for an authenticated user. For direct Supabase calls from the client (if any related to VIP data), the Supabase client must be initialized with the user's `session.accessToken` to ensure RLS is applied correctly.
+*   **Service Role Usage:** Specific backend administrative operations or complex queries that might need to bypass user-centric RLS would use a Supabase client initialized with the `SERVICE_ROLE_KEY`. However, the standard VIP API endpoints are designed to operate within the user's RLS context.
+*   **Deployment Order:** It is critical during deployment that:
+    1.  Application code (especially for `INSERT` and `UPDATE` operations) is prepared to provide all necessary data for RLS `WITH CHECK` conditions (e.g., populating `user_id` fields correctly).
+    2.  Database migrations for schema changes (new tables, new columns) are applied.
+    3.  RLS policies are then enabled and forced on the production tables.
+    4.  The API and frontend application code is deployed.
+    Refer to `TECHNICAL_DESIGN_LENGOLF_VIP.md` (Section 7) and `RLS_IMPLEMENTATION_TASKS.md` for detailed RLS deployment strategies and considerations, including rollback plans and post-launch security hardening (e.g., reviewing `anon` role policies).
+*   **Staging Environment:** The VIP features and their RLS integration were developed and tested using `_vip_staging` tables, which mirrors the production setup and allows for safe validation before go-live. 

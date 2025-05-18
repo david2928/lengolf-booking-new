@@ -11,9 +11,11 @@ This document outlines the design for integrating a "LENGOLF VIP" feature into t
 
 **Key Data Entities Involved:**
 
-*   **`profiles` (Supabase Table):** Stores authentication-related user data (e.g., from NextAuth). Key fields: `id` (UUID, primary key), `provider` (e.g., 'line'), `provider_id` (e.g., LINE User ID), `display_name`, `email`. **Will add `marketing_preference` (BOOLEAN, NOT NULL, DEFAULT TRUE)**.
+*   **`profiles` (Supabase Table):** Stores authentication-related user data (e.g., from NextAuth). Key fields: `id` (UUID, primary key), `provider` (e.g., 'line'), `provider_id` (e.g., LINE User ID), `display_name`, `email`, `phone_number`. **Will add `vip_customer_data_id` (UUID, NULLABLE, FK to `vip_customer_data.id`)**. `marketing_preference` has been moved to `vip_customer_data`.
+*   **`vip_customer_data` (Supabase Table):** Stores VIP-specific customer data, editable by the user. Key fields: `id` (UUID, primary key), `vip_display_name` (TEXT), `vip_email` (TEXT), `vip_marketing_preference` (BOOLEAN), `stable_hash_id` (TEXT, NULLABLE, for linking to CRM `customers` table), `vip_phone_number` (TEXT, NULLABLE), `vip_tier_id` (INT, NULLABLE, FK to `vip_tiers.id`).
+*   **`vip_tiers` (Supabase Table):** Dimension table for VIP tiers. Key fields: `id` (SERIAL, primary key), `tier_name` (TEXT, NOT NULL), `description` (TEXT), `status` (TEXT, e.g., 'active', 'inactive'), `sort_order` (INTEGER).
 *   **`customers` (Supabase Table):** **Confirmed** source of customer data, synced from an external CRM/POS. Key fields: `id` (CRM/POS primary key), `customer_name`, `contact_number`, `email`, `stable_hash_id` (MD5 of name+phone for robust linking).
-*   **`crm_customer_mapping` (Supabase Table):** Links authenticated users (`profiles`) to customer records (`customers`). Key fields: `profile_id` (FK to `profiles.id`), `crm_customer_id` (FK to `customers.id`, NULLABLE), `stable_hash_id` (from `customers`, NULLABLE), `crm_customer_data` (cached customer details), `is_matched` (BOOLEAN, indicates if a link to a `customers` record was successful). **Supports placeholder records where `is_matched = false` and CRM IDs are NULL.**
+*   **`crm_customer_mapping` (Supabase Table):** Links authenticated users (`profiles`) to customer records (`customers`). Key fields: `profile_id` (FK to `profiles.id`), `crm_customer_id` (FK to `customers.id`, NULLABLE), `stable_hash_id` (from `customers`, NULLABLE), `crm_customer_data` (cached customer details), `is_matched` (BOOLEAN, indicates if a link to a `customers` record was successful). **Supports placeholder records where `is_matched = false` and CRM IDs are NULL.** `profiles_vip_staging` and `crm_customer_mapping_vip_staging` are used in the implementation.
 *   **`bookings` (Supabase Table):** Stores booking details. Key field for linking: `user_id` (FK to `profiles.id`).
 *   **`crm_packages` (Supabase Table):** Stores customer package information. Linked via `stable_hash_id`.
 
@@ -81,10 +83,10 @@ This flow applies whether the user accesses via the LINE Rich Menu or the main w
 *   **Interface**: Web page component (`ProfileView`).
 *   **Functionality**:
     *   Fetches profile data (`GET /api/vip/profile`).
-    *   Displays current Name (from `profiles.display_name`), Email (from `profiles.email`), Phone Number (from linked `customers.contact_number` if `is_matched = true`, otherwise potentially empty or from `profiles`).
-    *   Allows editing Name and Email (updates `profiles` table via `PUT /api/vip/profile`).
-    *   Allows managing Marketing Preferences toggle (updates `profiles.marketing_preference` via `PUT /api/vip/profile`).
-    *   Phone number (if shown from `customers`) is not editable here.
+    *   Displays current Name (from `vip_customer_data.vip_display_name`), Email (from `vip_customer_data.vip_email`), Phone Number (resolved with priority: CRM > `vip_customer_data.vip_phone_number` > `profiles.phone_number`).
+    *   Displays current VIP Tier (from `vip_customer_data` joined with `vip_tiers`).
+    *   Allows editing Name, Email, Marketing Preferences, and VIP Phone Number (updates `vip_customer_data` table via `PUT /api/vip/profile`).
+    *   Phone number obtained from CRM is not editable here.
 
 ### 2.4. My Bookings (P0)
 
@@ -141,8 +143,8 @@ This flow applies whether the user accesses via the LINE Rich Menu or the main w
 
 ### 3.4. Database Considerations
 
-*   **Schema:** Add `marketing_preference` to `profiles`. Ensure `crm_customer_mapping` supports nullable CRM IDs and the `is_matched` flag.
-*   **RLS:** **Implement Row Level Security** on `profiles`, `bookings`, `crm_customer_mapping`, `crm_packages`, and potentially `customers` to enforce data access based on authenticated user ID (`auth.uid()`). Ensure `anon` role policies are reviewed/added only if specific public access is needed elsewhere.
+*   **Schema:** Add `vip_customer_data_id` to `profiles`. Create `vip_customer_data` and `vip_tiers` tables. `marketing_preference` moved from `profiles` to `vip_customer_data`. Ensure `crm_customer_mapping` supports nullable CRM IDs and the `is_matched` flag.
+*   **RLS:** **Implement Row Level Security** on `profiles`, `bookings`, `crm_customer_mapping`, `crm_packages`, `vip_customer_data`, `vip_tiers` and potentially `customers` to enforce data access based on authenticated user ID (`auth.uid()`). Ensure `anon` role policies are reviewed/added only if specific public access is needed elsewhere.
 *   **Indexes:** Ensure appropriate indexes (see technical design).
 
 ### 3.5. Security Considerations
@@ -176,6 +178,46 @@ This flow applies whether the user accesses via the LINE Rich Menu or the main w
 4.  **Matching Logic Edge Cases:** Monitor the effectiveness of the automatic matching logic long-term.
 
 ## 6. Potential Future Enhancements
+
+*   Proactive LINE notifications (reminders, package expiry).
+*   VIP dashboard summary page.
+*   Improved matching UX (e.g., confirmation prompts).
+*   Detailed package usage history.
+*   OTP verification for manual linking.
+
+## 7. Deployment Considerations & RLS
+
+The successful deployment of the LENGOLF VIP feature, underpinned by Row Level Security (RLS) in Supabase, is critical for ensuring both functionality and data security. This section outlines key deployment aspects, drawing from detailed technical planning and discovery logs (`TECHNICAL_DESIGN_LENGOLF_VIP.md`, `AUTH_RLS_DISCOVERY_LOG.md`, `RLS_IMPLEMENTATION_TASKS.md`).
+
+**Core Principles:**
+
+*   **RLS for Data Security:** RLS is fundamental to the VIP feature, ensuring that users can only access and manage their own data (`profiles_vip_staging`, `vip_customer_data`, `bookings`, etc.). Policies are primarily based on matching the authenticated user's ID (`auth.uid()`) with the relevant identifier in each table.
+*   **Authenticated Client-Side Access:** Frontend components accessing Supabase on behalf of a logged-in user must use a Supabase client initialized with the user's `session.accessToken` (JWT). This ensures that RLS policies are correctly applied to client-originated requests.
+*   **Service Role for Privileged Operations:** Backend processes or administrative functions requiring broader access or needing to bypass RLS will use a Supabase client initialized with the `SERVICE_ROLE_KEY`.
+
+**Key Deployment Stages & Actions:**
+
+1.  **Application & Data Preparedness:**
+    *   Before RLS enforcement, ensure that all existing application code that writes to tables (e.g., creating bookings) correctly populates the user identifier columns (e.g., `bookings.user_id`) that RLS policies will depend upon.
+
+2.  **Staging Environment Testing (As Performed):**
+    *   The VIP features were developed and tested against staging tables (e.g., `profiles_vip_staging`, `vip_customer_data_staging`) with RLS policies activated. This iterative development in an RLS-enabled environment was crucial for identifying and resolving integration issues early.
+
+3.  **Production Deployment Sequence:**
+    *   **Migrations:** Deploy database migrations to create new tables (`vip_tiers`, `vip_customer_data`) and modify existing ones (`profiles_vip_staging`).
+    *   **RLS Policy Application:** Carefully apply and enable RLS policies on all relevant production tables (core tables and new VIP-specific tables) during a planned maintenance window.
+    *   **Rollback Plan:** Have tested rollback scripts ready to disable RLS policies on production tables in case of unforeseen critical issues.
+    *   **Application Code Deployment:** Deploy the VIP feature code (frontend and backend APIs) configured to use the RLS-enabled production tables.
+    *   **Testing:** Conduct thorough testing of both the existing application and the new VIP features in the production environment after RLS enablement and VIP code deployment.
+    *   **Monitoring:** Closely monitor system logs and performance post-launch.
+
+4.  **Post-Launch Security Hardening:**
+    *   **Review `anon` Role Policies:** Critically review and remove or significantly restrict any temporary or overly permissive RLS policies for the `anon` (anonymous) role on all tables. This is a vital step to ensure data is not unintentionally exposed.
+    *   **Decommission Staging Artifacts:** Once the production deployment is stable, remove any temporary staging tables (e.g., `_vip_staging` tables if they were direct copies for testing and not part of the primary data flow).
+
+By following these considerations, the LENGOLF VIP feature can be launched securely and effectively, leveraging RLS to protect user data while providing a seamless experience.
+
+## 8. Potential Future Enhancements
 
 *   Proactive LINE notifications (reminders, package expiry).
 *   VIP dashboard summary page.

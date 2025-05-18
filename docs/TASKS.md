@@ -317,36 +317,261 @@ Each task will follow this format:
 **Task ID:** VIP-FE-005
 **Title:** Integrate Profile View and Edit Page (`app/(features)/vip/profile/page.tsx`)
 **Assignee:** FE Developer
-**Status:** To Do
+**Status:** Done
 **Priority:** Medium
 **Description:** Create `app/(features)/vip/profile/page.tsx`. Adapt `ProfileView` (or `VipProfile.tsx` from `lengolf-vip-dashboard-view`, potentially placing the view/form component in `components/vip/ProfileView.tsx`) to connect with `GET /api/vip/profile` to display user data and `PUT /api/vip/profile` to update name, email, and marketing preference. Ensure phone number from linked CRM (if available) is displayed but not editable.
 **Dependencies:** VIP-BE-005, VIP-BE-006, VIP-FE-000, VIP-FE-001
 **Acceptance Criteria:**
   - Profile page displays data fetched from the backend.
-  - User can edit their name, email, and marketing preference.
+  - User can edit their name, email, and marketing preference (and potentially a separate VIP phone number).
   - Changes are saved via the backend API.
-  - Phone number is displayed correctly (from CRM if matched and available, non-editable).
+  - Phone number is displayed correctly (from CRM if matched and available, non-editable by this form if it's the CRM primary).
+  - (User Note: Requires installation of `react-hook-form`, `zod`, `@hookform/resolvers/zod` and ShadCN components: `input`, `form`, `checkbox`, `card`, `alert`)
 
 ---
 
 **Task ID:** VIP-FE-006
 **Title:** Integrate Bookings List Page (`app/(features)/vip/bookings/page.tsx`)
 **Assignee:** FE Developer
-**Status:** To Do
-**Priority:** Medium
-**Description:** Create `app/(features)/vip/bookings/page.tsx`. Adapt `BookingsList` (or `VipBookings.tsx`) to connect to `GET /api/vip/bookings`. Implement filters (future/past/all) and pagination. Display `EmptyState` if no bookings or if `is_matched = false`. Include Modify/Cancel buttons for relevant bookings.
+**Status:** Done
+**Priority:** High
+**Description:** Create `app/(features)/vip/bookings/page.tsx`. Adapt `BookingsView` (or `pages/vip-bookings.tsx` from `lengolf-vip-dashboard-view`, consider `components/vip/BookingsList.tsx`) to connect with `GET /api/vip/bookings`. Implement filters (future/past/all) and pagination. Display `EmptyState` (VIP-FE-010) if no bookings or if `is_matched = false`. "Modify" / "Cancel" buttons for relevant bookings should trigger modals (VIP-FE-007, VIP-FE-008).
 **Dependencies:** VIP-BE-007, VIP-FE-000, VIP-FE-001, VIP-FE-002
 **Acceptance Criteria:**
-  - Booking list displays data from the backend.
-  - Filtering and pagination work as expected.
-  - Shows `EmptyState` (from `components/vip/EmptyState.tsx` or similar) or "Link account" prompt if `is_matched = false` or no bookings.
-  - Modify/Cancel buttons are shown for future, confirmed bookings.
+  - Page lists bookings fetched from the backend.
+  - Filtering by future/past/all works correctly.
+  - Pagination is functional.
+  - Displays an empty state when no bookings are available or if the user is not matched.
+  - Modify/Cancel buttons are present for applicable bookings (e.g., future, confirmed).
+  - (User Note: Requires installation of ShadCN components: `tabs`, `table`, `pagination` for the `BookingsList` component, and `button` if not already added globally for the page.)
 
 ---
 
 **Task ID:** VIP-FE-007
 **Title:** Implement/Integrate Booking Modification Modal
 **Assignee:** FE Developer
+**Status:** Done
+**Priority:** Medium
+**Description:** Develop/Integrate `BookingModifyModal` (likely as a component in `components/vip/BookingModifyModal.tsx`). The modal should inform the user that to modify a booking, they need to cancel the current one and create a new one. It should offer a button like "Cancel Booking & Rebook". Clicking this button will:
+    1. Initiate the cancellation process for the current booking (potentially reusing `BookingCancelModal` logic or directly calling `POST /api/vip/bookings/{id}/cancel`).
+    2. On successful cancellation, redirect the user to the main booking page (`/bookings`) to make a new reservation.
+    Handle loading/error states for the cancellation part.
+**Dependencies:** VIP-BE-009, VIP-FE-000, VIP-FE-001, VIP-FE-006, VIP-FE-008
+**Acceptance Criteria:**
+  - Modal clearly explains the cancel-and-rebook process.
+  - "Cancel Booking & Rebook" button triggers booking cancellation using `POST /api/vip/bookings/{id}/cancel`.
+  - Handles success (booking is cancelled, user is redirected to `/bookings`) and error messages for the cancellation.
+  - UI on the bookings list is updated or refetched after successful cancellation and redirection.
+
+---
+
+**Task ID:** VIP-FE-008
+**Title:** Implement/Integrate Booking Cancellation Modal
+**Assignee:** FE Developer
+**Status:** Done
+**Priority:** Medium
+**Description:** Develop/Integrate `BookingCancelModal` (component in `components/vip/BookingCancelModal.tsx`). This modal should confirm cancellation with the user. On confirmation, call `POST /api/vip/bookings/{id}/cancel`. Handle loading/error states. On success, it should update the UI (e.g., refetch bookings list, show a success message).
+**Dependencies:** VIP-BE-008, VIP-FE-000, VIP-FE-001, VIP-FE-006
+**Acceptance Criteria:**
+  - Modal shows confirmation prompt for cancellation.
+  - Cancellation request is submitted to the backend.
+  - Handles success (update UI) and error messages.
+
+---
+
+**Task ID:** VIP-FE-009
+**Title:** Integrate Packages List Page (`app/(features)/vip/packages/page.tsx`)
+**Assignee:** FE Developer
+**Status:** Done
+**Priority:** Medium
+**Description:** Create `app/(features)/vip/packages/page.tsx`. Adapt `PackagesView` (or relevant component from prototype, possibly `components/vip/PackagesList.tsx`) to connect with `GET /api/vip/packages`. Display current/active packages and past/expired packages (potentially using tabs).
+**Dependencies:** VIP-BE-010, VIP-FE-000, VIP-FE-001, VIP-FE-002
+**Acceptance Criteria:**
+  - Page lists packages fetched from the backend.
+  - Distinction between active and past packages is clear.
+  - If no packages, an appropriate message (`EmptyState` from VIP-FE-010) is shown.
+  - Displays relevant package details (name, credits/sessions remaining, expiry).
+  - User Note: Requires ShadCN components: `tabs`, `card`.
+
+---
+
+**Task ID:** VIP-FE-010
+**Title:** Implement `EmptyState` Component (`components/vip/EmptyState.tsx`)
+**Assignee:** FE Developer
+**Status:** Done
+**Priority:** Medium
+**Description:** Create a reusable `EmptyState` component. It should accept props for title, message, and an optional action (e.g., a button with a link or onClick handler). This will be used in Bookings, Packages, etc., when no data is available for the current view/filters.
+**Dependencies:** VIP-FE-000
+**Acceptance Criteria:**
+  - `EmptyState` component is well-defined and reusable in `components/vip/`.
+  - Correctly displayed in relevant sections with appropriate messages and CTAs (e.g., "Link your account").
+
+---
+
+**Task ID:** VIP-FE-011
+**Title:** Styling and Responsiveness Review
+**Assignee:** FE Developer
+**Status:** In Progress
+**Priority:** Medium
+**Description:** Review all VIP pages and components against `UI_INSTRUCTIONS_VIP_LANDING_PAGE.md` for styling (Tailwind CSS, brand consistency, colors, typography) and responsiveness (especially for LIFF mobile view). Ensure consistency with the main `lengolf-booking-refactor` project's `tailwind.config.ts` and `app/globals.css`.
+**Dependencies:** All other VIP-FE integration tasks (VIP-FE-002 to VIP-FE-010).
+**Acceptance Criteria:**
+  - UI adheres to `tailwind.config.ts` and `app/globals.css` of the main project.
+  - All pages are responsive and work well on desktop, tablet, and mobile (LIFF).
+  - Visual style matches design document requirements (modern, clean, Lengolf branding).
+
+---
+
+**Task ID:** VIP-FE-012
+**Title:** Error Handling and Loading States
+**Assignee:** FE Developer
+**Status:** In Progress
+**Priority:** Medium
+**Description:** Implement consistent loading indicators (spinners, skeleton screens) and user-friendly error messages for all data fetching and mutation operations across the VIP section, as per `UI_INSTRUCTIONS_VIP_LANDING_PAGE.md` (Section 4). Utilize existing UI components from `components/ui` or ShadCN if applicable and consistent.
+**Dependencies:** All data-dependent VIP-FE tasks.
+**Acceptance Criteria:**
+  - Loading states are shown during API calls.
+  - User-friendly error messages are displayed for API failures or validation issues.
+  - Toasts or inline messages are used consistently for feedback.
+
+---
+
+**Task ID:** VIP-FE-013
+**Title:** LIFF Integration Considerations
+**Assignee:** FE Developer
+**Status:** In Progress
+**Priority:** Medium
+**Description:** Ensure that the VIP pages within `lengolf-booking-refactor` are compatible with being rendered inside a LINE LIFF view. This includes testing navigation, responsiveness, and any LIFF-specific API interactions if necessary.
+**Dependencies:** VIP-FE-011
+**Acceptance Criteria:**
+  - VIP pages render correctly within a LIFF environment.
+  - UI is optimized for mobile view within LIFF.
+
+--- 
+
+## Deployment Tasks for VIP Feature & RLS
+
+These tasks focus on the deployment and RLS finalization for the VIP feature, drawing from `RLS_IMPLEMENTATION_TASKS.md` and `AUTH_RLS_DISCOVERY_LOG.md`.
+
+---
+
+**Task ID:** VIP-DEPLOY-001
+**Title:** Finalize RLS Policies for Production VIP Tables
+**Assignee:** BE Developer / Platform Team
+**Status:** To Do
+**Priority:** Critical
+**Description:** Review and confirm the RLS policies for `public.vip_customer_data` and `public.vip_tiers` (as defined in `TECHNICAL_DESIGN_LENGOLF_VIP.md`, Section 3.6) are production-ready. Ensure they correctly use `auth.uid()` and provide appropriate access for users and service roles.
+**Dependencies:** VIP-BE-002 (general RLS setup)
+**Acceptance Criteria:**
+  - RLS policies for `vip_customer_data` and `vip_tiers` are finalized and scriptable for production.
+  - Policies cover SELECT, INSERT, UPDATE, DELETE for authenticated users on their own data (via `vip_customer_data_id` link in `profiles_vip_staging`) and appropriate access to `vip_tiers` (e.g., authenticated read).
+
+---
+
+**Task ID:** VIP-DEPLOY-002
+**Title:** Verify Production Application Compatibility with RLS on Core Tables
+**Assignee:** BE Developer / QA Team
+**Status:** To Do
+**Priority:** Critical
+**Description:** Before VIP launch, ensure the *existing production application* correctly populates user identifier columns (e.g., `user_id` in `bookings`, `profile_id` in `crm_customer_mapping`) that are used by RLS policies. This aligns with Phase 1 of `RLS_IMPLEMENTATION_TASKS.md`.
+**Dependencies:** RLS-P1-001, RLS-P1-002, RLS-P1-003 (from `RLS_IMPLEMENTATION_TASKS.md`)
+**Acceptance Criteria:**
+  - Confirmation that the current live application sets all necessary foreign keys/user IDs required by RLS policies on core tables (`profiles`, `bookings`, `crm_customer_mapping`).
+
+---
+
+**Task ID:** VIP-DEPLOY-003
+**Title:** Prepare RLS Rollback Scripts for All Relevant Production Tables
+**Assignee:** BE Developer / Platform Team
+**Status:** To Do
+**Priority:** Critical
+**Description:** Create and test SQL scripts to quickly disable and remove RLS policies from all relevant production tables (`profiles`, `bookings`, `crm_customer_mapping`, `vip_customer_data`, `vip_tiers`) in case of emergency during or post-deployment. (Ref: `RLS-P4.1-001`)
+**Dependencies:** VIP-DEPLOY-001
+**Acceptance Criteria:**
+  - Rollback scripts are documented, tested in a non-prod environment, and readily available.
+
+---
+
+**Task ID:** VIP-DEPLOY-004
+**Title:** Schedule Maintenance Window for VIP Launch & RLS Finalization
+**Assignee:** Project Lead / Platform Team
+**Status:** To Do
+**Priority:** High
+**Description:** Plan and communicate a maintenance window for VIP feature deployment and the final application of RLS policies to production tables. (Ref: `RLS-P4.1-002`)
+**Dependencies:** None
+**Acceptance Criteria:**
+  - Maintenance window scheduled and communicated to stakeholders.
+
+---
+
+**Task ID:** VIP-DEPLOY-005
+**Title:** Execute Database Migrations & Apply RLS to Production Tables
+**Assignee:** BE Developer / Platform Team
+**Status:** To Do
+**Priority:** Critical
+**Description:** During the maintenance window:
+  1. Apply migrations for `vip_customer_data`, `vip_tiers`, and `profiles_vip_staging.vip_customer_data_id`.
+  2. Apply finalized RLS policies to `public.profiles`, `public.bookings`, `public.crm_customer_mapping_vip_staging` (if updates are needed beyond initial RLS setup).
+  3. Apply RLS policies to `public.vip_customer_data` and `public.vip_tiers`.
+  4. Enable and Force RLS on all these tables. (Ref: `RLS-P4.2-001`)
+**Dependencies:** VIP-DEPLOY-001, VIP-DEPLOY-003, VIP-DEPLOY-004, All VIP-BE database schema tasks
+**Acceptance Criteria:**
+  - All schema migrations are applied successfully to production.
+  - RLS policies are active and forced on all specified production tables.
+
+---
+
+**Task ID:** VIP-DEPLOY-006
+**Title:** Deploy VIP Application Code to Production
+**Assignee:** FE Developer / BE Developer
+**Status:** To Do
+**Priority:** Critical
+**Description:** Deploy the VIP feature application code (frontend and backend APIs) to production. Ensure it is configured to use the RLS-enabled production tables. (Ref: `RLS-P4.2-003`)
+**Dependencies:** VIP-DEPLOY-005, All VIP-FE tasks, All VIP-BE API tasks
+**Acceptance Criteria:**
+  - VIP feature code is deployed to production.
+  - Configuration points to production database tables.
+
+---
+
+**Task ID:** VIP-DEPLOY-007
+**Title:** Conduct Post-Launch Testing & Monitoring
+**Assignee:** QA Team / Platform Team
+**Status:** To Do
+**Priority:** Critical
+**Description:**
+  1. Test critical flows of the existing production application after RLS changes. (Ref: `RLS-P4.2-002`)
+  2. Conduct thorough testing of all LENGOLF VIP functionalities in production. (Ref: `RLS-P4.2-004`)
+  3. Closely monitor application logs, database performance, and error rates. (Ref: `RLS-P4.2-005`)
+**Dependencies:** VIP-DEPLOY-006
+**Acceptance Criteria:**
+  - Existing application and new VIP features function correctly in production.
+  - RLS policies provide correct data access and isolation.
+  - Systems are stable with no unexpected RLS-related errors.
+
+---
+
+**Task ID:** VIP-DEPLOY-008
+**Title:** Review and Harden `anon` RLS Policies Post-VIP Launch
+**Assignee:** BE Developer / Platform Team
+**Status:** To Do
+**Priority:** Critical
+**Description:** After the VIP launch is stable, critically review any RLS policies for the `anon` role on ALL production tables. Remove or significantly restrict them to enforce the principle of least privilege. (Ref: `AUTH_RLS_DISCOVERY_LOG.md` reminders, `RLS-P4.3-001`)
+**Dependencies:** VIP-DEPLOY-007
+**Acceptance Criteria:**
+  - Temporary or overly permissive anonymous read policies are removed or appropriately restricted.
+  - Data exposure to anonymous users is minimized across the application.
+
+---
+
+**Task ID:** VIP-DEPLOY-009
+**Title:** Decommission VIP Staging Artifacts
+**Assignee:** BE Developer / Platform Team
 **Status:** To Do
 **Priority:** Medium
-**Description:** Develop/Integrate `BookingModifyModal` (likely as a component in `components/vip/BookingModifyModal.tsx`). Form for new date/time/duration. Calls `POST /api/availability/check`
+**Description:** Once the production VIP deployment is stable, decommission and drop any temporary `_vip_staging` tables and related artifacts that are no longer needed. (Ref: `RLS-P4.3-002`)
+**Dependencies:** VIP-DEPLOY-008
+**Acceptance Criteria:**
+  - Temporary staging tables and resources are backed up (if required) and removed from the system.
+
+--- 
