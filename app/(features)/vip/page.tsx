@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardView from '@/components/vip/DashboardView';
 import { useVipContext } from './contexts/VipContext';
 import { getVipProfile, getVipBookings, getVipPackages } from '../../../lib/vipService'; // Adjusted path
@@ -27,6 +27,11 @@ interface DashboardActivePackage {
 const VipDashboardPage = () => {
   const { session, vipStatus, isLoadingVipStatus, vipStatusError, refetchVipStatus } = useVipContext();
 
+  // Add refs for caching
+  const profileCache = useRef<VipProfileResponse | null>(null);
+  const nextBookingCache = useRef<DashboardBooking | undefined>(undefined);
+  const primaryPackageCache = useRef<DashboardActivePackage | undefined>(undefined);
+
   const [profile, setProfile] = useState<VipProfileResponse | null>(null);
   const [nextBooking, setNextBooking] = useState<DashboardBooking | undefined>(undefined);
   const [primaryPackage, setPrimaryPackage] = useState<DashboardActivePackage | undefined>(undefined);
@@ -37,8 +42,15 @@ const VipDashboardPage = () => {
 
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (forceRefresh = false) => {
     if (session && vipStatus) {
+      // Use cache unless forceRefresh is true
+      if (!forceRefresh && profileCache.current && nextBookingCache.current !== undefined && primaryPackageCache.current !== undefined) {
+        setProfile(profileCache.current);
+        setNextBooking(nextBookingCache.current);
+        setPrimaryPackage(primaryPackageCache.current);
+        return;
+      }
       setIsLoadingProfile(true);
       if (vipStatus.status === 'linked_matched') {
           setIsLoadingBookings(true);
@@ -48,36 +60,59 @@ const VipDashboardPage = () => {
       try {
         const profileData = await getVipProfile();
         setProfile(profileData);
+        profileCache.current = profileData;
 
         if (vipStatus.status === 'linked_matched') {
-          const bookingsData = await getVipBookings({ filter: 'future', limit: 1, page: 1 });
+          const bookingsData = await getVipBookings({ filter: 'future', limit: 5, page: 1 }); // Fetch a few to find a confirmed one
+          let confirmedBooking: VipBooking | undefined = undefined;
           if (bookingsData.bookings && bookingsData.bookings.length > 0) {
-            const booking = bookingsData.bookings[0];
-            setNextBooking({
-              id: booking.id,
-              date: booking.date,
-              time: booking.startTime,
-              duration: booking.duration,
-            });
+            confirmedBooking = bookingsData.bookings.find(b => b.status === 'confirmed');
+          }
+
+          if (confirmedBooking) {
+            const bookingObj = {
+              id: confirmedBooking.id,
+              date: confirmedBooking.date,
+              time: confirmedBooking.startTime,
+              duration: confirmedBooking.duration,
+            };
+            setNextBooking(bookingObj);
+            nextBookingCache.current = bookingObj;
           } else {
             setNextBooking(undefined);
+            nextBookingCache.current = undefined;
           }
           
           const packagesData = await getVipPackages();
           if (packagesData.activePackages && packagesData.activePackages.length > 0) {
             const firstActivePackage = packagesData.activePackages[0];
-            setPrimaryPackage({
+            
+            let hrsRemaining: string | number | undefined;
+            if (firstActivePackage.remainingHours !== undefined && firstActivePackage.remainingHours !== null) {
+              hrsRemaining = firstActivePackage.remainingHours;
+            } else if (firstActivePackage.remainingSessions !== undefined && firstActivePackage.remainingSessions !== null) {
+              hrsRemaining = firstActivePackage.remainingSessions;
+            } else {
+              hrsRemaining = undefined;
+            }
+
+            const packageObj = {
               id: firstActivePackage.id,
-              name: firstActivePackage.packageName,
-              hoursRemaining: firstActivePackage.remainingSessions,
+              name: firstActivePackage.package_display_name || firstActivePackage.packageName,
+              hoursRemaining: hrsRemaining,
               expires: firstActivePackage.expiryDate ? new Date(firstActivePackage.expiryDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric'}) : undefined,
-            });
+              tier: firstActivePackage.package_type_name?.includes('(') ? 
+                    firstActivePackage.package_type_name.substring(firstActivePackage.package_type_name.indexOf('(') + 1, firstActivePackage.package_type_name.indexOf(')')) : 
+                    (firstActivePackage.packageName?.includes('(') ? firstActivePackage.packageName.substring(firstActivePackage.packageName.indexOf('(') + 1, firstActivePackage.packageName.indexOf(')')) : undefined)
+            };
+            setPrimaryPackage(packageObj);
+            primaryPackageCache.current = packageObj;
           } else {
             setPrimaryPackage(undefined);
+            primaryPackageCache.current = undefined;
           }
         }
       } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
         if (error instanceof VipApiError) {
           setFetchError(error.payload?.message || error.message);
         } else if (error instanceof Error) {
@@ -97,7 +132,7 @@ const VipDashboardPage = () => {
 
   useEffect(() => {
     const handleRetryEvent = () => {
-        fetchData();
+        fetchData(true); // force refresh on manual retry
     };
     document.addEventListener('fetchDashboardData', handleRetryEvent);
 

@@ -16,6 +16,7 @@ import { VipContextProvider, VipContextType } from './contexts/VipContext';
 import { getVipStatus } from '../../../lib/vipService'; // Adjusted path
 import { VipStatusResponse, VipApiError } from '../../../types/vip'; // Adjusted path
 import { Button } from '@/components/ui/button'; // Changed casing
+import SharedFooter from '@/components/shared/Footer'; // Import the SharedFooter
 
 interface VipLayoutProps {
   children: ReactNode;
@@ -116,41 +117,12 @@ const VipLayout = ({ children }: VipLayoutProps) => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-                <Link href="/" className="text-2xl font-bold text-white">LENGOLF</Link>
-                <span className="bg-white text-green-700 px-2 py-1 rounded-md text-sm font-medium">VIP</span>
+                <Link href="/vip" className="text-2xl font-bold text-white">LENGOLF</Link>
+                <Link href="/vip" className="bg-white text-green-700 px-2 py-1 rounded-md text-sm font-medium">VIP</Link>
             </div>
             
               <nav className="hidden md:flex gap-x-6 items-center text-white">
-                <Link href="/vip/dashboard" className="hover:text-gray-200">Dashboard</Link>
-                
-                  <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center gap-1 hover:text-gray-200 outline-none">
-                      Profile <ChevronDown size={16} />
-                    </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56"> {/* Increased width for Link Account */}
-                      <DropdownMenuItem asChild>
-                        <Link href="/vip/profile" className="flex items-center gap-2">
-                          <User size={16} />
-                        <span>My Profile</span>
-                      </Link>
-                    </DropdownMenuItem>
-                     {isAccountUnmatched && (
-                        <DropdownMenuItem asChild>
-                            <Link href="/vip/link-account" className="flex items-center gap-2 text-primary">
-                                <LinkIcon size={16} />
-                                <span>Link CRM Account</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                      <button onClick={handleSignOut} className="flex items-center gap-2 w-full text-left">
-                          <LogOut size={16} />
-                          <span>Sign Out</span>
-                        </button>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <Link href="/vip" className="hover:text-gray-200">Dashboard</Link>
                 
                   <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center gap-1 hover:text-gray-200 outline-none">
@@ -174,6 +146,35 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                 
                 <Link href="/vip/packages" className="hover:text-gray-200">Packages</Link>
                 <Link href="/vip/membership" className="hover:text-gray-200">Membership</Link>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center gap-1 hover:text-gray-200 outline-none">
+                    Profile <ChevronDown size={16} />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56"> 
+                    <DropdownMenuItem asChild>
+                      <Link href="/vip/profile" className="flex items-center gap-2">
+                        <User size={16} />
+                        <span>My Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    {isAccountUnmatched && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/vip/link-account" className="flex items-center gap-2 text-primary">
+                          <LinkIcon size={16} />
+                          <span>Link CRM Account</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <button onClick={handleSignOut} className="flex items-center gap-2 w-full text-left">
+                        <LogOut size={16} />
+                        <span>Sign Out</span>
+                      </button>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
             </nav>
             
             <button 
@@ -188,7 +189,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
           {mobileMenuOpen && (
               <nav className="md:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
               <ul className="space-y-2 px-2">
-                  <li><Link href="/vip/dashboard" className="block px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}>Dashboard</Link></li>
+                  <li><Link href="/vip" className="block px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}>Dashboard</Link></li>
                 
                   <li className="border-t border-primary-foreground/20 pt-2 mt-2">
                     <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">Profile</p>
@@ -227,13 +228,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
           {children}
       </main>
       
-        <footer className="bg-muted text-muted-foreground border-t">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
-                <p className="text-sm">
-                  LENGOLF VIP &copy; {new Date().getFullYear()}. Elevate your golf experience.
-              </p>
-          </div>
-      </footer>
+      <SharedFooter />
     </div>
     </VipContextProvider>
   );

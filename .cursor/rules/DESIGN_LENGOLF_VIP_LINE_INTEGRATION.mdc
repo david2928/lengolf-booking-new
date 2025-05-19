@@ -1,3 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
 # Design Document: LENGOLF VIP LINE Integration
 
 ## 1. Introduction & Goals
@@ -158,7 +163,7 @@ This flow applies whether the user accesses via the LINE Rich Menu or the main w
 *   Implement **Option 1 (No Direct Verification)**. If `POST /api/vip/link-account` finds a high-confidence match based on the user-provided phone number, the link in `crm_customer_mapping` (`is_matched = true`) is created automatically without OTP or explicit user confirmation ("Is this you?").
 
 ### 3.7. Error Handling & User Feedback
-
+DESIGN_LENGOLF_VIP_LINE_INTEGRATION
 *   Provide clear, user-friendly feedback for API errors, validation issues, confirmation prompts, and success messages using consistent UI patterns (e.g., toasts, inline messages). Map backend errors to appropriate frontend messages (e.g., distinguish "slot unavailable" from "general error").
 
 ## 4. Impact on Existing Systems

@@ -48,14 +48,17 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   // Helper function to format date and time
   const formatBookingDateTime = (dateStr: string, timeStr: string) => {
     const dateObj = new Date(`${dateStr}T${timeStr}`);
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true,
-    }).format(dateObj);
+    const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+    const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
+    const day = dateObj.getDate();
+    const time = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return (
+      <span>
+        <span className="text-green-700 font-semibold">{weekday}, {month} {day}</span>
+        <span className="text-gray-700"> at </span>
+        <span className="text-green-700 font-semibold">{time}</span>
+      </span>
+    );
   };
 
   if (!isMatched) {
@@ -107,27 +110,29 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           <CardHeader>
             <CardTitle className="text-xl font-semibold text-gray-800">Upcoming Session</CardTitle>
           </CardHeader>
-          <CardContent>
-            {nextBooking ? (
-              <div className="space-y-2">
-                <div className="flex items-center text-gray-700">
-                  <CalendarDays className="mr-3 h-5 w-5 text-primary" />
-                  <span className="font-medium text-md">
-                    {formatBookingDateTime(nextBooking.date, nextBooking.time)}
-                  </span>
-                </div>
-                {nextBooking.duration !== undefined && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Clock className="mr-3 h-5 w-5 text-gray-400" />
-                    <span>Duration: {nextBooking.duration} hour{nextBooking.duration > 1 ? 's' : ''}</span>
+          <CardContent className="flex flex-col md:flex-row items-start md:items-center justify-between">
+            <div className="flex-grow mb-4 md:mb-0 md:mr-4">
+              {nextBooking ? (
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <CalendarDays className="mr-3 h-5 w-5 text-primary" />
+                    <span className="text-md font-semibold">
+                      {formatBookingDateTime(nextBooking.date, nextBooking.time)}
+                    </span>
                   </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">You have no upcoming bookings.</p>
-            )}
-            <Link href="/vip/bookings" className="mt-4 inline-block w-full sm:w-auto">
-              <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
+                  {nextBooking.duration !== undefined && (
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="mr-3 h-4 w-4 text-gray-400" />
+                      <span>Duration: {nextBooking.duration} hour{nextBooking.duration > 1 ? 's' : ''}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">You have no upcoming bookings.</p>
+              )}
+            </div>
+            <Link href="/vip/bookings" className="w-full md:w-auto md:ml-auto">
+              <Button className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
                 <Calendar className="mr-2 h-4 w-4" />
                 Manage Bookings
               </Button>
@@ -140,35 +145,38 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           <CardHeader>
             <CardTitle className="text-xl font-semibold text-gray-800">Active Package</CardTitle>
           </CardHeader>
-          <CardContent>
-            {primaryActivePackage ? (
-              <div className="space-y-2">
-                <div className="flex items-center text-gray-700">
-                  <PackageLucideIcon className="mr-3 h-5 w-5 text-primary" />
-                  <span className="font-medium text-md">
-                    {primaryActivePackage.name}
-                    {primaryActivePackage.tier && ` (${primaryActivePackage.tier})`}
-                  </span>
+          <CardContent className="flex flex-col md:flex-row items-start md:items-center justify-between">
+            <div className="flex-grow mb-4 md:mb-0 md:mr-4">
+              {primaryActivePackage ? (
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <PackageLucideIcon className="mr-3 h-5 w-5 text-primary" />
+                    <span className="text-md font-semibold text-green-700">
+                      {primaryActivePackage.name}
+                    </span>
+                  </div>
+                  {primaryActivePackage.hoursRemaining !== undefined && 
+                    <div className="flex items-center text-sm text-muted-foreground">
+                       <Clock className="mr-3 h-4 w-4 text-gray-400" />
+                      <span>
+                        {primaryActivePackage.hoursRemaining} hour{Number(primaryActivePackage.hoursRemaining) !== 1 ? 's' : ''} remaining
+                      </span>
+                    </div>
+                  }
+                  {primaryActivePackage.expires && 
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <CalendarDays className="mr-3 h-4 w-4 text-gray-400" />
+                      <span>Expires: {primaryActivePackage.expires}</span>
+                    </div>
+                  }
                 </div>
-                {primaryActivePackage.hoursRemaining !== undefined && 
-                  <div className="flex items-center text-sm text-muted-foreground">
-                     <Clock className="mr-3 h-5 w-5 text-gray-400" />
-                    <span>{primaryActivePackage.hoursRemaining} session{Number(primaryActivePackage.hoursRemaining) !== 1 ? 's' : ''} remaining</span>
-                  </div>
-                }
-                {primaryActivePackage.expires && 
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <CalendarDays className="mr-3 h-4 w-4 text-gray-400" />
-                    <span>Expires: {primaryActivePackage.expires}</span>
-                  </div>
-                }
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No active package found.</p>
-            )}
+              ) : (
+                <p className="text-sm text-muted-foreground">No active package found.</p>
+              )}
+            </div>
             {primaryActivePackage && (
-              <Link href={`/vip/packages`} className="mt-4 inline-block w-full sm:w-auto">
-                <Button variant="outline" className="w-full sm:w-auto border-primary text-primary hover:bg-primary/10">
+              <Link href={`/vip/packages`} className="w-full md:w-auto md:ml-auto">
+                <Button variant="outline" className="w-full md:w-auto border-primary text-primary hover:bg-primary/10">
                   <PackageLucideIcon className="mr-2 h-4 w-4" />
                   View Package Details
                 </Button>

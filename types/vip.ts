@@ -67,6 +67,9 @@ export interface VipBooking {
   bay: string;
   status: "confirmed" | "cancelled" | "completed";
   numberOfPeople: number;
+  notes?: string;
+  bookingType?: string | null;
+  createdAt?: string;
 }
 
 export interface VipBookingsResponse {
@@ -102,12 +105,26 @@ export interface CancelVipBookingResponse {
 // 8. GET /api/vip/packages
 export interface VipPackage {
   id: string;
-  packageName: string;
-  purchaseDate: string; // yyyy-MM-dd
-  expiryDate: string | null; // yyyy-MM-dd
-  totalSessions: number;
-  remainingSessions: number;
-  status: "active" | "depleted" | "expired";
+  crm_package_id?: string;
+  packageName: string; // Main name, e.g., "Gold (30H)" or "Gold"
+  package_display_name?: string; // e.g., "Gold"
+  package_type_name?: string; // Raw field from one of the tables, maybe for specific reference
+  packageCategory?: "Monthly" | "Coaching" | "Unlimited" | string; // From pt.type
+  
+  purchaseDate: string | null; // yyyy-MM-dd or full timestamp string
+  first_use_date?: string | null;
+  expiryDate: string | null;
+  
+  totalHours?: number | null; // From pt.hours
+  remainingHours?: number | null;
+  usedHours?: number | null;
+  remainingSessions?: number; // Keep if some packages are session-based from another source
+  
+  pax?: number | null; // From pt.pax
+  validityPeriod?: string | null; // Formatted string like "6 months"
+
+  customer_name?: string; // If still needed
+  status: "active" | "depleted" | "expired" | string; // More reliable status from API
 }
 
 export interface VipPackagesResponse {

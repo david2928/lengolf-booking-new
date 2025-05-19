@@ -72,7 +72,7 @@ const VipBookingsPage = () => {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">My VIP Bookings</h1>
+        <h1 className="text-3xl font-semibold text-gray-800 tracking-tight">My Bookings</h1>
         <p className="text-lg text-muted-foreground mt-1">View and manage your past and upcoming tee times.</p>
       </div>
       

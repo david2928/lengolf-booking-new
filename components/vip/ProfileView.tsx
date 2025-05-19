@@ -17,9 +17,6 @@ import { useVipContext } from '../../app/(features)/vip/contexts/VipContext'; //
 const profileFormSchema = z.object({
   display_name: z.string().min(2, { message: "Name must be at least 2 characters." }).max(100).optional(),
   email: z.string().email({ message: "Invalid email address." }).optional(),
-  vip_phone_number: z.string().optional().refine((val: string | undefined) => !val || /^\+?[0-9\s-()]{7,}$/.test(val), { // Allow empty or valid phone
-    message: "Invalid phone number format.",
-  }),
   marketingPreference: z.boolean().optional(),
 });
 
@@ -39,7 +36,6 @@ const ProfileView = () => {
     defaultValues: {
       display_name: '',
       email: '',
-      vip_phone_number: '',
       marketingPreference: true,
     },
   });
@@ -53,7 +49,6 @@ const ProfileView = () => {
       form.reset({
         display_name: data.name || '',
         email: data.email || '',
-        vip_phone_number: (data.vipTier ? data.phoneNumber : '') || undefined,
         marketingPreference: data.marketingPreference ?? true,
       });
     } catch (err) {
@@ -77,9 +72,6 @@ const ProfileView = () => {
     // Only add to payload if the value is actually provided in the form and different or new
     if (values.display_name && values.display_name !== profile?.name) payload.display_name = values.display_name;
     if (values.email && values.email !== profile?.email) payload.email = values.email;
-    if (values.vip_phone_number !== undefined && values.vip_phone_number !== ((profile?.vipTier ? profile.phoneNumber : '') || undefined)) {
-        payload.vip_phone_number = values.vip_phone_number === '' ? null : values.vip_phone_number; // Send null if cleared
-    }
     if (values.marketingPreference !== undefined && values.marketingPreference !== profile?.marketingPreference) {
         payload.marketingPreference = values.marketingPreference;
     }
@@ -119,7 +111,7 @@ const ProfileView = () => {
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl">My Profile</CardTitle>
-        <CardDescription>View and update your personal information and preferences. Your VIP Tier is: <strong>{profile.vipTier?.name || 'Not Assigned'}</strong>.</CardDescription>
+        <CardDescription>View and update your personal information and preferences.</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -147,27 +139,13 @@ const ProfileView = () => {
               )}
             />
              <div>
-                <FormLabel>Registered Phone Number (from CRM/Primary)</FormLabel>
+                <FormLabel>Phone Number</FormLabel>
                 <Input value={profile.phoneNumber || 'Not provided'} readOnly disabled className="mt-1 bg-muted/50"/>
-                <FormDescription className="mt-1">
-                    This phone number is for reference. To change it, please contact support.
+                <FormDescription className="mt-1 text-sm text-gray-600">
+                    To update your phone number, please contact our staff.
                 </FormDescription>
             </div>
 
-            <FormField
-              control={form.control}
-              name="vip_phone_number"
-              render={({ field }: { field: ControllerRenderProps<ProfileFormValues, 'vip_phone_number'> }) => (
-                <FormItem>
-                  <FormLabel>Alternative VIP Contact Phone (Optional)</FormLabel>
-                  <FormControl><Input placeholder="Set or update VIP contact phone" {...field} value={field.value || ''} /></FormControl>
-                   <FormDescription>
-                    This number is stored in your VIP profile and can be edited here.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <FormField
               control={form.control}
               name="marketingPreference"

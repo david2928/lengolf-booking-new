@@ -13,8 +13,6 @@ import type { Account } from 'next-auth';
 import type { Profile as OAuthProfile } from 'next-auth';
 import jwt from 'jsonwebtoken'; // For minting Supabase JWT
 
-console.log(`[Auth Options] Current NODE_ENV: ${process.env.NODE_ENV}`);
-
 if (!process.env.NEXTAUTH_SECRET) {
   throw new Error('Please provide process.env.NEXTAUTH_SECRET');
 }
@@ -190,12 +188,9 @@ export const authOptions: NextAuthOptions = {
       profile?: OAuthProfile;
     }) {
       const supabase = supabaseAdminClient;
-      console.log("[NextAuth Callback: signIn] User:", JSON.stringify(user, null, 2));
-      console.log("[NextAuth Callback: signIn] Account:", JSON.stringify(account, null, 2));
 
       try {
         if (account?.provider === 'guest') {
-          console.log("[NextAuth Callback: signIn] Guest user, proceeding.");
           if (!user.id) {
             console.error("[NextAuth Callback: signIn] Guest user object missing id. Cannot mint Supabase JWT.");
             return false;
@@ -209,10 +204,7 @@ export const authOptions: NextAuthOptions = {
             .eq('provider', account?.provider)
             .single();
           
-          console.log("[NextAuth Callback: signIn] Existing Profile:", JSON.stringify(existingProfile, null, 2));
-
           const userIdFromSupabase = existingProfile?.id || uuidv4(); // Use existing Supabase ID or generate new
-          console.log("[NextAuth Callback: signIn] Determined Supabase userId:", userIdFromSupabase);
 
           // Prepare data for upsert
           const profileDataToUpsert: any = {
@@ -240,7 +232,6 @@ export const authOptions: NextAuthOptions = {
             console.error('[NextAuth Callback: signIn] Failed to upsert profile:', error);
             return false; // Prevent sign-in if Supabase profile update fails
           }
-          console.log("[NextAuth Callback: signIn] Profile upserted successfully for userId:", userIdFromSupabase);
           // Ensure the user object passed to the jwt callback has the correct Supabase ID
           user.id = userIdFromSupabase;
         }
@@ -257,7 +248,6 @@ export const authOptions: NextAuthOptions = {
           try {
             // Corrected call to getOrCreateCrmMapping
             await getOrCreateCrmMapping(user.id, { source: 'auth' });
-            console.log("[NextAuth Callback: signIn] CRM mapping processed for user:", user.id);
           } catch (mappingError) {
             console.error('[NextAuth Callback: signIn] Error processing CRM mapping:', mappingError);
             // Decide if this should prevent sign-in, currently it doesn't
@@ -274,9 +264,6 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }: { session: Session; token: JWT }) {
-      console.log("[NextAuth Callback: session] Original session:", JSON.stringify(session, null, 2));
-      console.log("[NextAuth Callback: session] Token received:", JSON.stringify(token, null, 2));
-
       if (token.sub && session.user) {
         session.user.id = token.sub; // Use 'sub' from token as user.id in session
       }
@@ -285,14 +272,12 @@ export const authOptions: NextAuthOptions = {
       }
       if (token.supabaseAccessToken) {
         session.accessToken = token.supabaseAccessToken as string; // Pass Supabase token to session
-        console.log("[NextAuth Callback: session] Using supabaseAccessToken for session.accessToken");
       } else {
         console.warn("[NextAuth Callback: session] supabaseAccessToken is missing in token. Session will not have it.");
       }
       // Add any other properties from token to session as needed
       // session.user.role = token.role // Example if role is in token
 
-      console.log("[NextAuth Callback: session] Modified session:", JSON.stringify(session, null, 2));
       return session;
     },
 
@@ -303,13 +288,9 @@ export const authOptions: NextAuthOptions = {
       trigger?: "signIn" | "signUp" | "update"; // `trigger` and `session` are for v4+
       session?: any; // Session data when `trigger` is "update"
     }) {
-      console.log(`[NextAuth Callback: jwt] Trigger: ${trigger}`);
-      console.log("[NextAuth Callback: jwt] Initial token:", JSON.stringify(token, null, 2));
       if (user) {
-        console.log("[NextAuth Callback: jwt] User object present:", JSON.stringify(user, null, 2));
       }
       if (account) {
-        console.log("[NextAuth Callback: jwt] Account object present:", JSON.stringify(account, null, 2));
       }
 
       // START OF NEW REFRESH LOGIC
@@ -394,14 +375,11 @@ export const authOptions: NextAuthOptions = {
       
       // Handle session updates if `trigger` is "update" (NextAuth v4 feature)
       if (trigger === "update" && updateSession) {
-        console.log("[NextAuth Callback: jwt] Handling update trigger with session:", JSON.stringify(updateSession, null, 2));
         if (updateSession.name) token.name = updateSession.name;
         if (updateSession.picture) token.picture = updateSession.picture;
         // Add any other fields from `updateSession` that you want to be reflected in the JWT `token`
       }
 
-      console.log("[NextAuth Callback: jwt] Final supabaseAccessToken status:", token.supabaseAccessToken ? "Present" : "Absent");
-      console.log("[NextAuth Callback: jwt] Final full token:", JSON.stringify(token, null, 2));
       return token;
     }
   },

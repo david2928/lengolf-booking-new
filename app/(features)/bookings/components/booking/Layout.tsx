@@ -5,12 +5,11 @@ import { useSession, signOut, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useVipStatus } from '@/components/providers/VipStatusProvider';
-import { createClient } from '@/utils/supabase/client';
-import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
-import { ChevronDownIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, Bars3Icon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, UserCircleIcon, TicketIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, Bars3Icon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, UserCircleIcon as HeroUserCircleIcon, TicketIcon, LinkIcon as LinkIconLucide, HomeIcon as HeroHomeIcon, UserIcon as HeroUserIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
-import { Menu } from '@headlessui/react';
+import SharedFooter from '@/components/shared/Footer';
+import { LogOut, Menu as MenuLucide, X, Package as PackageIconLucide, Calendar as CalendarIconLucide, Trophy as TrophyIconLucide, Link as LinkIconLucideRadix, User as UserIconLucide, LayoutDashboard as LayoutDashboardIcon } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -25,18 +24,16 @@ export function Layout({ children }: LayoutProps) {
   const [showPromotions, setShowPromotions] = useState(false);
   const [showLessons, setShowLessons] = useState(false);
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Sample promotion images - this would be replaced with your actual promotion images
   const promotionImages = [
     '/images/promotion.jpg',
     '/images/promotion_1.jpg',
     '/images/promotion_2.jpg',
-    // Additional promotion images can be added here
   ];
   
-  // Control body scroll when modals are open
   useEffect(() => {
-    if (showBayRates || showPromotions || showLessons) {
+    if (showBayRates || showPromotions || showLessons || mobileMenuOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'auto';
@@ -45,7 +42,7 @@ export function Layout({ children }: LayoutProps) {
     return () => {
       document.body.style.overflow = 'auto';
     };
-  }, [showBayRates, showPromotions, showLessons]);
+  }, [showBayRates, showPromotions, showLessons, mobileMenuOpen]);
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -60,6 +57,10 @@ export function Layout({ children }: LayoutProps) {
     }
   };
 
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
   if (sessionStatus === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -68,16 +69,19 @@ export function Layout({ children }: LayoutProps) {
     );
   }
 
+  const crmStatus = vipProfile?.crmStatus;
+  const isAccountUnmatched = crmStatus === 'linked_unmatched' ||
+                             crmStatus === 'not_linked' ||
+                             crmStatus === 'vip_data_exists_crm_unmatched';
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-green-800 text-white">
+      <header className="bg-green-800 text-white sticky top-0 z-50 shadow-md">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
-            {/* Show full text on desktop, just "LENGOLF" on mobile */}
             <h1 className="text-2xl font-bold">
               <button 
-                onClick={() => router.push('/bookings')} 
+                onClick={() => { router.push('/bookings'); if (mobileMenuOpen) toggleMobileMenu(); }} 
                 className="hover:opacity-80 transition-opacity"
               >
                 <span className="md:hidden">LENGOLF</span>
@@ -85,8 +89,32 @@ export function Layout({ children }: LayoutProps) {
               </button>
             </h1>
             
-            <div className="flex items-center gap-4">
-              <div className="hidden md:flex gap-4 items-center">
+            <div className="flex items-center gap-2">
+              <div className="md:hidden flex gap-1">
+                <button
+                  onClick={() => setShowBayRates(true)}
+                  className="p-2 text-white hover:bg-white/10 rounded-md"
+                  aria-label="Bay Rates"
+                >
+                  <CurrencyDollarIcon className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setShowPromotions(true)}
+                  className="p-2 text-white hover:bg-white/10 rounded-md"
+                  aria-label="Promotions"
+                >
+                  <FireIcon className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setShowLessons(true)}
+                  className="p-2 text-white hover:bg-white/10 rounded-md"
+                  aria-label="Golf Lessons"
+                >
+                  <AcademicCapIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              <nav className="hidden md:flex gap-4 items-center">
                 <button
                   onClick={() => setShowBayRates(!showBayRates)}
                   className="text-white px-3 py-1.5 rounded-full border-2 border-white hover:bg-white hover:text-green-800 transition-colors flex items-center gap-1 font-medium"
@@ -94,7 +122,6 @@ export function Layout({ children }: LayoutProps) {
                   <CurrencyDollarIcon className="h-5 w-5" />
                   <span>Bay Rates</span>
                 </button>
-                
                 <button
                   onClick={() => setShowPromotions(!showPromotions)}
                   className="text-white px-3 py-1.5 rounded-full border-2 border-white hover:bg-white hover:text-green-800 transition-colors flex items-center gap-1 font-medium"
@@ -102,7 +129,6 @@ export function Layout({ children }: LayoutProps) {
                   <FireIcon className="h-5 w-5" />
                   <span>Promotions</span>
                 </button>
-                
                 <button
                   onClick={() => setShowLessons(!showLessons)}
                   className="text-white px-3 py-1.5 rounded-full border-2 border-white hover:bg-white hover:text-green-800 transition-colors flex items-center gap-1 font-medium"
@@ -111,190 +137,107 @@ export function Layout({ children }: LayoutProps) {
                   <span>Lessons</span>
                 </button>
 
-                {/* VIP Links - Desktop */}
                 {sessionStatus === 'authenticated' && !vipLoading && vipProfile && (
                   <>
                     {vipProfile.crmStatus === 'linked_matched' ? (
-                      <>
-                        <Link href="/vip" className="text-white px-3 py-1.5 rounded-full border-2 border-yellow-400 hover:bg-yellow-400 hover:text-green-800 transition-colors flex items-center gap-1 font-medium">
-                          <UserCircleIcon className="h-5 w-5" />
-                          <span>VIP Dashboard</span>
-                        </Link>
-                        <Link href="/vip/bookings" className="text-white px-3 py-1.5 rounded-full border-2 border-yellow-400 hover:bg-yellow-400 hover:text-green-800 transition-colors flex items-center gap-1 font-medium">
-                          <TicketIcon className="h-5 w-5" />
-                          <span>VIP Bookings</span>
-                        </Link>
-                      </>
+                      <Link href="/vip" className="text-white px-3 py-1.5 rounded-full border-2 border-yellow-400 hover:bg-yellow-400 hover:text-green-800 transition-colors flex items-center gap-1 font-medium">
+                        <HeroUserCircleIcon className="h-5 w-5" />
+                        <span>VIP Dashboard</span>
+                      </Link>
                     ) : (
                       <Link href="/vip/link-account" className="text-white px-3 py-1.5 rounded-full border-2 border-blue-400 hover:bg-blue-400 hover:text-green-800 transition-colors flex items-center gap-1 font-medium">
-                        <LinkIcon className="h-5 w-5" />
+                        <LinkIconLucideRadix className="h-5 w-5" />
                         <span>Link VIP Account</span>
                       </Link>
                     )}
                   </>
                 )}
-              </div>
-              
-              {/* Mobile Buttons Row - Only show Rates and Promotions */}
-              <div className="md:hidden flex gap-2">
-                <button
-                  onClick={() => setShowBayRates(!showBayRates)}
-                  className="px-3 py-1 rounded-full border-2 border-white text-sm font-medium hover:bg-white hover:text-green-800 transition-colors flex items-center"
-                >
-                  <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-                  Rates
-                </button>
-                
-                <button
-                  onClick={() => setShowPromotions(!showPromotions)}
-                  className="px-3 py-1 rounded-full border-2 border-white text-sm font-medium hover:bg-white hover:text-green-800 transition-colors flex items-center"
-                >
-                  <FireIcon className="h-4 w-4 mr-1" />
-                  Promos
-                </button>
-              </div>
-              
-              {/* --- Desktop Auth Buttons --- */}
-              <div className="hidden md:flex gap-4 items-center">
                 <a 
                   href="https://www.len.golf" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="text-white hover:text-gray-200"
                 >
-                  Home Page
+                  Home
                 </a>
                 {sessionStatus === 'authenticated' ? (
                   <button onClick={handleSignOut} className="text-white hover:text-gray-200">Logout</button>
                 ) : (
                   <button onClick={() => signIn()} className="text-white hover:text-gray-200">Login</button>
                 )}
-              </div>
-              <div className="md:hidden">
-                <Menu as="div" className="relative">
-                  <Menu.Button className="flex items-center text-white hover:text-gray-200">
-                    <span className="sr-only">Open menu</span>
-                    <Bars3Icon className="h-6 w-6" />
-                  </Menu.Button>
-                  <Menu.Items className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
-                    {/* VIP Links - Mobile */}
-                    {sessionStatus === 'authenticated' && !vipLoading && vipProfile && (
-                      <>
-                        {vipProfile.crmStatus === 'linked_matched' ? (
-                          <>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <Link
-                                  href="/vip"
-                                  className={`${
-                                    active ? 'bg-gray-100' : ''
-                                  } group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-green-700`}
-                                >
-                                  <UserCircleIcon className="mr-2 h-5 w-5 text-yellow-500" />
-                                  VIP Dashboard
-                                </Link>
-                              )}
-                            </Menu.Item>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <Link
-                                  href="/vip/bookings"
-                                  className={`${
-                                    active ? 'bg-gray-100' : ''
-                                  } group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-green-700`}
-                                >
-                                  <TicketIcon className="mr-2 h-5 w-5 text-yellow-500" />
-                                  VIP Bookings
-                                </Link>
-                              )}
-                            </Menu.Item>
-                          </>
-                        ) : (
-                          <Menu.Item>
-                            {({ active }) => (
-                              <Link
-                                href="/vip/link-account"
-                                className={`${
-                                  active ? 'bg-gray-100' : ''
-                                } group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-700`}
-                              >
-                                <LinkIcon className="mr-2 h-5 w-5 text-blue-500" />
-                                Link VIP Account
-                              </Link>
-                            )}
-                          </Menu.Item>
-                        )}
-                        <div className="my-1 h-px bg-gray-200" /> {/* Divider */}
-                      </>
-                    )}
-                    <Menu.Item>
-                      {({ active }) => (
-                        <a
-                          href="https://www.len.golf"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50`}
-                        >
-                          Home Page
-                        </a>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={() => setShowLessons(!showLessons)}
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50`}
-                        >
-                          <AcademicCapIcon className="mr-2 h-5 w-5" />
-                          Golf Lessons
-                        </button>
-                      )}
-                    </Menu.Item>
-                    {/* --- Correct Conditional Auth Menu Item --- */}
-                    {sessionStatus === 'authenticated' && (
-                      <Menu.Item>
-                        {({ active }) => (
-                          <button
-                            onClick={handleSignOut}
-                            className={`${
-                              active ? 'bg-gray-100' : ''
-                            } block w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50`}
-                          >
-                            Logout
-                          </button>
-                        )}
-                      </Menu.Item>
-                    )}
-                    {sessionStatus !== 'authenticated' && (
-                      <Menu.Item>
-                        {({ active }) => (
-                          <button
-                            onClick={() => signIn()}
-                            className={`${
-                              active ? 'bg-gray-100' : ''
-                            } block w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50`}
-                          >
-                            Login
-                          </button>
-                        )}
-                      </Menu.Item>
-                    )}
-                    {/* --- End Correct Conditional --- */}
-                  </Menu.Items>
-                </Menu>
-              </div>
+              </nav>
+              
+              <button 
+                className="md:hidden p-2 text-white hover:bg-white/10 rounded-md"
+                onClick={toggleMobileMenu}
+                aria-label="Toggle main menu"
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <MenuLucide className="h-6 w-6" />}
+              </button>
             </div>
           </div>
+          
+          {mobileMenuOpen && (
+            <nav className="md:hidden mt-4 bg-green-800 pt-2 pb-3 border-t border-white/20 text-white">
+              <ul className="space-y-2 px-2">
+                {sessionStatus === 'authenticated' ? (
+                    <li>
+                      <Link href="/vip" className="flex items-center justify-between gap-2 px-3 py-2 rounded-md hover:bg-white/10" onClick={toggleMobileMenu}>
+                        <span className="flex items-center gap-2">
+                          Dashboard
+                        </span>
+                        <span className="bg-white text-green-700 px-1.5 py-0.5 rounded-sm text-xs font-semibold">VIP</span>
+                      </Link>
+                    </li>
+                 ) : (
+                    <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>New Booking</Link></li>
+                 )}
+                
+                {sessionStatus === 'authenticated' && (
+                  <>
+                    <li className="border-t border-white/20 pt-2 mt-2">
+                        <p className="px-3 text-sm text-white/60 uppercase font-medium">Profile</p>
+                        <ul className="mt-1 space-y-1">
+                            <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10" onClick={toggleMobileMenu}><UserIconLucide size={16} />My Profile</Link></li>
+                            {isAccountUnmatched && (
+                                <li><Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10 text-blue-300" onClick={toggleMobileMenu}><LinkIconLucideRadix size={16} />Link Account</Link></li>
+                            )}
+                        </ul>
+                    </li>
+                    <li className="border-t border-white/20 pt-2 mt-2">
+                        <p className="px-3 text-sm text-white/60 uppercase font-medium">Bookings</p>
+                        <ul className="mt-1 space-y-1">
+                            <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16} />My Bookings</Link></li>
+                            <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16} />New Booking</Link></li>
+                        </ul>
+                    </li>
+                    <li className="border-t border-white/20 pt-2 mt-2">
+                        <p className="px-3 text-sm text-white/60 uppercase font-medium">Packages</p>
+                        <ul className="mt-1 space-y-1">
+                            <li><Link href="/vip/packages" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10" onClick={toggleMobileMenu}><PackageIconLucide size={16} />My Packages</Link></li>
+                        </ul>
+                    </li>
+                    <li className="border-t border-white/20 pt-2 mt-2">
+                      <Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10" onClick={toggleMobileMenu}><TrophyIconLucide size={16} />Membership</Link>
+                    </li>
+                  </>
+                )}
+                
+                <li className="border-t border-white/20 pt-2 mt-2">
+                  {sessionStatus === 'authenticated' ? (
+                    <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10 text-left"><LogOut size={16} />Sign Out</button>
+                  ) : (
+                    <button onClick={() => { signIn(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/10 text-left"><LogOut size={16} />Sign In</button>
+                  )}
+                </li>
+              </ul>
+            </nav>
+          )}
         </div>
       </header>
 
-      {/* Bay Rates Modal */}
       {showBayRates && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowBayRates(false)}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => setShowBayRates(false)}>
           <div className="bg-white rounded-xl p-4 max-w-2xl w-full mx-4 md:mx-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
@@ -319,9 +262,8 @@ export function Layout({ children }: LayoutProps) {
         </div>
       )}
 
-      {/* Promotions Modal */}
       {showPromotions && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowPromotions(false)}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => setShowPromotions(false)}>
           <div className="bg-white rounded-xl p-4 max-w-2xl w-full mx-4 md:mx-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
@@ -344,7 +286,6 @@ export function Layout({ children }: LayoutProps) {
                     priority
                   />
                   
-                  {/* Navigation arrows (only show if there's more than one promotion) */}
                   {promotionImages.length > 1 && (
                     <div className="absolute inset-0 flex items-center justify-between pointer-events-none">
                       <button 
@@ -376,7 +317,6 @@ export function Layout({ children }: LayoutProps) {
                     </div>
                   )}
                   
-                  {/* Dots indicators (only show if there's more than one promotion) */}
                   {promotionImages.length > 1 && (
                     <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
                       {promotionImages.map((_, index) => (
@@ -404,9 +344,8 @@ export function Layout({ children }: LayoutProps) {
         </div>
       )}
 
-      {/* Lessons Modal */}
       {showLessons && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowLessons(false)}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => setShowLessons(false)}>
           <div className="bg-white rounded-xl p-4 max-w-2xl w-full mx-4 md:mx-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
@@ -460,210 +399,11 @@ export function Layout({ children }: LayoutProps) {
         </div>
       )}
 
-      {/* Main Content */}
       <main className="flex-grow mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {children}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t mt-auto">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          {/* Desktop Footer */}
-          <div className="hidden md:grid md:grid-cols-4 gap-8">
-            {/* Logo and Address */}
-            <div className="flex flex-col">
-              <a href="https://www.len.golf" className="mb-4">
-                <Image
-                  src="/images/logo_v1.png"
-                  alt="LENGOLF Logo"
-                  width={150}
-                  height={50}
-                  className="w-auto h-auto"
-                />
-              </a>
-              <a 
-                href="https://maps.app.goo.gl/M7ygv921XyzcQwBE8" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-gray-600 hover:text-gray-800"
-              >
-                The Mercury Ville @ BTS Chidlom<br />
-                Floor 4
-              </a>
-            </div>
-
-            {/* Opening Hours */}
-            <div>
-              <h5 className="text-[#005a32] font-semibold mb-3">Opening Hours</h5>
-              <p className="text-gray-600">
-                10am - 11pm<br />
-                Monday - Sunday
-              </p>
-            </div>
-
-            {/* Keep in Touch */}
-            <div>
-              <h5 className="text-[#005a32] font-semibold mb-3">Keep in Touch</h5>
-              <div className="text-gray-600 space-y-2">
-                <a 
-                  href="https://www.len.golf" 
-                  className="block hover:text-gray-800"
-                >
-                  www.len.golf
-                </a>
-                <p className="flex items-center">
-                  <PhoneIcon className="h-4 w-4 mr-2 text-[#005a32]" />
-                  096-668-2335
-                </p>
-                <a 
-                  href="mailto:info@len.golf" 
-                  className="flex items-center hover:text-gray-800"
-                >
-                  <EnvelopeIcon className="h-4 w-4 mr-2 text-[#005a32]" />
-                  info@len.golf
-                </a>
-                <a 
-                  href="https://www.len.golf/privacy-policy/" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center hover:text-gray-800"
-                >
-                  <svg className="h-4 w-4 mr-2 text-[#005a32]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Privacy Policy
-                </a>
-              </div>
-            </div>
-
-            {/* Social Media */}
-            <div>
-              <h5 className="text-[#005a32] font-semibold mb-3">Follow Us</h5>
-              <div className="flex space-x-4">
-                <a 
-                  href="https://www.facebook.com/lengolf.bkk" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#005a32] hover:text-[#007a42] transition-colors"
-                >
-                  <i className="fab fa-facebook-f text-xl"></i>
-                </a>
-                <a 
-                  href="https://lin.ee/uxQpIXn" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#005a32] hover:text-[#007a42] transition-colors"
-                >
-                  <i className="fab fa-line text-xl"></i>
-                </a>
-                <a 
-                  href="https://www.instagram.com/lengolf.bkk/" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#005a32] hover:text-[#007a42] transition-colors"
-                >
-                  <i className="fab fa-instagram text-xl"></i>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile Footer */}
-          <div className="md:hidden space-y-6">
-            {/* Logo */}
-            <div className="flex justify-center">
-              <Image
-                src="/images/logo_v1.png"
-                alt="LENGOLF Logo"
-                width={120}
-                height={40}
-                className="w-auto h-auto"
-              />
-            </div>
-
-            {/* Address */}
-            <div className="text-center">
-              <a 
-                href="https://maps.app.goo.gl/M7ygv921XyzcQwBE8" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-gray-600"
-              >
-                The Mercury Ville @ BTS Chidlom<br />
-                Floor 4
-              </a>
-            </div>
-
-            {/* Opening Hours */}
-            <div className="text-center">
-              <h5 className="text-[#005a32] font-semibold mb-2">Opening Hours</h5>
-              <p className="text-gray-600">
-                10am - 11pm<br />
-                Monday - Sunday
-              </p>
-            </div>
-
-            {/* Contact Info */}
-            <div className="text-center space-y-2">
-              <h5 className="text-[#005a32] font-semibold mb-2">Keep in Touch</h5>
-              <a 
-                href="https://www.len.golf" 
-                className="block text-gray-600"
-              >
-                www.len.golf
-              </a>
-              <p className="text-gray-600">
-                <i className="fas fa-phone text-[#005a32] mr-2"></i>
-                096-668-2335
-              </p>
-              <a 
-                href="mailto:info@len.golf" 
-                className="block text-gray-600"
-              >
-                <i className="fas fa-envelope text-[#005a32] mr-2"></i>
-                info@len.golf
-              </a>
-              <a 
-                href="https://www.len.golf/privacy-policy/" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-gray-600"
-              >
-                <i className="fas fa-file-alt text-[#005a32] mr-2"></i>
-                Privacy Policy
-              </a>
-            </div>
-
-            {/* Social Media Icons */}
-            <div className="flex justify-center space-x-6">
-              <a 
-                href="https://www.facebook.com/lengolf.bkk" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#005a32] text-xl"
-              >
-                <i className="fab fa-facebook-f"></i>
-              </a>
-              <a 
-                href="https://lin.ee/uxQpIXn" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#005a32] text-xl"
-              >
-                <i className="fab fa-line"></i>
-              </a>
-              <a 
-                href="https://www.instagram.com/lengolf.bkk/" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#005a32] text-xl"
-              >
-                <i className="fab fa-instagram"></i>
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <SharedFooter />
     </div>
   );
 } 

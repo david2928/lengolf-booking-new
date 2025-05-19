@@ -1,3 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
 # LENGOLF VIP Feature - Backend API Endpoints
 
 This document provides a detailed specification for the backend API endpoints developed for the LENGOLF VIP feature. All endpoints are protected and require NextAuth authentication unless otherwise specified.

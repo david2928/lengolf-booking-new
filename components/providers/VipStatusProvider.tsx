@@ -16,7 +16,7 @@ export interface VipProfile {
   phoneNumber: string | null;
   pictureUrl: string | null;
   marketingPreference: boolean | null;
-  crmStatus: 'not_linked' | 'linked_matched' | 'linked_unmatched' | 'error' | null;
+  crmStatus: 'not_linked' | 'linked_matched' | 'linked_unmatched' | 'error' | 'vip_data_exists_crm_unmatched' | null;
   crmCustomerId: string | null;
   stableHashId: string | null;
   vipTier: VipTier | null;

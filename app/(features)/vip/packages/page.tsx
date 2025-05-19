@@ -41,7 +41,8 @@ const VipPackagesPage = () => {
   
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">My VIP Packages</h1>
+      <h1 className="text-3xl font-semibold text-gray-800 tracking-tight">My Packages</h1>
+      <p className="text-muted-foreground">View your active and past lesson or practice packages.</p>
       <PackagesList /> {/* This component will handle actual data fetching and display */}
     </div>
   );

@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Needs install
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // Needs install
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination'; // Needs install
-import { Loader2, Edit, XCircle, Info, AlertTriangle, CalendarOff, CalendarDays, Clock, MapPin, InfoIcon } from 'lucide-react';
+import { Loader2, Edit, XCircle, Info, AlertTriangle, CalendarOff, CalendarDays, Clock, MapPin, InfoIcon, Users, PlusCircle } from 'lucide-react';
 import { useVipContext } from '../../app/(features)/vip/contexts/VipContext';
 import Link from 'next/link';
 import EmptyState from './EmptyState'; // Import EmptyState
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card imports
+import BookingCancelModal from './BookingCancelModal';
+import BookingModifyModal from './BookingModifyModal';
 
 interface BookingsListProps {
   onModifyBooking: (bookingId: string) => void; 
@@ -47,7 +49,16 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
         limit: itemsPerPage,
         filter,
       });
-      setBookings(data.bookings);
+      // Sort bookings: active (confirmed) first, then others, then cancelled last.
+      const sortedBookings = [...data.bookings].sort((a, b) => {
+        if (a.status === 'cancelled' && b.status !== 'cancelled') return 1;
+        if (a.status !== 'cancelled' && b.status === 'cancelled') return -1;
+        if (a.status === 'confirmed' && b.status !== 'confirmed') return -1;
+        if (a.status !== 'confirmed' && b.status === 'confirmed') return 1;
+        // Optionally, sort by date if statuses are the same
+        return new Date(b.date).getTime() - new Date(a.date).getTime(); 
+      });
+      setBookings(sortedBookings);
       setPaginationData(data.pagination);
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
@@ -86,8 +97,27 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString + 'T00:00:00').toLocaleDateString('en-CA'); // YYYY-MM-DD for consistency
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString + 'T00:00:00'); // Ensure correct date parsing
+    return date.toLocaleDateString("en-US", {
+      weekday: "short", // "Mon"
+      month: "short",   // "Aug"
+      day: "numeric",   // "26"
+    });
+  };
+
+  const formatTime = (booking: VipBooking): string => {
+    if (!booking.startTime) return 'N/A';
+    const startDate = new Date(`${booking.date}T${booking.startTime}`);
+    let endTimeDisplay = '';
+    if (booking.duration && typeof booking.duration === 'number' && booking.duration > 0) {
+      const endDate = new Date(startDate.getTime() + booking.duration * 60 * 60 * 1000);
+      endTimeDisplay = ` - ${endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+    }
+    
+    const startTimeDisplay = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    
+    return `${startTimeDisplay}${endTimeDisplay}`;
   };
 
   if (isLoadingVipStatus) {
@@ -148,6 +178,14 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-start mb-4">
+        <Link href="/bookings">
+          <Button className="bg-green-700 hover:bg-green-800 text-white">
+            <PlusCircle className="mr-2 h-5 w-5" />
+            New Booking
+          </Button>
+        </Link>
+      </div>
       <Tabs value={currentFilter} onValueChange={handleFilterChange}>
         <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex bg-muted p-1 rounded-lg">
           <TabsTrigger value="future" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Future</TabsTrigger>
@@ -158,38 +196,51 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
 
       {isLoading && bookings.length > 0 && <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
       
-      {/* Mobile Card View */}
+      {/* Card View for All Screen Sizes */}
       {bookings.length > 0 && (
-        <div className="space-y-4 sm:hidden">
+        <div className="space-y-4">
           {bookings.map((booking) => (
-            <Card key={booking.id} className="shadow-lg border-gray-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold text-gray-800">
-                  {formatDate(booking.date)}
-                </CardTitle>
-                <CardDescription className="text-sm text-muted-foreground">
-                  Time: {booking.startTime}
-                </CardDescription>
+            <Card 
+              key={booking.id} 
+              className={`shadow-md hover:shadow-lg transition-shadow duration-200 ease-in-out relative overflow-hidden bg-white border border-gray-200 rounded-lg ${booking.status === 'cancelled' ? 'opacity-75 bg-gray-50' : ''}`}
+            >
+              <CardHeader className="pb-3 pt-4 px-4 bg-gray-50 border-b border-gray-100">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle className="text-lg font-semibold text-gray-800">{formatDate(booking.date)}</CardTitle>
+                        <CardDescription className="text-sm text-gray-500">Booking ID: {booking.id}</CardDescription>
+                    </div>
+                    <span
+                        className={`absolute top-2 right-2 text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap
+                            ${booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                            booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                            booking.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'}`}
+                    >
+                        {booking.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1) : 'Unknown'}
+                    </span>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-2 pb-4">
-                <div className="flex items-center text-sm">
-                  <MapPin className="mr-2 h-4 w-4 text-gray-500" /> Bay: {booking.bay || 'N/A'}
+              <CardContent className="p-4 space-y-3 text-sm">
+                <div className="flex items-center">
+                  <Clock size={16} className="mr-2 text-primary flex-shrink-0" />
+                  <span className="font-medium text-gray-700">{formatTime(booking)}</span>
                 </div>
-                <div className="flex items-center text-sm">
-                  <InfoIcon className="mr-2 h-4 w-4 text-gray-500" /> Status: {' '}
-                  <span className={`ml-1 px-2 py-0.5 text-xs font-semibold rounded-full 
-                      ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : 
-                        booking.status === 'completed' ? 'bg-blue-100 text-blue-700' : 
-                        booking.status === 'cancelled' ? 'bg-red-100 text-red-700' : 
-                        'bg-gray-100 text-gray-700'}`}>
-                    {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                  </span>
+                <div className="flex items-center">
+                  <Users size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                  <span className="text-gray-600">Pax: {booking.numberOfPeople || 'N/A'}</span>
                 </div>
+                {booking.notes && (
+                  <div className="flex items-start text-gray-600">
+                      <InfoIcon size={16} className="mr-2 text-gray-500 flex-shrink-0 mt-0.5" />
+                      <p className="break-words">Note: {booking.notes}</p>
+                  </div>
+                )}
               </CardContent>
               {booking.status === 'confirmed' && new Date(booking.date + 'T00:00:00') >= new Date(new Date().toDateString()) && (
                 <CardFooter className="flex gap-2 pt-0 pb-4 px-4">
                   <Button variant="outline" onClick={() => onModifyBooking(booking.id)} className="flex-1 py-1 px-2 h-auto text-xs">
-                    <Edit className="mr-1 h-3 w-3" /> Modify
+                    <Edit className="mr-1 h-3 w-3" /> Edit
                   </Button>
                   <Button 
                     variant="outline"
@@ -205,8 +256,8 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
         </div>
       )}
 
-      {/* Desktop Table View */}
-      {bookings.length > 0 && (
+      {/* Desktop Table View - This section should be removed */}
+      {/* {bookings.length > 0 && (
         <>
             <div className="hidden sm:block border rounded-lg overflow-x-auto bg-card shadow-sm">
                 <Table>
@@ -214,7 +265,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                     <TableRow>
                     <TableHead className="whitespace-nowrap">Date</TableHead>
                     <TableHead className="whitespace-nowrap">Time</TableHead>
-                    <TableHead>Bay</TableHead>
+                    <TableHead className="whitespace-nowrap">Pax</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -223,14 +274,14 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                     {bookings.map((booking) => (
                     <TableRow key={booking.id}>
                         <TableCell className="font-medium whitespace-nowrap">{formatDate(booking.date)}</TableCell>
-                        <TableCell className="whitespace-nowrap">{booking.startTime}</TableCell>
-                        <TableCell>{booking.bay || 'N/A'}</TableCell>
+                        <TableCell className="whitespace-nowrap">{formatTime(booking)}</TableCell>
+                        <TableCell className="whitespace-nowrap">{booking.numberOfPeople}</TableCell>
                         <TableCell>
                             <span className={`px-2 py-0.5 text-xs font-semibold rounded-full 
                                 ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : 
                                   booking.status === 'completed' ? 'bg-blue-100 text-blue-700' : 
-                                  booking.status === 'cancelled' ? 'bg-red-100 text-red-700' : 
-                                  'bg-gray-100 text-gray-700'}
+                                  booking.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
+                                  'bg-gray-100 text-gray-800'}
                             `}>
                                 {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                             </span>
@@ -289,7 +340,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                 </Pagination>
             )}
         </>
-      )}
+      )} */}
     </div>
   );
 };

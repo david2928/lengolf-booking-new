@@ -228,7 +228,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { email: reqEmail, marketingPreference: reqMarketingPreference, display_name: reqDisplayName, vip_phone_number: reqVipPhoneNumber } = requestBody;
+  const { email: reqEmail, marketingPreference: reqMarketingPreference, display_name: reqDisplayName } = requestBody;
   const updatedFieldsAccumulator: string[] = [];
 
   try {
@@ -253,11 +253,8 @@ export async function PUT(request: Request) {
           vip_display_name: reqDisplayName ?? userProfile.display_name,
           vip_email: reqEmail ?? userProfile.email,
           vip_marketing_preference: reqMarketingPreference,
-          vip_phone_number: reqVipPhoneNumber,
-          // vip_tier_id will be NULL by default here, or set it if a default is passed in request/determined by logic
-          // For now, not setting it explicitly on create, will rely on DB default if any or manual/logic-based update later
         })
-        .select('id') // Select only id, or '*' if you need the whole new record
+        .select('id')
         .single();
 
       if (insertVipError || !newVipData) {
@@ -281,7 +278,6 @@ export async function PUT(request: Request) {
       if (reqDisplayName !== undefined) updatedFieldsAccumulator.push('display_name');
       if (reqEmail !== undefined) updatedFieldsAccumulator.push('email');
       if (reqMarketingPreference !== undefined) updatedFieldsAccumulator.push('marketingPreference');
-      if (reqVipPhoneNumber !== undefined) updatedFieldsAccumulator.push('vip_phone_number');
     } else {
       // Update existing vip_customer_data record
       const vipUpdatePayload: Partial<{
@@ -315,14 +311,6 @@ export async function PUT(request: Request) {
           updatedFieldsAccumulator.push('marketingPreference');
         } else {
           return NextResponse.json({ error: 'Invalid marketingPreference format.' }, { status: 400 });
-        }
-      }
-      if (reqVipPhoneNumber !== undefined) {
-        if (typeof reqVipPhoneNumber === 'string' || reqVipPhoneNumber === null) {
-          vipUpdatePayload.vip_phone_number = reqVipPhoneNumber;
-          updatedFieldsAccumulator.push('vip_phone_number');
-        } else {
-          return NextResponse.json({ error: 'Invalid vip_phone_number format.' }, { status: 400 });
         }
       }
 
