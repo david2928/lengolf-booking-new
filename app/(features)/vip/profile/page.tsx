@@ -20,16 +20,6 @@ const VipProfilePage = () => {
   
   return (
     <div className="container mx-auto max-w-3xl py-8 px-4">
-      {vipStatus && (vipStatus.status === 'linked_unmatched' || vipStatus.status === 'vip_data_exists_crm_unmatched') && (
-        <Alert variant="default" className="mb-6 bg-yellow-50 border-yellow-300 text-yellow-700 [&>svg]:text-yellow-700"> 
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Account Not Fully Synced</AlertTitle>
-          <AlertDescription>
-            Your account is linked but some information might not be fully synced with our CRM. 
-            You can view and update your VIP-specific details below. For primary account changes, please contact support or check your main Lengolf profile.
-          </AlertDescription>
-        </Alert>
-      )}
        {vipStatus && vipStatus.status === 'not_linked' && (
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4" />

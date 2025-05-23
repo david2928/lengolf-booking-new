@@ -45,93 +45,95 @@ export async function GET() {
   const crmSupabase = createCrmClient();
 
   try {
-    const { data: userProfile, error: userProfileError } = await supabaseUserClient
+    // Optimized query: Join profiles_vip_staging with vip_customer_data and vip_tiers in a single query
+    const { data: profileData, error: profileError } = await supabaseUserClient
       .from('profiles_vip_staging')
-      .select('id, email, display_name, picture_url, phone_number, vip_customer_data_id')
+      .select(`
+        id, 
+        email, 
+        display_name, 
+        picture_url, 
+        phone_number,
+        vip_customer_data_id,
+        vip_customer_data:vip_customer_data_id (
+          vip_display_name,
+          vip_email,
+          vip_marketing_preference,
+          stable_hash_id,
+          vip_phone_number,
+          vip_tier_id,
+          vip_tiers:vip_tier_id (
+            id,
+            tier_name,
+            description
+          )
+        )
+      `)
       .eq('id', profileId)
       .single();
 
-    if (userProfileError) {
-      console.error('Error fetching user profile (profiles_vip_staging):', userProfileError);
+    if (profileError) {
+      console.error('Error fetching user profile with joined data:', profileError);
       return NextResponse.json({ error: 'Error fetching user profile data.' }, { status: 500 });
     }
-    if (!userProfile) {
+    if (!profileData) {
       return NextResponse.json({ error: 'User profile not found.' }, { status: 404 });
     }
 
-    let vipDisplayName = userProfile.display_name;
-    let vipEmail = userProfile.email;
-    let vipMarketingPreference: boolean | null = null;
-    let stableHashIdToUse: string | null = null;
-    let vipPhoneNumber: string | null = null;
-    let vipTierInfo: { id: number; name: string; description: string | null } | null = null; // To hold tier details
+    // Extract data from joined results
+    const vipData = Array.isArray(profileData.vip_customer_data) 
+      ? profileData.vip_customer_data[0] 
+      : profileData.vip_customer_data;
+    const tierData = vipData?.vip_tiers 
+      ? (Array.isArray(vipData.vip_tiers) ? vipData.vip_tiers[0] : vipData.vip_tiers)
+      : null;
+
+    let vipDisplayName = vipData?.vip_display_name ?? profileData.display_name;
+    let vipEmail = vipData?.vip_email ?? profileData.email;
+    let vipMarketingPreference: boolean | null = vipData?.vip_marketing_preference ?? null;
+    let stableHashIdToUse: string | null = vipData?.stable_hash_id ?? null;
+    let vipPhoneNumber: string | null = vipData?.vip_phone_number ?? null;
+    let vipTierInfo: { id: number; name: string; description: string | null } | null = null;
     
-    let finalResolvedPhoneNumber: string | null = userProfile.phone_number ?? null;
+    let finalResolvedPhoneNumber: string | null = vipPhoneNumber ?? profileData.phone_number ?? null;
 
-    if (userProfile.vip_customer_data_id) {
-      const { data: vipData, error: vipDataError } = await supabaseUserClient
-        .from('vip_customer_data')
-        // Select new vip_tier_id as well
-        .select('vip_display_name, vip_email, vip_marketing_preference, stable_hash_id, vip_phone_number, vip_tier_id') 
-        .eq('id', userProfile.vip_customer_data_id)
-        .single();
-
-      if (vipDataError) {
-        console.warn(`[VIP Profile API GET] Could not fetch vip_customer_data for id ${userProfile.vip_customer_data_id}:`, vipDataError);
-      } else if (vipData) {
-        vipDisplayName = vipData.vip_display_name ?? vipDisplayName;
-        vipEmail = vipData.vip_email ?? vipEmail;
-        vipMarketingPreference = vipData.vip_marketing_preference;
-        stableHashIdToUse = vipData.stable_hash_id;
-        vipPhoneNumber = vipData.vip_phone_number;
-        if (vipPhoneNumber !== null) {
-            finalResolvedPhoneNumber = vipPhoneNumber;
-        }
-
-        // If vip_tier_id is present, fetch tier details
-        if (vipData.vip_tier_id) {
-          const { data: tierData, error: tierError } = await supabaseUserClient // Can use the same client
-            .from('vip_tiers')
-            .select('id, tier_name, description')
-            .eq('id', vipData.vip_tier_id)
-            .single();
-          
-          if (tierError) {
-            console.warn(`[VIP Profile API GET] Could not fetch vip_tier details for tier_id ${vipData.vip_tier_id}:`, tierError);
-          } else if (tierData) {
-            vipTierInfo = { id: tierData.id, name: tierData.tier_name, description: tierData.description };
-          }
-        }
-      }
+    // Set tier info if available
+    if (tierData) {
+      vipTierInfo = { 
+        id: tierData.id, 
+        name: tierData.tier_name, 
+        description: tierData.description 
+      };
     }
     
     let crmStatus: string = 'not_linked';
     let crmCustomerIdFromMapping: string | null = null;
     let finalStableHashId: string | null = stableHashIdToUse;
 
+    // Check CRM customer data if we have a stable_hash_id
     if (stableHashIdToUse) {
         const { data: customerData, error: customerError } = await crmSupabase
             .from('customers') 
             .select('contact_number, id, stable_hash_id') 
-            .eq('stable_hash_id', stableHashIdToUse) // Query customers table by stable_hash_id
+            .eq('stable_hash_id', stableHashIdToUse)
             .maybeSingle();
 
         if (customerError) {
             console.error('Error fetching CRM customer using stable_hash_id from vip_customer_data:', customerError);
         } else if (customerData) {
-            // CRM phone takes highest precedence if found
-            if (customerData.contact_number) {
+            // Only use CRM phone if VIP phone number is not available
+            if (customerData.contact_number && !vipPhoneNumber) {
                 finalResolvedPhoneNumber = customerData.contact_number;
             }
             crmStatus = 'linked_matched';
             crmCustomerIdFromMapping = customerData.id;
-            finalStableHashId = customerData.stable_hash_id; // Ensure this is the one from CRM
+            finalStableHashId = customerData.stable_hash_id;
         } else {
             crmStatus = 'linked_unmatched'; 
             console.warn(`[VIP Profile API GET] stable_hash_id ${stableHashIdToUse} found in vip_customer_data, but no matching customer in CRM.`);
-            // finalResolvedPhoneNumber remains as set from vip_customer_data or profiles_vip_staging in this case
         }
     } else {
+        // Fallback to check crm_customer_mapping_vip_staging if no stable_hash_id in vip_customer_data
         const { data: mapping, error: mappingError } = await supabaseUserClient
           .from('crm_customer_mapping_vip_staging')
           .select('is_matched, crm_customer_id, stable_hash_id')
@@ -142,22 +144,22 @@ export async function GET() {
           console.error('Error fetching CRM mapping (crm_customer_mapping_vip_staging):', mappingError);
         } else if (mapping) {
             crmCustomerIdFromMapping = mapping.crm_customer_id;
-            finalStableHashId = mapping.stable_hash_id; // Use stable_hash_id from mapping
-            if (mapping.is_matched && mapping.stable_hash_id) { // Check stable_hash_id for fetching phone
+            finalStableHashId = mapping.stable_hash_id;
+            if (mapping.is_matched && mapping.stable_hash_id) {
                 const { data: customerData, error: customerError } = await crmSupabase
                     .from('customers')
                     .select('contact_number')
-                    .eq('stable_hash_id', mapping.stable_hash_id) // Use stable_hash_id here
+                    .eq('stable_hash_id', mapping.stable_hash_id)
                     .single();
                 if (customerError) {
                     console.error('Error fetching CRM customer phone from mapping by stable_hash_id:', customerError);
                 } else if (customerData && customerData.contact_number) {
                      // CRM phone takes highest precedence if found via mapping
-                    finalResolvedPhoneNumber = customerData.contact_number;
+                     finalResolvedPhoneNumber = customerData.contact_number;
                 }
                 crmStatus = 'linked_matched';
             } else if (mapping.is_matched && mapping.crm_customer_id && !mapping.stable_hash_id) {
-                 // Fallback if only crm_customer_id is somehow present and matched, though stable_hash_id is preferred
+                 // Fallback if only crm_customer_id is somehow present and matched
                 const { data: customerData, error: customerError } = await crmSupabase
                     .from('customers')
                     .select('contact_number')
@@ -166,7 +168,6 @@ export async function GET() {
                 if (customerError) {
                     console.error('Error fetching CRM customer phone from mapping by crm_customer_id:', customerError);
                 } else if (customerData && customerData.contact_number) {
-                    // CRM phone takes highest precedence if found via mapping
                     finalResolvedPhoneNumber = customerData.contact_number;
                 }
                 crmStatus = 'linked_matched';
@@ -177,11 +178,11 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      id: userProfile.id,
+      id: profileData.id,
       name: vipDisplayName,
       email: vipEmail,
       phoneNumber: finalResolvedPhoneNumber,
-      pictureUrl: userProfile.picture_url,
+      pictureUrl: profileData.picture_url,
       marketingPreference: vipMarketingPreference,
       crmStatus: crmStatus,
       crmCustomerId: crmCustomerIdFromMapping,
@@ -228,8 +229,13 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { email: reqEmail, marketingPreference: reqMarketingPreference, display_name: reqDisplayName } = requestBody;
+  const { email: reqEmail, marketingPreference: reqMarketingPreference, display_name: reqDisplayName, vip_phone_number: reqVipPhoneNumber } = requestBody;
   const updatedFieldsAccumulator: string[] = [];
+
+  // Get a Supabase admin client for operations that need to bypass RLS or use service role
+  const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
 
   try {
     const { data: userProfile, error: userProfileError } = await supabaseUserClient
@@ -244,16 +250,77 @@ export async function PUT(request: Request) {
     }
 
     let targetVipDataId = userProfile.vip_customer_data_id;
+    let resolvedStableHashId: string | null = null;
+
+    // --- BEGIN: Determine stable_hash_id for the current profileId ---
+    try {
+      const { data: mappingData, error: mappingError } = await supabaseAdmin // Use admin client for this lookup
+        .from('crm_customer_mapping_vip_staging')
+        .select('stable_hash_id, is_matched')
+        .eq('profile_id', profileId)
+        .maybeSingle();
+
+      if (mappingError) {
+        console.warn(`[VIP Profile PUT] Error fetching crm_customer_mapping for profile ${profileId}:`, mappingError.message);
+      } else if (mappingData?.is_matched && mappingData.stable_hash_id) {
+        resolvedStableHashId = mappingData.stable_hash_id;
+      }
+    } catch (e) {
+      console.error('[VIP Profile PUT] Exception fetching stable_hash_id:', e);
+    }
+    // --- END: Determine stable_hash_id ---
+
+    if (resolvedStableHashId) {
+      // A stable_hash_id was found for this profile. Try to find existing vip_customer_data by it.
+      const { data: existingVipDataByHash, error: existingVipError } = await supabaseUserClient
+        .from('vip_customer_data')
+        .select('id')
+        .eq('stable_hash_id', resolvedStableHashId)
+        .maybeSingle(); // Use maybeSingle as it might not exist
+
+      if (existingVipError) {
+        console.warn(`[VIP Profile PUT] Error checking for existing vip_customer_data by stable_hash_id ${resolvedStableHashId}:`, existingVipError.message);
+        // Proceed with current targetVipDataId from profile if lookup fails, risk of creating duplicate if RLS hides it
+      }
+
+      if (existingVipDataByHash) {
+        targetVipDataId = existingVipDataByHash.id;
+        // Ensure the current profile is linked to this correct vip_customer_data record
+        if (userProfile.vip_customer_data_id !== targetVipDataId) {
+          const { error: profileLinkUpdateError } = await supabaseUserClient
+            .from('profiles_vip_staging')
+            .update({ vip_customer_data_id: targetVipDataId })
+            .eq('id', profileId);
+          if (profileLinkUpdateError) {
+            console.error(`[VIP Profile PUT] Failed to update profiles_vip_staging.vip_customer_data_id for profile ${profileId} to ${targetVipDataId}:`, profileLinkUpdateError.message);
+          }
+        }
+      } else {
+        // No existing vip_customer_data for this stable_hash_id. 
+        // If targetVipDataId is also null (profile wasn't linked to any vip_customer_data), we will create one below and set its stable_hash_id.
+        // If targetVipDataId is NOT null (profile was linked to an OLD/different vip_customer_data that didn't have this stable_hash_id),
+        // the current logic will update that old one. We should ideally update its stable_hash_id or merge.
+        // For now, if an existing linked record (targetVipDataId) is present, we let it be updated below,
+        // and it will get its stable_hash_id updated there if it was missing.
+        console.log(`[VIP Profile PUT] No existing vip_customer_data found for stable_hash_id ${resolvedStableHashId}. A new record will be created if profile is not already linked, or existing linked record will be updated.`);
+      }
+    }
 
     if (!targetVipDataId) {
       // Create new vip_customer_data record
+      const insertPayload: any = {
+        vip_display_name: reqDisplayName ?? userProfile.display_name,
+        vip_email: reqEmail ?? userProfile.email,
+        vip_marketing_preference: reqMarketingPreference,
+        vip_phone_number: reqVipPhoneNumber, // Add vip_phone_number
+      };
+      if (resolvedStableHashId) {
+        insertPayload.stable_hash_id = resolvedStableHashId; // Set stable_hash_id if resolved
+      }
+
       const { data: newVipData, error: insertVipError } = await supabaseUserClient
         .from('vip_customer_data')
-        .insert({
-          vip_display_name: reqDisplayName ?? userProfile.display_name,
-          vip_email: reqEmail ?? userProfile.email,
-          vip_marketing_preference: reqMarketingPreference,
-        })
+        .insert(insertPayload)
         .select('id')
         .single();
 
@@ -278,47 +345,36 @@ export async function PUT(request: Request) {
       if (reqDisplayName !== undefined) updatedFieldsAccumulator.push('display_name');
       if (reqEmail !== undefined) updatedFieldsAccumulator.push('email');
       if (reqMarketingPreference !== undefined) updatedFieldsAccumulator.push('marketingPreference');
+      if (reqVipPhoneNumber !== undefined) updatedFieldsAccumulator.push('vip_phone_number');
     } else {
       // Update existing vip_customer_data record
-      const vipUpdatePayload: Partial<{
-        vip_display_name?: string;
-        vip_email?: string;
-        vip_marketing_preference?: boolean;
-        vip_phone_number?: string | null;
-        vip_tier_id?: number | null; // Allow updating vip_tier_id
-        updated_at?: string;
-      }> = {};
+      const updatePayload: any = {};
+      if (reqDisplayName !== undefined) updatePayload.vip_display_name = reqDisplayName;
+      if (reqEmail !== undefined) updatePayload.vip_email = reqEmail;
+      if (reqMarketingPreference !== undefined) updatePayload.vip_marketing_preference = reqMarketingPreference;
+      if (reqVipPhoneNumber !== undefined) updatePayload.vip_phone_number = reqVipPhoneNumber; // Add vip_phone_number
 
-      if (reqDisplayName !== undefined) {
-        if (typeof reqDisplayName === 'string') {
-          vipUpdatePayload.vip_display_name = reqDisplayName;
-          updatedFieldsAccumulator.push('display_name');
-        } else {
-          return NextResponse.json({ error: 'Invalid display_name format.' }, { status: 400 });
+      // If the existing record doesn't have a stable_hash_id but we resolved one, update it.
+      if (resolvedStableHashId) {
+        // Check current stable_hash_id on the record first to avoid unnecessary updates
+        const { data: currentVipRecord, error: fetchError } = await supabaseUserClient
+            .from('vip_customer_data')
+            .select('stable_hash_id')
+            .eq('id', targetVipDataId)
+            .single();
+        if (fetchError) {
+            console.warn(`[VIP Profile PUT] Could not fetch current vip_customer_data to check stable_hash_id before update for ID ${targetVipDataId}`);
         }
-      }
-      if (reqEmail !== undefined) {
-        if (typeof reqEmail === 'string' && /^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$/.test(reqEmail)) {
-          vipUpdatePayload.vip_email = reqEmail;
-          updatedFieldsAccumulator.push('email');
-        } else {
-          return NextResponse.json({ error: 'Invalid email format.' }, { status: 400 });
-        }
-      }
-      if (reqMarketingPreference !== undefined) {
-        if (typeof reqMarketingPreference === 'boolean') {
-          vipUpdatePayload.vip_marketing_preference = reqMarketingPreference;
-          updatedFieldsAccumulator.push('marketingPreference');
-        } else {
-          return NextResponse.json({ error: 'Invalid marketingPreference format.' }, { status: 400 });
+        if (!currentVipRecord?.stable_hash_id || currentVipRecord.stable_hash_id !== resolvedStableHashId) {
+            updatePayload.stable_hash_id = resolvedStableHashId; 
+            console.log(`[VIP Profile PUT] Updating stable_hash_id on existing vip_customer_data (ID: ${targetVipDataId}) to ${resolvedStableHashId}`);
         }
       }
 
-      if (updatedFieldsAccumulator.length > 0) {
-        vipUpdatePayload.updated_at = new Date().toISOString();
+      if (Object.keys(updatePayload).length > 0) {
         const { error: updateVipError } = await supabaseUserClient
           .from('vip_customer_data')
-          .update(vipUpdatePayload)
+          .update(updatePayload)
           .eq('id', targetVipDataId);
 
         if (updateVipError) {

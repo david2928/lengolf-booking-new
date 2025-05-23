@@ -63,9 +63,10 @@ export async function POST(request: Request) {
     // --- Step 1: Attempt CRM Match ---
     const matchResult = await matchProfileWithCrm(profileId, {
       phoneNumberToMatch: phoneNumber,
-      source: 'manual_link_vip_ui',
+      source: 'manual_link_vip_ui_phone_v2',
     });
 
+    // --- Step 2: Fetch current profile details, including its current vip_customer_data_id ---
     const { data: userProfile, error: userProfileError } = await supabaseUserClient
       .from('profiles_vip_staging')
       .select('id, vip_customer_data_id, display_name, email, phone_number')
@@ -74,104 +75,158 @@ export async function POST(request: Request) {
 
     if (userProfileError || !userProfile) {
       console.error('[VIP Link Account API] Error fetching user profile:', userProfileError);
-      return NextResponse.json({ error: 'User profile not found or error fetching it.' }, { status: 500 });
+      return NextResponse.json({ error: 'User profile not found or error fetching it.' }, { status: userProfileError ? 500 : 404 });
     }
 
-    let currentVipDataId = userProfile.vip_customer_data_id;
-    let currentVipData: any = null;
-
-    if (currentVipDataId) {
-      const { data, error } = await supabaseUserClient
-        .from('vip_customer_data')
-        .select('*')
-        .eq('id', currentVipDataId)
-        .single();
-      if (error) {
-        console.warn(`[VIP Link Account API] Could not fetch existing vip_customer_data ${currentVipDataId}, will attempt to create. Error:`, error);
-        currentVipDataId = null;
-      } else {
-        currentVipData = data;
-      }
-    }
-
-    if (!currentVipDataId) {
-      const { data: newVipData, error: insertVipError } = await supabaseUserClient
-        .from('vip_customer_data')
-        .insert({
-          vip_display_name: requestName ?? userProfile.display_name,
-          vip_email: requestEmail ?? userProfile.email,
-          vip_phone_number: requestVipPhoneNumber ?? userProfile.phone_number,
-          stable_hash_id: null,
-        })
-        .select('*')
-        .single();
-
-      if (insertVipError || !newVipData) {
-        console.error('[VIP Link Account API] Error creating vip_customer_data record:', insertVipError);
-        return NextResponse.json({ error: 'Failed to ensure VIP profile data for linking.' }, { status: 500 });
-      }
-      currentVipData = newVipData;
-      currentVipDataId = newVipData.id;
-
-      const { error: updateProfileLinkError } = await supabaseUserClient
-        .from('profiles_vip_staging')
-        .update({ vip_customer_data_id: currentVipDataId, updated_at: new Date().toISOString() })
-        .eq('id', profileId);
-      if (updateProfileLinkError) {
-        console.error('[VIP Link Account API] Error linking new vip_customer_data to profile:', updateProfileLinkError);
-      }
-    }
-
-    if (matchResult?.matched && matchResult.stableHashId) {
+    if (matchResult?.matched && matchResult.stableHashId && matchResult.crmCustomerId) {
       const matchedStableHashId = matchResult.stableHashId;
+      const matchedCrmCustomerId = matchResult.crmCustomerId;
 
-      const { data: existingVipDataForCrm, error: existingVipCheckError } = await supabaseUserClient
+      // --- Step 3: Check if a vip_customer_data record already exists for this matchedStableHashId ---
+      const { data: existingVcdByHash, error: existingVcdError } = await supabaseUserClient
         .from('vip_customer_data')
-        .select('*')
+        .select('id, stable_hash_id')
         .eq('stable_hash_id', matchedStableHashId)
-        .neq('id', currentVipDataId)
-        .limit(1)
-        .single();
-      
-      if (existingVipCheckError && existingVipCheckError.code !== 'PGRST116') {
-         console.error('[VIP Link Account API] Error checking for existing VIP data for CRM link:', existingVipCheckError);
+        .maybeSingle();
+
+      if (existingVcdError) {
+        console.error(`[VIP Link Account API] Error checking for existing vip_customer_data by hash ${matchedStableHashId}:`, existingVcdError.message);
       }
 
-      if (existingVipDataForCrm) {
-        console.log(`[VIP Link Account API] Unifying: Profile ${profileId} will use existing vip_customer_data ${existingVipDataForCrm.id} linked to CRM stable_hash_id ${matchedStableHashId}`);
-        const { error: updateProfileToExistingVipDataError } = await supabaseUserClient
-          .from('profiles_vip_staging')
-          .update({ vip_customer_data_id: existingVipDataForCrm.id, updated_at: new Date().toISOString() })
-          .eq('id', profileId);
-        if (updateProfileToExistingVipDataError) {
-            console.error('[VIP Link Account API] Error updating profile to use existing_vip_data_for_crm:', updateProfileToExistingVipDataError);
+      if (existingVcdByHash) {
+        // --- Case A: A vip_customer_data record already exists for this CRM customer (via stable_hash_id) ---
+        
+        // Ensure the current profile is linked to this definitive vip_customer_data record.
+        if (userProfile.vip_customer_data_id !== existingVcdByHash.id) {
+          const { error: profileLinkUpdateError } = await supabaseUserClient
+            .from('profiles_vip_staging')
+            .update({ vip_customer_data_id: existingVcdByHash.id, updated_at: new Date().toISOString() })
+            .eq('id', profileId);
+          if (profileLinkUpdateError) {
+            console.error(`[VIP Link Account API] Failed to update profiles_vip_staging.vip_customer_data_id for profile ${profileId} to ${existingVcdByHash.id}:`, profileLinkUpdateError.message);
+          }
         }
-        if (existingVipDataForCrm.stable_hash_id !== matchedStableHashId) {
-            await supabaseUserClient.from('vip_customer_data').update({ stable_hash_id: matchedStableHashId }).eq('id', existingVipDataForCrm.id);
+         // Ensure the existing record indeed has the correct stable_hash_id (it should, but double check)
+        if (existingVcdByHash.stable_hash_id !== matchedStableHashId) {
+            console.warn(`[VIP Link Account API] Correcting stable_hash_id on existingVcdByHash (ID: ${existingVcdByHash.id}) from ${existingVcdByHash.stable_hash_id} to ${matchedStableHashId}.`);
+            await supabaseUserClient.from('vip_customer_data').update({ stable_hash_id: matchedStableHashId }).eq('id', existingVcdByHash.id);
         }
 
       } else {
-        console.log(`[VIP Link Account API] No CRM match for profile ${profileId} with phone ${phoneNumber}. VIP data ID: ${currentVipDataId}`);
-        const { error: updateCurrentVipDataError } = await supabaseUserClient
-          .from('vip_customer_data')
-          .update({ stable_hash_id: matchedStableHashId, updated_at: new Date().toISOString() })
-          .eq('id', currentVipDataId!);
-         if (updateCurrentVipDataError) {
-            console.error('[VIP Link Account API] Error updating current_vip_data with stable_hash_id:', updateCurrentVipDataError);
-         }
+        // --- Case B: No vip_customer_data record found for matchedStableHashId. Need to update current or create. ---
+        let targetVipDataId = userProfile.vip_customer_data_id;
+
+        if (targetVipDataId) {
+          // Profile is already linked to some vip_customer_data. Update this one with the matchedStableHashId.
+          const { error: updateError } = await supabaseUserClient
+            .from('vip_customer_data')
+            .update({ stable_hash_id: matchedStableHashId, updated_at: new Date().toISOString() })
+            .eq('id', targetVipDataId);
+          if (updateError) {
+            console.error(`[VIP Link Account API] Error updating existing vip_customer_data (ID: ${targetVipDataId}) with stable_hash_id:`, updateError.message);
+          }
+        } else {
+          // Profile is not linked to any vip_customer_data. Create a new one.
+          const vipDataToInsert = {
+            vip_display_name: requestName ?? userProfile.display_name,
+            vip_email: requestEmail ?? userProfile.email,
+            vip_phone_number: requestVipPhoneNumber ?? userProfile.phone_number,
+            stable_hash_id: matchedStableHashId,
+          };
+          const { data: newVipData, error: insertError } = await supabaseUserClient
+            .from('vip_customer_data')
+            .insert(vipDataToInsert)
+            .select('id')
+            .single();
+
+          if (insertError || !newVipData) {
+            console.error('[VIP Link Account API] Error creating new vip_customer_data record:', insertError);
+            return NextResponse.json({ error: 'Failed to create VIP profile data for linking.' }, { status: 500 });
+          }
+          targetVipDataId = newVipData.id;
+
+          // Link the new vip_customer_data record to the profile.
+          const { error: profileLinkUpdateError } = await supabaseUserClient
+            .from('profiles_vip_staging')
+            .update({ vip_customer_data_id: targetVipDataId, updated_at: new Date().toISOString() })
+            .eq('id', profileId);
+          if (profileLinkUpdateError) {
+            console.error(`[VIP Link Account API] Error linking newly created vip_customer_data (ID: ${targetVipDataId}) to profile ${profileId}:`, profileLinkUpdateError.message);
+          }
+        }
       }
       
+      // Regardless of path (A or B), if we reached here, link is considered successful
       return NextResponse.json({
         success: true,
-        crmCustomerId: matchResult.crmCustomerId,
+        message: 'Excellent! Your account is now connected. You have full access to view your booking history, manage future bookings, view your lesson packages, and enjoy all VIP features.',
+        status: 'linked_matched',
+        crmCustomerId: matchedCrmCustomerId,
         stableHashId: matchedStableHashId,
       });
+
     } else {
-      console.log(`[VIP Link Account API] No CRM match for profile ${profileId} with phone ${phoneNumber}. VIP data ID: ${currentVipDataId}`);
-      return NextResponse.json(
-        { success: false, error: 'No matching customer account found.' },
-        { status: 404 }
-      );
+      // --- Case C: No CRM Match Found - Create Placeholder VIP Account ---
+      
+      // For completely new customers who don't exist in CRM yet, we should create a placeholder VIP account
+      // This allows them to use VIP features and will be automatically linked when they make their first booking
+      
+      let targetVipDataId = userProfile.vip_customer_data_id;
+
+      if (targetVipDataId) {
+        // Profile already has a vip_customer_data record, update it with the new phone number
+        const { error: updateError } = await supabaseUserClient
+          .from('vip_customer_data')
+          .update({ 
+            vip_phone_number: phoneNumber,
+            vip_display_name: requestName ?? userProfile.display_name,
+            vip_email: requestEmail ?? userProfile.email,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', targetVipDataId);
+        if (updateError) {
+          console.error(`[VIP Link Account API] Error updating existing vip_customer_data (ID: ${targetVipDataId}) with new phone:`, updateError.message);
+          return NextResponse.json({ error: 'Failed to update VIP profile data.' }, { status: 500 });
+        }
+      } else {
+        // Profile doesn't have a vip_customer_data record, create a new placeholder one
+        const vipDataToInsert = {
+          vip_display_name: requestName ?? userProfile.display_name,
+          vip_email: requestEmail ?? userProfile.email,
+          vip_phone_number: phoneNumber,
+          stable_hash_id: null, // No CRM link yet, will be set when they make their first booking
+        };
+        const { data: newVipData, error: insertError } = await supabaseUserClient
+          .from('vip_customer_data')
+          .insert(vipDataToInsert)
+          .select('id')
+          .single();
+
+        if (insertError || !newVipData) {
+          console.error('[VIP Link Account API] Error creating placeholder vip_customer_data record:', insertError);
+          return NextResponse.json({ error: 'Failed to create VIP profile data.' }, { status: 500 });
+        }
+        targetVipDataId = newVipData.id;
+
+        // Link the new vip_customer_data record to the profile
+        const { error: profileLinkUpdateError } = await supabaseUserClient
+          .from('profiles_vip_staging')
+          .update({ vip_customer_data_id: targetVipDataId, updated_at: new Date().toISOString() })
+          .eq('id', profileId);
+        if (profileLinkUpdateError) {
+          console.error(`[VIP Link Account API] Error linking placeholder vip_customer_data (ID: ${targetVipDataId}) to profile ${profileId}:`, profileLinkUpdateError.message);
+          return NextResponse.json({ error: 'Failed to link VIP profile data.' }, { status: 500 });
+        }
+      }
+
+      // Return success for placeholder creation
+      return NextResponse.json({
+        success: true,
+        message: 'Welcome to VIP! Your account is set up and you can now edit your profile, make bookings, and access VIP features. Your booking history and packages will appear after your first visit.',
+        status: 'linked_unmatched', // They have a VIP account but not yet linked to CRM
+        crmCustomerId: null,
+        stableHashId: null,
+      });
     }
   } catch (error: any) {
     console.error('Error during manual account linking:', error);

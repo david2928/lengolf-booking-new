@@ -14,6 +14,7 @@ import EmptyState from './EmptyState'; // Import EmptyState
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card imports
 import BookingCancelModal from './BookingCancelModal';
 import BookingModifyModal from './BookingModifyModal';
+import { utcToZonedTime, format } from 'date-fns-tz'; // Import from date-fns-tz
 
 interface BookingsListProps {
   onModifyBooking: (bookingId: string) => void; 
@@ -108,30 +109,49 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
 
   const formatTime = (booking: VipBooking): string => {
     if (!booking.startTime) return 'N/A';
-    const startDate = new Date(`${booking.date}T${booking.startTime}`);
-    let endTimeDisplay = '';
-    if (booking.duration && typeof booking.duration === 'number' && booking.duration > 0) {
-      const endDate = new Date(startDate.getTime() + booking.duration * 60 * 60 * 1000);
-      endTimeDisplay = ` - ${endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+
+    const serverTimeZone = 'Asia/Bangkok'; // As per bookings/create/route.ts
+    const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const dateTimeString = `${booking.date}T${booking.startTime}`;
+
+    console.log(`[formatTime] Input: ${dateTimeString}, ServerTZ: ${serverTimeZone}, LocalTZ: ${localTimeZone}`);
+
+    try {
+      // Parse the server time string considering its original timezone (Asia/Bangkok)
+      // then immediately convert this conceptual UTC instant to the user's local timezone for formatting.
+      const zonedDate = utcToZonedTime(dateTimeString, localTimeZone, { timeZone: serverTimeZone });
+      console.log(`[formatTime] zonedDate for ${dateTimeString}: ${zonedDate.toISOString()}`);
+      
+      const startTimeDisplay = format(zonedDate, 'hh:mm a', { timeZone: localTimeZone });
+      console.log(`[formatTime] startTimeDisplay for ${dateTimeString}: ${startTimeDisplay}`);
+
+      let endTimeDisplay = '';
+      if (booking.duration && typeof booking.duration === 'number' && booking.duration > 0) {
+        const endDate = new Date(zonedDate.getTime() + booking.duration * 60 * 60 * 1000);
+        // endDate is now conceptually a Date object representing an instant in time.
+        // Format this instant in the user's local timezone.
+        endTimeDisplay = ` - ${format(endDate, 'hh:mm a', { timeZone: localTimeZone })}`;
+      }
+      return `${startTimeDisplay}${endTimeDisplay}`;
+    } catch (e) {
+        console.error("Error formatting time:", e, "Input:", dateTimeString);
+        // Fallback for safety, though ideally this shouldn't happen with valid inputs
+        const fallbackDate = new Date(dateTimeString);
+        return fallbackDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
     }
-    
-    const startTimeDisplay = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-    
-    return `${startTimeDisplay}${endTimeDisplay}`;
   };
 
   if (isLoadingVipStatus) {
     return <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-muted-foreground">Loading account status...</span></div>;
   }
   
-  if (vipStatus && vipStatus.status !== 'linked_matched') {
+  if (vipStatus && vipStatus.status === 'not_linked') {
     return (
         <EmptyState
             Icon={Info}
             title="Account Linking Required"
             message={<>
-                Please link your CRM account to view your bookings and packages. <br />
-                Your current status is: <strong>{vipStatus.status}</strong>.
+                Please link your account to view your bookings and packages.
             </>}
             action={{
                 text: "Link Account Now",
@@ -142,39 +162,11 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
     );
   }
 
-  if (isLoading && bookings.length === 0) { 
-    return <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-muted-foreground">Loading bookings...</span></div>;
-  }
-
-  if (error) {
-    return (
-      <EmptyState
-        Icon={AlertTriangle}
-        title="Error Loading Bookings"
-        message={error}
-        action={{ text: "Try Again", onClick: () => fetchUserBookings(currentPage, currentFilter) }}
-        className="mt-4"
-      />
-    );
-  }
-  
-  if (bookings.length === 0 && !isLoading && vipStatus?.status === 'linked_matched') {
-    return (
-        <EmptyState 
-            Icon={CalendarOff}
-            title="No Bookings Found"
-            message={`You currently have no ${currentFilter !== 'all' ? currentFilter : ''} bookings recorded.`}
-            action={currentFilter !== 'past' ? { text: "Make a New Booking", href: "/bookings" } : undefined}
-            className="mt-4"
-        />
-    );
-  }
-
-  if (bookings.length === 0 && !isLoading && !vipStatus) {
-      // Fallback if vipStatus is somehow null after initial loading checks
+  // Fallback if vipStatus is somehow null after initial loading checks, 
+  // or if not linked_matched (though caught above, this is a safeguard before rendering tabs)
+  if (!vipStatus) { 
       return <div className="text-center py-10 text-muted-foreground">Could not determine account status to load bookings.</div>;
   }
-
 
   return (
     <div className="space-y-6">
@@ -194,10 +186,30 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
         </TabsList>
       </Tabs>
 
-      {isLoading && bookings.length > 0 && <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
+      {isLoading && <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-muted-foreground">Loading bookings...</span></div>}
+
+      {!isLoading && error && (
+         <EmptyState
+            Icon={AlertTriangle}
+            title="Error Loading Bookings"
+            message={error}
+            action={{ text: "Try Again", onClick: () => fetchUserBookings(currentPage, currentFilter) }}
+            className="mt-4"
+        />
+      )}
+
+      {!isLoading && !error && bookings.length === 0 && (
+         <EmptyState 
+            Icon={CalendarOff}
+            title="No Bookings Found"
+            message={`You currently have no ${currentFilter !== 'all' ? currentFilter : ''} bookings recorded.`}
+            action={currentFilter !== 'past' ? { text: "Make a New Booking", href: "/bookings" } : undefined}
+            className="mt-4"
+        />
+      )}
       
       {/* Card View for All Screen Sizes */}
-      {bookings.length > 0 && (
+      {!isLoading && !error && bookings.length > 0 && (
         <div className="space-y-4">
           {bookings.map((booking) => (
             <Card 
@@ -237,112 +249,170 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                   </div>
                 )}
               </CardContent>
-              {booking.status === 'confirmed' && new Date(booking.date + 'T00:00:00') >= new Date(new Date().toDateString()) && (
-                <CardFooter className="flex gap-2 pt-0 pb-4 px-4">
-                  <Button variant="outline" onClick={() => onModifyBooking(booking.id)} className="flex-1 py-1 px-2 h-auto text-xs">
-                    <Edit className="mr-1 h-3 w-3" /> Edit
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => onCancelBooking(booking.id)} 
-                    className="flex-1 py-1 px-2 h-auto text-xs text-red-600 border-red-500 hover:bg-red-50 hover:text-red-700"
-                  >
-                    <XCircle className="mr-1 h-3 w-3" /> Cancel
-                  </Button>
-                </CardFooter>
-              )}
+              {(() => {
+                // Logic to determine if Edit/Cancel buttons should be shown
+                const isModifiableStatus = booking.status === 'confirmed';
+                if (!isModifiableStatus) return null;
+
+                const serverTimeZone = 'Asia/Bangkok'; 
+                const nowInBangkok = new Date();
+                const todayDateInBangkok = format(utcToZonedTime(nowInBangkok, serverTimeZone), 'yyyy-MM-dd', { timeZone: serverTimeZone });
+                const currentTimeInBangkok = format(utcToZonedTime(nowInBangkok, serverTimeZone), 'HH:mm', { timeZone: serverTimeZone });
+                
+                const bookingDate = booking.date; // Assuming YYYY-MM-DD format
+                const bookingStartTime = booking.startTime; // Assuming HH:mm format
+
+                let isFutureBooking = false;
+                if (bookingDate > todayDateInBangkok) {
+                  isFutureBooking = true;
+                } else if (bookingDate === todayDateInBangkok) {
+                  if (bookingStartTime && bookingStartTime >= currentTimeInBangkok) {
+                    isFutureBooking = true;
+                  }
+                }
+
+                if (!isFutureBooking) return null;
+
+                return (
+                  <CardFooter className="flex gap-2 pt-0 pb-4 px-4">
+                    <Button variant="outline" onClick={() => onModifyBooking(booking.id)} className="flex-1 py-1 px-2 h-auto text-xs">
+                      <Edit className="mr-1 h-3 w-3" /> Edit
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => onCancelBooking(booking.id)} 
+                      className="flex-1 py-1 px-2 h-auto text-xs text-red-600 border-red-500 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <XCircle className="mr-1 h-3 w-3" /> Cancel
+                    </Button>
+                  </CardFooter>
+                );
+              })()}
             </Card>
           ))}
         </div>
       )}
 
-      {/* Desktop Table View - This section should be removed */}
-      {/* {bookings.length > 0 && (
-        <>
-            <div className="hidden sm:block border rounded-lg overflow-x-auto bg-card shadow-sm">
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead className="whitespace-nowrap">Date</TableHead>
-                    <TableHead className="whitespace-nowrap">Time</TableHead>
-                    <TableHead className="whitespace-nowrap">Pax</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {bookings.map((booking) => (
-                    <TableRow key={booking.id}>
-                        <TableCell className="font-medium whitespace-nowrap">{formatDate(booking.date)}</TableCell>
-                        <TableCell className="whitespace-nowrap">{formatTime(booking)}</TableCell>
-                        <TableCell className="whitespace-nowrap">{booking.numberOfPeople}</TableCell>
-                        <TableCell>
-                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full 
-                                ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : 
-                                  booking.status === 'completed' ? 'bg-blue-100 text-blue-700' : 
-                                  booking.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
-                                  'bg-gray-100 text-gray-800'}
-                            `}>
-                                {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                            </span>
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap">
-                        {booking.status === 'confirmed' && new Date(booking.date + 'T00:00:00') >= new Date(new Date().toDateString()) && (
-                            <div className="flex gap-2 justify-end">
-                            <Button variant="outline" onClick={() => onModifyBooking(booking.id)} className="py-1 px-3 h-auto text-xs sm:text-sm">
-                                <Edit className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" /> Modify
-                            </Button>
-                            <Button 
-                                variant="outline"
-                                onClick={() => onCancelBooking(booking.id)} 
-                                className="py-1 px-3 h-auto text-xs sm:text-sm text-red-600 border-red-500 hover:bg-red-50 hover:text-red-700"
-                            >
-                                <XCircle className="mr-1 h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" /> Cancel
-                            </Button>
-                            </div>
-                        )}
-                        </TableCell>
-                    </TableRow>
-                    ))}
-                </TableBody>
-                </Table>
-            </div>
-
-            {paginationData && paginationData.totalPages > 1 && (
-                <Pagination>
-                <PaginationContent>
-                    <PaginationItem>
-                    <PaginationPrevious 
-                        onClick={() => handlePageChange(currentPage - 1)} 
-                        aria-disabled={currentPage === 1}
-                        className={currentPage === 1 ? "pointer-events-none opacity-60" : "cursor-pointer"}
-                    />
-                    </PaginationItem>
-                    {[...Array(paginationData.totalPages)].map((_, i) => (
-                    <PaginationItem key={i}>
-                        <PaginationLink 
-                            onClick={() => handlePageChange(i + 1)}
-                            isActive={currentPage === i + 1}
-                            className="cursor-pointer"
-                        >
-                        {i + 1}
-                        </PaginationLink>
-                    </PaginationItem>
-                    ))}
-                    <PaginationItem>
-                    <PaginationNext 
-                        onClick={() => handlePageChange(currentPage + 1)} 
-                        aria-disabled={currentPage === paginationData.totalPages}
-                        className={currentPage === paginationData.totalPages ? "pointer-events-none opacity-60" : "cursor-pointer"}
-                    />
-                    </PaginationItem>
-                </PaginationContent>
-                </Pagination>
-            )}
-        </>
-      )} */}
+      {/* Pagination controls - Moved from the commented out desktop view */}
+      {bookings.length > 0 && paginationData && paginationData.totalPages > 1 && (
+        <div className="mt-6 flex justify-center"> {/* Added a div for centering and margin */}
+            <Pagination>
+            <PaginationContent className="flex flex-wrap justify-center gap-1">
+                <PaginationItem>
+                <PaginationPrevious 
+                    onClick={() => handlePageChange(currentPage - 1)} 
+                    aria-disabled={currentPage === 1}
+                    className={currentPage === 1 ? "pointer-events-none opacity-60" : "cursor-pointer"}
+                />
+                </PaginationItem>
+                
+                {/* Desktop/Tablet View - Show standard pagination with multiple page numbers */}
+                <div className="hidden sm:flex sm:items-center">
+                  {generatePageNumbers(currentPage, paginationData.totalPages).map((pageNumber, i) => (
+                      pageNumber === 'ellipsis' ? (
+                          <PaginationItem key={`ellipsis-${i}`}>
+                              <PaginationEllipsis />
+                          </PaginationItem>
+                      ) : (
+                          <PaginationItem key={pageNumber}>
+                              <PaginationLink 
+                                  onClick={() => handlePageChange(pageNumber as number)}
+                                  isActive={currentPage === pageNumber}
+                                  className="cursor-pointer"
+                              >
+                              {pageNumber}
+                              </PaginationLink>
+                          </PaginationItem>
+                      )
+                  ))}
+                </div>
+                
+                {/* Mobile View - Simplified pagination showing only current page indicator */}
+                <div className="flex items-center sm:hidden">
+                  <PaginationItem>
+                    <span className="text-sm">
+                      Page {currentPage} of {paginationData.totalPages}
+                    </span>
+                  </PaginationItem>
+                </div>
+                
+                <PaginationItem>
+                <PaginationNext 
+                    onClick={() => handlePageChange(currentPage + 1)} 
+                    aria-disabled={currentPage === paginationData.totalPages}
+                    className={currentPage === paginationData.totalPages ? "pointer-events-none opacity-60" : "cursor-pointer"}
+                />
+                </PaginationItem>
+            </PaginationContent>
+            </Pagination>
+        </div>
+      )}
     </div>
   );
 };
+
+// Helper function to generate page numbers with ellipsis
+// (This function should be defined within the component or imported if it's more complex)
+const generatePageNumbers = (currentPage: number, totalPages: number): (number | string)[] => {
+    const pages: (number | string)[] = [];
+    const maxItemsWhenEllipsisPresent = 6; // Target total items: 1 ... c-1 c c+1 N (6 items)
+    const pagesToAlwaysShowIfPossible = 4; // e.g. 1,2,3,4 for start, or N-3,N-2,N-1,N for end
+
+    if (totalPages <= maxItemsWhenEllipsisPresent) { // If total pages can be shown without needing complex ellipsis logic for 6 items
+        for (let i = 1; i <= totalPages; i++) {
+            pages.push(i);
+        }
+        return pages;
+    }
+
+    // Handle cases based on currentPage position
+    if (currentPage <= pagesToAlwaysShowIfPossible -1) { // Near the start: e.g. 1, 2, 3, 4, ..., N (currentPage is 1,2,3)
+        for (let i = 1; i <= pagesToAlwaysShowIfPossible; i++) {
+            pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+    } else if (currentPage >= totalPages - (pagesToAlwaysShowIfPossible - 2)) { // Near the end: e.g. 1, ..., N-3, N-2, N-1, N (currentPage is N, N-1, N-2)
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = totalPages - (pagesToAlwaysShowIfPossible-1) ; i <= totalPages; i++) {
+            pages.push(i);
+        }
+    } else { // Middle case: 1, ..., C-1, C, C+1, N
+        pages.push(1);
+        pages.push('ellipsis');
+        pages.push(currentPage - 1);
+        pages.push(currentPage);
+        pages.push(currentPage + 1);
+        // No second ellipsis to keep it to 6 items as per example 1 ... 4 5 6 10
+        // Ellipsis might be needed if currentPage+1 is far from totalPages, but example omits it.
+        // For strict 6 items: 1, el, c-1, c, c+1, N. This is 6 items.
+        // If currentPage+1 === totalPages-1, then it becomes 1, el, c-1, c, N-1, N (which is fine)
+        if (currentPage + 1 < totalPages -1 ) { // If there's a true gap before last page after c+1
+             // This would add a 7th item. The example 1...456...10 implicitly skips this for 6 items.
+             // To match the 6-item example: only add last page if it's not c+1
+        }
+        pages.push(totalPages);
+    }
+    
+    // Deduplication for safety, though the logic above should try to prevent it.
+    const finalPages = pages.filter((value, index, self) => {
+        // Keep ellipsis only if it's not redundant (i.e., doesn't replace just one number or is not adjacent to another ellipsis)
+        if (value === 'ellipsis') {
+            const prev = self[index - 1];
+            const next = self[index + 1];
+            if (typeof prev === 'number' && typeof next === 'number' && next === prev + 2) return false; // Ellipsis between N and N+2 (e.g. 1 ... 3 should be 1 2 3)
+            if (prev === 'ellipsis') return false; // double ellipsis
+        }
+        return true;
+    });
+    // Ensure first and last are not ellipsis if array is just [ellipsis, N] or [1, ellipsis]
+    if (finalPages.length === 2 && finalPages[0] === 'ellipsis' && typeof finalPages[1] === 'number') return [finalPages[1]];
+    if (finalPages.length === 2 && typeof finalPages[0] === 'number' && finalPages[1] === 'ellipsis') return [finalPages[0]];
+    if (finalPages.length === 1 && finalPages[0] === 'ellipsis') return []; // Should not happen
+
+    return finalPages;
+};
+
 
 export default BookingsList; 

@@ -75,7 +75,7 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
     try {
       const supabase = getSupabaseAdminClient();
       const { data: packages } = await supabase
-        .from('crm_packages')
+        .from('crm_packages_vip_staging')
         .select('*')
         .eq('stable_hash_id', stableHashId)
         .gte('expiration_date', new Date().toISOString().split('T')[0]) // Only active packages
@@ -84,12 +84,18 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
       if (packages && packages.length > 0) {
         // Filter out coaching packages
         const nonCoachingPackages = packages.filter((pkg: any) => 
-          !pkg.package_type_name.toLowerCase().includes('coaching')
+          !pkg.package_type_name?.toLowerCase().includes('coaching') && 
+          !pkg.package_category?.toLowerCase().includes('coaching')
         );
         
         if (nonCoachingPackages.length > 0) {
           const activePackage = nonCoachingPackages[0];
-          packageInfo = `Package (${activePackage.package_type_name})`;
+          // Use package_name which contains the full descriptive name like "Gold (30H)"
+          const packageName = activePackage.package_name || 
+                             activePackage.package_display_name || 
+                             activePackage.package_type_name || 
+                             'Package';
+          packageInfo = `Package (${packageName})`;
         }
       }
     } catch (error) {
@@ -290,7 +296,8 @@ export async function POST(request: NextRequest) {
       start_time,
       duration,
       number_of_people,
-      customer_notes
+      customer_notes,
+      stable_hash_id: clientSentStableHashId
     } = await request.json();
 
     // Validate required fields
@@ -442,30 +449,72 @@ export async function POST(request: NextRequest) {
 
     // 7. Handle CRM matching result
     let crmCustomerId = null;
-    let stableHashId = null;
+    let stableHashId: string | null = null;
     let crmCustomerData = null;
     let customerName = null;
     let isNewCustomer = true; // Flag to identify new customers
 
     if (crmMappingResult) {
-      if ('crmCustomerId' in crmMappingResult) {
-        crmCustomerId = crmMappingResult.crmCustomerId;
-        stableHashId = crmMappingResult.stableHashId;
-        isNewCustomer = false; // Customer exists in CRM system
+      // Explicitly type crmMappingResult for clarity if not already strongly typed
+      const typedCrmMappingResult = crmMappingResult as ({ profileId: string; crmCustomerId: string; stableHashId: string; crmCustomerData?: any; isNewMatch: boolean; } | null);
+      
+      if (typedCrmMappingResult && typedCrmMappingResult.crmCustomerId) { // Check for crmCustomerId to ensure it's a full match object
+        crmCustomerId = typedCrmMappingResult.crmCustomerId;
+        stableHashId = typedCrmMappingResult.stableHashId; // This is the CRM-derived stableHashId
+        isNewCustomer = typedCrmMappingResult.isNewMatch; // isNewMatch is more accurate than just setting to false
         
-        // Extract CRM customer data if available
-        if ('crmCustomerData' in crmMappingResult && crmMappingResult.crmCustomerData) {
-          crmCustomerData = crmMappingResult.crmCustomerData;
-          
-          // Normalize the customer data
+        if (typedCrmMappingResult.crmCustomerData) {
+          crmCustomerData = typedCrmMappingResult.crmCustomerData;
           const normalizedCrmData = normalizeCrmCustomerData(crmCustomerData);
-          
           if (normalizedCrmData?.name) {
             customerName = normalizedCrmData.name;
           }
         }
       }
     }
+    logTiming('CRM data processing', 'success', { crmCustomerIdObtained: !!crmCustomerId, stableHashIdObtained: !!stableHashId });
+
+    // --- BEGIN: Propagation of CRM-derived stable_hash_id to profile links (idempotent) ---
+    if (stableHashId && crmCustomerId) { // Only if we have a definitive CRM link and stable_hash_id from CRM
+      try {
+        const supabase = getSupabaseAdminClient(); // Ensure client is initialized for this scope
+        await supabase
+          .from('crm_customer_mapping_vip_staging')
+          .upsert({
+            profile_id: userId, // userId is token.sub, defined earlier
+            crm_customer_id: crmCustomerId,
+            stable_hash_id: stableHashId,
+            is_matched: true,
+            match_method: 'booking_creation_sync',
+            match_confidence: (crmMappingResult as any)?.confidence || 1,
+          }, { onConflict: 'profile_id' })
+          .select();
+        logTiming('UpsertedCrmCustomerMapping', 'info', { userId, stableHashId });
+
+        const { data: profileVipLink } = await supabase // Use the scoped supabase client
+          .from('profiles_vip_staging')
+          .select('vip_customer_data_id')
+          .eq('id', userId)
+          .single();
+
+        if (profileVipLink?.vip_customer_data_id) {
+          await supabase // Use the scoped supabase client
+            .from('vip_customer_data')
+            .update({ stable_hash_id: stableHashId })
+            .eq('id', profileVipLink.vip_customer_data_id)
+            .select();
+          logTiming('UpdatedVipCustomerDataLink', 'info', { userId, vipCustomerDataId: profileVipLink.vip_customer_data_id, stableHashId });
+        }
+      } catch (propagationError) {
+        console.error('[CreateBooking API] Error propagating stable_hash_id to profile links:', propagationError);
+        logTiming('PropagationErrorStableHashId', 'error', { userId, error: (propagationError as Error).message });
+      }
+    }
+    // --- END: Propagation logic ---
+
+    // Determine the final stable_hash_id to be saved with the booking
+    // Prioritize server-derived (CRM-verified) stableHashId
+    const finalStableHashIdForBooking = stableHashId || clientSentStableHashId || null;
 
     // 8. Create booking record in Supabase
     const supabase = getSupabaseAdminClient();
@@ -483,7 +532,8 @@ export async function POST(request: NextRequest) {
         customer_notes,
         user_id: token.sub,
         bay: availableBay,
-        status: 'confirmed'
+        status: 'confirmed',
+        stable_hash_id: finalStableHashIdForBooking
       })
       .select()
       .single();
@@ -599,7 +649,7 @@ export async function POST(request: NextRequest) {
       booking,
       bayDisplayName,
       crmCustomerId || undefined,
-      stableHashId || undefined,
+      finalStableHashIdForBooking || undefined,
       packageInfo,
       customer_notes
     );

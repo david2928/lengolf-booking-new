@@ -23,6 +23,7 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const ProfileView = () => {
+  const { vipStatus, sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
   const [profile, setProfile] = useState<VipProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,12 +41,38 @@ const ProfileView = () => {
     },
   });
   
-  const fetchProfile = useCallback(async () => {
+  const fetchProfile = useCallback(async (forceRefresh = false) => {
+    // Use shared data if available and fresh, unless forcing refresh
+    if (!forceRefresh && isSharedDataFresh() && sharedData.profile) {
+      console.log('[ProfileView] Using shared profile data from context');
+      console.log('[ProfileView] Shared data age:', sharedData.lastDataFetch ? Date.now() - sharedData.lastDataFetch : null, 'ms');
+      const data = sharedData.profile;
+      setProfile(data);
+      form.reset({
+        display_name: data.name || '',
+        email: data.email || '',
+        marketingPreference: data.marketingPreference ?? true,
+      });
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    console.log('[ProfileView] Fetching profile data from API (forceRefresh:', forceRefresh, ')');
+    console.log('[ProfileView] Shared data state:', {
+      hasProfile: !!sharedData.profile,
+      lastDataFetch: sharedData.lastDataFetch,
+      isFresh: isSharedDataFresh()
+    });
     setIsLoading(true);
     setError(null);
     try {
       const data = await getVipProfile();
       setProfile(data);
+      
+      // Update shared data context
+      updateSharedData({ profile: data });
+      
       form.reset({
         display_name: data.name || '',
         email: data.email || '',
@@ -58,7 +85,7 @@ const ProfileView = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [form]);
+  }, [form, isSharedDataFresh, sharedData.profile, sharedData.lastDataFetch, updateSharedData]);
 
   useEffect(() => {
     fetchProfile();
@@ -85,7 +112,7 @@ const ProfileView = () => {
     try {
       const response = await updateVipProfile(payload);
       setSubmitStatus({ type: 'success', message: response.message || 'Profile updated successfully!' });
-      await fetchProfile(); // Re-fetch to show updated data
+      await fetchProfile(true); // Force refresh to show updated data and update shared context
       if(refetchVipStatus) await refetchVipStatus(); 
     } catch (err) {
       const typedError = err as VipApiError; // Use VipApiError type
@@ -100,7 +127,7 @@ const ProfileView = () => {
   }
 
   if (error) {
-    return <div className="text-center py-10 text-destructive"><AlertTriangle className="inline-block mr-2"/>{error} <Button onClick={fetchProfile} variant="outline" className="ml-2">Try Again</Button></div>;
+    return <div className="text-center py-10 text-destructive"><AlertTriangle className="inline-block mr-2"/>{error} <Button onClick={() => fetchProfile(true)} variant="outline" className="ml-2">Try Again</Button></div>;
   }
 
   if (!profile) {

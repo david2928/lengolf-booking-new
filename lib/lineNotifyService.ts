@@ -176,7 +176,7 @@ function formatVipLineCancellationMessage(
     message += `\n📝 Notes: ${cancelledBooking.customer_notes}`;
   }
   message += `\n----------------------------------`;
-  message += `\n🗑️ Cancelled By: ${cancelledByDisplay}`;
+  message += `\n🗑️ Cancelled by Customer: ${cancelledByDisplay}`;
   message += reasonDisplay;
   
   console.log('[Line Service] Formatted VIP LINE cancellation message:', message);

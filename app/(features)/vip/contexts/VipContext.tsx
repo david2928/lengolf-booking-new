@@ -2,7 +2,15 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { Session } from 'next-auth';
-import { VipStatusResponse } from '../../../../types/vip'; // Adjusted path
+import { VipStatusResponse, VipProfileResponse, VipBooking, VipPackage } from '../../../../types/vip'; // Adjusted path
+
+export interface VipSharedData {
+  profile: VipProfileResponse | null;
+  recentBookings: VipBooking[];
+  activePackages: VipPackage[];
+  pastPackages: VipPackage[];
+  lastDataFetch: number | null;
+}
 
 export interface VipContextType {
   session: Session | null;
@@ -10,6 +18,11 @@ export interface VipContextType {
   isLoadingVipStatus: boolean;
   vipStatusError: Error | null;
   refetchVipStatus?: () => Promise<void>; // Optional: to allow refetching status
+  
+  // Shared data to reduce redundant API calls
+  sharedData: VipSharedData;
+  updateSharedData: (data: Partial<VipSharedData>) => void;
+  isSharedDataFresh: (maxAgeMs?: number) => boolean;
 }
 
 const VipContext = createContext<VipContextType | undefined>(undefined);

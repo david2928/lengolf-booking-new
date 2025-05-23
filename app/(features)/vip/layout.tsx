@@ -1,10 +1,10 @@
 'use client';
 
-import React, { ReactNode, useState, useEffect, useCallback } from 'react';
+import React, { ReactNode, useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { Menu, X, ChevronDown, User, Package, Calendar, LogOut, Trophy, LinkIcon } from 'lucide-react';
+import { Menu, X, ChevronDown, User, Package, Calendar, LogOut, Trophy, LinkIcon, LayoutDashboard } from 'lucide-react';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -12,11 +12,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { VipContextProvider, VipContextType } from './contexts/VipContext';
+import { VipContextProvider, VipContextType, VipSharedData } from './contexts/VipContext';
 import { getVipStatus } from '../../../lib/vipService'; // Adjusted path
 import { VipStatusResponse, VipApiError } from '../../../types/vip'; // Adjusted path
 import { Button } from '@/components/ui/button'; // Changed casing
 import SharedFooter from '@/components/shared/Footer'; // Import the SharedFooter
+import { useRouter } from 'next/navigation';
 
 interface VipLayoutProps {
   children: ReactNode;
@@ -25,30 +26,88 @@ interface VipLayoutProps {
 const VipLayout = ({ children }: VipLayoutProps) => {
   const { data: session, status: sessionStatus } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const router = useRouter();
 
   const [vipStatus, setVipStatus] = useState<VipStatusResponse | null>(null);
   const [isLoadingVipStatus, setIsLoadingVipStatus] = useState(true);
   const [vipStatusError, setVipStatusError] = useState<Error | null>(null);
 
-  const fetchVipStatus = useCallback(async () => {
-    if (sessionStatus === 'authenticated') {
-      setIsLoadingVipStatus(true);
-      setVipStatusError(null);
-      try {
-        const status = await getVipStatus();
-        setVipStatus(status);
-      } catch (error) {
-        console.error('Failed to fetch VIP status:', error);
-        setVipStatusError(error as Error);
-      } finally {
+  // Shared data state to reduce redundant API calls across components
+  const [sharedData, setSharedData] = useState<VipSharedData>({
+    profile: null,
+    recentBookings: [],
+    activePackages: [],
+    pastPackages: [],
+    lastDataFetch: null,
+  });
+
+  // Cache for VIP status to prevent unnecessary API calls
+  const vipStatusCache = useRef<{
+    status: VipStatusResponse | null;
+    lastFetchTime: number | null;
+    sessionId: string | null; // Track session to detect user changes
+  }>({
+    status: null,
+    lastFetchTime: null,
+    sessionId: null,
+  });
+
+  // Cache expiry time in milliseconds (5 minutes)
+  const VIP_STATUS_CACHE_EXPIRY_MS = 5 * 60 * 1000;
+
+  const isVipStatusCacheValid = useCallback(() => {
+    const cache = vipStatusCache.current;
+    const currentTime = Date.now();
+    const currentSessionId = session?.user?.id || null;
+    
+    // Cache is invalid if:
+    // 1. No last fetch time
+    // 2. Cache has expired
+    // 3. Session user has changed
+    if (!cache.lastFetchTime) return false;
+    if (currentTime - cache.lastFetchTime > VIP_STATUS_CACHE_EXPIRY_MS) return false;
+    if (cache.sessionId !== currentSessionId) return false;
+    
+    return true;
+  }, [session?.user?.id]);
+
+  const fetchVipStatus = useCallback(async (forceRefresh = false) => {
+    if (sessionStatus !== 'authenticated' || !session?.user?.id) return;
+
+    // Use cache if valid and not forced to refresh
+    if (!forceRefresh && isVipStatusCacheValid()) {
+      const cachedStatus = vipStatusCache.current.status;
+      if (cachedStatus) {
+        setVipStatus(cachedStatus);
         setIsLoadingVipStatus(false);
+        setVipStatusError(null);
+        return;
       }
     }
-  }, [sessionStatus]);
+
+    setIsLoadingVipStatus(true);
+    setVipStatusError(null);
+    try {
+      const status = await getVipStatus();
+      setVipStatus(status);
+      
+      // Update cache
+      vipStatusCache.current = {
+        status,
+        lastFetchTime: Date.now(),
+        sessionId: session.user.id,
+      };
+    } catch (error) {
+      console.error('Failed to fetch VIP status:', error);
+      setVipStatusError(error as Error);
+    } finally {
+      setIsLoadingVipStatus(false);
+    }
+  }, [sessionStatus, session?.user?.id, isVipStatusCacheValid]);
 
   useEffect(() => {
     if (sessionStatus === 'unauthenticated') {
-      redirect('/auth/login?callbackUrl=/vip/dashboard'); // Or your app's login page
+      redirect('/auth/login?callbackUrl=/vip'); // Updated to redirect to /vip instead of /vip/dashboard
     }
     if (sessionStatus === 'authenticated') {
       fetchVipStatus();
@@ -56,6 +115,12 @@ const VipLayout = ({ children }: VipLayoutProps) => {
   }, [sessionStatus, fetchVipStatus]);
 
   const handleSignOut = async () => {
+    // Clear cache on sign out
+    vipStatusCache.current = {
+      status: null,
+      lastFetchTime: null,
+      sessionId: null,
+    };
     await signOut({ callbackUrl: '/' }); // Redirect to homepage after sign out
   };
   
@@ -63,12 +128,29 @@ const VipLayout = ({ children }: VipLayoutProps) => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
+  // Shared data management functions
+  const updateSharedData = useCallback((data: Partial<VipSharedData>) => {
+    setSharedData(prev => ({
+      ...prev,
+      ...data,
+      lastDataFetch: Date.now(),
+    }));
+  }, []);
+
+  const isSharedDataFresh = useCallback((maxAgeMs: number = 3 * 60 * 1000) => {
+    if (!sharedData.lastDataFetch) return false;
+    return Date.now() - sharedData.lastDataFetch < maxAgeMs;
+  }, [sharedData.lastDataFetch]);
+
   const contextValue: VipContextType = {
     session,
     vipStatus,
     isLoadingVipStatus,
     vipStatusError,
-    refetchVipStatus: fetchVipStatus,
+    refetchVipStatus: () => fetchVipStatus(true), // Force refresh when explicitly called
+    sharedData,
+    updateSharedData,
+    isSharedDataFresh,
   };
 
   if (sessionStatus === 'loading' || (sessionStatus === 'authenticated' && isLoadingVipStatus && !vipStatus && !vipStatusError)) {
@@ -101,14 +183,16 @@ const VipLayout = ({ children }: VipLayoutProps) => {
         <p className="text-sm text-muted-foreground mb-6">
           {(vipStatusError as VipApiError)?.payload?.message || vipStatusError.message}
         </p>
-        <Button onClick={() => fetchVipStatus()}>Try Again</Button>
+        <Button onClick={() => fetchVipStatus(true)}>Try Again</Button>
         <Button variant="outline" onClick={handleSignOut} className="ml-2">Sign Out</Button>
       </div>
     );
   }
 
-
-  const isAccountUnmatched = vipStatus?.status === 'linked_unmatched' || vipStatus?.status === 'vip_data_exists_crm_unmatched';
+  // Only show Link CRM Account for users who need linking
+  // Exclude linked_unmatched users who have placeholder VIP accounts (vip_customer_data but no stable_hash_id)
+  const shouldShowLinkCrmAccount = vipStatus?.status === 'not_linked' || 
+    vipStatus?.status === 'vip_data_exists_crm_unmatched';
 
   return (
     <VipContextProvider value={contextValue}>
@@ -117,48 +201,69 @@ const VipLayout = ({ children }: VipLayoutProps) => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-                <Link href="/vip" className="text-2xl font-bold text-white">LENGOLF</Link>
+                <button 
+                  onClick={() => { router.push('/vip'); if (mobileMenuOpen) toggleMobileMenu(); }} 
+                  className="text-2xl font-bold text-white hover:opacity-80 transition-opacity"
+                >
+                  <span className="md:hidden">LENGOLF</span>
+                  <span className="hidden md:inline">LENGOLF</span>
+                </button>
                 <Link href="/vip" className="bg-white text-green-700 px-2 py-1 rounded-md text-sm font-medium">VIP</Link>
             </div>
             
-              <nav className="hidden md:flex gap-x-6 items-center text-white">
-                <Link href="/vip" className="hover:text-gray-200">Dashboard</Link>
-                
-                  <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center gap-1 hover:text-gray-200 outline-none">
-                      Bookings <ChevronDown size={16} />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem asChild>
-                        <Link href="/vip/bookings" className="flex items-center gap-2">
-                          <Calendar size={16} />
-                        <span>My Bookings</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                      <Link href="/bookings" className="flex items-center gap-2">
-                        <Calendar size={16} /> 
-                          <span>New Booking</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                
-                <Link href="/vip/packages" className="hover:text-gray-200">Packages</Link>
-                <Link href="/vip/membership" className="hover:text-gray-200">Membership</Link>
+            <div className="flex items-center gap-2">
+              <div className="md:hidden flex gap-1">
+                {/* Mobile placeholder buttons to maintain consistent spacing */}
+                <div className="w-0 h-0"></div>
+              </div>
 
+              <nav className="hidden md:flex gap-4 items-center">
+                {/* Main booking actions - always prominent */}
+                <Link href="/bookings" className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium">
+                  <Calendar size={16} />
+                  New Booking
+                </Link>
+                
+                {/* VIP-specific navigation in a more subtle dropdown */}
+                <div className="flex items-center gap-3 ml-4 pl-4 border-l border-white/20">
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center gap-1 hover:text-gray-200 outline-none">
-                    Profile <ChevronDown size={16} />
+                  <DropdownMenuTrigger className="flex items-center gap-1 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-white outline-none">
+                    My Account <ChevronDown size={16} />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56"> 
+                  <DropdownMenuContent align="end" className="w-56 mt-2">
+                    <DropdownMenuItem asChild>
+                      <Link href="/vip" className="flex items-center gap-2">
+                        <LayoutDashboard size={16} />
+                        <span>VIP Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/vip/bookings" className="flex items-center gap-2">
+                        <Calendar size={16} />
+                        <span>My Bookings</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/vip/packages" className="flex items-center gap-2">
+                        <Package size={16} />
+                        <span>My Packages</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/vip/membership" className="flex items-center gap-2">
+                        <Trophy size={16} />
+                        <span>Membership</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link href="/vip/profile" className="flex items-center gap-2">
                         <User size={16} />
                         <span>My Profile</span>
                       </Link>
                     </DropdownMenuItem>
-                    {isAccountUnmatched && (
+                    {shouldShowLinkCrmAccount && (
                       <DropdownMenuItem asChild>
                         <Link href="/vip/link-account" className="flex items-center gap-2 text-primary">
                           <LinkIcon size={16} />
@@ -175,15 +280,17 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-            </nav>
-            
-            <button 
-                className="md:hidden p-2 text-primary-foreground hover:bg-primary-foreground/10 rounded-md"
-              onClick={toggleMobileMenu}
-              aria-label="Toggle mobile menu"
-            >
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+                </div>
+              </nav>
+              
+              <button 
+                className="md:hidden p-2 text-white hover:bg-white/10 rounded-md"
+                onClick={toggleMobileMenu}
+                aria-label="Toggle mobile menu"
+              >
+                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
           </div>
           
           {mobileMenuOpen && (
@@ -195,7 +302,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                     <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">Profile</p>
                   <ul className="mt-1 space-y-1">
                       <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><User size={16} />My Profile</Link></li>
-                      {isAccountUnmatched && (
+                      {shouldShowLinkCrmAccount && (
                         <li><Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-accent" onClick={toggleMobileMenu}><LinkIcon size={16} />Link CRM Account</Link></li>
                       )}
                   </ul>

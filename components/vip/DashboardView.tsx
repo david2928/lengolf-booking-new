@@ -62,24 +62,129 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   if (!isMatched) {
-    // The LinkAccountPrompt is designed to be a more prominent, full-section prompt.
-    // The original DashboardView had a smaller inline prompt.
-    // For VIP-FE-003, `LinkAccountPrompt.tsx` will be used prominently.
-    // Here, we can show a simplified version or a part of the Profile link.
+    // For linked_unmatched users (placeholder VIP accounts), show the full dashboard structure
+    // with empty states that guide them to make bookings or link their account
     return (
-      <div className="space-y-6">
-        <LinkAccountPrompt username={userName} />
-        <div className="bg-white text-card-foreground border rounded-lg shadow-sm p-4">
-          <Link 
-            href="/vip/profile"
-            className="flex items-center gap-3 text-foreground hover:text-primary transition-colors">
-            <User size={20} />
-            <div>
-              <h3 className="font-medium text-gray-900">View/Edit Basic Profile</h3>
-              <p className="text-sm text-muted-foreground">Update your name, email, and preferences</p>
-            </div>
-          </Link>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome, {userName}!</h1>
+          <p className="text-muted-foreground">Your VIP access is ready. Start by making a booking to begin your golf journey!</p>
         </div>
+        
+        {vipTier && (
+          <div className="bg-white text-card-foreground border rounded-lg shadow-sm p-4 flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <Award className="h-6 w-6 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-medium text-amber-700">{vipTier} Tier</h3>
+              <p className="text-sm text-muted-foreground">Enjoy your premium benefits</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Dashboard cards for unmatched users */}
+        <div className="space-y-6">
+          {/* Upcoming Session Card */}
+          <Card className="shadow-lg border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold text-gray-800">Upcoming Session</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col md:flex-row items-start md:items-center justify-between">
+              <div className="flex-grow mb-4 md:mb-0 md:mr-4">
+                {nextBooking ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <CalendarDays className="mr-3 h-5 w-5 text-primary" />
+                      <span className="text-md font-semibold">
+                        {formatBookingDateTime(nextBooking.date, nextBooking.time)}
+                      </span>
+                    </div>
+                    {nextBooking.duration !== undefined && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Clock className="mr-3 h-4 w-4 text-gray-400" />
+                        <span>Duration: {nextBooking.duration} hour{nextBooking.duration > 1 ? 's' : ''}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Make your first booking to see your upcoming sessions here!
+                  </p>
+                )}
+              </div>
+              <Link href={nextBooking ? "/vip/bookings" : "/bookings"} className="w-full md:w-auto md:ml-auto">
+                <Button className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {nextBooking ? "Manage Bookings" : "Make First Booking"}
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+          
+          {/* Active Package Card - Updated to remove linking CTA */}
+          <Card className="shadow-lg border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-xl font-semibold text-gray-800">Active Package</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col md:flex-row items-start md:items-center justify-between">
+              <div className="flex-grow mb-4 md:mb-0 md:mr-4">
+                <p className="text-sm text-muted-foreground">
+                  No active packages found. Purchase a package to get started with lessons or practice sessions.
+                </p>
+              </div>
+              <Link href="/vip/packages" className="w-full md:w-auto md:ml-auto">
+                <Button variant="outline" className="w-full md:w-auto border-primary text-primary hover:bg-primary/10">
+                  <PackageLucideIcon className="mr-2 h-4 w-4" />
+                  View Packages
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Quick Access for unmatched users */}
+        <Card className="shadow-lg border-gray-200">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-gray-800">Quick Access</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { href: "/bookings", icon: Calendar, label: "Make New Booking" },
+                { href: "/vip/profile", icon: UserCircle, label: "My VIP Profile" },
+                { href: "/vip/bookings", icon: Edit, label: "View My Bookings" },
+                { href: "/vip/packages", icon: PackageLucideIcon, label: "My Packages" },
+                { href: "https://www.len.golf", icon: ExternalLink, label: "LENGOLF Main Site", external: true },
+              ].map((item) => {
+                const Icon = item.icon;
+                const buttonClasses = "w-full h-auto py-3 px-3 flex items-center justify-start border-gray-300 hover:bg-gray-50 text-gray-700 hover:text-primary";
+                const buttonContent = (
+                  <>
+                    <Icon className="mr-3 h-5 w-5 text-primary flex-shrink-0" />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </>
+                );
+                if (item.external) {
+                  return (
+                    <a href={item.href} target="_blank" rel="noopener noreferrer" key={item.label} className="block">
+                      <Button variant="outline" className={buttonClasses}>
+                        {buttonContent}
+                      </Button>
+                    </a>
+                  );
+                }
+                return (
+                  <Link href={item.href} key={item.label} className="block">
+                    <Button variant="outline" className={buttonClasses}>
+                      {buttonContent}
+                    </Button>
+                  </Link>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

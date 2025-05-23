@@ -14,24 +14,45 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import useMediaQuery from '../../hooks/useMediaQuery'; // Import the new hook
 
 const PackagesList: React.FC = () => {
-  const { vipStatus, isLoadingVipStatus } = useVipContext();
+  const { vipStatus, isLoadingVipStatus, sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
   const [activePackages, setActivePackages] = useState<VipPackage[]>([]);
   const [pastPackages, setPastPackages] = useState<VipPackage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPackages = useCallback(async () => {
+  const fetchPackages = useCallback(async (forceRefresh = false) => {
     if (!vipStatus || vipStatus.status !== 'linked_matched') {
       setActivePackages([]);
       setPastPackages([]);
       return;
     }
+
+    // Use shared data if available and fresh, unless forcing refresh
+    if (!forceRefresh && isSharedDataFresh() && (sharedData.activePackages.length > 0 || sharedData.pastPackages.length > 0)) {
+      console.log('[PackagesList] Using shared packages data from context');
+      setActivePackages(sharedData.activePackages);
+      setPastPackages(sharedData.pastPackages);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    console.log('[PackagesList] Fetching packages data from API (forceRefresh:', forceRefresh, ')');
     setIsLoading(true);
     setError(null);
     try {
       const data = await getVipPackages();
-      setActivePackages(data.activePackages || []);
-      setPastPackages(data.pastPackages || []);
+      const activePackages = data.activePackages || [];
+      const pastPackages = data.pastPackages || [];
+      
+      setActivePackages(activePackages);
+      setPastPackages(pastPackages);
+      
+      // Update shared data context
+      updateSharedData({ 
+        activePackages,
+        pastPackages
+      });
     } catch (err: any) {
       console.error('Failed to fetch packages:', err);
       let errorMessage = 'Could not load packages.';
@@ -44,7 +65,7 @@ const PackagesList: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [vipStatus]);
+  }, [vipStatus, isSharedDataFresh, sharedData.activePackages, sharedData.pastPackages, updateSharedData]);
 
   useEffect(() => {
     if (vipStatus?.status === 'linked_matched') {
@@ -250,86 +271,126 @@ const PackagesList: React.FC = () => {
   };
 
   const renderPackageGroup = (packages: VipPackage[], title: string) => {
-    if (packages.length === 0) return null;
+    if (packages.length === 0) {
+      return (
+        <EmptyState
+          Icon={PackageIcon}
+          title={`No ${title.toLowerCase()} found`}
+          message={title === 'Active Packages' ? 
+            <>You don't have any active packages yet. <br />Contact us to purchase a practice or coaching package!</> :
+            <>You haven't used any packages yet.</>
+          }
+          action={title === 'Active Packages' ? {
+            text: "Contact Us",
+            href: "https://lin.ee/uxQpIXn"
+          } : undefined}
+          className="mt-4"
+        />
+      );
+    }
+
     return (
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-3 text-gray-700">{title} ({packages.length})</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {packages.map((pkg) => <PackageCard key={pkg.id} pkg={pkg} />)}
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {packages.map((pkg) => (
+          <PackageCard key={pkg.id} pkg={pkg} />
+        ))}
       </div>
     );
   };
 
-  const activeLessonPackages = activePackages.filter(pkg => pkg.packageCategory?.toLowerCase().includes('coaching'));
-  const activePracticePackages = activePackages.filter(pkg => !pkg.packageCategory?.toLowerCase().includes('coaching'));
-  const pastLessonPackages = pastPackages.filter(pkg => pkg.packageCategory?.toLowerCase().includes('coaching'));
-  const pastPracticePackages = pastPackages.filter(pkg => !pkg.packageCategory?.toLowerCase().includes('coaching'));
+  if (isLoadingVipStatus || isLoading) {
+    return (
+      <div className="flex justify-center items-center py-10">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading packages...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        Icon={AlertTriangle}
+        title="Error Loading Packages"
+        message={error}
+        action={{ text: "Try Again", onClick: () => fetchPackages(true) }}
+        className="mt-4"
+      />
+    );
+  }
+
+  if (vipStatus?.status !== 'linked_matched') {
+    return (
+      <EmptyState
+        Icon={Info}
+        title="Account Linking Required"
+        message={<>
+          Please link your account to view your packages and track usage.
+        </>}
+        action={{
+          text: "Link Account Now",
+          href: "/vip/link-account"
+        }}
+        className="mt-4"
+      />
+    );
+  }
+
+  const hasActivePackages = activePackages.length > 0;
+  const hasPastPackages = pastPackages.length > 0;
+
+  if (!hasActivePackages && !hasPastPackages) {
+    return (
+      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-8 text-center">
+        <div className="space-y-4">
+          <PackageIcon className="mx-auto h-16 w-16 text-green-600" />
+          <h2 className="text-2xl font-bold text-green-800">Get Started with Packages</h2>
+          <p className="text-green-700 max-w-2xl mx-auto">
+            Practice packages and coaching sessions help you improve your game. 
+            Contact us to learn about available packages and pricing.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
+            <a 
+              href="https://lin.ee/uxQpIXn"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 bg-[#06C755] text-white px-6 py-3 rounded-lg hover:bg-[#05b04e] transition-colors font-medium"
+            >
+              <i className="fab fa-line text-xl"></i>
+              Contact us via LINE
+            </a>
+            <Button asChild variant="outline" className="border-green-600 text-green-700 hover:bg-green-50">
+              <Link href="/bookings">
+                Book Individual Session
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      {isLoadingVipStatus || isLoading ? (
-        <div className="flex flex-col items-center justify-center min-h-[200px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-          <p className="text-muted-foreground">Loading packages...</p>
-        </div>
-      ) : error ? (
-        <EmptyState
-          Icon={AlertTriangle}
-          title="Error Loading Packages"
-          message={error}
-          action={{ text: "Try Again", onClick: fetchPackages }}
-        />
-      ) : (
-        <Tabs defaultValue="active" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="active">Active ({activePackages.length})</TabsTrigger>
-            <TabsTrigger value="past">Past ({pastPackages.length})</TabsTrigger>
-          </TabsList>
-          <TabsContent value="active" className="mt-4">
-            {activePackages.length > 0 ? (
-              <>
-                {renderPackageGroup(activeLessonPackages, 'Lesson Packages')}
-                {renderPackageGroup(activePracticePackages, 'Practice Packages')}
-                {activeLessonPackages.length === 0 && activePracticePackages.length === 0 && (
-                  <EmptyState 
-                    Icon={PackageIcon}
-                    title="No Active Packages"
-                    message="You currently don\'t have any active packages."
-                  />
-                )}
-              </>
-            ) : (
-              <EmptyState 
-                Icon={PackageIcon}
-                title="No Active Packages"
-                message="You currently don't have any active packages."
-              />
-            )}
-          </TabsContent>
-          <TabsContent value="past" className="mt-4">
-            {pastPackages.length > 0 ? (
-              <>
-                {renderPackageGroup(pastLessonPackages, 'Lesson Packages')}
-                {renderPackageGroup(pastPracticePackages, 'Practice Packages')}
-                {pastLessonPackages.length === 0 && pastPracticePackages.length === 0 && (
-                   <EmptyState 
-                    Icon={PackageIcon}
-                    title="No Past Packages"
-                    message="You don\'t have any past or expired packages on record."
-                  />
-                )}
-              </>
-            ) : (
-              <EmptyState 
-                Icon={PackageIcon}
-                title="No Past Packages"
-                message="You don't have any past or expired packages on record."
-              />
-            )}
-          </TabsContent>
-        </Tabs>
-      )}
+    <div className="space-y-6">
+      <Tabs defaultValue="active" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="active" className="data-[state=active]:bg-green-100 data-[state=active]:text-green-800">
+            Active Packages ({activePackages.length})
+          </TabsTrigger>
+          <TabsTrigger value="past" className="data-[state=active]:bg-gray-100 data-[state=active]:text-gray-800">
+            Past Packages ({pastPackages.length})
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="active" className="mt-6">
+          {renderPackageGroup(activePackages, 'Active Packages')}
+        </TabsContent>
+        
+        <TabsContent value="past" className="mt-6">
+          {renderPackageGroup(pastPackages, 'Past Packages')}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

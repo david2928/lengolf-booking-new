@@ -6,6 +6,7 @@ import { useVipContext } from './contexts/VipContext';
 import { getVipProfile, getVipBookings, getVipPackages } from '../../../lib/vipService'; // Adjusted path
 import { VipProfileResponse, VipBooking, VipPackage, VipApiError } from '../../../types/vip'; // Adjusted path
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 // Define the local Booking type for DashboardView prop matching
 interface DashboardBooking {
@@ -25,13 +26,10 @@ interface DashboardActivePackage {
 }
 
 const VipDashboardPage = () => {
-  const { session, vipStatus, isLoadingVipStatus, vipStatusError, refetchVipStatus } = useVipContext();
+  const { session, vipStatus, isLoadingVipStatus, vipStatusError, refetchVipStatus, sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
+  const router = useRouter();
 
-  // Add refs for caching
-  const profileCache = useRef<VipProfileResponse | null>(null);
-  const nextBookingCache = useRef<DashboardBooking | undefined>(undefined);
-  const primaryPackageCache = useRef<DashboardActivePackage | undefined>(undefined);
-
+  // Local state for dashboard-specific data
   const [profile, setProfile] = useState<VipProfileResponse | null>(null);
   const [nextBooking, setNextBooking] = useState<DashboardBooking | undefined>(undefined);
   const [primaryPackage, setPrimaryPackage] = useState<DashboardActivePackage | undefined>(undefined);
@@ -43,47 +41,147 @@ const VipDashboardPage = () => {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchData = useCallback(async (forceRefresh = false) => {
-    if (session && vipStatus) {
-      // Use cache unless forceRefresh is true
-      if (!forceRefresh && profileCache.current && nextBookingCache.current !== undefined && primaryPackageCache.current !== undefined) {
-        setProfile(profileCache.current);
-        setNextBooking(nextBookingCache.current);
-        setPrimaryPackage(primaryPackageCache.current);
-        return;
-      }
-      setIsLoadingProfile(true);
-      if (vipStatus.status === 'linked_matched') {
-          setIsLoadingBookings(true);
-          setIsLoadingPackages(true);
-      }
-      setFetchError(null);
-      try {
-        const profileData = await getVipProfile();
-        setProfile(profileData);
-        profileCache.current = profileData;
+    if (!session || !vipStatus) return;
 
-        if (vipStatus.status === 'linked_matched') {
-          const bookingsData = await getVipBookings({ filter: 'future', limit: 5, page: 1 }); // Fetch a few to find a confirmed one
+    // Use shared data if fresh and not forced to refresh
+    if (!forceRefresh && isSharedDataFresh()) {
+      console.log('[VipDashboard] Using shared data from context');
+      console.log('[VipDashboard] Shared data freshness check:', {
+        lastDataFetch: sharedData.lastDataFetch,
+        currentTime: Date.now(),
+        age: sharedData.lastDataFetch ? Date.now() - sharedData.lastDataFetch : null,
+        isFresh: isSharedDataFresh()
+      });
+      setProfile(sharedData.profile);
+      
+      // Process next booking from shared data
+      if (sharedData.recentBookings.length > 0) {
+        const confirmedBooking = sharedData.recentBookings.find((b: VipBooking) => b.status === 'confirmed');
+        if (confirmedBooking) {
+          setNextBooking({
+            id: confirmedBooking.id,
+            date: confirmedBooking.date,
+            time: confirmedBooking.startTime,
+            duration: confirmedBooking.duration,
+          });
+        } else {
+          setNextBooking(undefined);
+        }
+      } else {
+        setNextBooking(undefined);
+      }
+      
+      // Process primary package from shared data
+      if (sharedData.activePackages.length > 0) {
+        const firstActivePackage = sharedData.activePackages[0];
+        let hrsRemaining: string | number | undefined;
+        if (firstActivePackage.remainingHours !== undefined && firstActivePackage.remainingHours !== null) {
+          hrsRemaining = firstActivePackage.remainingHours;
+        } else if (firstActivePackage.remainingSessions !== undefined && firstActivePackage.remainingSessions !== null) {
+          hrsRemaining = firstActivePackage.remainingSessions;
+        } else {
+          hrsRemaining = undefined;
+        }
+
+        setPrimaryPackage({
+          id: firstActivePackage.id,
+          name: firstActivePackage.package_display_name || firstActivePackage.packageName,
+          hoursRemaining: hrsRemaining,
+          expires: firstActivePackage.expiryDate ? new Date(firstActivePackage.expiryDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric'}) : undefined,
+          tier: firstActivePackage.package_type_name?.includes('(') ? 
+                firstActivePackage.package_type_name.substring(firstActivePackage.package_type_name.indexOf('(') + 1, firstActivePackage.package_type_name.indexOf(')')) : 
+                (firstActivePackage.packageName?.includes('(') ? firstActivePackage.packageName.substring(firstActivePackage.packageName.indexOf('(') + 1, firstActivePackage.packageName.indexOf(')')) : undefined)
+        });
+      } else {
+        setPrimaryPackage(undefined);
+      }
+      return;
+    }
+
+    console.log('[VipDashboard] Fetching fresh data from APIs (forceRefresh:', forceRefresh, ')');
+    console.log('[VipDashboard] Shared data state:', {
+      lastDataFetch: sharedData.lastDataFetch,
+      profileExists: !!sharedData.profile,
+      recentBookingsCount: sharedData.recentBookings.length,
+      activePackagesCount: sharedData.activePackages.length,
+      pastPackagesCount: sharedData.pastPackages.length
+    });
+    setIsLoadingProfile(true);
+    if (vipStatus.status === 'linked_matched' || vipStatus.status === 'linked_unmatched') {
+      setIsLoadingBookings(true);
+    }
+    if (vipStatus.status === 'linked_matched') {
+      setIsLoadingPackages(true);
+    }
+    setFetchError(null);
+
+    try {
+      // Fetch all data concurrently instead of sequentially
+      const promises: Promise<any>[] = [getVipProfile()];
+      
+      if (vipStatus.status === 'linked_matched' || vipStatus.status === 'linked_unmatched') {
+        promises.push(getVipBookings({ filter: 'future', limit: 5, page: 1 }));
+      }
+      
+      if (vipStatus.status === 'linked_matched') {
+        promises.push(getVipPackages());
+      }
+
+      const results = await Promise.allSettled(promises);
+      
+      // Process profile data
+      if (results[0].status === 'fulfilled') {
+        const profileData = results[0].value;
+        setProfile(profileData);
+        
+        // Update shared data
+        updateSharedData({ profile: profileData });
+      } else {
+        throw new Error('Failed to fetch profile data');
+      }
+
+      // Process bookings data
+      if (promises.length > 1) {
+        if (results[1].status === 'fulfilled') {
+          const bookingsData = results[1].value;
+          const bookings = bookingsData.bookings || [];
+          
+          // Update shared data with recent bookings
+          updateSharedData({ recentBookings: bookings });
+          
           let confirmedBooking: VipBooking | undefined = undefined;
-          if (bookingsData.bookings && bookingsData.bookings.length > 0) {
-            confirmedBooking = bookingsData.bookings.find(b => b.status === 'confirmed');
+          if (bookings.length > 0) {
+            confirmedBooking = bookings.find((b: VipBooking) => b.status === 'confirmed');
           }
 
+          let bookingObj: DashboardBooking | undefined = undefined;
           if (confirmedBooking) {
-            const bookingObj = {
+            bookingObj = {
               id: confirmedBooking.id,
               date: confirmedBooking.date,
               time: confirmedBooking.startTime,
               duration: confirmedBooking.duration,
             };
-            setNextBooking(bookingObj);
-            nextBookingCache.current = bookingObj;
-          } else {
-            setNextBooking(undefined);
-            nextBookingCache.current = undefined;
           }
+          setNextBooking(bookingObj);
+        } else {
+          // Don't fail the entire fetch if bookings fail
+          setNextBooking(undefined);
+        }
+      }
+      
+      // Process packages data  
+      if (promises.length > 2) {
+        if (results[2].status === 'fulfilled') {
+          const packagesData = results[2].value;
           
-          const packagesData = await getVipPackages();
+          // Update shared data with packages
+          updateSharedData({ 
+            activePackages: packagesData.activePackages || [],
+            pastPackages: packagesData.pastPackages || []
+          });
+          
+          let packageObj: DashboardActivePackage | undefined = undefined;
           if (packagesData.activePackages && packagesData.activePackages.length > 0) {
             const firstActivePackage = packagesData.activePackages[0];
             
@@ -96,7 +194,7 @@ const VipDashboardPage = () => {
               hrsRemaining = undefined;
             }
 
-            const packageObj = {
+            packageObj = {
               id: firstActivePackage.id,
               name: firstActivePackage.package_display_name || firstActivePackage.packageName,
               hoursRemaining: hrsRemaining,
@@ -105,46 +203,59 @@ const VipDashboardPage = () => {
                     firstActivePackage.package_type_name.substring(firstActivePackage.package_type_name.indexOf('(') + 1, firstActivePackage.package_type_name.indexOf(')')) : 
                     (firstActivePackage.packageName?.includes('(') ? firstActivePackage.packageName.substring(firstActivePackage.packageName.indexOf('(') + 1, firstActivePackage.packageName.indexOf(')')) : undefined)
             };
-            setPrimaryPackage(packageObj);
-            primaryPackageCache.current = packageObj;
-          } else {
-            setPrimaryPackage(undefined);
-            primaryPackageCache.current = undefined;
           }
-        }
-      } catch (error) {
-        if (error instanceof VipApiError) {
-          setFetchError(error.payload?.message || error.message);
-        } else if (error instanceof Error) {
-          setFetchError(error.message);
+          setPrimaryPackage(packageObj);
         } else {
-          setFetchError('An unknown error occurred during data fetch.');
+          // Don't fail the entire fetch if packages fail
+          setPrimaryPackage(undefined);
         }
-      } finally {
-        setIsLoadingProfile(false);
-        if (vipStatus.status === 'linked_matched') {
-            setIsLoadingBookings(false);
-            setIsLoadingPackages(false);
-        }
+      } else {
+        // For non-matched users, clear booking and package data
+        setNextBooking(undefined);
+        setPrimaryPackage(undefined);
+      }
+
+    } catch (error) {
+      if (error instanceof VipApiError) {
+        setFetchError(error.payload?.message || error.message);
+      } else if (error instanceof Error) {
+        setFetchError(error.message);
+      } else {
+        setFetchError('An unknown error occurred during data fetch.');
+      }
+    } finally {
+      setIsLoadingProfile(false);
+      if (vipStatus.status === 'linked_matched' || vipStatus.status === 'linked_unmatched') {
+        setIsLoadingBookings(false);
+      }
+      if (vipStatus.status === 'linked_matched') {
+        setIsLoadingPackages(false);
       }
     }
-  }, [session, vipStatus]);
+  }, [session, vipStatus, isSharedDataFresh, sharedData, updateSharedData]);
 
   useEffect(() => {
     const handleRetryEvent = () => {
-        fetchData(true); // force refresh on manual retry
+      fetchData(true); // force refresh on manual retry
     };
     document.addEventListener('fetchDashboardData', handleRetryEvent);
 
+    // Only fetch data if we have valid session and VIP status
     if (session && vipStatus && !isLoadingVipStatus && !vipStatusError) {
-        fetchData();
+      fetchData();
     }
 
     return () => {
-        document.removeEventListener('fetchDashboardData', handleRetryEvent);
+      document.removeEventListener('fetchDashboardData', handleRetryEvent);
     };
   }, [fetchData, session, vipStatus, isLoadingVipStatus, vipStatusError]);
 
+  // Access control: Redirect users who need to complete account setup
+  useEffect(() => {
+    if (vipStatus?.status === 'not_linked') {
+      router.replace('/vip/link-account');
+    }
+  }, [vipStatus?.status, router]);
 
   if (isLoadingVipStatus || (!vipStatus && !vipStatusError)) {
     return (
@@ -175,7 +286,17 @@ const VipDashboardPage = () => {
     );
   }
 
-  const isFetchingDashboardDetails = isLoadingProfile || (vipStatus.status === 'linked_matched' && (isLoadingBookings || isLoadingPackages));
+  if (vipStatus?.status === 'not_linked') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
+        <p className="text-muted-foreground">Redirecting to account setup...</p>
+      </div>
+    );
+  }
+
+  const isFetchingDashboardDetails = isLoadingProfile || 
+    ((vipStatus.status === 'linked_matched' || vipStatus.status === 'linked_unmatched') && isLoadingBookings) ||
+    (vipStatus.status === 'linked_matched' && isLoadingPackages);
 
   if (isFetchingDashboardDetails && !fetchError) {
     return (
@@ -185,7 +306,6 @@ const VipDashboardPage = () => {
      </div>
    );
  }
-
 
   if (fetchError) {
     return (

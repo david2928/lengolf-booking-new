@@ -19,36 +19,54 @@ import {
 const VIP_API_BASE_URL = '/api/vip';
 
 async function fetchVipApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const startTime = performance.now();
   const { headers, ...restOptions } = options;
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
     ...headers,
   };
 
-  const response = await fetch(`${VIP_API_BASE_URL}${endpoint}`, {
-    ...restOptions,
-    headers: defaultHeaders,
-  });
+  try {
+    const response = await fetch(`${VIP_API_BASE_URL}${endpoint}`, {
+      ...restOptions,
+      headers: defaultHeaders,
+    });
 
-  if (!response.ok) {
-    let errorPayload: ApiErrorPayload | undefined;
-    try {
-      errorPayload = await response.json();
-    } catch (e) {
-      // Ignore if response is not JSON or empty
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    
+    // Log slow API calls for monitoring (over 1 second)
+    if (duration > 1000) {
+      console.warn(`[VIP API Performance] Slow request to ${endpoint}: ${duration.toFixed(2)}ms`);
+    } else if (process.env.NODE_ENV === 'development') {
+      console.log(`[VIP API Performance] ${endpoint}: ${duration.toFixed(2)}ms`);
     }
-    throw new VipApiError(
-      errorPayload?.message || errorPayload?.error || `API request failed: ${response.status} ${response.statusText}`,
-      response.status,
-      errorPayload
-    );
-  }
 
-  if (response.status === 204) { // No Content
-    return undefined as T;
-  }
+    if (!response.ok) {
+      let errorPayload: ApiErrorPayload | undefined;
+      try {
+        errorPayload = await response.json();
+      } catch (e) {
+        // Ignore if response is not JSON or empty
+      }
+      throw new VipApiError(
+        errorPayload?.message || errorPayload?.error || `API request failed: ${response.status} ${response.statusText}`,
+        response.status,
+        errorPayload
+      );
+    }
 
-  return response.json() as Promise<T>;
+    if (response.status === 204) { // No Content
+      return undefined as T;
+    }
+
+    return response.json() as Promise<T>;
+  } catch (error) {
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    console.error(`[VIP API Error] ${endpoint} failed after ${duration.toFixed(2)}ms:`, error);
+    throw error;
+  }
 }
 
 export async function getVipStatus(): Promise<VipStatusResponse> {

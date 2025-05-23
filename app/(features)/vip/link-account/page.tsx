@@ -11,10 +11,20 @@ const LinkAccountPage = () => {
   const { session, vipStatus, isLoadingVipStatus } = useVipContext();
   const router = useRouter();
 
-  // Redirect if user is already matched
+  // Enhanced access control: Redirect users who don't need linking
   useEffect(() => {
     if (vipStatus?.status === 'linked_matched') {
-      router.replace('/vip/dashboard');
+      // Account is already fully linked
+      router.replace('/vip');
+    } else if (vipStatus?.status === 'vip_data_exists_crm_unmatched') {
+      // User has VIP data but no CRM match - they can use this page
+      return;
+    } else if (vipStatus?.status === 'linked_unmatched') {
+      // User has placeholder VIP account - redirect to dashboard as they don't need linking
+      router.replace('/vip');
+    } else if (vipStatus?.status === 'not_linked') {
+      // User is completely unlinked - they can use this page
+      return;
     }
   }, [vipStatus, router]);
 
@@ -27,27 +37,39 @@ const LinkAccountPage = () => {
     );
   }
 
-  if (vipStatus.status === 'linked_matched') {
+  // Redirect screen for users who don't need linking
+  if (vipStatus.status === 'linked_matched' || vipStatus.status === 'linked_unmatched') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
-        <p className="text-muted-foreground">Account already linked. Redirecting to dashboard...</p>
+        <div className="text-center">
+          <AlertCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-green-700 mb-2">
+            {vipStatus.status === 'linked_matched' ? 'Account Already Linked' : 'VIP Account Ready'}
+          </h2>
+          <p className="text-muted-foreground mb-4">
+            {vipStatus.status === 'linked_matched' 
+              ? 'Your account is already connected to your customer profile.' 
+              : 'Your VIP account is set up and ready to use.'}
+          </p>
+          <p className="text-muted-foreground">Redirecting to VIP dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="container mx-auto max-w-2xl py-8 px-4">
-      {(vipStatus.status === 'not_linked' || vipStatus.status === 'linked_unmatched') && (
-         <Alert className="mb-6" variant={vipStatus.status === 'linked_unmatched' ? "default" : "default"}> {/* Default variant, or can be more specific */}
+      {vipStatus.status === 'not_linked' && (
+         <Alert className="mb-6" variant="default">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Account Link Required</AlertTitle>
             <AlertDescription>
-              It seems your current login is not yet fully associated with a Lengolf VIP profile. Please link your account using your phone number to access all VIP features.
+              Connect your account using your phone number to access all VIP features including bookings and packages.
             </AlertDescription>
         </Alert>
       )}
-       {vipStatus.status === 'vip_data_exists_crm_unmatched' && (
-         <Alert variant="default" className="mb-6"> {/* ShadCN warning variant is often yellow-ish */}
+      {vipStatus.status === 'vip_data_exists_crm_unmatched' && (
+         <Alert variant="default" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Final Linking Step Needed</AlertTitle>
             <AlertDescription>

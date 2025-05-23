@@ -130,13 +130,55 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       .eq('id', bookingId)
       .select(`
         *,
-        profiles_vip_staging (display_name, phone_number)
+        profiles_vip_staging (display_name, phone_number, vip_customer_data_id)
       `)
       .single();
 
     if (updateError || !cancelledBooking) {
       console.error(`[VIP Cancel] Supabase error updating booking ${bookingId} to cancelled:`, updateError);
       return NextResponse.json({ error: 'Failed to cancel booking in database', details: updateError?.message }, { status: 500 });
+    }
+
+    // Get phone number and email with priority: VIP customer data > profiles_vip_staging
+    let finalPhoneNumber = (cancelledBooking.profiles_vip_staging as any)?.phone_number || null;
+    let finalEmail = null;
+    
+    // If we have vip_customer_data_id, try to get phone and email from there
+    const vipCustomerDataId = (cancelledBooking.profiles_vip_staging as any)?.vip_customer_data_id;
+    if (vipCustomerDataId) {
+      try {
+        const { data: vipData } = await supabaseUserClient
+          .from('vip_customer_data')
+          .select('vip_phone_number, vip_email')
+          .eq('id', vipCustomerDataId)
+          .single();
+        
+        if (vipData?.vip_phone_number) {
+          finalPhoneNumber = vipData.vip_phone_number;
+        }
+        if (vipData?.vip_email) {
+          finalEmail = vipData.vip_email;
+        }
+      } catch (error) {
+        console.warn('[VIP Cancel] Could not fetch VIP customer data:', error);
+      }
+    }
+    
+    // Fallback to profiles_vip_staging email if no VIP email
+    if (!finalEmail) {
+      try {
+        const { data: profileData } = await supabaseUserClient
+          .from('profiles_vip_staging')
+          .select('email')
+          .eq('id', profileId)
+          .single();
+        
+        if (profileData?.email) {
+          finalEmail = profileData.email;
+        }
+      } catch (error) {
+        console.warn('[VIP Cancel] Could not fetch profile email:', error);
+      }
     }
     
     const oldBookingSnapshot = { ...currentBooking };
@@ -173,7 +215,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     const notificationData: NotificationBookingData = {
       id: cancelledBooking.id,
       name: (cancelledBooking.profiles_vip_staging as any)?.display_name || 'VIP User',
-      phone_number: (cancelledBooking.profiles_vip_staging as any)?.phone_number || null,
+      phone_number: finalPhoneNumber,
       date: cancelledBooking.date,
       start_time: cancelledBooking.start_time,
       duration: cancelledBooking.duration,
@@ -186,6 +228,54 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
 
     sendVipCancellationNotification(notificationData)
       .catch(err => console.error('[VIP Cancel] Failed to send VIP cancellation notification:', err));
+    
+    // Send cancellation email notification
+    if (finalEmail) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const userName = (cancelledBooking.profiles_vip_staging as any)?.display_name || 'VIP User';
+      
+      // Calculate end time
+      let endTime = '';
+      try {
+        const [hours, minutes] = cancelledBooking.start_time.split(':').map(Number);
+        const startDate = new Date();
+        startDate.setHours(hours, minutes, 0, 0);
+        const endDate = new Date(startDate.getTime() + (cancelledBooking.duration * 60 * 60 * 1000));
+        endTime = endDate.toTimeString().slice(0, 5); // HH:mm format
+      } catch (error) {
+        console.warn('[VIP Cancel] Could not calculate end time:', error);
+      }
+      
+      const emailData = {
+        email: finalEmail,
+        userName,
+        subjectName: userName,
+        bookingId: cancelledBooking.id,
+        bookingDate: cancelledBooking.date,
+        startTime: cancelledBooking.start_time,
+        endTime,
+        duration: cancelledBooking.duration,
+        numberOfPeople: cancelledBooking.number_of_people || 1,
+        bayName: cancelledBooking.bay,
+        cancellationReason: cancelledBooking.cancellation_reason
+      };
+      
+      fetch(`${baseUrl}/api/notifications/email/cancellation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailData),
+      })
+      .then(response => {
+        if (response.ok) {
+          console.log('[VIP Cancel] Cancellation email sent successfully');
+        } else {
+          console.error('[VIP Cancel] Failed to send cancellation email:', response.status);
+        }
+      })
+      .catch(err => console.error('[VIP Cancel] Failed to send cancellation email:', err));
+    } else {
+      console.warn('[VIP Cancel] No email address available for cancellation notification');
+    }
     
     // Calendar deletion
     const googleCalendarEventId = currentBooking.calendar_events && currentBooking.calendar_events[0]?.eventId;

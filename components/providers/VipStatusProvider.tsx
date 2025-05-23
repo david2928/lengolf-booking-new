@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 
 export interface VipTier {
@@ -37,8 +37,49 @@ export function VipStatusProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchVipProfile = async () => {
+  // Cache for VIP profile to prevent unnecessary API calls
+  const vipProfileCache = useRef<{
+    profile: VipProfile | null;
+    lastFetchTime: number | null;
+    sessionId: string | null; // Track session to detect user changes
+  }>({
+    profile: null,
+    lastFetchTime: null,
+    sessionId: null,
+  });
+
+  // Cache expiry time in milliseconds (3 minutes)
+  const VIP_PROFILE_CACHE_EXPIRY_MS = 3 * 60 * 1000;
+
+  const isVipProfileCacheValid = useCallback(() => {
+    const cache = vipProfileCache.current;
+    const currentTime = Date.now();
+    const currentSessionId = session?.user?.id || null;
+    
+    // Cache is invalid if:
+    // 1. No last fetch time
+    // 2. Cache has expired
+    // 3. Session user has changed
+    if (!cache.lastFetchTime) return false;
+    if (currentTime - cache.lastFetchTime > VIP_PROFILE_CACHE_EXPIRY_MS) return false;
+    if (cache.sessionId !== currentSessionId) return false;
+    
+    return true;
+  }, [session?.user?.id]);
+
+  const fetchVipProfile = useCallback(async (forceRefresh = false) => {
     if (sessionStatus === 'authenticated' && session?.user?.id) {
+      // Use cache if valid and not forced to refresh
+      if (!forceRefresh && isVipProfileCacheValid()) {
+        const cachedProfile = vipProfileCache.current.profile;
+        if (cachedProfile) {
+          setVipProfile(cachedProfile);
+          setIsLoading(false);
+          setError(null);
+          return;
+        }
+      }
+
       setIsLoading(true);
       setError(null);
       try {
@@ -55,6 +96,13 @@ export function VipStatusProvider({ children }: { children: ReactNode }) {
         }
         const data = await response.json();
         setVipProfile(data);
+        
+        // Update cache
+        vipProfileCache.current = {
+          profile: data,
+          lastFetchTime: Date.now(),
+          sessionId: session.user.id,
+        };
       } catch (err) {
         console.error('VipStatusProvider fetch error:', err);
         setError(err instanceof Error ? err : new Error('An unknown error occurred'));
@@ -63,20 +111,30 @@ export function VipStatusProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     } else if (sessionStatus === 'unauthenticated') {
-      // Clear profile if user logs out
+      // Clear profile and cache if user logs out
       setVipProfile(null);
       setIsLoading(false);
       setError(null);
+      vipProfileCache.current = {
+        profile: null,
+        lastFetchTime: null,
+        sessionId: null,
+      };
     }
     // If sessionStatus is 'loading', do nothing and wait for it to resolve.
-  };
+  }, [sessionStatus, session?.user?.id, isVipProfileCacheValid]);
 
   useEffect(() => {
     fetchVipProfile();
-  }, [sessionStatus, session?.user?.id]);
+  }, [fetchVipProfile]);
 
   return (
-    <VipStatusContext.Provider value={{ vipProfile, isLoading, error, refetchVipProfile: fetchVipProfile }}>
+    <VipStatusContext.Provider value={{ 
+      vipProfile, 
+      isLoading, 
+      error, 
+      refetchVipProfile: () => fetchVipProfile(true) // Force refresh when explicitly called
+    }}>
       {children}
     </VipStatusContext.Provider>
   );

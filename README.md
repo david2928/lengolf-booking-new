@@ -394,4 +394,31 @@ node scripts/send-test-review-request.js --provider=email --to=user@example.com 
 
 # Send a test LINE review request
 node scripts/send-test-review-request.js --provider=line --to=Uf4177a1781df7fd215e6d2749fd00296 --name="Jane Smith"
-``` 
+```
+
+## Performance Optimizations
+
+### VIP Navigation Performance
+Recent optimizations have been implemented to improve the "My Account" navigation speed:
+
+#### Implemented Optimizations:
+1. **VIP Profile Caching** - 3-minute cache to prevent redundant API calls
+2. **Database Query Optimization** - Single JOIN query instead of multiple round-trips
+3. **Route Prefetching** - VIP routes prefetched on hover for instant navigation
+4. **Cache Warming** - VIP profile fetched proactively on page load
+5. **Performance Monitoring** - API timing logs to track slow requests
+
+#### Performance Monitoring:
+- Slow API calls (>1000ms) are logged as warnings
+- Development mode shows all API timing for debugging
+- Check browser console for `[VIP API Performance]` logs
+
+#### Cache Configuration:
+- VIP Profile Cache: 3 minutes
+- VIP Status Cache: 5 minutes
+- Automatic cache invalidation on user change
+
+#### For Developers:
+- Use `refetchVipProfile()` to force cache refresh
+- Monitor console for performance warnings
+- Consider database indexing if API calls remain slow 
