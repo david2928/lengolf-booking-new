@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import BookingsList from '../../../../components/vip/BookingsList';
 import { useVipContext } from '../contexts/VipContext';
 import { Loader2 } from 'lucide-react';
@@ -13,11 +14,23 @@ import BookingCancelModal from '../../../../components/vip/BookingCancelModal';
 
 const VipBookingsPage = () => {
   const { vipStatus, isLoadingVipStatus, session, refetchVipStatus } = useVipContext();
+  const router = useRouter();
   
   const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
+
+  // Redirect unlinked users to link-account page
+  useEffect(() => {
+    if (!isLoadingVipStatus && vipStatus && (
+      vipStatus.status === 'not_linked' || 
+      vipStatus.status === 'linked_unmatched' ||
+      vipStatus.status === 'vip_data_exists_crm_unmatched'
+    )) {
+      router.replace('/vip/link-account');
+    }
+  }, [vipStatus, isLoadingVipStatus, router]);
 
   const handleOpenModifyModal = (bookingId: string) => {
     setSelectedBookingId(bookingId);
@@ -69,11 +82,21 @@ const VipBookingsPage = () => {
     );
   }
 
+  // Show loading while redirecting
+  if (vipStatus && vipStatus.status !== 'linked_matched') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Redirecting to account linking...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-gray-800 tracking-tight">My Bookings</h1>
-        <p className="text-lg text-muted-foreground mt-1">View and manage your past and upcoming tee times.</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
+        <p className="text-muted-foreground">View and manage your past and upcoming tee times.</p>
       </div>
       
       <BookingsList 

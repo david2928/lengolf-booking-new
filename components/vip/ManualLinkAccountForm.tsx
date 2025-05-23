@@ -84,7 +84,7 @@ const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName 
       }
       // Customize error messages for better UX
       if (errorMessage.includes('No matching customer account found')) {
-        errorMessage = "We couldn't find a customer account with this phone number. Please double-check your number or contact support if you're sure it's correct.";
+        errorMessage = "We couldn't find an account with this phone number. Please double-check your number or contact support if you're sure it's correct.";
       }
       
       // Show error modal

@@ -4,19 +4,12 @@ import React, { ReactNode, useState, useEffect, useCallback, useRef } from 'reac
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { Menu, X, ChevronDown, User, Package, Calendar, LogOut, Trophy, LinkIcon, LayoutDashboard } from 'lucide-react';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { ChevronDown, User, Package, Calendar, LogOut, Trophy, LinkIcon, ExternalLink } from 'lucide-react';
 import { VipContextProvider, VipContextType, VipSharedData } from './contexts/VipContext';
 import { getVipStatus } from '../../../lib/vipService'; // Adjusted path
 import { VipStatusResponse, VipApiError } from '../../../types/vip'; // Adjusted path
-import { Button } from '@/components/ui/button'; // Changed casing
 import SharedFooter from '@/components/shared/Footer'; // Import the SharedFooter
+import Header from '@/components/shared/Header';
 import { useRouter } from 'next/navigation';
 
 interface VipLayoutProps {
@@ -109,6 +102,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
     if (sessionStatus === 'unauthenticated') {
       redirect('/auth/login?callbackUrl=/vip'); // Updated to redirect to /vip instead of /vip/dashboard
     }
+    
     if (sessionStatus === 'authenticated') {
       fetchVipStatus();
     }
@@ -183,153 +177,208 @@ const VipLayout = ({ children }: VipLayoutProps) => {
         <p className="text-sm text-muted-foreground mb-6">
           {(vipStatusError as VipApiError)?.payload?.message || vipStatusError.message}
         </p>
-        <Button onClick={() => fetchVipStatus(true)}>Try Again</Button>
-        <Button variant="outline" onClick={handleSignOut} className="ml-2">Sign Out</Button>
+        <button onClick={() => fetchVipStatus(true)}>Try Again</button>
+        <button onClick={handleSignOut} className="ml-2">Sign Out</button>
       </div>
     );
   }
 
-  // Only show Link CRM Account for users who need linking
-  // Exclude linked_unmatched users who have placeholder VIP accounts (vip_customer_data but no stable_hash_id)
-  const shouldShowLinkCrmAccount = vipStatus?.status === 'not_linked' || 
+  // Determine if user is linked to show appropriate menu items
+  const isUserLinked = vipStatus?.status === 'linked_matched';
+  
+  // Show Link Account for users who need linking
+  const shouldShowLinkAccount = vipStatus?.status === 'not_linked' || 
+    vipStatus?.status === 'linked_unmatched' ||
     vipStatus?.status === 'vip_data_exists_crm_unmatched';
+
+  // Check if user is eligible for VIP features (not guest)
+  const isVipEligible = sessionStatus === 'authenticated' && session?.user?.provider !== 'guest';
 
   return (
     <VipContextProvider value={contextValue}>
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        <header className="bg-primary text-primary-foreground py-4 sticky top-0 z-50 shadow-md">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => { router.push('/vip'); if (mobileMenuOpen) toggleMobileMenu(); }} 
-                  className="text-2xl font-bold text-white hover:opacity-80 transition-opacity"
-                >
-                  <span className="md:hidden">LENGOLF</span>
-                  <span className="hidden md:inline">LENGOLF</span>
-                </button>
-                <Link href="/vip" className="bg-white text-green-700 px-2 py-1 rounded-md text-sm font-medium">VIP</Link>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header
+        title="LENGOLF"
+        badge={{
+          text: "VIP",
+          href: "/vip"
+        }}
+        mobileMenuOpen={mobileMenuOpen}
+        onToggleMobileMenu={toggleMobileMenu}
+        rightContent={
+          <>
+            <div className="md:hidden flex gap-1">
+              {/* Mobile placeholder buttons to maintain consistent spacing */}
+              <div className="w-0 h-0"></div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <div className="md:hidden flex gap-1">
-                {/* Mobile placeholder buttons to maintain consistent spacing */}
-                <div className="w-0 h-0"></div>
-              </div>
 
+            {isVipEligible ? (
               <nav className="hidden md:flex gap-4 items-center">
-                {/* Main booking actions - always prominent */}
-                <Link href="/bookings" className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium">
-                  <Calendar size={16} />
-                  New Booking
+                {/* Add New Booking button like in the booking layout */}
+                <Link href="/bookings">
+                  <button className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium">
+                    <Calendar className="h-4 w-4" />
+                    <span>New Booking</span>
+                  </button>
                 </Link>
-                
-                {/* VIP-specific navigation in a more subtle dropdown */}
-                <div className="flex items-center gap-3 ml-4 pl-4 border-l border-white/20">
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center gap-1 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-white outline-none">
+
+                {/* Vertical separator */}
+                <div className="h-6 w-px bg-white/30"></div>
+
+                {/* Simple My Account dropdown */}
+                <div className="relative group">
+                  <button className="flex items-center gap-1 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-white">
                     My Account <ChevronDown size={16} />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 mt-2">
-                    <DropdownMenuItem asChild>
-                      <Link href="/vip" className="flex items-center gap-2">
-                        <LayoutDashboard size={16} />
-                        <span>VIP Dashboard</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/vip/bookings" className="flex items-center gap-2">
-                        <Calendar size={16} />
-                        <span>My Bookings</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/vip/packages" className="flex items-center gap-2">
-                        <Package size={16} />
-                        <span>My Packages</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/vip/membership" className="flex items-center gap-2">
-                        <Trophy size={16} />
-                        <span>Membership</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/vip/profile" className="flex items-center gap-2">
-                        <User size={16} />
-                        <span>My Profile</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    {shouldShowLinkCrmAccount && (
-                      <DropdownMenuItem asChild>
-                        <Link href="/vip/link-account" className="flex items-center gap-2 text-primary">
-                          <LinkIcon size={16} />
-                          <span>Link CRM Account</span>
+                  </button>
+                  
+                  {/* Dropdown menu - matching booking layout style with separators */}
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <Link href="/vip" className="flex items-center gap-2 px-4 py-3 text-green-700 hover:bg-green-50 transition-colors font-medium border-b border-green-100">
+                      <span>Dashboard</span>
+                      <span className="ml-auto bg-green-700 text-white px-2 py-0.5 rounded text-xs font-medium">VIP</span>
+                    </Link>
+                    
+                    {isUserLinked ? (
+                      <>
+                        <div className="border-t border-gray-100"></div>
+                        <Link href="/vip/profile" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
+                          <User size={16} />
+                          <span>My Profile</span>
                         </Link>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <button onClick={handleSignOut} className="flex items-center gap-2 w-full text-left">
-                        <LogOut size={16} />
-                        <span>Sign Out</span>
-                      </button>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                        <Link href="/vip/bookings" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
+                          <Calendar size={16} />
+                          <span>My Bookings</span>
+                        </Link>
+                        <Link href="/vip/packages" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
+                          <Package size={16} />
+                          <span>My Packages</span>
+                        </Link>
+                        <Link href="/vip/membership" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
+                          <Trophy size={16} />
+                          <span>Membership</span>
+                        </Link>
+                      </>
+                    ) : shouldShowLinkAccount ? (
+                      <>
+                        <div className="border-t border-gray-100"></div>
+                        <Link href="/vip/link-account" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors font-medium">
+                          <LinkIcon size={16} />
+                          <span>Link Account to Access VIP Features</span>
+                        </Link>
+                      </>
+                    ) : null}
+                    
+                    <div className="border-t border-gray-100"></div>
+                    <a 
+                      href="https://len.golf"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <ExternalLink size={16} />
+                      <span>Main Site</span>
+                    </a>
+                    <button onClick={handleSignOut} className="flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors w-full text-left">
+                      <LogOut size={16} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
                 </div>
               </nav>
+            ) : sessionStatus === 'authenticated' ? (
+              <nav className="hidden md:flex gap-4 items-center">
+                <Link href="/bookings">
+                  <button className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium">
+                    <Calendar className="h-4 w-4" />
+                    <span>New Booking</span>
+                  </button>
+                </Link>
+
+                {/* Vertical separator */}
+                <div className="h-6 w-px bg-white/30"></div>
+
+                <button onClick={handleSignOut} className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium">
+                  <LogOut size={16} />
+                  <span>Sign Out</span>
+                </button>
+              </nav>
+            ) : null}
+          </>
+        }
+        mobileMenu={
+          <nav className="md:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
+            <ul className="space-y-2 px-2">
+              {sessionStatus === 'authenticated' && isVipEligible ? (
+                <>
+                  <li>
+                    <Link href="/vip" className="flex items-center justify-between gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 bg-primary-foreground/5 border border-white/10" onClick={toggleMobileMenu}>
+                      <span className="flex items-center gap-2 font-medium">
+                        Dashboard
+                      </span>
+                      <span className="bg-white text-green-700 px-2 py-0.5 rounded text-xs font-medium">VIP</span>
+                    </Link>
+                  </li>
+                
+                  {isUserLinked && (
+                    <>
+                      <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PROFILE</p>
+                        <ul className="mt-1 space-y-1">
+                          <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><User size={16} />My Profile</Link></li>
+                        </ul>
+                      </li>
+                      
+                      <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">BOOKINGS</p>
+                        <ul className="mt-1 space-y-1">
+                          <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />My Bookings</Link></li>
+                          <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />New Booking</Link></li>
+                        </ul>
+                      </li>
+                      
+                      <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PACKAGES</p>
+                        <ul className="mt-1 space-y-1">
+                          <li><Link href="/vip/packages" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Package size={16} />My Packages</Link></li>
+                        </ul>
+                      </li>
+                      
+                      <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                        <Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Trophy size={16} />Membership</Link>
+                      </li>
+                    </>
+                  )}
+                  
+                  {shouldShowLinkAccount && (
+                    <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                      <Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 font-medium" onClick={toggleMobileMenu}><LinkIcon size={16} />Link Account</Link>
+                    </li>
+                  )}
+                </>
+              ) : (
+                <li><Link href="/bookings" className="block px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}>New Booking</Link></li>
+              )}
+            
+              <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                <a 
+                  href="https://len.golf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10"
+                  onClick={toggleMobileMenu}
+                >
+                  <ExternalLink size={16} />
+                  Main Site
+                </a>
+              </li>
               
-              <button 
-                className="md:hidden p-2 text-white hover:bg-white/10 rounded-md"
-                onClick={toggleMobileMenu}
-                aria-label="Toggle mobile menu"
-              >
-                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            </div>
-          </div>
-          
-          {mobileMenuOpen && (
-              <nav className="md:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
-              <ul className="space-y-2 px-2">
-                  <li><Link href="/vip" className="block px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}>Dashboard</Link></li>
-                
-                  <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                    <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">Profile</p>
-                  <ul className="mt-1 space-y-1">
-                      <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><User size={16} />My Profile</Link></li>
-                      {shouldShowLinkCrmAccount && (
-                        <li><Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-accent" onClick={toggleMobileMenu}><LinkIcon size={16} />Link CRM Account</Link></li>
-                      )}
-                  </ul>
-                </li>
-                
-                  <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                    <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">Bookings</p>
-                  <ul className="mt-1 space-y-1">
-                      <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />My Bookings</Link></li>
-                      <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />New Booking</Link></li>
-                  </ul>
-                </li>
-                
-                  <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                    <Link href="/vip/packages" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Package size={16} />My Packages</Link>
-                </li>
-                
-                  <li><Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Trophy size={16} />Membership</Link></li>
-                
-                  <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                    <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="flex items-center gap-2 px-3 py-2 rounded-md w-full text-left hover:bg-primary-foreground/10"><LogOut size={16} />Sign Out</button>
-                </li>
-              </ul>
-            </nav>
-          )}
-        </div>
-      </header>
+              <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="flex items-center gap-2 px-3 py-2 rounded-md w-full text-left hover:bg-primary-foreground/10"><LogOut size={16} />Sign Out</button>
+            </li>
+            </ul>
+          </nav>
+        }
+      />
       
         <main className="py-8 flex-grow container mx-auto px-4 sm:px-6 lg:px-8">
           {children}

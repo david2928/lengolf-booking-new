@@ -9,7 +9,8 @@ import { toast } from 'react-hot-toast';
 import { ChevronDownIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, Bars3Icon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, UserCircleIcon as HeroUserCircleIcon, TicketIcon, LinkIcon as LinkIconLucide, HomeIcon as HeroHomeIcon, UserIcon as HeroUserIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import SharedFooter from '@/components/shared/Footer';
-import { LogOut, Menu as MenuLucide, X, Package as PackageIconLucide, Calendar as CalendarIconLucide, Trophy as TrophyIconLucide, Link as LinkIconLucideRadix, User as UserIconLucide, LayoutDashboard as LayoutDashboardIcon } from 'lucide-react';
+import Header from '@/components/shared/Header';
+import { LogOut, Package as PackageIconLucide, Calendar as CalendarIconLucide, Trophy as TrophyIconLucide, Link as LinkIconLucideRadix, User as UserIconLucide } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -69,6 +70,22 @@ export function Layout({ children }: LayoutProps) {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
+  // Check if user is an account that should show VIP features (not guest)
+  const isVipEligible = sessionStatus === 'authenticated' && session?.user?.provider !== 'guest';
+  
+  // Determine if user needs to link their account
+  const isAccountUnmatched = vipProfile && (
+    vipProfile.crmStatus === 'linked_unmatched' || 
+    vipProfile.crmStatus === 'not_linked' ||
+    vipProfile.crmStatus === 'vip_data_exists_crm_unmatched'
+  );
+
+  // Determine if user is linked and can access full VIP features (only linked_matched)
+  const isUserLinked = vipProfile && vipProfile.crmStatus === 'linked_matched';
+
+  // Show Link Account for authenticated users who need linking
+  const shouldShowLinkAccount = sessionStatus === 'authenticated' && isAccountUnmatched;
+
   if (sessionStatus === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -77,242 +94,254 @@ export function Layout({ children }: LayoutProps) {
     );
   }
 
-  const crmStatus = vipProfile?.crmStatus;
-  const isAccountUnmatched = crmStatus === 'not_linked' ||
-                             crmStatus === 'vip_data_exists_crm_unmatched';
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="bg-primary text-primary-foreground py-4 sticky top-0 z-50 shadow-md">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => { router.push('/bookings'); if (mobileMenuOpen) toggleMobileMenu(); }} 
-                className="text-2xl font-bold text-white hover:opacity-80 transition-opacity"
+      <Header
+        title="LENGOLF"
+        badge={{
+          text: "Booking",
+          href: "/bookings"
+        }}
+        mobileMenuOpen={mobileMenuOpen}
+        onToggleMobileMenu={toggleMobileMenu}
+        rightContent={
+          <>
+            <div className="md:hidden flex gap-1">
+              <button
+                onClick={() => setShowBayRates(true)}
+                className="p-2 text-white hover:bg-white/10 rounded-md"
+                aria-label="Bay Rates"
               >
-                <span className="md:hidden">LENGOLF</span>
-                <span className="hidden md:inline">LENGOLF</span>
+                <CurrencyDollarIcon className="h-5 w-5" />
               </button>
-              <Link href="/bookings" className="bg-white text-green-700 px-2 py-1 rounded-md text-sm font-medium">Booking</Link>
+              <button
+                onClick={() => setShowPromotions(true)}
+                className="p-2 text-white hover:bg-white/10 rounded-md"
+                aria-label="Promotions"
+              >
+                <FireIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setShowLessons(true)}
+                className="p-2 text-white hover:bg-white/10 rounded-md"
+                aria-label="Golf Lessons"
+              >
+                <AcademicCapIcon className="h-5 w-5" />
+              </button>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <div className="md:hidden flex gap-1">
-                <button
-                  onClick={() => setShowBayRates(true)}
-                  className="p-2 text-white hover:bg-white/10 rounded-md"
-                  aria-label="Bay Rates"
-                >
-                  <CurrencyDollarIcon className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => setShowPromotions(true)}
-                  className="p-2 text-white hover:bg-white/10 rounded-md"
-                  aria-label="Promotions"
-                >
-                  <FireIcon className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => setShowLessons(true)}
-                  className="p-2 text-white hover:bg-white/10 rounded-md"
-                  aria-label="Golf Lessons"
-                >
-                  <AcademicCapIcon className="h-5 w-5" />
-                </button>
-              </div>
 
-              <nav className="hidden md:flex gap-4 items-center">
-                {/* Primary booking-related actions - always prominent */}
-                <button
-                  onClick={() => setShowBayRates(!showBayRates)}
-                  className="text-white px-4 py-2 rounded-lg border-2 border-white/30 hover:bg-white hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium shadow-sm"
-                >
-                  <CurrencyDollarIcon className="h-5 w-5" />
-                  <span>Bay Rates</span>
-                </button>
-                <button
-                  onClick={() => setShowPromotions(!showPromotions)}
-                  className="text-white px-4 py-2 rounded-lg border-2 border-orange-200/40 hover:bg-orange-100 hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium shadow-sm"
-                >
-                  <FireIcon className="h-5 w-5" />
-                  <span>Promotions</span>
-                </button>
-                <button
-                  onClick={() => setShowLessons(!showLessons)}
-                  className="text-white px-4 py-2 rounded-lg border-2 border-blue-200/40 hover:bg-blue-100 hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium shadow-sm"
-                >
-                  <AcademicCapIcon className="h-5 w-5" />
-                  <span>Lessons</span>
-                </button>
+            <nav className="hidden md:flex gap-4 items-center">
+              {/* Primary booking-related actions - clean and minimal */}
+              <button
+                onClick={() => setShowBayRates(!showBayRates)}
+                className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
+              >
+                <CurrencyDollarIcon className="h-4 w-4" />
+                <span>Bay Rates</span>
+              </button>
+              <button
+                onClick={() => setShowPromotions(!showPromotions)}
+                className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
+              >
+                <FireIcon className="h-4 w-4" />
+                <span>Promotions</span>
+              </button>
+              <button
+                onClick={() => setShowLessons(!showLessons)}
+                className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
+              >
+                <AcademicCapIcon className="h-4 w-4" />
+                <span>Lessons</span>
+              </button>
 
-                {/* Account navigation - consistent with VIP layout */}
-                <div className="flex items-center gap-3 ml-4 pl-4 border-l border-white/20">
-                  {sessionStatus === 'authenticated' && vipLoading ? (
-                    <div className="flex items-center gap-2 px-4 py-2 text-white">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Loading...</span>
-                    </div>
-                  ) : sessionStatus === 'authenticated' && !vipLoading && vipProfile ? (
-                    <>
-                      {/* My Account dropdown - similar to VIP layout */}
-                      <div className="relative group">
-                        <button 
-                          className="flex items-center gap-1 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-white"
-                          onMouseEnter={() => {
-                            // Prefetch VIP routes on hover for better perceived performance
-                            if (vipProfile && (vipProfile.crmStatus === 'linked_matched' || vipProfile.crmStatus === 'linked_unmatched')) {
-                              router.prefetch('/vip');
-                              router.prefetch('/vip/profile');
-                              router.prefetch('/vip/bookings');
-                              router.prefetch('/vip/packages');
-                            }
-                          }}
-                        >
-                          My Account <ChevronDownIcon className="h-4 w-4" />
-                        </button>
+              {/* Vertical separator */}
+              <div className="h-6 w-px bg-white/30"></div>
+
+              {/* Simple My Account dropdown */}
+              {sessionStatus === 'authenticated' && vipLoading ? (
+                <div className="flex items-center gap-2 px-4 py-2 text-white">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : sessionStatus === 'authenticated' ? (
+                <>
+                  {/* Only show My Account dropdown for non-guest users */}
+                  {isVipEligible ? (
+                    <div className="relative group">
+                      <button 
+                        className="flex items-center gap-1 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-white"
+                        onMouseEnter={() => {
+                          // Prefetch VIP routes on hover for better perceived performance
+                          if (vipProfile && (vipProfile.crmStatus === 'linked_matched' || vipProfile.crmStatus === 'linked_unmatched')) {
+                            router.prefetch('/vip');
+                            router.prefetch('/vip/profile');
+                            router.prefetch('/vip/bookings');
+                            router.prefetch('/vip/packages');
+                          }
+                        }}
+                      >
+                        My Account <ChevronDownIcon className="h-4 w-4" />
+                      </button>
+                      
+                      {/* Dropdown menu */}
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <Link href="/vip" className="flex items-center gap-2 px-4 py-3 text-green-700 hover:bg-green-50 transition-colors font-medium border-b border-green-100">
+                          <span>Dashboard</span>
+                          <span className="ml-auto bg-green-700 text-white px-2 py-0.5 rounded text-xs font-medium">VIP</span>
+                        </Link>
                         
-                        {/* Dropdown menu */}
-                        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                          {(vipProfile.crmStatus === 'linked_matched' || vipProfile.crmStatus === 'linked_unmatched') && (
-                            <>
-                              <Link href="/vip" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
-                                <LayoutDashboardIcon className="h-4 w-4" />
-                                <span>VIP Dashboard</span>
-                              </Link>
-                              <div className="border-t border-gray-100"></div>
-                              <Link href="/vip/bookings" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
-                                <CalendarIconLucide className="h-4 w-4" />
-                                <span>My Bookings</span>
-                              </Link>
-                              <Link href="/vip/packages" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
-                                <PackageIconLucide className="h-4 w-4" />
-                                <span>My Packages</span>
-                              </Link>
-                              <Link href="/vip/membership" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
-                                <TrophyIconLucide className="h-4 w-4" />
-                                <span>Membership</span>
-                              </Link>
-                              <div className="border-t border-gray-100"></div>
-                              <Link href="/vip/profile" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
-                                <UserIconLucide className="h-4 w-4" />
-                                <span>My Profile</span>
-                              </Link>
-                              <div className="border-t border-gray-100"></div>
-                            </>
-                          )}
-                          
-                          {(vipProfile.crmStatus === 'not_linked' || vipProfile.crmStatus === 'vip_data_exists_crm_unmatched') && (
-                            <>
-                              <Link href="/vip/link-account" className="flex items-center gap-2 px-4 py-3 text-blue-600 hover:bg-blue-50 transition-colors">
-                                <LinkIconLucideRadix className="h-4 w-4" />
-                                <span>Link VIP Account</span>
-                              </Link>
-                              <div className="border-t border-gray-100"></div>
-                            </>
-                          )}
-                          
-                          <a 
-                            href="https://www.len.golf" 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <HeroHomeIcon className="h-4 w-4" />
-                            <span>Home</span>
-                          </a>
-                          <div className="border-t border-gray-100"></div>
-                          <button onClick={handleSignOut} className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors w-full text-left">
-                            <LogOut className="h-4 w-4" />
-                            <span>Sign Out</span>
-                          </button>
-                        </div>
+                        {isUserLinked ? (
+                          <>
+                            <div className="border-t border-gray-100"></div>
+                            <Link href="/vip/profile" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
+                              <UserIconLucide className="h-4 w-4" />
+                              <span>My Profile</span>
+                            </Link>
+                            <Link href="/vip/bookings" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
+                              <CalendarIconLucide className="h-4 w-4" />
+                              <span>My Bookings</span>
+                            </Link>
+                            <Link href="/vip/packages" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
+                              <PackageIconLucide className="h-4 w-4" />
+                              <span>My Packages</span>
+                            </Link>
+                            <Link href="/vip/membership" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
+                              <TrophyIconLucide className="h-4 w-4" />
+                              <span>Membership</span>
+                            </Link>
+                          </>
+                        ) : shouldShowLinkAccount ? (
+                          <>
+                            <div className="border-t border-gray-100"></div>
+                            <Link href="/vip/link-account" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors font-medium">
+                              <LinkIconLucideRadix className="h-4 w-4" />
+                              <span>Link Account to Access VIP Features</span>
+                            </Link>
+                          </>
+                        ) : null}
+                        
+                        <div className="border-t border-gray-100"></div>
+                        <a 
+                          href="https://len.golf"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <HeroHomeIcon className="h-4 w-4" />
+                          <span>Main Site</span>
+                        </a>
+                        <button 
+                          onClick={handleSignOut} 
+                          disabled={isLoading}
+                          className="flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors w-full text-left disabled:opacity-50"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>{isLoading ? 'Signing Out...' : 'Sign Out'}</span>
+                        </button>
                       </div>
-                    </>
-                  ) : sessionStatus === 'authenticated' ? (
-                    /* Loading state for VIP profile */
-                    <div className="flex items-center gap-1 px-4 py-2 rounded-lg text-white/70">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white/70 rounded-full animate-spin"></div>
-                      <span>Loading...</span>
                     </div>
                   ) : (
-                    /* Not authenticated */
-                    <button onClick={() => signIn()} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 text-white">
-                      <HeroUserIcon className="h-4 w-4" />
-                      <span>Sign In</span>
+                    // For guest users, just show a simple sign out button
+                    <button
+                      onClick={handleSignOut}
+                      disabled={isLoading}
+                      className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium disabled:opacity-50"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      {isLoading ? 'Signing Out...' : 'Sign Out'}
                     </button>
                   )}
-                </div>
-              </nav>
-              
-              <button 
-                className="md:hidden p-2 text-white hover:bg-white/10 rounded-md"
-                onClick={toggleMobileMenu}
-                aria-label="Toggle main menu"
-              >
-                {mobileMenuOpen ? <X className="h-6 w-6" /> : <MenuLucide className="h-6 w-6" />}
-              </button>
-            </div>
-          </div>
-          
-          {mobileMenuOpen && (
-            <nav className="md:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
-              <ul className="space-y-2 px-2">
-                {sessionStatus === 'authenticated' ? (
+                </>
+              ) : (
+                <button
+                  onClick={() => signIn()}
+                  className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium"
+                >
+                  <HeroUserIcon className="h-5 w-5" />
+                  Sign In
+                </button>
+              )}
+            </nav>
+          </>
+        }
+        mobileMenu={
+          <nav className="md:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
+            <ul className="space-y-2 px-2">
+              {sessionStatus === 'authenticated' && isVipEligible ? (
+                  <>
                     <li>
-                      <Link href="/vip" className="flex items-center justify-between gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}>
-                        <span className="flex items-center gap-2">
+                      <Link href="/vip" className="flex items-center justify-between gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 bg-primary-foreground/5 border border-white/10" onClick={toggleMobileMenu}>
+                        <span className="flex items-center gap-2 font-medium">
                           Dashboard
                         </span>
-                        <span className="bg-white text-green-700 px-1.5 py-0.5 rounded-sm text-xs font-semibold">VIP</span>
+                        <span className="bg-white text-green-700 px-2 py-0.5 rounded text-xs font-medium">VIP</span>
                       </Link>
                     </li>
-                 ) : (
-                    <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>New Booking</Link></li>
-                 )}
-                
-                {sessionStatus === 'authenticated' && (
-                  <>
-                    <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">Profile</p>
-                        <ul className="mt-1 space-y-1">
+                    
+                    {isUserLinked && (
+                      <>
+                        <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                          <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PROFILE</p>
+                          <ul className="mt-1 space-y-1">
                             <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><UserIconLucide size={16} />My Profile</Link></li>
-                            {isAccountUnmatched && (
-                                <li><Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-accent" onClick={toggleMobileMenu}><LinkIconLucideRadix size={16} />Link Account</Link></li>
-                            )}
-                        </ul>
-                    </li>
-                    <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">Bookings</p>
-                        <ul className="mt-1 space-y-1">
+                          </ul>
+                        </li>
+                        
+                        <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                          <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">BOOKINGS</p>
+                          <ul className="mt-1 space-y-1">
                             <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16} />My Bookings</Link></li>
-                            <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16} />New Booking</Link></li>
-                        </ul>
-                    </li>
-                    <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">Packages</p>
-                        <ul className="mt-1 space-y-1">
+                            <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>New Booking</Link></li>
+                          </ul>
+                        </li>
+                        
+                        <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                          <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PACKAGES</p>
+                          <ul className="mt-1 space-y-1">
                             <li><Link href="/vip/packages" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><PackageIconLucide size={16} />My Packages</Link></li>
-                        </ul>
-                    </li>
-                    <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                      <Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TrophyIconLucide size={16} />Membership</Link>
-                    </li>
+                          </ul>
+                        </li>
+                        
+                        <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                          <Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TrophyIconLucide size={16} />Membership</Link>
+                        </li>
+                      </>
+                    )}
+                    
+                    {shouldShowLinkAccount && (
+                      <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                        <Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 font-medium" onClick={toggleMobileMenu}><LinkIconLucideRadix size={16} />Link Account</Link>
+                      </li>
+                    )}
                   </>
+               ) : (
+                  <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>New Booking</Link></li>
+               )}
+              
+              <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                <a 
+                  href="https://len.golf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10"
+                  onClick={toggleMobileMenu}
+                >
+                  <HeroHomeIcon className="h-4 w-4" />
+                  Main Site
+                </a>
+              </li>
+              
+              <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                {sessionStatus === 'authenticated' ? (
+                  <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />Sign Out</button>
+                ) : (
+                  <button onClick={() => { signIn(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />Sign In</button>
                 )}
-                
-                <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                  {sessionStatus === 'authenticated' ? (
-                    <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />Sign Out</button>
-                  ) : (
-                    <button onClick={() => { signIn(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />Sign In</button>
-                  )}
-                </li>
-              </ul>
-            </nav>
-          )}
-        </div>
-      </header>
+              </li>
+            </ul>
+          </nav>
+        }
+      />
 
       {showBayRates && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => setShowBayRates(false)}>

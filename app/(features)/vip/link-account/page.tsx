@@ -17,7 +17,7 @@ const LinkAccountPage = () => {
       // Account is already fully linked
       router.replace('/vip');
     } else if (vipStatus?.status === 'vip_data_exists_crm_unmatched') {
-      // User has VIP data but no CRM match - they can use this page
+      // User has VIP data but no customer match - they can use this page
       return;
     } else if (vipStatus?.status === 'linked_unmatched') {
       // User has placeholder VIP account - redirect to dashboard as they don't need linking
@@ -73,7 +73,7 @@ const LinkAccountPage = () => {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Final Linking Step Needed</AlertTitle>
             <AlertDescription>
-              We found some VIP data for your login, but it needs to be matched to our main customer records. Please provide your phone number to complete the link.
+              We found some VIP data for your login, but it needs to be matched to your customer records. Please provide your phone number to complete the link.
             </AlertDescription>
         </Alert>
       )}
