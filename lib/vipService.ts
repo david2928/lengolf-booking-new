@@ -49,6 +49,16 @@ async function fetchVipApi<T>(endpoint: string, options: RequestInit = {}): Prom
       } catch (e) {
         // Ignore if response is not JSON or empty
       }
+      
+      // Handle force logout scenarios (e.g., stale session)
+      if (response.status === 401 && errorPayload && 'forceLogout' in errorPayload) {
+        console.warn('[VIP API] Force logout requested due to stale session');
+        // Import signOut dynamically to avoid circular dependencies
+        import('next-auth/react').then(({ signOut }) => {
+          signOut({ callbackUrl: '/auth/login' });
+        });
+      }
+      
       throw new VipApiError(
         errorPayload?.message || errorPayload?.error || `API request failed: ${response.status} ${response.statusText}`,
         response.status,

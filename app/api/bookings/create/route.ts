@@ -771,24 +771,25 @@ export async function POST(request: NextRequest) {
           }];
           
           // Update booking with the new calendar_events field
+          console.log(`[Booking Create API - Async] Attempting to update booking ${bookingToUpdateId} with calendar_events:`, newCalendarEventsEntry);
           getSupabaseAdminClient()
             .from('bookings_vip_staging')
-            .update({ calendar_events: newCalendarEventsEntry }) // Update calendar_events
-            .eq('id', bookingToUpdateId) // Essential: target the correct booking
-            .then(({ error: updateError }) => { // Destructure error from the promise result
+            .update({ calendar_events: newCalendarEventsEntry })
+            .eq('id', bookingToUpdateId)
+            .then(response => { // Directly use the response object from Supabase
+              const { error: updateError, data: updateData } = response;
               if (updateError) {
-                console.error(`[Booking Create API - Async] Failed to update booking ${bookingToUpdateId} with calendar_events ${JSON.stringify(newCalendarEventsEntry)}:`, updateError);
-                // Log the error to booking_process_logs if needed
+                console.error(`[Booking Create API - Async] Failed to update booking ${bookingToUpdateId} with calendar_events. Error:`, JSON.stringify(updateError, null, 2), "Payload:", newCalendarEventsEntry);
                 if (ENABLE_DETAILED_LOGGING && userId) {
-                     logBookingProcessStep({
-                        bookingId: bookingToUpdateId,
-                        userId,
-                        step: 'Update booking with calendar_events', // Updated step name
-                        status: 'error',
-                        durationMs: 0, // Duration isn't tracked precisely here
-                        totalDurationMs: Date.now() - apiStartTime,
-                        metadata: { error: updateError.message, eventDetails: newCalendarEventsEntry }
-                    });
+                  logBookingProcessStep({
+                    bookingId: bookingToUpdateId,
+                    userId,
+                    step: 'Update booking with calendar_events',
+                    status: 'error',
+                    durationMs: 0,
+                    totalDurationMs: Date.now() - apiStartTime,
+                    metadata: { error: updateError.message, eventDetails: newCalendarEventsEntry }
+                  });
                 }
               } else {
                 console.log(`[Booking Create API - Async] Successfully updated booking ${bookingToUpdateId} with calendar_events ${JSON.stringify(newCalendarEventsEntry)}`);
@@ -797,9 +798,9 @@ export async function POST(request: NextRequest) {
                   logBookingProcessStep({
                     bookingId: bookingToUpdateId,
                     userId,
-                    step: 'Calendar creation completed & booking updated with calendar_events', // Updated step name
+                    step: 'Calendar creation completed & booking updated with calendar_events',
                     status: 'success',
-                    durationMs: data.processingTime || 0, // From calendar API response
+                    durationMs: data.processingTime || 0,
                     totalDurationMs: Date.now() - apiStartTime,
                     metadata: {
                       calendarEvents: newCalendarEventsEntry,
@@ -816,7 +817,7 @@ export async function POST(request: NextRequest) {
                 logBookingProcessStep({
                     bookingId: booking.id,
                     userId,
-                    step: 'Update booking with calendar_event_id', // This log can remain or be updated
+                    step: 'Update booking with calendar_event_id',
                     status: 'error',
                     durationMs: 0,
                     totalDurationMs: Date.now() - apiStartTime,
@@ -825,11 +826,11 @@ export async function POST(request: NextRequest) {
             }
         }
       })
-      .catch(error => {
-        console.error('Error in calendar creation:', error);
+      .catch(calendarApiError => {
+        console.error(`[Booking Create API - Async] Google Calendar API call failed for booking ${booking.id}. Error:`, calendarApiError instanceof Error ? calendarApiError.message : JSON.stringify(calendarApiError), "Request Data Sent:", calendarData );
         
         // Log calendar creation error
-        if (ENABLE_DETAILED_LOGGING) {
+        if (ENABLE_DETAILED_LOGGING && userId) {
           logBookingProcessStep({
             bookingId: booking.id,
             userId,
@@ -838,7 +839,7 @@ export async function POST(request: NextRequest) {
             durationMs: 0,
             totalDurationMs: Date.now() - apiStartTime,
             metadata: {
-              error: error.message
+              error: calendarApiError instanceof Error ? calendarApiError.message : JSON.stringify(calendarApiError)
             }
           });
         }

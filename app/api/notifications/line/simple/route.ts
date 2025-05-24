@@ -48,16 +48,25 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Failed to parse LINE API error response' }));
-      console.error('LINE API error sending simple message:', response.status, errorData);
+      const errorBody = await response.text();
+      let errorDetails = errorBody;
+      try {
+        errorDetails = JSON.stringify(JSON.parse(errorBody), null, 2);
+      } catch (e) {
+        // If not JSON, use the raw text body
+      }
+      console.error(
+        `[LINE Simple Notify] LINE API error sending message. Status: ${response.status}. Token: ${channelAccessToken ? 'SET (ends with ' + channelAccessToken.slice(-4) + ')' : 'NOT SET'}. GroupID: ${groupId}. Request Body: ${JSON.stringify({to: groupId, messages: [{type: 'text', text: message}]}, null, 2)}. Response Body: ${errorDetails}`
+      );
       return NextResponse.json(
-        { error: 'Failed to send simple LINE message', details: errorData },
+        { error: 'Failed to send simple LINE message', details: errorDetails },
         { status: response.status }
       );
     }
+    const responseData = await response.json().catch(() => ({ message: 'LINE API response was not JSON or empty'}));
 
-    console.log('Simple LINE message sent successfully');
-    return NextResponse.json({ success: true });
+    console.log('[LINE Simple Notify] Simple LINE message sent successfully. Response:', responseData);
+    return NextResponse.json({ success: true, responseData });
 
   } catch (error) {
     console.error('Error in simple LINE message handler:', error instanceof Error ? error.message : error);

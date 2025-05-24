@@ -227,7 +227,15 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     };
 
     sendVipCancellationNotification(notificationData)
-      .catch(err => console.error('[VIP Cancel] Failed to send VIP cancellation notification:', err));
+      .then(success => {
+        if (success) {
+          console.log(`[VIP Cancel] Successfully initiated VIP cancellation LINE notification for booking ${bookingId}.`);
+        } else {
+          // Error is already logged within sendVipCancellationNotification
+          console.warn(`[VIP Cancel] Initiation of VIP cancellation LINE notification reported failure for booking ${bookingId}.`);
+        }
+      })
+      .catch(err => console.error(`[VIP Cancel] Error explicitly sending VIP cancellation LINE notification for ${bookingId}:`, err));
     
     // Send cancellation email notification
     if (finalEmail) {
@@ -235,48 +243,49 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       const userName = (cancelledBooking.profiles_vip_staging as any)?.display_name || 'VIP User';
       
       // Calculate end time
-      let endTime = '';
+      let endTimeCalc = ''; // Renamed to avoid conflict
       try {
         const [hours, minutes] = cancelledBooking.start_time.split(':').map(Number);
-        const startDate = new Date();
+        const startDate = new Date(); // Use a relevant date if needed, or just for time calculation
         startDate.setHours(hours, minutes, 0, 0);
         const endDate = new Date(startDate.getTime() + (cancelledBooking.duration * 60 * 60 * 1000));
-        endTime = endDate.toTimeString().slice(0, 5); // HH:mm format
+        endTimeCalc = endDate.toTimeString().slice(0, 5); // HH:mm format
       } catch (error) {
         console.warn('[VIP Cancel] Could not calculate end time:', error);
       }
       
-      const emailData = {
+      const emailPayload = { // Renamed for clarity
         email: finalEmail,
         userName,
-        subjectName: userName,
+        subjectName: userName, // subjectName will be the same as userName
         bookingId: cancelledBooking.id,
         bookingDate: cancelledBooking.date,
         startTime: cancelledBooking.start_time,
-        endTime,
+        endTime: endTimeCalc,
         duration: cancelledBooking.duration,
         numberOfPeople: cancelledBooking.number_of_people || 1,
-        bayName: cancelledBooking.bay,
+        bayName: cancelledBooking.bay, // Ensure bayName is populated correctly
         cancellationReason: cancelledBooking.cancellation_reason
       };
       
-      console.log('[VIP Cancel] Sending cancellation email to:', finalEmail, 'with data:', JSON.stringify(emailData, null, 2));
+      const emailUrl = `${baseUrl}/api/notifications/email/cancellation`;
+      console.log(`[VIP Cancel] Attempting to send cancellation email. URL: POST ${emailUrl}, Payload:`, JSON.stringify(emailPayload, null, 2));
       
-      fetch(`${baseUrl}/api/notifications/email/cancellation`, {
+      fetch(emailUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(emailData),
+        body: JSON.stringify(emailPayload),
       })
       .then(async response => {
-        const responseText = await response.text();
+        const responseBody = await response.text(); // Get text first to avoid parsing errors on non-JSON
         if (response.ok) {
-          console.log('[VIP Cancel] Cancellation email sent successfully:', responseText);
+          console.log(`[VIP Cancel] Cancellation email call successful for ${bookingId}. Status: ${response.status}. Response:`, responseBody);
         } else {
-          console.error('[VIP Cancel] Failed to send cancellation email. Status:', response.status, 'Response:', responseText);
+          console.error(`[VIP Cancel] Failed to send cancellation email for ${bookingId}. Status: ${response.status}. URL: ${emailUrl}. Method: POST. Response:`, responseBody);
         }
       })
       .catch(err => {
-        console.error('[VIP Cancel] Failed to send cancellation email - network/fetch error:', err);
+        console.error(`[VIP Cancel] Network/fetch error sending cancellation email for ${bookingId}. URL: ${emailUrl}. Method: POST. Error:`, err);
       });
     } else {
       console.warn('[VIP Cancel] No email address available for cancellation notification. finalEmail is:', finalEmail);

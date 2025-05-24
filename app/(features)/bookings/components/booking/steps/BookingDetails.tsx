@@ -187,15 +187,58 @@ export function BookingDetails({
         console.log("[BookingDetails VIP Profile] Fetching VIP profile data for user:", session.user.id);
         
         try {
-          const response = await fetch('/api/vip/profile', {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
+          // Try to get cached VIP profile data first from context
+          // This would require access to VIP context which isn't available here
+          // So let's check for cached data in sessionStorage as a fallback
+          const cachedVipProfileKey = `vip_profile_${session.user.id}`;
+          const cachedVipProfile = sessionStorage.getItem(cachedVipProfileKey);
+          
+          let vipProfile = null;
+          
+          if (cachedVipProfile) {
+            try {
+              const parsedCached = JSON.parse(cachedVipProfile);
+              const cacheAge = Date.now() - (parsedCached.timestamp || 0);
+              const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+              
+              if (cacheAge < CACHE_EXPIRY_MS) {
+                vipProfile = parsedCached.data;
+                console.log("[BookingDetails VIP Profile] Using cached VIP profile data (age:", cacheAge, "ms)");
+              }
+            } catch (e) {
+              console.warn("[BookingDetails VIP Profile] Invalid cached data, will fetch fresh");
+            }
+          }
+          
+          // If no valid cached data, fetch from API
+          if (!vipProfile) {
+            console.log("[BookingDetails VIP Profile] Fetching fresh VIP profile data from API");
+            const response = await fetch('/api/vip/profile', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
 
-          if (response.ok) {
-            const vipProfile = await response.json();
+            if (response.ok) {
+              vipProfile = await response.json();
+              
+              // Cache the result
+              sessionStorage.setItem(cachedVipProfileKey, JSON.stringify({
+                data: vipProfile,
+                timestamp: Date.now()
+              }));
+              console.log("[BookingDetails VIP Profile] Cached fresh VIP profile data");
+            } else if (response.status === 401) {
+              console.log("[BookingDetails VIP Profile] User not authorized for VIP profile - will fall back to session data");
+              return;
+            } else {
+              console.warn("[BookingDetails VIP Profile] Failed to fetch VIP profile:", response.status, response.statusText);
+              return;
+            }
+          }
+          
+          if (vipProfile) {
             console.log("[BookingDetails VIP Profile] VIP profile data received:", vipProfile);
             
             // Prepopulate form with VIP data if available and valid
@@ -232,10 +275,6 @@ export function BookingDetails({
             
             setVipDataPrepopulated(true);
             console.log("[BookingDetails VIP Profile] VIP data prepopulation completed successfully");
-          } else if (response.status === 401) {
-            console.log("[BookingDetails VIP Profile] User not authorized for VIP profile - will fall back to session data");
-          } else {
-            console.warn("[BookingDetails VIP Profile] Failed to fetch VIP profile:", response.status, response.statusText);
           }
         } catch (error) {
           console.error("[BookingDetails VIP Profile] Error fetching VIP profile:", error);

@@ -74,6 +74,16 @@ export async function GET() {
 
     if (profileError) {
       console.error('Error fetching user profile with joined data:', profileError);
+      
+      // If profile not found (PGRST116), this indicates a stale session - force logout
+      if (profileError.code === 'PGRST116') {
+        console.warn(`[VIP Profile API] Profile not found for session user ${profileId}. This indicates a stale session. Returning 401 to force logout.`);
+        return NextResponse.json({ 
+          error: 'Profile not found. Please log in again.', 
+          forceLogout: true 
+        }, { status: 401 });
+      }
+      
       return NextResponse.json({ error: 'Error fetching user profile data.' }, { status: 500 });
     }
     if (!profileData) {
