@@ -136,6 +136,8 @@ This booking has been auto-confirmed. No need to re-confirm with the customer. P
     const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
     const groupId = process.env.LINE_GROUP_ID;
 
+    console.log(`[VIP DEBUG] Vercel Environment: ${process.env.VERCEL_ENV || 'Not set/Local'}, Branch: ${process.env.VERCEL_GIT_COMMIT_REF || 'Not set/Local'}, Attempting to use LINE_GROUP_ID: ${groupId}`);
+
     if (!channelAccessToken) {
       throw new Error('LINE Messaging API access token is not set');
     }
