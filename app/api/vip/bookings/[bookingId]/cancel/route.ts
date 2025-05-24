@@ -273,7 +273,10 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       
       fetch(emailUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
         body: JSON.stringify(emailPayload),
       })
       .then(async response => {

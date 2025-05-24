@@ -4,15 +4,31 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 // Helper to get base URL for server-side fetch
 const getBaseUrl = () => {
-  if (process.env.NEXTAUTH_URL) {
-    return process.env.NEXTAUTH_URL.startsWith('http') 
-      ? process.env.NEXTAUTH_URL 
-      : `http://${process.env.NEXTAUTH_URL}`;
+  let baseUrl = '';
+
+  // For Vercel deployments (preview or production), VERCEL_URL should be the most reliable for internal calls
+  // process.env.VERCEL_ENV can be 'production', 'preview', or 'development' (for vercel dev)
+  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'development' && process.env.VERCEL_URL) {
+    baseUrl = `https://${process.env.VERCEL_URL}`;
+    console.log(`[getBaseUrl] Using VERCEL_URL for ${process.env.VERCEL_ENV} environment: ${baseUrl}`);
+  } else {
+    // For local development or if Vercel variables aren't set, try NEXT_PUBLIC_APP_URL then NEXTAUTH_URL
+    baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '';
+    if (baseUrl && !baseUrl.startsWith('http')) {
+      baseUrl = `http://${baseUrl}`;
+    }
+    if (!baseUrl && process.env.NODE_ENV !== 'production') { // Extra fallback for non-production, non-Vercel
+      baseUrl = 'http://localhost:3000';
+    }
+    console.log(`[getBaseUrl] Using configured URL (NEXT_PUBLIC_APP_URL/NEXTAUTH_URL) or fallback: ${baseUrl}`);
   }
-  // Fallback for local development if NEXTAUTH_URL is not set
-  return process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:3000' 
-    : ''; // Production should have NEXTAUTH_URL or similar set
+
+  if (!baseUrl) {
+    console.error('[getBaseUrl] CRITICAL: Base URL for API calls could not be determined. Notifications will likely fail.');
+    return ''; // Return empty string to ensure fetch fails clearly if no URL
+  }
+  
+  return baseUrl;
 };
 
 // Define a more comprehensive Booking type for notifications
@@ -96,6 +112,7 @@ export async function sendVipModificationNotification(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
       },
       body: JSON.stringify({ message }),
     });
@@ -200,6 +217,7 @@ export async function sendVipCancellationNotification(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
       },
       body: JSON.stringify({ message }),
     });
