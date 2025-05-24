@@ -219,44 +219,60 @@ export async function syncPackagesForProfile(profileId: string): Promise<void> {
     const supabase = createServerClient();
     
     let stableHashId: string | null = null;
+    let attempts = 0;
+    const maxAttempts = 3;
     
-    // First approach: Check vip_customer_data (same as VIP status API)
-    const { data: profileVip, error: profileVipError } = await supabase
-      .from('profiles_vip_staging')
-      .select('vip_customer_data_id')
-      .eq('id', profileId)
-      .single();
+    // Retry logic to handle potential race conditions
+    while (!stableHashId && attempts < maxAttempts) {
+      attempts++;
+      console.log(`[syncPackagesForProfile] Attempt ${attempts}/${maxAttempts} to find stable_hash_id for profile: ${profileId}`);
+      
+      // First approach: Check vip_customer_data (same as VIP status API)
+      const { data: profileVip, error: profileVipError } = await supabase
+        .from('profiles_vip_staging')
+        .select('vip_customer_data_id')
+        .eq('id', profileId)
+        .single();
 
-    if (profileVip?.vip_customer_data_id) {
-      const { data: vipData, error: vipDataError } = await supabase
-        .from('vip_customer_data')
-        .select('stable_hash_id')
-        .eq('id', profileVip.vip_customer_data_id)
-        .single();
+      if (profileVip?.vip_customer_data_id) {
+        const { data: vipData, error: vipDataError } = await supabase
+          .from('vip_customer_data')
+          .select('stable_hash_id')
+          .eq('id', profileVip.vip_customer_data_id)
+          .single();
+        
+        if (!vipDataError && vipData?.stable_hash_id) {
+          stableHashId = vipData.stable_hash_id;
+          console.log(`[syncPackagesForProfile] Found stable_hash_id from vip_customer_data: ${stableHashId}`);
+          break;
+        }
+      }
       
-      if (!vipDataError && vipData?.stable_hash_id) {
-        stableHashId = vipData.stable_hash_id;
-        console.log(`[syncPackagesForProfile] Found stable_hash_id from vip_customer_data: ${stableHashId}`);
+      // Fallback approach: Check crm_customer_mapping_vip_staging
+      if (!stableHashId) {
+        const { data: mapping, error: mappingError } = await supabase
+          .from('crm_customer_mapping_vip_staging')
+          .select('stable_hash_id')
+          .eq('profile_id', profileId)
+          .eq('is_matched', true)
+          .single();
+        
+        if (!mappingError && mapping?.stable_hash_id) {
+          stableHashId = mapping.stable_hash_id;
+          console.log(`[syncPackagesForProfile] Found stable_hash_id from crm_customer_mapping_vip_staging: ${stableHashId}`);
+          break;
+        }
+      }
+      
+      // If we still don't have it and this isn't the last attempt, wait a bit
+      if (!stableHashId && attempts < maxAttempts) {
+        console.log(`[syncPackagesForProfile] stable_hash_id not found on attempt ${attempts}, waiting 200ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
     
-    // Fallback approach: Check crm_customer_mapping_vip_staging
     if (!stableHashId) {
-      const { data: mapping, error: mappingError } = await supabase
-        .from('crm_customer_mapping_vip_staging')
-        .select('stable_hash_id')
-        .eq('profile_id', profileId)
-        .eq('is_matched', true)
-        .single();
-      
-      if (!mappingError && mapping?.stable_hash_id) {
-        stableHashId = mapping.stable_hash_id;
-        console.log(`[syncPackagesForProfile] Found stable_hash_id from crm_customer_mapping_vip_staging: ${stableHashId}`);
-      }
-    }
-    
-    if (!stableHashId) {
-      console.error('No valid CRM mapping found via either approach for profile:', profileId);
+      console.error('No valid CRM mapping found via either approach for profile:', profileId, 'after', attempts, 'attempts');
       return;
     }
 

@@ -24,9 +24,17 @@ interface BookingCancellationBody {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[Email Cancellation API] Environment check:', {
+      EMAIL_HOST: EMAIL_HOST,
+      EMAIL_PORT: EMAIL_PORT,
+      EMAIL_USER: EMAIL_USER ? 'SET' : 'NOT_SET',
+      EMAIL_PASS: EMAIL_PASS ? 'SET' : 'NOT_SET',
+      EMAIL_FROM: EMAIL_FROM
+    });
+
     // 1. Check email configuration
     if (!EMAIL_USER || !EMAIL_PASS) {
-      console.error('Email configuration missing');
+      console.error('Email configuration missing - EMAIL_USER or EMAIL_PASS not set');
       return NextResponse.json(
         { error: 'Email service not configured' },
         { status: 500 }

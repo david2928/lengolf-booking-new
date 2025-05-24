@@ -505,6 +505,10 @@ export async function POST(request: NextRequest) {
             .select();
           logTiming('UpdatedVipCustomerDataLink', 'info', { userId, vipCustomerDataId: profileVipLink.vip_customer_data_id, stableHashId });
         }
+        
+        // Give the database a moment to propagate the changes before querying
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
       } catch (propagationError) {
         console.error('[CreateBooking API] Error propagating stable_hash_id to profile links:', propagationError);
         logTiming('PropagationErrorStableHashId', 'error', { userId, error: (propagationError as Error).message });
@@ -515,6 +519,9 @@ export async function POST(request: NextRequest) {
     // Determine the final stable_hash_id to be saved with the booking
     // Prioritize server-derived (CRM-verified) stableHashId
     const finalStableHashIdForBooking = stableHashId || clientSentStableHashId || null;
+    
+    // Log what stable_hash_id we're actually using for the booking
+    console.log(`[CreateBooking API] Final stable_hash_id for booking: ${finalStableHashIdForBooking} (server-derived: ${stableHashId}, client-sent: ${clientSentStableHashId})`);
 
     // 8. Create booking record in Supabase
     const supabase = getSupabaseAdminClient();
@@ -551,7 +558,7 @@ export async function POST(request: NextRequest) {
     
     // Update bookingId once we have it
     bookingId = booking.id;
-    logTiming('Booking record creation', 'success', { bookingId });
+    logTiming('Booking record creation', 'success', { bookingId, stable_hash_id: finalStableHashIdForBooking });
 
     // If we don't have a customer name from CRM, use the booking name
     if (!customerName) {
@@ -559,7 +566,8 @@ export async function POST(request: NextRequest) {
     }
     
     // Get package info using the centralized function
-    const packageInfo = await getPackageInfo(stableHashId);
+    // Pass the stableHashId we know to be correct to avoid re-querying
+    const packageInfo = await getPackageInfo(finalStableHashIdForBooking);
     logTiming('Customer data lookup', 'success');
 
     // Now log detailed CRM customer match information after package info is available

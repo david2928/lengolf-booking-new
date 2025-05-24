@@ -260,21 +260,26 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
         cancellationReason: cancelledBooking.cancellation_reason
       };
       
+      console.log('[VIP Cancel] Sending cancellation email to:', finalEmail, 'with data:', JSON.stringify(emailData, null, 2));
+      
       fetch(`${baseUrl}/api/notifications/email/cancellation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(emailData),
       })
-      .then(response => {
+      .then(async response => {
+        const responseText = await response.text();
         if (response.ok) {
-          console.log('[VIP Cancel] Cancellation email sent successfully');
+          console.log('[VIP Cancel] Cancellation email sent successfully:', responseText);
         } else {
-          console.error('[VIP Cancel] Failed to send cancellation email:', response.status);
+          console.error('[VIP Cancel] Failed to send cancellation email. Status:', response.status, 'Response:', responseText);
         }
       })
-      .catch(err => console.error('[VIP Cancel] Failed to send cancellation email:', err));
+      .catch(err => {
+        console.error('[VIP Cancel] Failed to send cancellation email - network/fetch error:', err);
+      });
     } else {
-      console.warn('[VIP Cancel] No email address available for cancellation notification');
+      console.warn('[VIP Cancel] No email address available for cancellation notification. finalEmail is:', finalEmail);
     }
     
     // Calendar deletion
