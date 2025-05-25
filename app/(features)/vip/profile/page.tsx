@@ -12,10 +12,10 @@ const VipProfilePage = () => {
   const router = useRouter();
 
   // Redirect unlinked users to link-account page
+  // Note: linked_unmatched users can access profile to edit their VIP data
   useEffect(() => {
     if (!isLoadingVipStatus && vipStatus && (
       vipStatus.status === 'not_linked' || 
-      vipStatus.status === 'linked_unmatched' ||
       vipStatus.status === 'vip_data_exists_crm_unmatched'
     )) {
       router.replace('/vip/link-account');
@@ -31,8 +31,8 @@ const VipProfilePage = () => {
     );
   }
 
-  // Show loading while redirecting
-  if (vipStatus && vipStatus.status !== 'linked_matched') {
+  // Show loading while redirecting (only for users who actually need to be redirected)
+  if (vipStatus && (vipStatus.status === 'not_linked' || vipStatus.status === 'vip_data_exists_crm_unmatched')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />

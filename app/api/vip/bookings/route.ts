@@ -114,10 +114,12 @@ export async function GET(request: NextRequest) {
       .from('bookings_vip_staging')
       .select('id, date, start_time, duration, bay, status, number_of_people, customer_notes, booking_type, created_at', { count: 'exact' });
 
-    // Query by stable_hash_id if available, otherwise by user_id (profile_id)
+    // Query by stable_hash_id AND/OR user_id to capture bookings from before and after CRM matching
     if (userStableHashId) {
-      baseQuery = baseQuery.eq('stable_hash_id', userStableHashId);
+      // If user has stable_hash_id, query both by stable_hash_id AND user_id to get all bookings
+      baseQuery = baseQuery.or(`stable_hash_id.eq.${userStableHashId},user_id.eq.${profileId}`);
     } else {
+      // If no stable_hash_id, query only by user_id (profile_id)
       baseQuery = baseQuery.eq('user_id', profileId);
     }
 
@@ -132,9 +134,9 @@ export async function GET(request: NextRequest) {
         .from('bookings_vip_staging')
         .select('id, date, start_time, duration, bay, status, number_of_people, customer_notes, booking_type, created_at', { count: 'exact' });
 
-      // Apply user filtering
+      // Apply user filtering - same logic as above
       if (userStableHashId) {
-        allFutureQuery.eq('stable_hash_id', userStableHashId);
+        allFutureQuery.or(`stable_hash_id.eq.${userStableHashId},user_id.eq.${profileId}`);
       } else {
         allFutureQuery.eq('user_id', profileId);
       }

@@ -156,6 +156,26 @@ export async function POST(request: Request) {
         }
       }
       
+      // --- Step 4: Migrate existing bookings to include stable_hash_id ---
+      try {
+        // Update any existing bookings that have this user_id but no stable_hash_id
+        const { data: updatedBookings, error: bookingUpdateError } = await supabaseUserClient
+          .from('bookings_vip_staging')
+          .update({ stable_hash_id: matchedStableHashId })
+          .eq('user_id', profileId)
+          .is('stable_hash_id', null)
+          .select('id');
+
+        if (bookingUpdateError) {
+          console.error(`[VIP Link Account API] Error updating bookings with stable_hash_id for profile ${profileId}:`, bookingUpdateError.message);
+        } else if (updatedBookings && updatedBookings.length > 0) {
+          console.log(`[VIP Link Account API] Successfully updated ${updatedBookings.length} existing bookings with stable_hash_id for profile ${profileId}`);
+        }
+      } catch (bookingMigrationError) {
+        console.error(`[VIP Link Account API] Unexpected error during booking migration for profile ${profileId}:`, bookingMigrationError);
+        // Don't fail the entire operation if booking migration fails
+      }
+
       // Regardless of path (A or B), if we reached here, link is considered successful
       return NextResponse.json({
         success: true,

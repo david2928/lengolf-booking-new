@@ -75,15 +75,15 @@ export function Layout({ children }: LayoutProps) {
   
   // Determine if user needs to link their account
   const isAccountUnmatched = vipProfile && (
-    vipProfile.crmStatus === 'linked_unmatched' || 
     vipProfile.crmStatus === 'not_linked' ||
     vipProfile.crmStatus === 'vip_data_exists_crm_unmatched'
   );
 
-  // Determine if user is linked and can access full VIP features (only linked_matched)
-  const isUserLinked = vipProfile && vipProfile.crmStatus === 'linked_matched';
+  // Determine if user is linked and can access VIP features
+  // linked_unmatched users can access most VIP features, only linked_matched get full CRM features
+  const isUserLinked = vipProfile && (vipProfile.crmStatus === 'linked_matched' || vipProfile.crmStatus === 'linked_unmatched');
 
-  // Show Link Account for authenticated users who need linking
+  // Show Link Account for authenticated users who truly need linking
   const shouldShowLinkAccount = sessionStatus === 'authenticated' && isAccountUnmatched;
 
   if (sessionStatus === 'loading') {

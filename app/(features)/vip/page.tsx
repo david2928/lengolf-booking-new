@@ -45,13 +45,6 @@ const VipDashboardPage = () => {
 
     // Use shared data if fresh and not forced to refresh
     if (!forceRefresh && isSharedDataFresh()) {
-      console.log('[VipDashboard] Using shared data from context');
-      console.log('[VipDashboard] Shared data freshness check:', {
-        lastDataFetch: sharedData.lastDataFetch,
-        currentTime: Date.now(),
-        age: sharedData.lastDataFetch ? Date.now() - sharedData.lastDataFetch : null,
-        isFresh: isSharedDataFresh()
-      });
       setProfile(sharedData.profile);
       
       // Process next booking from shared data
@@ -98,14 +91,6 @@ const VipDashboardPage = () => {
       return;
     }
 
-    console.log('[VipDashboard] Fetching fresh data from APIs (forceRefresh:', forceRefresh, ')');
-    console.log('[VipDashboard] Shared data state:', {
-      lastDataFetch: sharedData.lastDataFetch,
-      profileExists: !!sharedData.profile,
-      recentBookingsCount: sharedData.recentBookings.length,
-      activePackagesCount: sharedData.activePackages.length,
-      pastPackagesCount: sharedData.pastPackages.length
-    });
     setIsLoadingProfile(true);
     if (vipStatus.status === 'linked_matched' || vipStatus.status === 'linked_unmatched') {
       setIsLoadingBookings(true);

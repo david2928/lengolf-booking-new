@@ -47,7 +47,9 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
   }, [bookings, optimisticUpdates]);
 
   const fetchUserBookings = useCallback(async (page: number, filter: FilterType) => {
-    if (!vipStatus || vipStatus.status !== 'linked_matched') {
+    // Allow both linked_matched and linked_unmatched users to fetch bookings
+    // linked_unmatched users can access bookings via their profile_id
+    if (!vipStatus || (vipStatus.status !== 'linked_matched' && vipStatus.status !== 'linked_unmatched')) {
         setBookings([]);
         setPaginationData(null);
         setIsLoading(false); 
@@ -81,7 +83,8 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
   }, [vipStatus]);
 
   useEffect(() => {
-    if (vipStatus?.status === 'linked_matched') {
+    // Allow both linked_matched and linked_unmatched users to fetch bookings
+    if (vipStatus?.status === 'linked_matched' || vipStatus?.status === 'linked_unmatched') {
       fetchUserBookings(currentPage, currentFilter);
     } else if (!isLoadingVipStatus && vipStatus) { 
         setBookings([]);
@@ -117,16 +120,12 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
     const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const dateTimeString = `${booking.date}T${booking.startTime}`;
 
-    console.log(`[formatTime] Input: ${dateTimeString}, ServerTZ: ${serverTimeZone}, LocalTZ: ${localTimeZone}`);
-
     try {
       // Parse the server time string considering its original timezone (Asia/Bangkok)
       // then immediately convert this conceptual UTC instant to the user's local timezone for formatting.
       const zonedDate = utcToZonedTime(dateTimeString, localTimeZone, { timeZone: serverTimeZone });
-      console.log(`[formatTime] zonedDate for ${dateTimeString}: ${zonedDate.toISOString()}`);
       
       const startTimeDisplay = format(zonedDate, 'hh:mm a', { timeZone: localTimeZone });
-      console.log(`[formatTime] startTimeDisplay for ${dateTimeString}: ${startTimeDisplay}`);
 
       let endTimeDisplay = '';
       if (booking.duration && typeof booking.duration === 'number' && booking.duration > 0) {

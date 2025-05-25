@@ -38,8 +38,6 @@ async function fetchVipApi<T>(endpoint: string, options: RequestInit = {}): Prom
     // Log slow API calls for monitoring (over 1 second)
     if (duration > 1000) {
       console.warn(`[VIP API Performance] Slow request to ${endpoint}: ${duration.toFixed(2)}ms`);
-    } else if (process.env.NODE_ENV === 'development') {
-      console.log(`[VIP API Performance] ${endpoint}: ${duration.toFixed(2)}ms`);
     }
 
     if (!response.ok) {

@@ -12,6 +12,108 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import useMediaQuery from '../../hooks/useMediaQuery'; // Import the new hook
+import { X, Maximize2 } from 'lucide-react';
+
+// Full screen image modal component
+const FullScreenImageModal: React.FC<{ 
+  isOpen: boolean; 
+  onClose: () => void; 
+  imageSrc: string; 
+  imageAlt: string; 
+}> = ({ isOpen, onClose, imageSrc, imageAlt }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className="relative max-w-[95vw] max-h-[95vh]">
+        <button
+          onClick={onClose}
+          className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+        >
+          <X size={32} />
+        </button>
+        <img 
+          src={imageSrc}
+          alt={imageAlt}
+          className="max-w-full max-h-full object-contain"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Promotional packages view component
+const PromoPackagesView: React.FC = () => {
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+
+  return (
+    <>
+      <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-lg p-4 md:p-6">
+        <div className="text-center space-y-4">
+          {/* Header */}
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-green-800">
+              Get Your First Package!
+            </h2>
+            <p className="text-green-700 max-w-2xl mx-auto">
+              Ready to take your golf game to the next level? Our monthly packages offer great 
+              value and flexibility for regular practice and lessons.
+            </p>
+          </div>
+
+          {/* Package Pricing Table */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 md:p-4 shadow-lg max-w-3xl mx-auto">
+            <div 
+              className="relative cursor-pointer group"
+              onClick={() => setIsImageModalOpen(true)}
+            >
+              <img 
+                src="/images/promotion_2.jpg" 
+                alt="Monthly Packages Pricing" 
+                className="w-full h-auto rounded-lg shadow-md transition-transform group-hover:scale-[1.02]"
+              />
+              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded-lg flex items-center justify-center">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2">
+                  <Maximize2 size={20} className="text-gray-700" />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mt-2">Click to view full size</p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+            <a 
+              href="https://lin.ee/uxQpIXn"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 bg-[#06C755] text-white px-6 py-2.5 rounded-lg hover:bg-[#05b04e] transition-colors font-medium shadow-md hover:shadow-lg transform hover:scale-105 transition-all min-w-[160px]"
+            >
+              <i className="fab fa-line text-lg"></i>
+              Contact us via LINE
+            </a>
+            <Button asChild variant="outline" className="border-green-600 text-green-700 hover:bg-green-50 px-6 py-2.5 font-medium shadow-md hover:shadow-lg transform hover:scale-105 transition-all min-w-[160px]">
+              <Link href="/bookings">
+                Book a Session
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <FullScreenImageModal 
+        isOpen={isImageModalOpen}
+        onClose={() => setIsImageModalOpen(false)}
+        imageSrc="/images/promotion_2.jpg"
+        imageAlt="Monthly Packages Pricing"
+      />
+    </>
+  );
+};
 
 const PackagesList: React.FC = () => {
   const { vipStatus, isLoadingVipStatus, sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
@@ -21,7 +123,24 @@ const PackagesList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPackages = useCallback(async (forceRefresh = false) => {
-    if (!vipStatus || vipStatus.status !== 'linked_matched') {
+    if (!vipStatus) {
+      setActivePackages([]);
+      setPastPackages([]);
+      return;
+    }
+
+    // For linked_unmatched users, don't call API to avoid rate limiting
+    // But set loading/error states properly so they get the same UI as linked_matched users with no packages
+    if (vipStatus.status === 'linked_unmatched') {
+      setActivePackages([]);
+      setPastPackages([]);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    // Only linked_matched users should fetch from API
+    if (vipStatus.status !== 'linked_matched') {
       setActivePackages([]);
       setPastPackages([]);
       return;
@@ -29,7 +148,6 @@ const PackagesList: React.FC = () => {
 
     // Use shared data if available and fresh, unless forcing refresh
     if (!forceRefresh && isSharedDataFresh() && (sharedData.activePackages.length > 0 || sharedData.pastPackages.length > 0)) {
-      console.log('[PackagesList] Using shared packages data from context');
       setActivePackages(sharedData.activePackages);
       setPastPackages(sharedData.pastPackages);
       setIsLoading(false);
@@ -37,7 +155,6 @@ const PackagesList: React.FC = () => {
       return;
     }
 
-    console.log('[PackagesList] Fetching packages data from API (forceRefresh:', forceRefresh, ')');
     setIsLoading(true);
     setError(null);
     try {
@@ -68,7 +185,8 @@ const PackagesList: React.FC = () => {
   }, [vipStatus, isSharedDataFresh, sharedData.activePackages, sharedData.pastPackages, updateSharedData]);
 
   useEffect(() => {
-    if (vipStatus?.status === 'linked_matched') {
+    // Allow both linked_matched and linked_unmatched users to fetch packages  
+    if (vipStatus?.status === 'linked_matched' || vipStatus?.status === 'linked_unmatched') {
       fetchPackages();
     }
   }, [vipStatus, fetchPackages]);
@@ -319,7 +437,8 @@ const PackagesList: React.FC = () => {
     );
   }
 
-  if (vipStatus?.status !== 'linked_matched') {
+  // Only show account linking message for users who truly need to link
+  if (vipStatus?.status === 'not_linked' || vipStatus?.status === 'vip_data_exists_crm_unmatched') {
     return (
       <EmptyState
         Icon={Info}
@@ -341,33 +460,7 @@ const PackagesList: React.FC = () => {
 
   if (!hasActivePackages && !hasPastPackages) {
     return (
-      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-8 text-center">
-        <div className="space-y-4">
-          <PackageIcon className="mx-auto h-16 w-16 text-green-600" />
-          <h2 className="text-2xl font-bold text-green-800">Get Started with Packages</h2>
-          <p className="text-green-700 max-w-2xl mx-auto">
-            Practice packages and coaching sessions help you improve your game. 
-            Contact us to learn about available packages and pricing.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
-            <a 
-              href="https://lin.ee/uxQpIXn"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 bg-[#06C755] text-white px-6 py-3 rounded-lg hover:bg-[#05b04e] transition-colors font-medium"
-            >
-              <i className="fab fa-line text-xl"></i>
-              Contact us via LINE
-            </a>
-            <Button asChild variant="outline" className="border-green-600 text-green-700 hover:bg-green-50">
-              <Link href="/bookings">
-                Book Individual Session
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PromoPackagesView />
     );
   }
 

@@ -44,8 +44,6 @@ const ProfileView = () => {
   const fetchProfile = useCallback(async (forceRefresh = false) => {
     // Use shared data if available and fresh, unless forcing refresh
     if (!forceRefresh && isSharedDataFresh() && sharedData.profile) {
-      console.log('[ProfileView] Using shared profile data from context');
-      console.log('[ProfileView] Shared data age:', sharedData.lastDataFetch ? Date.now() - sharedData.lastDataFetch : null, 'ms');
       const data = sharedData.profile;
       setProfile(data);
       form.reset({
@@ -58,12 +56,6 @@ const ProfileView = () => {
       return;
     }
 
-    console.log('[ProfileView] Fetching profile data from API (forceRefresh:', forceRefresh, ')');
-    console.log('[ProfileView] Shared data state:', {
-      hasProfile: !!sharedData.profile,
-      lastDataFetch: sharedData.lastDataFetch,
-      isFresh: isSharedDataFresh()
-    });
     setIsLoading(true);
     setError(null);
     try {

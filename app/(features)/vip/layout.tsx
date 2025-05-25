@@ -184,11 +184,11 @@ const VipLayout = ({ children }: VipLayoutProps) => {
   }
 
   // Determine if user is linked to show appropriate menu items
-  const isUserLinked = vipStatus?.status === 'linked_matched';
+  // linked_unmatched users can access most VIP features, only linked_matched get full CRM features
+  const isUserLinked = vipStatus?.status === 'linked_matched' || vipStatus?.status === 'linked_unmatched';
   
-  // Show Link Account for users who need linking
+  // Show Link Account only for users who truly need linking
   const shouldShowLinkAccount = vipStatus?.status === 'not_linked' || 
-    vipStatus?.status === 'linked_unmatched' ||
     vipStatus?.status === 'vip_data_exists_crm_unmatched';
 
   // Check if user is eligible for VIP features (not guest)
