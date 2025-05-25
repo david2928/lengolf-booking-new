@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getVipBookings } from '../../lib/vipService';
 import { VipBooking, VipBookingsResponse, VipApiError } from '../../types/vip';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,12 @@ interface BookingsListProps {
   onModifyBooking: (bookingId: string) => void; 
   onCancelBooking: (bookingId: string) => void;  
   refreshNonce?: number;
+  optimisticUpdates?: { [bookingId: string]: Partial<VipBooking> };
 }
 
 type FilterType = "future" | "past" | "all";
 
-const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBooking, refreshNonce }) => {
+const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBooking, refreshNonce, optimisticUpdates }) => {
   const { vipStatus, isLoadingVipStatus, refetchVipStatus } = useVipContext();
   const [bookings, setBookings] = useState<VipBooking[]>([]);
   const [paginationData, setPaginationData] = useState<VipBookingsResponse['pagination'] | null>(null);
@@ -33,7 +34,17 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const itemsPerPage = 5; 
+  const itemsPerPage = 5;
+
+  // Apply optimistic updates to bookings when rendering
+  const displayBookings = useMemo(() => {
+    if (!optimisticUpdates) return bookings;
+    
+    return bookings.map(booking => {
+      const updates = optimisticUpdates[booking.id];
+      return updates ? { ...booking, ...updates } : booking;
+    });
+  }, [bookings, optimisticUpdates]);
 
   const fetchUserBookings = useCallback(async (page: number, filter: FilterType) => {
     if (!vipStatus || vipStatus.status !== 'linked_matched') {
@@ -190,7 +201,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
         />
       )}
 
-      {!isLoading && !error && bookings.length === 0 && (
+      {!isLoading && !error && displayBookings.length === 0 && (
          <EmptyState 
             Icon={CalendarOff}
             title="No Bookings Found"
@@ -201,9 +212,9 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
       )}
       
       {/* Card View for All Screen Sizes */}
-      {!isLoading && !error && bookings.length > 0 && (
+      {!isLoading && !error && displayBookings.length > 0 && (
         <div className="space-y-4">
-          {bookings.map((booking) => (
+          {displayBookings.map((booking) => (
             <Card 
               key={booking.id} 
               className={`shadow-md hover:shadow-lg transition-shadow duration-200 ease-in-out relative overflow-hidden bg-white border border-gray-200 rounded-lg ${booking.status === 'cancelled' ? 'opacity-75 bg-gray-50' : ''}`}
@@ -286,7 +297,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
       )}
 
       {/* Pagination controls - Moved from the commented out desktop view */}
-      {bookings.length > 0 && paginationData && paginationData.totalPages > 1 && (
+      {displayBookings.length > 0 && paginationData && paginationData.totalPages > 1 && (
         <div className="mt-6 flex justify-center"> {/* Added a div for centering and margin */}
             <Pagination>
             <PaginationContent className="flex flex-wrap justify-center gap-1">

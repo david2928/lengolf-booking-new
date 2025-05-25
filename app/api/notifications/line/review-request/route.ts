@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           type: 'text',
-          text: `${greeting}Thank you for visiting LENGOLF! We hope you enjoyed your golf session. ⛳🏌️‍♂`
+          text: `${greeting}Thank you for visiting LENGOLF! We hope you enjoyed your golf session. ⛳`
         },
         {
           type: 'text',

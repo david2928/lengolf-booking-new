@@ -39,7 +39,7 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      await cancelVipBooking(bookingId, cancellationReason.trim() ? { cancellationReason: cancellationReason.trim() } : undefined);
+      await cancelVipBooking(bookingId, cancellationReason.trim() ? { cancellation_reason: cancellationReason.trim() } : undefined);
       setIsSuccess(true); // Show success state - user must manually close
     } catch (e: any) {
       let errorMessage = 'Could not cancel the booking. Please try again.';

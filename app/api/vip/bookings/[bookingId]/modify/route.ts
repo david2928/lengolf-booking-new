@@ -197,16 +197,30 @@ export async function POST(request: NextRequest, context: ModifyRouteContext) {
       cancellation_reason: cancelledBooking.cancellation_reason
     };
 
-    sendVipCancellationNotification(notificationData)
-      .catch(err => console.error('[VIP Modify(Cancel)] Failed to send VIP cancellation notification:', err));
+    // Prepare async tasks for notifications and calendar operations
+    const asyncTasks = [];
+
+    // LINE notification task
+    asyncTasks.push(
+      sendVipCancellationNotification(notificationData)
+        .catch(err => console.error('[VIP Modify(Cancel)] Failed to send VIP cancellation notification:', err))
+    );
     
+    // Calendar deletion task
     const googleCalendarEventId = currentBooking.calendar_events?.google_calendar_event_id;
     if (googleCalendarEventId && currentBooking.bay) {
-      deleteCalendarEventForBooking(bookingId, googleCalendarEventId, currentBooking.bay)
-        .catch(err => console.error('[VIP Modify(Cancel)] Failed to delete calendar event:', err));
+      asyncTasks.push(
+        deleteCalendarEventForBooking(bookingId, googleCalendarEventId, currentBooking.bay)
+          .catch(err => console.error('[VIP Modify(Cancel)] Failed to delete calendar event:', err))
+      );
     } else {
         console.warn(`[VIP Modify(Cancel)] Missing Google Calendar Event ID or bay for booking ${bookingId}, skipping calendar deletion.`);
     }
+
+    // Execute all async tasks in parallel (non-blocking)
+    Promise.all(asyncTasks)
+      .then(() => console.log(`[VIP Modify(Cancel)] All async tasks completed for booking ${bookingId}`))
+      .catch(err => console.error(`[VIP Modify(Cancel)] Error in async tasks for booking ${bookingId}:`, err));
     
     return NextResponse.json({ 
         success: true, 

@@ -224,10 +224,16 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       cancellation_reason: cancelledBooking.cancellation_reason
     };
 
-    sendVipCancellationNotification(notificationData)
-      .catch(err => console.error(`[VIP Cancel] Error sending VIP cancellation LINE notification for ${bookingId}:`, err));
+    // Prepare async tasks for notifications and calendar operations
+    const asyncTasks = [];
+
+    // LINE notification task
+    asyncTasks.push(
+      sendVipCancellationNotification(notificationData)
+        .catch(err => console.error(`[VIP Cancel] Error sending VIP cancellation LINE notification for ${bookingId}:`, err))
+    );
     
-    // Send cancellation email notification
+    // Email notification task
     if (finalEmail) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const userName = (cancelledBooking.profiles_vip_staging as any)?.display_name || 'VIP User';
@@ -263,38 +269,47 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       
       const emailUrl = `${baseUrl}/api/notifications/email/cancellation`;
       
-      fetch(emailUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
-        },
-        body: JSON.stringify(emailPayload),
-      })
-      .then(async response => {
-        if (!response.ok) {
-          const responseBody = await response.text();
-          console.error(`[VIP Cancel] Failed to send cancellation email for ${bookingId}:`, responseBody);
-        }
-      })
-      .catch(err => {
-        console.error(`[VIP Cancel] Error sending cancellation email for ${bookingId}:`, err);
-      });
+      asyncTasks.push(
+        fetch(emailUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          body: JSON.stringify(emailPayload),
+        })
+        .then(async response => {
+          if (!response.ok) {
+            const responseBody = await response.text();
+            console.error(`[VIP Cancel] Failed to send cancellation email for ${bookingId}:`, responseBody);
+          }
+        })
+        .catch(err => {
+          console.error(`[VIP Cancel] Error sending cancellation email for ${bookingId}:`, err);
+        })
+      );
     } else {
       console.warn('[VIP Cancel] No email address available for cancellation notification');
     }
     
-    // Calendar deletion
+    // Calendar deletion task
     const googleCalendarEventId = currentBooking.calendar_events && currentBooking.calendar_events[0]?.eventId;
     const googleCalendarId = currentBooking.calendar_events && currentBooking.calendar_events[0]?.calendarId;
 
     // Ensure bay is also present as it is used in deleteCalendarEventForBooking
     if (googleCalendarEventId && googleCalendarId && currentBooking.bay) { 
-      deleteCalendarEventForBooking(bookingId, googleCalendarEventId, currentBooking.bay)
-        .catch(err => console.error('Failed to delete calendar event:', err));
+      asyncTasks.push(
+        deleteCalendarEventForBooking(bookingId, googleCalendarEventId, currentBooking.bay)
+          .catch(err => console.error('Failed to delete calendar event:', err))
+      );
     } else {
         console.warn(`Missing calendar event details for booking ${bookingId}, skipping calendar deletion`);
     }
+
+    // Execute all async tasks in parallel (non-blocking)
+    Promise.all(asyncTasks)
+      .then(() => console.log(`[VIP Cancel] All async tasks completed for booking ${bookingId}`))
+      .catch(err => console.error(`[VIP Cancel] Error in async tasks for booking ${bookingId}:`, err));
     
     // The triggerCalendarUpdateForCancel seems to be from the example, not used in current VIP logic.
     // If needed, it can be added back.

@@ -79,6 +79,10 @@ export async function POST(request: NextRequest) {
     // Align subject line format with booking confirmation email
     const emailSubject = `LENGOLF Booking Cancellation - ${bookingDate} at ${startTime}`;
     
+    // Construct VIP bookings URL for rebooking
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://booking.len.golf';
+    const vipBookingsUrl = `${baseUrl}/vip/bookings`;
+    
     const mailOptions = {
       from: `"LENGOLF" <${EMAIL_FROM}>`,
       to: email,
@@ -140,7 +144,7 @@ export async function POST(request: NextRequest) {
           
           <!-- Rebooking Message -->
           <p style="font-size: 14px; line-height: 1.5; color: #777; margin-bottom: 20px;">
-            <em>Ready to book again? Visit our website or contact us directly via Phone / LINE.</em>
+            <em>Ready to book again? Visit your <a href="${vipBookingsUrl}" style="color: #8dc743; text-decoration: none;">My Bookings</a> page or our main website to make a new reservation.</em>
           </p>
           
           <!-- Footer - Same as confirmation email -->

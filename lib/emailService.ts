@@ -31,6 +31,10 @@ const transporter = nodemailer.createTransport({
 export async function sendConfirmationEmail(booking: EmailConfirmation) {
   // Create the email subject without the name
   const emailSubject = `LENGOLF Booking Confirmation - ${booking.date} at ${booking.startTime}`;
+  
+  // Construct VIP bookings URL
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://booking.len.golf';
+  const vipBookingsUrl = `${baseUrl}/vip/bookings`;
 
   const emailContent = `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
@@ -87,7 +91,7 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
 
         <!-- Booking Modification Disclaimer -->
         <p style="font-size: 14px; line-height: 1.5; color: #777; margin-bottom: 20px;">
-            <em>If you need to modify your booking, please email us at <a href="mailto:info@len.golf" style="color: #8dc743; text-decoration: none;">info@len.golf</a> or contact us via Phone / LINE.</em>
+            <em>Need to modify or cancel your booking? Visit your <a href="${vipBookingsUrl}" style="color: #8dc743; text-decoration: none;">My Bookings</a> page to manage your reservations online.</em>
         </p>
 
         <!-- Footer -->

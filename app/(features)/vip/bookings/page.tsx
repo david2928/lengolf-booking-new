@@ -23,6 +23,7 @@ const VipBookingsPage = () => {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<VipBooking | undefined>(undefined);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [optimisticUpdates, setOptimisticUpdates] = useState<{ [bookingId: string]: Partial<VipBooking> }>({});
 
   // Redirect unlinked users to link-account page
   useEffect(() => {
@@ -81,12 +82,39 @@ const VipBookingsPage = () => {
 
   const handleBookingCancelled = useCallback(async () => {
     handleCloseCancelModal();
-    setRefreshNonce(prev => prev + 1);
+    
+    // Apply optimistic update immediately
+    if (selectedBookingId) {
+      setOptimisticUpdates(prev => ({
+        ...prev,
+        [selectedBookingId]: { status: 'cancelled' }
+      }));
+    }
+    
+    // Refresh VIP status in the background
     if (refetchVipStatus) {
         await refetchVipStatus();
     }
+    
+    // Clear optimistic updates after a delay to allow for background refresh
+    setTimeout(() => {
+      setOptimisticUpdates(prev => {
+        const { [selectedBookingId || '']: removed, ...rest } = prev;
+        return rest;
+      });
+      // Trigger background refresh of actual data
+      setRefreshNonce(prev => prev + 1);
+    }, 2000);
+    
     // Optionally show a success toast/message here
-  }, [handleCloseCancelModal, refetchVipStatus]);
+  }, [handleCloseCancelModal, refetchVipStatus, selectedBookingId]);
+
+  // Clear optimistic updates when refreshNonce changes (actual data is refreshed)
+  useEffect(() => {
+    if (refreshNonce > 0) {
+      setOptimisticUpdates({});
+    }
+  }, [refreshNonce]);
 
   if (isLoadingVipStatus || !session) {
     return (
@@ -118,6 +146,7 @@ const VipBookingsPage = () => {
         onModifyBooking={handleOpenModifyModal}
         onCancelBooking={handleOpenCancelModal}
         refreshNonce={refreshNonce}
+        optimisticUpdates={optimisticUpdates}
       />
 
       {isModifyModalOpen && selectedBookingId && (

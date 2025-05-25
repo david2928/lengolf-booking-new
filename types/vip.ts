@@ -95,7 +95,7 @@ export interface ModifyVipBookingResponse {
 
 // 7. POST /api/vip/bookings/{bookingId}/cancel
 export interface CancelVipBookingRequest {
-  cancellationReason?: string;
+  cancellation_reason?: string;
 }
 
 export interface CancelVipBookingResponse {
