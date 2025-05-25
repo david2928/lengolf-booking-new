@@ -1,28 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LINE_NOTIFY_TOKEN } from '@/lib/env';
+// import { LINE_NOTIFY_TOKEN } from '@/lib/env'; // LINE_NOTIFY_TOKEN is not used for Messaging API
 
 interface BookingNotification {
   customerName: string;
-  email: string;
-  phoneNumber: string;
+  email?: string; // Email is optional
+  phoneNumber?: string | null;
   bookingDate: string;
   bookingStartTime: string;
   bookingEndTime: string;
   bayNumber: string;
   duration: number;
-  numberOfPeople: number;
-  bookingName: string;
+  numberOfPeople: number | null;
+  bookingName?: string | null;
   packageInfo?: string;
   crmCustomerId?: string;
   customerNotes?: string;
   bookingId?: string;
-  // Optional standardized data field from the formatter
+  channel?: string; // e.g., 'Website', 'Staff', 'VIP Interface'
+  notificationType?: 'booking_created' | 'booking_cancelled_vip' | 'booking_modified_vip' | 'general';
+  cancellationReason?: string | null;
+  cancelledBy?: string | null;
+  // Optional standardized data field from the formatter (less used now, direct fields preferred)
   standardizedData?: {
     lineNotification: {
       bookingName: string;
       customerLabel: string;
     },
-    // Common fields
     bookingId: string;
     customerName: string;
     email: string;
@@ -39,121 +42,146 @@ interface BookingNotification {
   }
 }
 
-export async function POST(request: NextRequest) {
+// Helper function to format date with ordinal suffix
+function formatDateWithOrdinal(dateString: string): string {
   try {
-    // Check if LINE environment variables are set
-    console.log('LINE environment variables check:', {
-      hasChannelAccessToken: !!process.env.LINE_CHANNEL_ACCESS_TOKEN,
-      hasGroupId: !!process.env.LINE_GROUP_ID,
-      channelAccessTokenLength: process.env.LINE_CHANNEL_ACCESS_TOKEN?.length || 0,
-      groupIdLength: process.env.LINE_GROUP_ID?.length || 0
-    });
-    
-    const { customerNotes, ...bookingData }: BookingNotification & { customerNotes?: string } = await request.json();
-    
-    // Prepare the sanitized booking object
-    let sanitizedBooking: any;
-    
-    // Check if we have standardized data from the formatter
-    if (bookingData.standardizedData) {
-      const std = bookingData.standardizedData;
-      
-      // Check if this is a new customer (no CRM ID)
-      const isNewCustomer = !bookingData.crmCustomerId && !std.crmCustomerId;
-      
-      // Use standardized data
-      sanitizedBooking = {
-        // Always use "New Customer" when there's no CRM ID, otherwise use customerLabel or customerName
-        customerName: isNewCustomer ? "New Customer" : (std.lineNotification.customerLabel || std.customerName),
-        bookingName: std.lineNotification.bookingName,
-        email: std.email,
-        phoneNumber: std.phoneNumber,
-        bookingDate: std.formattedDate,
-        bookingStartTime: std.startTime,
-        bookingEndTime: std.endTime,
-        bayNumber: std.bayName,
-        duration: std.duration,
-        numberOfPeople: std.numberOfPeople,
-        packageInfo: bookingData.packageInfo,
-        customerNotes: customerNotes,
-        crmCustomerId: bookingData.crmCustomerId || std.crmCustomerId
-      };
-    } else {
-      // Fallback to legacy format for backward compatibility
-      sanitizedBooking = {
-        // For legacy format, check if we have a CRM ID
-        customerName: bookingData.crmCustomerId ? bookingData.customerName : "New Customer",
-        bookingName: bookingData.bookingName,
-        email: bookingData.email,
-        phoneNumber: bookingData.phoneNumber,
-        bookingDate: bookingData.bookingDate,
-        bookingStartTime: bookingData.bookingStartTime,
-        bookingEndTime: bookingData.bookingEndTime,
-        bayNumber: bookingData.bayNumber,
-        duration: bookingData.duration,
-        numberOfPeople: bookingData.numberOfPeople,
-        packageInfo: bookingData.packageInfo,
-        customerNotes: customerNotes,
-        crmCustomerId: bookingData.crmCustomerId
-      };
-    }
-    
-    // Format date to "Thu, 6th March" format
-    const dateObj = new Date(sanitizedBooking.bookingDate);
+    const dateObj = new Date(dateString);
     const day = dateObj.getDate();
     const dayWithSuffix = day + (
-      day === 1 || day === 21 || day === 31 ? 'st' : 
-      day === 2 || day === 22 ? 'nd' : 
+      day === 1 || day === 21 || day === 31 ? 'st' :
+      day === 2 || day === 22 ? 'nd' :
       day === 3 || day === 23 ? 'rd' : 'th'
     );
-    const formattedDate = dateObj.toLocaleDateString('en-GB', { 
-      weekday: 'short', 
-      day: 'numeric', 
-      month: 'long' 
+    return dateObj.toLocaleDateString('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'long'
     }).replace(/\d+/, dayWithSuffix).replace(/(\w+)/, '$1,');
+  } catch (e) {
+    console.warn('[LINE API Route] Error formatting date:', dateString, e);
+    return dateString; // Fallback to raw date string
+  }
+}
 
-    // Attempt to get bookingId from standardizedData first, then from top-level bookingData
-    const bookingId = bookingData.standardizedData?.bookingId || bookingData.bookingId;
-    const bookingIdString = bookingId ? ` (ID: ${bookingId})` : '';
 
-    // Generate the notification message with consistent fallbacks
-    const fullMessage = `Booking Notification${bookingIdString}
-Customer Name: ${sanitizedBooking.customerName}
-Booking Name: ${sanitizedBooking.bookingName}
-Email: ${sanitizedBooking.email || 'Not provided'}
-Phone: ${sanitizedBooking.phoneNumber || 'Not provided'}
-Date: ${formattedDate}
-Time: ${sanitizedBooking.bookingStartTime} - ${sanitizedBooking.bookingEndTime}
-Bay: ${sanitizedBooking.bayNumber}
-Type: ${sanitizedBooking.packageInfo || 'Normal Bay Rate'}
-People: ${sanitizedBooking.numberOfPeople || '1'}
-Channel: Website
-${sanitizedBooking.customerNotes ? `\nNotes: ${sanitizedBooking.customerNotes}` : ''}
+export async function POST(request: NextRequest) {
+  try {
+    console.log('[LINE API Route] Received request to /api/notifications/line');
+    const requestData = await request.json();
+    console.log('[LINE API Route] Request payload:', JSON.stringify(requestData, null, 2));
 
-This booking has been auto-confirmed. No need to re-confirm with the customer. Please double check bay selection`.trim();
+    const { 
+      notificationType = 'booking_created', // Default to booking_created for backward compatibility
+      customerNotes, 
+      ...bookingData 
+    }: BookingNotification & { customerNotes?: string, message?: string } = requestData;
 
-    // Use LINE Messaging API instead of LINE Notify
+    // If a raw message is provided (e.g. from older services or simple notifications), use it directly
+    if (requestData.message && typeof requestData.message === 'string') {
+      console.log('[LINE API Route] Using provided raw message for notification.');
+      const rawMessage = requestData.message;
+      // Proceed to send rawMessage directly
+      const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+      const groupId = process.env.LINE_GROUP_ID;
+
+      if (!channelAccessToken || !groupId) {
+        console.error('[LINE API Route] LINE Messaging API credentials not set for raw message.');
+        return NextResponse.json({ error: 'LINE API credentials not set' }, { status: 500 });
+      }
+
+      const response = await fetch('https://api.line.me/v2/bot/message/push', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${channelAccessToken}`,
+        },
+        body: JSON.stringify({
+          to: groupId,
+          messages: [{ type: 'text', text: rawMessage.trim() }]
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to parse LINE API error response' }));
+        console.error('[LINE API Route] LINE API error (raw message):', response.status, errorData);
+        return NextResponse.json({ error: 'Failed to send LINE notification (raw)', details: errorData }, { status: response.status });
+      }
+      console.log('[LINE API Route] Raw LINE notification sent successfully.');
+      return NextResponse.json({ success: true, type: 'raw_message_sent' });
+    }
+    
+    // Prepare the sanitized booking object for structured messages
+    let sb = bookingData; // sb for StructuredBooking, using direct props from BookingNotification
+    const bookingIdString = sb.bookingId ? ` (ID: ${sb.bookingId})` : '';
+    const formattedDate = formatDateWithOrdinal(sb.bookingDate);
+    const bookingChannel = sb.channel || 'Website'; // Default to website
+
+    let fullMessage = '';
+
+    if (notificationType === 'booking_cancelled_vip') {
+      console.log('[LINE API Route] Formatting VIP cancellation message.');
+      const cancelledByDisplay = sb.cancelledBy || sb.customerName || 'Customer';
+      const reasonDisplay = sb.cancellationReason ? `\nReason: ${sb.cancellationReason}` : '';
+      
+      fullMessage = `🚫 BOOKING CANCELLED${bookingIdString} 🚫`;
+      fullMessage += `\n----------------------------------`;
+      fullMessage += `\n👤 Customer: ${sb.customerName}`;
+      if (sb.phoneNumber) fullMessage += `\n📞 Phone: ${sb.phoneNumber}`;
+      fullMessage += `\n🗓️ Date: ${formattedDate}`;
+      fullMessage += `\n⏰ Time: ${sb.bookingStartTime} - ${sb.bookingEndTime} (${sb.duration}h)`;
+      fullMessage += `\n⛳ Bay: ${sb.bayNumber}`;
+      fullMessage += `\n🧑‍🤝‍🧑 Pax: ${sb.numberOfPeople || 'N/A'}`;
+      if (customerNotes) {
+        fullMessage += `\n📝 Notes: ${customerNotes}`;
+      }
+      fullMessage += `\n----------------------------------`;
+      fullMessage += `\n🗑️ Cancelled by ${cancelledByDisplay}`;
+      fullMessage += reasonDisplay;
+
+    } else if (notificationType === 'booking_created') { // Default behavior
+      console.log('[LINE API Route] Formatting booking creation message.');
+      fullMessage = `✅ NEW BOOKING${bookingIdString} ✅`;
+      fullMessage += `\n----------------------------------`;
+      fullMessage += `\n👤 Customer: ${sb.customerName}`; 
+      fullMessage += `\n📛 Booking Name: ${sb.bookingName || sb.customerName}`; 
+      if (sb.email) fullMessage += `\n📧 Email: ${sb.email}`;
+      if (sb.phoneNumber) fullMessage += `\n📞 Phone: ${sb.phoneNumber}`;
+      fullMessage += `\n🗓️ Date: ${formattedDate}`;
+      fullMessage += `\n⏰ Time: ${sb.bookingStartTime} - ${sb.bookingEndTime} (${sb.duration}h)`;
+      fullMessage += `\n⛳ Bay: ${sb.bayNumber}`;
+      fullMessage += `\n📦 Type: ${sb.packageInfo || 'Normal Bay Rate'}`;
+      fullMessage += `\n🧑‍🤝‍🧑 Pax: ${sb.numberOfPeople || '1'}`;
+      fullMessage += `\n💻 Channel: ${bookingChannel}`;
+      if (customerNotes) {
+        fullMessage += `\n📝 Notes: ${customerNotes}`;
+      }
+      fullMessage += `\n----------------------------------`;
+      fullMessage += `\nThis booking is AUTO-CONFIRMED.`;
+      fullMessage += `\nPlease double-check bay selection.`;
+    } else {
+      // Fallback for other/general notification types if ever used
+      console.log(`[LINE API Route] Formatting general message for type: ${notificationType}`);
+      fullMessage = `ℹ️ Notification (Type: ${notificationType})${bookingIdString}\nCustomer: ${sb.customerName}\nDetails: Check system.`;
+    }
+
     const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
     const groupId = process.env.LINE_GROUP_ID;
 
-    console.log(`[VIP DEBUG] Vercel Environment: ${process.env.VERCEL_ENV || 'Not set/Local'}, Branch: ${process.env.VERCEL_GIT_COMMIT_REF || 'Not set/Local'}, Attempting to use LINE_GROUP_ID: ${groupId}`);
-
     if (!channelAccessToken) {
-      throw new Error('LINE Messaging API access token is not set');
+      console.error('[LINE API Route] LINE Messaging API access token is not set.');
+      return NextResponse.json({ error: 'LINE API credentials not set' }, { status: 500 });
     }
-
     if (!groupId) {
-      throw new Error('LINE group ID is not set');
+      console.error('[LINE API Route] LINE group ID is not set.');
+      return NextResponse.json({ error: 'LINE group ID not set' }, { status: 500 });
     }
 
-    console.log('Sending LINE message to group:', {
+    console.log('[LINE API Route] Sending structured LINE message to group:', {
       groupId,
       messageLength: fullMessage.length,
-      customerName: sanitizedBooking.customerName,
-      bookingName: sanitizedBooking.bookingName
+      customerName: sb.customerName,
+      bookingName: sb.bookingName
     });
 
-    // Send message to LINE group using Messaging API
     const response = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
@@ -162,31 +190,23 @@ This booking has been auto-confirmed. No need to re-confirm with the customer. P
       },
       body: JSON.stringify({
         to: groupId,
-        messages: [
-          {
-            type: 'text',
-            text: fullMessage
-          }
-        ]
+        messages: [{ type: 'text', text: fullMessage.trim() }]
       }),
     });
 
-    // Handle rate limiting more gracefully
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      console.error('LINE API error:', errorData || response.statusText);
-      return NextResponse.json(
-        { error: 'Failed to send LINE notification', details: errorData },
-        { status: response.status }
-      );
+      const errorData = await response.json().catch(() => ({ message: 'Failed to parse LINE API error response' }));
+      console.error('[LINE API Route] LINE API error (structured):', response.status, errorData);
+      return NextResponse.json({ error: 'Failed to send LINE notification (structured)', details: errorData }, { status: response.status });
     }
 
-    console.log('LINE notification sent successfully');
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error in LINE notification handler:', error);
+    console.log('[LINE API Route] Structured LINE notification sent successfully.');
+    return NextResponse.json({ success: true, type: notificationType });
+
+  } catch (error: any) {
+    console.error('[LINE API Route] Error in main handler:', error);
     return NextResponse.json(
-      { error: 'Failed to send LINE notification' },
+      { error: 'Internal server error in LINE notification handler', details: error.message },
       { status: 500 }
     );
   }

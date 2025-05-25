@@ -206,31 +206,63 @@ export async function sendVipCancellationNotification(
 ) {
   const baseUrl = getBaseUrl();
   if (!baseUrl) {
-    console.error('Base URL for notifications is not configured. Skipping VIP cancellation LINE notification.');
+    console.error('[sendVipCancellationNotification] Base URL for notifications is not configured. Skipping VIP cancellation LINE notification.');
     return false;
   }
-  // Format the detailed message
-  const message = formatVipLineCancellationMessage(cancelledBookingData);
-  
+
+  // Prepare structured data for the /api/notifications/line endpoint
+  let endTimeStr = 'N/A';
+  if (cancelledBookingData.date && cancelledBookingData.start_time && cancelledBookingData.duration) {
+    try {
+      const endTimeDate = addMinutes(parse(`${cancelledBookingData.date}T${cancelledBookingData.start_time}`, "yyyy-MM-dd'T'HH:mm", new Date()), cancelledBookingData.duration * 60);
+      endTimeStr = format(endTimeDate, 'HH:mm');
+    } catch (e) {
+      console.error('[sendVipCancellationNotification] Error formatting end time:', e);
+    }
+  }
+
+  const linePayload = {
+    // Fields expected by /api/notifications/line route
+    customerName: cancelledBookingData.name || 'VIP User', // Or a more specific label for cancellation
+    bookingName: cancelledBookingData.name || 'VIP User', // Booking name might be different, adjust if available
+    // email: cancelledBookingData.email, // Email not typically sent in staff LINE notifications for cancellations
+    phoneNumber: cancelledBookingData.phone_number,
+    bookingDate: cancelledBookingData.date, // Will be formatted by the API route
+    bookingStartTime: cancelledBookingData.start_time,
+    bookingEndTime: endTimeStr,
+    bayNumber: getDisplayBayName(cancelledBookingData.bay), // Use display name
+    duration: cancelledBookingData.duration,
+    numberOfPeople: cancelledBookingData.number_of_people,
+    // profileId: ??? if needed by /api/notifications/line and available
+    bookingId: cancelledBookingData.id,
+    // Add a specific field to indicate this is a cancellation for custom formatting in the API route
+    notificationType: 'booking_cancelled_vip',
+    cancellationReason: cancelledBookingData.cancellation_reason,
+    cancelledBy: cancelledBookingData.name || 'VIP User' // Name of the person who cancelled
+    // Removed standardizedData as it might not be relevant here; the API constructs the message.
+  };
+
+  console.log('[sendVipCancellationNotification] Attempting to send LINE notification via /api/notifications/line. Payload:', JSON.stringify(linePayload, null, 2));
+
   try {
-    const response = await fetch(`${baseUrl}/api/notifications/line/simple`, {
+    const response = await fetch(`${baseUrl}/api/notifications/line`, { // Corrected endpoint
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache'
       },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify(linePayload),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('LINE Notify API response error:', response.status, errorText);
-      throw new Error(`Failed to send VIP cancellation LINE notification: ${errorText}`);
+      console.error('[sendVipCancellationNotification] API response error from /api/notifications/line:', response.status, errorText);
+      throw new Error(`Failed to send VIP cancellation LINE notification via API: ${response.status} - ${errorText}`);
     }
-    console.log('Successfully sent VIP cancellation LINE notification.');
+    console.log('[sendVipCancellationNotification] Successfully sent VIP cancellation LINE notification via /api/notifications/line.');
     return true;
   } catch (error) {
-    console.error('Error sending VIP cancellation LINE notification:', error);
+    console.error('[sendVipCancellationNotification] Error sending VIP cancellation LINE notification:', error);
     return false;
   }
 } 
