@@ -110,20 +110,17 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
 async function sendNotifications(formattedData: any, booking: any, bayDisplayName: string, crmCustomerId?: string, stableHashId?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   
-  // Start both notifications in parallel using our utility
   const notificationTasks = [
     // Email notification
     async () => {
       try {
-        // ALWAYS use booking name for email notification recipient name
+        console.log('[CreateBooking Email Notify Task] Starting email notification task.');
         const userName = booking.name;
-        
-        // For email subject, use CRM customer name unless it's a new customer
         const subjectName = crmCustomerId ? (formattedData.customerName || booking.name) : booking.name;
         
         const emailData = {
           userName,
-          subjectName, // Add subject name separately for email subject
+          subjectName,
           email: formattedData.email || booking.email,
           date: formattedData.formattedDate || booking.date,
           startTime: booking.start_time,
@@ -137,28 +134,38 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
           skipCrmMatch: true,
           packageInfo,
           standardizedData: formattedData,
-          customerNotes
+          customerNotes,
+          bookingId: booking.id
         };
+
+        console.log('[CreateBooking Email Notify Task] Prepared emailData:', JSON.stringify(emailData, null, 2));
         
         const response = await fetch(`${baseUrl}/api/notifications/email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(emailData),
         });
-        return response;
+
+        console.log(`[CreateBooking Email Notify Task] Response status from /api/notifications/email: ${response.status}`);
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`[CreateBooking Email Notify Task] Error from /api/notifications/email: ${response.status}`, errorBody);
+          // Throw an error to be caught by executeParallel or handled in its .then()
+          throw new Error(`Email notification failed: ${response.status} - ${errorBody}`);
+        }
+        return response; // Return the original Response object on success
       } catch (error) {
-        console.error('Error sending email notification:', error);
-        return null;
+        console.error('[CreateBooking Email Notify Task] Error sending email notification:', error);
+        // Throw the error to be handled by executeParallel
+        throw error;
       }
     },
     
     // LINE notification
     async () => {
       try {
-        // Use customerName from formattedData with fallbacks
+        console.log('[CreateBooking LINE Notify Task] Starting LINE notification task.');
         const customerNameForLine = formattedData.customerName || booking.name;
-        
-        // Always use "New Customer" for unmatched customers
         const lineCustomerName = crmCustomerId ? customerNameForLine : "New Customer";
         
         const lineData = {
@@ -178,18 +185,32 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
           skipCrmMatch: true,
           packageInfo,
           standardizedData: formattedData,
-          customerNotes
+          customerNotes,
+          bookingId: booking.id
         };
+        
+        console.log('[CreateBooking LINE Notify Task] Prepared lineData:', JSON.stringify(lineData, null, 2));
         
         const response = await fetch(`${baseUrl}/api/notifications/line`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(lineData),
         });
-        return response;
+
+        console.log(`[CreateBooking LINE Notify Task] Response status from /api/notifications/line: ${response.status}`);
+        
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`[CreateBooking LINE Notify Task] Error from /api/notifications/line: ${response.status}`, errorBody);
+          // Throw an error to be caught by executeParallel or handled in its .then()
+          throw new Error(`LINE notification failed: ${response.status} - ${errorBody}`);
+        }
+        return response; // Return the original Response object on success
+
       } catch (error) {
-        console.error('Error sending LINE notification:', error);
-        return null;
+        console.error('[CreateBooking LINE Notify Task] Error sending LINE notification:', error);
+        // Throw the error to be handled by executeParallel
+        throw error;
       }
     }
   ];
@@ -197,8 +218,20 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
   // Return the promise for all notifications completing
   return executeParallel(notificationTasks, { timeout: 10000 })
     .then(results => {
-      console.log('All notifications sent');
-      return { success: true, results };
+      console.log('All notification tasks attempted. Results count:', results.length);
+      results.forEach((result, index) => {
+        if (result instanceof Error) {
+          console.warn(`[CreateBooking Notify Task ${index === 0 ? 'Email' : 'LINE'}] Task failed:`, result.message);
+        } else if (result && !result.ok) {
+          // This case might be redundant if !response.ok throws an error, but good for safety
+          console.warn(`[CreateBooking Notify Task ${index === 0 ? 'Email' : 'LINE'}] Task HTTP error: Status ${result.status}`);
+        } else {
+          console.log(`[CreateBooking Notify Task ${index === 0 ? 'Email' : 'LINE'}] Task completed, status: ${result?.status}`);
+        }
+      });
+      // Determine overall success based on whether any task threw an error or returned a non-ok response
+      const allSucceeded = results.every(result => !(result instanceof Error) && result?.ok);
+      return { success: allSucceeded, results };
     })
     .catch(error => {
       console.error('Error sending notifications:', error);
