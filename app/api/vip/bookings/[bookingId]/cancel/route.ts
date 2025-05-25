@@ -225,7 +225,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     };
 
     // Prepare async tasks for notifications and calendar operations
-    const asyncTasks = [];
+    const asyncTasks: Promise<any>[] = [];
 
     // LINE notification task
     asyncTasks.push(
@@ -306,14 +306,14 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
         console.warn(`Missing calendar event details for booking ${bookingId}, skipping calendar deletion`);
     }
 
-    // Execute all async tasks in parallel (non-blocking)
-    Promise.all(asyncTasks)
-      .then(() => console.log(`[VIP Cancel] All async tasks completed for booking ${bookingId}`))
-      .catch(err => console.error(`[VIP Cancel] Error in async tasks for booking ${bookingId}:`, err));
+    // Execute all async tasks in parallel (truly non-blocking - fire and forget)
+    setImmediate(() => {
+      Promise.all(asyncTasks)
+        .then(() => console.log(`[VIP Cancel] All async tasks completed for booking ${bookingId}`))
+        .catch(err => console.error(`[VIP Cancel] Error in async tasks for booking ${bookingId}:`, err));
+    });
     
-    // The triggerCalendarUpdateForCancel seems to be from the example, not used in current VIP logic.
-    // If needed, it can be added back.
-
+    // Return immediately without waiting for async tasks
     return NextResponse.json({ success: true, message: 'Booking cancelled successfully.', booking: cancelledBooking });
 
   } catch (error: any) {

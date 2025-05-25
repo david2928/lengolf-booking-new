@@ -81,33 +81,32 @@ const VipBookingsPage = () => {
   }, [handleCloseModifyModal, refetchVipStatus]);
 
   const handleBookingCancelled = useCallback(async () => {
-    handleCloseCancelModal();
+    // DON'T close modal yet - let the success state show first
     
-    // Apply optimistic update immediately
+    // Apply optimistic update immediately and trigger single refresh
     if (selectedBookingId) {
       setOptimisticUpdates(prev => ({
         ...prev,
         [selectedBookingId]: { status: 'cancelled' }
       }));
-    }
-    
-    // Refresh VIP status in the background
-    if (refetchVipStatus) {
-        await refetchVipStatus();
-    }
-    
-    // Clear optimistic updates after a delay to allow for background refresh
-    setTimeout(() => {
-      setOptimisticUpdates(prev => {
-        const { [selectedBookingId || '']: removed, ...rest } = prev;
-        return rest;
-      });
-      // Trigger background refresh of actual data
+      
+      // Trigger single immediate refresh of booking data
       setRefreshNonce(prev => prev + 1);
-    }, 2000);
+    }
     
-    // Optionally show a success toast/message here
-  }, [handleCloseCancelModal, refetchVipStatus, selectedBookingId]);
+    // Clear optimistic updates after a short delay (data should be refreshed by then)
+    setTimeout(() => {
+      if (selectedBookingId) {
+        setOptimisticUpdates(prev => {
+          const { [selectedBookingId]: removed, ...rest } = prev;
+          return rest;
+        });
+      }
+    }, 1000);
+    
+    // Note: We don't call handleCloseCancelModal() here anymore
+    // The modal will handle its own closing logic when user clicks "Done"
+  }, [selectedBookingId]);
 
   // Clear optimistic updates when refreshNonce changes (actual data is refreshed)
   useEffect(() => {

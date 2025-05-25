@@ -198,7 +198,7 @@ export async function POST(request: NextRequest, context: ModifyRouteContext) {
     };
 
     // Prepare async tasks for notifications and calendar operations
-    const asyncTasks = [];
+    const asyncTasks: Promise<any>[] = [];
 
     // LINE notification task
     asyncTasks.push(
@@ -217,10 +217,12 @@ export async function POST(request: NextRequest, context: ModifyRouteContext) {
         console.warn(`[VIP Modify(Cancel)] Missing Google Calendar Event ID or bay for booking ${bookingId}, skipping calendar deletion.`);
     }
 
-    // Execute all async tasks in parallel (non-blocking)
-    Promise.all(asyncTasks)
-      .then(() => console.log(`[VIP Modify(Cancel)] All async tasks completed for booking ${bookingId}`))
-      .catch(err => console.error(`[VIP Modify(Cancel)] Error in async tasks for booking ${bookingId}:`, err));
+    // Execute all async tasks in parallel (truly non-blocking - fire and forget)
+    setImmediate(() => {
+      Promise.all(asyncTasks)
+        .then(() => console.log(`[VIP Modify(Cancel)] All async tasks completed for booking ${bookingId}`))
+        .catch(err => console.error(`[VIP Modify(Cancel)] Error in async tasks for booking ${bookingId}:`, err));
+    });
     
     return NextResponse.json({ 
         success: true, 

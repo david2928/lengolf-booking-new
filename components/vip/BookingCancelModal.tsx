@@ -41,6 +41,9 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
     try {
       await cancelVipBooking(bookingId, cancellationReason.trim() ? { cancellation_reason: cancellationReason.trim() } : undefined);
       setIsSuccess(true); // Show success state - user must manually close
+      
+      // Immediately notify parent that cancellation succeeded (for optimistic updates and refresh)
+      onBookingCancelled();
     } catch (e: any) {
       let errorMessage = 'Could not cancel the booking. Please try again.';
       if (e instanceof VipApiError) {
@@ -62,12 +65,7 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
   // we should also clear local error state.
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      // If the modal is being closed and we're in success state, 
-      // we need to notify the parent that booking was cancelled
-      if (isSuccess) {
-        onBookingCancelled();
-      }
-      
+      // No need to call onBookingCancelled here anymore - it's called immediately on success
       onClose();
       setError(null); // Clear error when modal is closed
       setIsLoading(false); // Reset loading state
@@ -169,7 +167,7 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
 
           <DialogFooter className="mt-4">
             <Button className="w-full" onClick={() => {
-              onBookingCancelled(); // Ensure parent is notified
+              // Parent was already notified when cancellation succeeded
               onClose();
             }}>
               Done
