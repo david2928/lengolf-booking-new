@@ -108,7 +108,8 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
 
 // Helper function to send notifications
 async function sendNotifications(formattedData: any, booking: any, bayDisplayName: string, crmCustomerId?: string, stableHashId?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // For internal API calls, we can use relative paths.
+  const internalApiBasePath = ''; // Use relative paths for internal calls
   
   const notificationTasks = [
     // Email notification
@@ -140,7 +141,7 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
 
         console.log('[CreateBooking Email Notify Task] Prepared emailData:', JSON.stringify(emailData, null, 2));
         
-        const response = await fetch(`${baseUrl}/api/notifications/email`, {
+        const response = await fetch(`${internalApiBasePath}/api/notifications/email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(emailData),
@@ -191,7 +192,7 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
         
         console.log('[CreateBooking LINE Notify Task] Prepared lineData:', JSON.stringify(lineData, null, 2));
         
-        const response = await fetch(`${baseUrl}/api/notifications/line`, {
+        const response = await fetch(`${internalApiBasePath}/api/notifications/line`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(lineData),
@@ -358,9 +359,6 @@ export async function POST(request: NextRequest) {
     const startDateTime = zonedTimeToUtc(parsedDateTime, TIMEZONE);
     const endDateTime = addHours(startDateTime, duration);
     logTiming('Date parsing', 'success');
-
-    // 4. Get base URL for API calls
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     // 5. Run bay availability check and CRM matching in parallel
     const [availabilityResult, crmMappingResult] = await Promise.all([
@@ -757,7 +755,7 @@ export async function POST(request: NextRequest) {
 
     // Use setTimeout to make this non-blocking
     setTimeout(() => {
-      fetch(`${baseUrl}/api/bookings/calendar/create`, {
+      fetch(`/api/bookings/calendar/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
