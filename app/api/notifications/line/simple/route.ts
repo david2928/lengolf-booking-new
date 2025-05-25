@@ -5,6 +5,19 @@ import { NextRequest, NextResponse } from 'next/server';
 // import { LINE_CHANNEL_ACCESS_TOKEN, LINE_GROUP_ID } from '@/lib/env'; 
 
 export async function POST(request: NextRequest) {
+  console.log('[LINE Simple Notify - DEBUG] Received POST request to /api/notifications/line/simple');
+  try {
+    const body = await request.json();
+    console.log('[LINE Simple Notify - DEBUG] Request body:', body);
+  } catch (e) {
+    console.log('[LINE Simple Notify - DEBUG] Could not parse request body or no body provided.');
+  }
+  return NextResponse.json({ success: true, message: 'DEBUG: Successfully received POST at /api/notifications/line/simple' });
+}
+
+// Original code commented out for debugging:
+/*
+export async function POST(request: NextRequest) {
   const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   const groupId = process.env.LINE_GROUP_ID;
 
@@ -75,4 +88,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
+*/ 
