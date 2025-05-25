@@ -7,6 +7,8 @@ import { useVipContext } from '../contexts/VipContext';
 import { Loader2 } from 'lucide-react';
 import BookingModifyModal from '../../../../components/vip/BookingModifyModal';
 import BookingCancelModal from '../../../../components/vip/BookingCancelModal';
+import { getVipBookings } from '../../../../lib/vipService';
+import type { VipBooking } from '../../../../types/vip';
 
 // Placeholder for Modal components to be added in VIP-FE-007 and VIP-FE-008
 // import ModifyBookingModal from '../../../../components/vip/BookingModifyModal';
@@ -19,6 +21,7 @@ const VipBookingsPage = () => {
   const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<VipBooking | undefined>(undefined);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   // Redirect unlinked users to link-account page
@@ -38,8 +41,19 @@ const VipBookingsPage = () => {
     // console.log(`Request to modify booking: ${bookingId}`); // For testing
   };
 
-  const handleOpenCancelModal = (bookingId: string) => {
+  const handleOpenCancelModal = async (bookingId: string) => {
     setSelectedBookingId(bookingId);
+    
+    // Fetch booking details for the cancel modal
+    try {
+      const bookingsData = await getVipBookings({ filter: 'all', limit: 100 }); // Get all bookings to find the one we need
+      const booking = bookingsData.bookings.find(b => b.id === bookingId);
+      setSelectedBooking(booking);
+    } catch (error) {
+      console.error('Failed to fetch booking details for cancel modal:', error);
+      setSelectedBooking(undefined);
+    }
+    
     setIsCancelModalOpen(true);
     // console.log(`Request to cancel booking: ${bookingId}`); // For testing
   };
@@ -52,6 +66,7 @@ const VipBookingsPage = () => {
   const handleCloseCancelModal = useCallback(() => {
     setIsCancelModalOpen(false);
     setSelectedBookingId(null);
+    setSelectedBooking(undefined);
   }, []);
 
   const handleBookingModifiedAndRedirect = useCallback(async () => {
@@ -117,6 +132,7 @@ const VipBookingsPage = () => {
       {isCancelModalOpen && selectedBookingId && (
         <BookingCancelModal
           bookingId={selectedBookingId}
+          booking={selectedBooking}
           isOpen={isCancelModalOpen}
           onClose={handleCloseCancelModal}
           onBookingCancelled={handleBookingCancelled}

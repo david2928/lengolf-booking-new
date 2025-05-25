@@ -121,30 +121,85 @@ export async function GET(request: NextRequest) {
       baseQuery = baseQuery.eq('user_id', profileId);
     }
 
+    // For future bookings, we need to fetch all records first, then sort by status, then paginate
+    // This ensures confirmed bookings appear first across all pages
+    let allBookingsData = [];
+    let totalCount = 0;
+
     if (filter === 'future') {
-      // query = query.gte('date', today).order('date', { ascending: true }).order('start_time', { ascending: true }); // Commented out old logic
-      baseQuery = baseQuery.or(`date.gt.${todayDate},and(date.eq.${todayDate},start_time.gte.${currentTime})`)
-                   .order('date', { ascending: true })
-                   .order('start_time', { ascending: true });
-    } else if (filter === 'past') {
-      // query = query.lt('date', today).order('date', { ascending: false }).order('start_time', { ascending: false }); // Commented out old logic
-      baseQuery = baseQuery.or(`date.lt.${todayDate},and(date.eq.${todayDate},start_time.lt.${currentTime})`)
-                   .order('date', { ascending: false })
-                   .order('start_time', { ascending: false });
-    } else { // 'all' or any other value
-      baseQuery = baseQuery.order('date', { ascending: false }).order('start_time', { ascending: false });
+      // Fetch ALL future bookings first (without pagination)
+      const allFutureQuery = supabase
+        .from('bookings_vip_staging')
+        .select('id, date, start_time, duration, bay, status, number_of_people, customer_notes, booking_type, created_at', { count: 'exact' });
+
+      // Apply user filtering
+      if (userStableHashId) {
+        allFutureQuery.eq('stable_hash_id', userStableHashId);
+      } else {
+        allFutureQuery.eq('user_id', profileId);
+      }
+
+      // Apply future date/time filter
+      allFutureQuery.or(`date.gt.${todayDate},and(date.eq.${todayDate},start_time.gte.${currentTime})`);
+
+      const { data: allFutureBookings, error: futureError, count } = await allFutureQuery;
+
+      if (futureError) {
+        console.error('Error fetching future bookings:', futureError);
+        return NextResponse.json({ error: 'Failed to fetch bookings.' }, { status: 500 });
+      }
+
+      allBookingsData = allFutureBookings || [];
+      totalCount = count || 0;
+
+      // Apply custom sorting: confirmed first, then by date/time
+      allBookingsData.sort((a, b) => {
+        // Prioritize 'confirmed' status
+        if (a.status === 'confirmed' && b.status !== 'confirmed') {
+          return -1; // a comes first
+        }
+        if (a.status !== 'confirmed' && b.status === 'confirmed') {
+          return 1; // b comes first
+        }
+
+        // If both are 'confirmed' or both are not 'confirmed', sort by date and time
+        const dateComparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (dateComparison !== 0) {
+          return dateComparison;
+        }
+        // If dates are the same, compare by start_time (HH:mm format)
+        return a.start_time.localeCompare(b.start_time);
+      });
+
+      // Apply pagination manually after sorting
+      allBookingsData = allBookingsData.slice(offset, offset + limit);
+
+    } else {
+      // For past and all bookings, use the original approach with database-level sorting
+      if (filter === 'past') {
+        baseQuery = baseQuery.or(`date.lt.${todayDate},and(date.eq.${todayDate},start_time.lt.${currentTime})`)
+                     .order('date', { ascending: false })
+                     .order('start_time', { ascending: false });
+      } else { // 'all' or any other value
+        baseQuery = baseQuery.order('date', { ascending: false }).order('start_time', { ascending: false });
+      }
+
+      baseQuery = baseQuery.range(offset, offset + limit - 1);
+
+      const { data: bookingsData, error, count } = await baseQuery;
+
+      if (error) {
+        console.error('Error fetching bookings:', error);
+        return NextResponse.json({ error: 'Failed to fetch bookings.' }, { status: 500 });
+      }
+
+      allBookingsData = bookingsData || [];
+      totalCount = count || 0;
     }
 
-    baseQuery = baseQuery.range(offset, offset + limit - 1);
-
-    const { data: bookingsData, error, count } = await baseQuery;
-
-    if (error) {
-      console.error('Error fetching bookings:', error);
-      return NextResponse.json({ error: 'Failed to fetch bookings.' }, { status: 500 });
-    }
+    let processedBookingsData = allBookingsData;
     
-    const bookings = bookingsData?.map(b => ({
+    const bookings = processedBookingsData.map(b => ({
         id: b.id,
         date: b.date,
         startTime: b.start_time,
@@ -157,7 +212,6 @@ export async function GET(request: NextRequest) {
         createdAt: b.created_at
     })) || [];
 
-    const totalCount = count || 0;
     const totalPages = Math.ceil(totalCount / limit);
 
     return NextResponse.json({

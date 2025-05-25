@@ -24,14 +24,6 @@ interface BookingCancellationBody {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Email Cancellation API] Environment check:', {
-      EMAIL_HOST: EMAIL_HOST,
-      EMAIL_PORT: EMAIL_PORT,
-      EMAIL_USER: EMAIL_USER ? 'SET' : 'NOT_SET',
-      EMAIL_PASS: EMAIL_PASS ? 'SET' : 'NOT_SET',
-      EMAIL_FROM: EMAIL_FROM
-    });
-
     // 1. Check email configuration
     if (!EMAIL_USER || !EMAIL_PASS) {
       console.error('Email configuration missing - EMAIL_USER or EMAIL_PASS not set');
@@ -83,11 +75,14 @@ export async function POST(request: NextRequest) {
     const timeDisplay = endTime ? `${startTime} - ${endTime}` : startTime;
     const displayName = subjectName || userName;
 
-    // 6. Create email content
+    // 6. Create email content  
+    // Align subject line format with booking confirmation email
+    const emailSubject = `LENGOLF Booking Cancellation - ${bookingDate} at ${startTime}`;
+    
     const mailOptions = {
       from: `"LENGOLF" <${EMAIL_FROM}>`,
       to: email,
-      subject: `Booking Cancellation Confirmation - ${displayName}`,
+      subject: emailSubject,
       html: `
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
           <!-- Logo Section -->

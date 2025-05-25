@@ -50,16 +50,8 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
         limit: itemsPerPage,
         filter,
       });
-      // Sort bookings: active (confirmed) first, then others, then cancelled last.
-      const sortedBookings = [...data.bookings].sort((a, b) => {
-        if (a.status === 'cancelled' && b.status !== 'cancelled') return 1;
-        if (a.status !== 'cancelled' && b.status === 'cancelled') return -1;
-        if (a.status === 'confirmed' && b.status !== 'confirmed') return -1;
-        if (a.status !== 'confirmed' && b.status === 'confirmed') return 1;
-        // Optionally, sort by date if statuses are the same
-        return new Date(b.date).getTime() - new Date(a.date).getTime(); 
-      });
-      setBookings(sortedBookings);
+      // Bookings are already sorted by the server API (confirmed first for future bookings)
+      setBookings(data.bookings);
       setPaginationData(data.pagination);
     } catch (err) {
       console.error('Failed to fetch bookings:', err);

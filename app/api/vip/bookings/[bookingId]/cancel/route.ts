@@ -6,6 +6,7 @@ import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth
 import { sendVipCancellationNotification } from '@/lib/lineNotifyService';
 import type { NotificationBookingData } from '@/lib/lineNotifyService';
 import { deleteCalendarEventForBooking } from '@/lib/calendarService';
+import { format } from 'date-fns';
 
 // Define a type for our session that includes the accessToken and a well-defined user
 interface VipBookingOpSessionUser extends NextAuthUser {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('[VIP Booking Cancel API POST] Supabase URL or Anon Key is not set.');
+    console.error('Supabase configuration missing');
     return NextResponse.json({ error: 'Server configuration error: Supabase connection details missing.' }, { status: 500 });
   }
   
@@ -54,10 +55,9 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     const requestBody = await request.text();
     if (requestBody) { // Only parse if there's a body
       payload = JSON.parse(requestBody);
-      console.log('[VIP Cancel] Parsed payload:', payload);
     }
   } catch (error) {
-    console.warn('[VIP Cancel] Could not parse JSON payload or no payload provided. Proceeding without cancellation_reason from payload.', error);
+    console.warn('[VIP Cancel] Could not parse JSON payload or no payload provided. Proceeding without cancellation_reason from payload.');
     // Do not error out, cancellation_reason is optional for user
   }
 
@@ -85,14 +85,13 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       .single();
 
     if (fetchError || !currentBooking) {
-      console.error(`[VIP Cancel] Error fetching booking ${bookingId} or booking not found:`, fetchError);
+      console.error(`Error fetching booking ${bookingId}:`, fetchError);
       const status = fetchError?.code === 'PGRST116' || !currentBooking ? 404 : 500;
       const message = status === 404 ? `Booking with ID ${bookingId} not found or access denied.` : 'Failed to fetch booking details';
       return NextResponse.json({ error: message, details: fetchError?.message }, { status });
     }
 
     if (currentBooking.user_id !== profileId) {
-      console.warn(`[VIP Cancel] RLS Mismatch/Forbidden: User ${profileId} attempted to cancel booking ${bookingId} owned by ${currentBooking.user_id}.`);
       return NextResponse.json({ error: 'Access denied. You do not own this booking.' }, { status: 403 });
     }
     
@@ -113,14 +112,13 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     const currentDateTime = new Date(); // Current date and time
 
     if (bookingDateTime.getTime() <= currentDateTime.getTime()) {
-      console.log(`[VIP Cancel] Attempt to cancel booking ${bookingId} that is not in the future. Booking: ${bookingDateTime.toISOString()}, Current: ${currentDateTime.toISOString()}`);
       return NextResponse.json({ error: 'Booking must be in the future to be cancelled.' }, { status: 409 });
     }
 
     const updatePayload = {
       status: 'cancelled',
       cancelled_by_type: 'user', // User initiated cancellation
-      cancelled_by_identifier: profileId, // VIP User's ID
+      cancelled_by_identifier: (currentBooking.profiles_vip_staging as any)?.display_name || 'Customer', // Customer's display name
       cancellation_reason: cancellationReason || null
     };
 
@@ -135,7 +133,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       .single();
 
     if (updateError || !cancelledBooking) {
-      console.error(`[VIP Cancel] Supabase error updating booking ${bookingId} to cancelled:`, updateError);
+      console.error(`Supabase error updating booking ${bookingId} to cancelled:`, updateError);
       return NextResponse.json({ error: 'Failed to cancel booking in database', details: updateError?.message }, { status: 500 });
     }
 
@@ -160,7 +158,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
           finalEmail = vipData.vip_email;
         }
       } catch (error) {
-        console.warn('[VIP Cancel] Could not fetch VIP customer data:', error);
+        console.warn('Could not fetch VIP customer data:', error);
       }
     }
     
@@ -177,7 +175,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
           finalEmail = profileData.email;
         }
       } catch (error) {
-        console.warn('[VIP Cancel] Could not fetch profile email:', error);
+        console.warn('Could not fetch profile email:', error);
       }
     }
     
@@ -208,7 +206,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
         .insert(historyEntry);
 
     if (historyError) {
-        console.error(`[VIP Cancel] Failed to create booking history entry for ${bookingId}:`, JSON.stringify(historyError, null, 2));
+        console.error(`[VIP Cancel] Failed to create booking history entry for ${bookingId}:`, historyError);
     }
 
     // Prepare data for LINE notification
@@ -227,15 +225,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     };
 
     sendVipCancellationNotification(notificationData)
-      .then(success => {
-        if (success) {
-          console.log(`[VIP Cancel] Successfully initiated VIP cancellation LINE notification for booking ${bookingId}.`);
-        } else {
-          // Error is already logged within sendVipCancellationNotification
-          console.warn(`[VIP Cancel] Initiation of VIP cancellation LINE notification reported failure for booking ${bookingId}.`);
-        }
-      })
-      .catch(err => console.error(`[VIP Cancel] Error explicitly sending VIP cancellation LINE notification for ${bookingId}:`, err));
+      .catch(err => console.error(`[VIP Cancel] Error sending VIP cancellation LINE notification for ${bookingId}:`, err));
     
     // Send cancellation email notification
     if (finalEmail) {
@@ -251,15 +241,18 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
         const endDate = new Date(startDate.getTime() + (cancelledBooking.duration * 60 * 60 * 1000));
         endTimeCalc = endDate.toTimeString().slice(0, 5); // HH:mm format
       } catch (error) {
-        console.warn('[VIP Cancel] Could not calculate end time:', error);
+        console.warn('Could not calculate end time:', error);
       }
+      
+      // Format date to match booking confirmation email format (e.g., "May 26, 2025")
+      const formattedDate = format(new Date(cancelledBooking.date), 'MMMM d, yyyy');
       
       const emailPayload = { // Renamed for clarity
         email: finalEmail,
         userName,
         subjectName: userName, // subjectName will be the same as userName
         bookingId: cancelledBooking.id,
-        bookingDate: cancelledBooking.date,
+        bookingDate: formattedDate, // Use formatted date to match booking confirmation
         startTime: cancelledBooking.start_time,
         endTime: endTimeCalc,
         duration: cancelledBooking.duration,
@@ -269,7 +262,6 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       };
       
       const emailUrl = `${baseUrl}/api/notifications/email/cancellation`;
-      console.log(`[VIP Cancel] Attempting to send cancellation email. URL: POST ${emailUrl}, Payload:`, JSON.stringify(emailPayload, null, 2));
       
       fetch(emailUrl, {
         method: 'POST',
@@ -280,18 +272,16 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
         body: JSON.stringify(emailPayload),
       })
       .then(async response => {
-        const responseBody = await response.text(); // Get text first to avoid parsing errors on non-JSON
-        if (response.ok) {
-          console.log(`[VIP Cancel] Cancellation email call successful for ${bookingId}. Status: ${response.status}. Response:`, responseBody);
-        } else {
-          console.error(`[VIP Cancel] Failed to send cancellation email for ${bookingId}. Status: ${response.status}. URL: ${emailUrl}. Method: POST. Response:`, responseBody);
+        if (!response.ok) {
+          const responseBody = await response.text();
+          console.error(`[VIP Cancel] Failed to send cancellation email for ${bookingId}:`, responseBody);
         }
       })
       .catch(err => {
-        console.error(`[VIP Cancel] Network/fetch error sending cancellation email for ${bookingId}. URL: ${emailUrl}. Method: POST. Error:`, err);
+        console.error(`[VIP Cancel] Error sending cancellation email for ${bookingId}:`, err);
       });
     } else {
-      console.warn('[VIP Cancel] No email address available for cancellation notification. finalEmail is:', finalEmail);
+      console.warn('[VIP Cancel] No email address available for cancellation notification');
     }
     
     // Calendar deletion
@@ -301,9 +291,9 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     // Ensure bay is also present as it is used in deleteCalendarEventForBooking
     if (googleCalendarEventId && googleCalendarId && currentBooking.bay) { 
       deleteCalendarEventForBooking(bookingId, googleCalendarEventId, currentBooking.bay)
-        .catch(err => console.error('[VIP Cancel] Failed to delete calendar event:', err));
+        .catch(err => console.error('Failed to delete calendar event:', err));
     } else {
-        console.warn(`[VIP Cancel] Missing Google Calendar Event ID, Calendar ID, or bay for booking ${bookingId}, skipping calendar deletion. EventID: ${googleCalendarEventId}, CalendarID: ${googleCalendarId}, Bay: ${currentBooking.bay}`);
+        console.warn(`Missing calendar event details for booking ${bookingId}, skipping calendar deletion`);
     }
     
     // The triggerCalendarUpdateForCancel seems to be from the example, not used in current VIP logic.
@@ -312,7 +302,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     return NextResponse.json({ success: true, message: 'Booking cancelled successfully.', booking: cancelledBooking });
 
   } catch (error: any) {
-    console.error(`[VIP Cancel] Unexpected error for booking ${bookingId}:`, error);
+    console.error(`Unexpected error for booking ${bookingId}:`, error);
     return NextResponse.json({ error: 'An unexpected error occurred during cancellation.', details: error.message || String(error) }, { status: 500 });
   }
 }
