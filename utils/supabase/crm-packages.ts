@@ -1,5 +1,6 @@
 import { createCrmClient } from './crm';
 import { createServerClient } from './server';
+import { createClient } from '@supabase/supabase-js';
 
 // Types
 export interface CrmPackage {
@@ -216,7 +217,11 @@ async function getPackagesByStableHashId(stableHashId: string): Promise<CrmPacka
  */
 export async function syncPackagesForProfile(profileId: string): Promise<void> {
   try {
-    const supabase = createServerClient();
+    // Use service role client for admin operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
     
     let stableHashId: string | null = null;
     let attempts = 0;
@@ -289,82 +294,67 @@ export async function syncPackagesForProfile(profileId: string): Promise<void> {
     console.log(`[syncPackagesForProfile] Raw CRM packages for sync:`, JSON.stringify(rawCrmPackages, null, 2));
     
     if (rawCrmPackages.length > 0) {
-      // Map the rich CRM data to the staging table structure
-      // This mapping matches the logic from scripts/sync-packages.js
+      // Map the rich CRM data to the production table structure
       const packagesToUpsert = rawCrmPackages
         .filter((pkg: any) => {
           const expirationDate = pkg.expiration_date ? new Date(pkg.expiration_date) : null;
           return expirationDate && expirationDate > new Date();
         })
-        .map((pkg: any) => ({
-          // Basic fields - must match crm_packages schema
-          id: String(pkg.id),
-          profile_id: profileId,
-          crm_package_id: pkg.crm_package_id || pkg.id, // Assuming pkg.id is the CRM package's unique ID
-          stable_hash_id: stableHashId,
-          customer_name: pkg.customer_name || '',
-          
-          // Rich package information from CRM - exact mapping from sync-packages.js
-          package_name: pkg.package_name_from_def || null,
-          package_display_name: pkg.package_display_name_from_def || null,
-          package_type_name: pkg.package_type_from_def || null,
-          package_category: pkg.package_type_from_def || null,
-          total_hours: pkg.package_total_hours_from_def !== undefined ? pkg.package_total_hours_from_def : null,
-          pax: pkg.package_pax_from_def !== undefined ? pkg.package_pax_from_def : null,
-          validity_period_definition: pkg.package_validity_period_from_def || null,
-          
-          first_use_date: pkg.first_use_date || null,
-          expiration_date: pkg.expiration_date || null,
-          purchase_date: pkg.created_at_for_purchase_date || null, // Mapped from created_at_for_purchase_date
-          
-          remaining_hours: pkg.calculated_remaining_hours !== undefined ? pkg.calculated_remaining_hours : null, // Corrected source field
-          used_hours: pkg.calculated_used_hours !== undefined ? pkg.calculated_used_hours : null,
-          
-          // Audit timestamps for the crm_packages row itself
-          updated_at: new Date().toISOString(),
-          created_at: new Date().toISOString()
-        }));
+        .map((pkg: any) => {
+          return {
+            // Let PostgreSQL generate UUID automatically - remove id field
+            crm_package_id: String(pkg.id), // CRM's package ID
+            stable_hash_id: stableHashId,
+            customer_name: pkg.customer_name || '',
+            
+            // Rich package information from CRM - try multiple field name patterns
+            package_name: pkg.package_name_from_def || pkg.package_name || null,
+            package_display_name: pkg.package_display_name_from_def || pkg.package_display_name || null,
+            package_type_name: pkg.package_type_from_def || pkg.package_type_name || null,
+            package_category: pkg.package_type_from_def || pkg.package_category || null,
+            total_hours: pkg.package_total_hours_from_def !== undefined ? pkg.package_total_hours_from_def : pkg.total_hours,
+            pax: pkg.package_pax_from_def !== undefined ? pkg.package_pax_from_def : pkg.pax,
+            validity_period_definition: pkg.package_validity_period_from_def || pkg.validity_period_definition || null,
+            
+            first_use_date: pkg.first_use_date || null,
+            expiration_date: pkg.expiration_date || null,
+            purchase_date: pkg.created_at_for_purchase_date || pkg.purchase_date || null,
+            
+            remaining_hours: pkg.calculated_remaining_hours !== undefined ? pkg.calculated_remaining_hours : pkg.remaining_hours,
+            used_hours: pkg.calculated_used_hours !== undefined ? pkg.calculated_used_hours : pkg.used_hours,
+            
+            // Audit timestamps
+            updated_at: new Date().toISOString(),
+            created_at: new Date().toISOString()
+          };
+        });
 
       console.log(`[syncPackagesForProfile] Packages to upsert:`, JSON.stringify(packagesToUpsert, null, 2));
       
-      // Upsert packages - using production table
-      const { error: upsertError } = await supabase
+      // Delete existing packages for this stable_hash_id first to avoid conflicts
+      const { error: deleteError } = await supabase
         .from('crm_packages')
-        .upsert(packagesToUpsert, {
-          onConflict: 'id',
-          ignoreDuplicates: false
-        });
+        .delete()
+        .eq('stable_hash_id', stableHashId);
       
-      if (upsertError) {
-        console.error('Error upserting packages:', upsertError);
-      } else {
-        console.log(`[syncPackagesForProfile] Successfully synced ${packagesToUpsert.length} packages for stable_hash_id: ${stableHashId}`);
+      if (deleteError) {
+        console.error('Error clearing existing packages:', deleteError);
       }
-    }
 
-    // Delete any packages that are no longer valid - using production table
-    // (i.e., packages in our DB that weren't in the latest sync)
-    if (rawCrmPackages.length > 0) {
-      const validIds = rawCrmPackages
-        .filter((pkg: any) => {
-          const expirationDate = pkg.expiration_date ? new Date(pkg.expiration_date) : null;
-          return expirationDate && expirationDate > new Date();
-        })
-        .map((pkg: any) => String(pkg.id));
-        
-      if (validIds.length > 0) {
-        const { error: deleteError } = await supabase
+      // Insert new packages
+      if (packagesToUpsert.length > 0) {
+        const { error: insertError } = await supabase
           .from('crm_packages')
-          .delete()
-          .eq('stable_hash_id', stableHashId)
-          .not('id', 'in', `(${validIds.join(',')})`);
-
-        if (deleteError) {
-          console.error('Error cleaning up old packages:', deleteError);
+          .insert(packagesToUpsert);
+        
+        if (insertError) {
+          console.error('Error inserting packages:', insertError);
+        } else {
+          console.log(`[syncPackagesForProfile] Successfully synced ${packagesToUpsert.length} packages for stable_hash_id: ${stableHashId}`);
         }
       }
     } else {
-      // If no packages found, delete all packages for this stable_hash_id - using production table
+      // If no packages found, delete all packages for this stable_hash_id
       const { error: deleteError } = await supabase
         .from('crm_packages')
         .delete()
@@ -372,6 +362,8 @@ export async function syncPackagesForProfile(profileId: string): Promise<void> {
 
       if (deleteError) {
         console.error('Error deleting old packages:', deleteError);
+      } else {
+        console.log(`[syncPackagesForProfile] No active packages found, cleared all for stable_hash_id: ${stableHashId}`);
       }
     }
   } catch (error) {
