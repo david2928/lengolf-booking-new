@@ -260,15 +260,27 @@ async function syncPackagesToBookingDb(packages, mapping) {
     
     // Step 3: Insert all new packages
     const packagesToInsert = packages.map(pkg => ({
-      // Required fields for our schema
+      // Map all available fields from pkg (source) to target crm_packages schema
       stable_hash_id: mapping.stable_hash_id,
-      crm_package_id: pkg.crm_package_id || pkg.id,
-      first_use_date: pkg.first_use_date,
-      expiration_date: pkg.expiration_date,
-      remaining_hours: pkg.remaining_hours,
-      package_type_name: pkg.package_type_name,
-      // Other fields
+      crm_package_id: pkg.crm_package_id || pkg.id, // Assuming pkg.id is the CRM package's unique ID
       customer_name: pkg.customer_name || '',
+      
+      package_name: pkg.package_name_from_def || null,
+      package_display_name: pkg.package_display_name_from_def || null,
+      package_type_name: pkg.package_type_from_def || null,
+      package_category: pkg.package_type_from_def || null,
+      total_hours: pkg.package_total_hours_from_def !== undefined ? pkg.package_total_hours_from_def : null,
+      pax: pkg.package_pax_from_def !== undefined ? pkg.package_pax_from_def : null,
+      validity_period_definition: pkg.package_validity_period_from_def || null,
+      
+      first_use_date: pkg.first_use_date || null,
+      expiration_date: pkg.expiration_date || null,
+      purchase_date: pkg.created_at_for_purchase_date || null, // Mapped from created_at_for_purchase_date
+      
+      remaining_hours: pkg.calculated_remaining_hours !== undefined ? pkg.calculated_remaining_hours : null, // Corrected source field
+      used_hours: pkg.calculated_used_hours !== undefined ? pkg.calculated_used_hours : null,
+      
+      // created_at and updated_at for the crm_packages row itself (audit timestamps)
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }));

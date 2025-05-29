@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIP API Test Page</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h2 { border-bottom: 2px solid #3498db; padding-bottom: 10px; color: #2c3e50; }
+        .endpoint { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input[type="text"], input[type="number"], textarea {
+            width: calc(100% - 22px); padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;
+        }
+        button {
+            background-color: #3498db; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;
+        }
+        button:hover { background-color: #2980b9; }
+        pre { background-color: #ecf0f1; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; font-family: monospace; }
+        .error { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>VIP API Test Page</h1>
+        <p><strong>Important:</strong> Ensure you are logged into the application in another tab of this browser for authenticated requests to work.</p>
+
+        <!-- GET /api/vip/status -->
+        <div class="endpoint">
+            <h2>GET /api/vip/status</h2>
+            <button data-endpoint="/api/vip/status" data-method="GET" data-resultid="statusResult">Get Status</button>
+            <pre id="statusResult"></pre>
+        </div>
+
+        <!-- POST /api/vip/link-account -->
+        <div class="endpoint">
+            <h2>POST /api/vip/link-account</h2>
+            <label for="linkPhone">Phone Number:</label>
+            <input type="text" id="linkPhone" placeholder="e.g., 0812345678">
+            <button data-endpoint="/api/vip/link-account" data-method="POST" data-resultid="linkAccountResult" data-payload-input="linkPhone">Link Account</button>
+            <pre id="linkAccountResult"></pre>
+        </div>
+
+        <!-- GET /api/vip/profile -->
+        <div class="endpoint">
+            <h2>GET /api/vip/profile</h2>
+            <button data-endpoint="/api/vip/profile" data-method="GET" data-resultid="getProfileResult">Get Profile</button>
+            <pre id="getProfileResult"></pre>
+        </div>
+
+        <!-- PUT /api/vip/profile -->
+        <div class="endpoint">
+            <h2>PUT /api/vip/profile</h2>
+            <label for="profilePayload">JSON Payload:</label>
+            <textarea id="profilePayload" rows="5" placeholder='{ "vip_display_name": "New VIP Name", "vip_email": "new_vip@example.com", "vip_marketing_preference": false, "vip_phone_number": "08012345678" }'></textarea>
+            <button data-endpoint="/api/vip/profile" data-method="PUT" data-resultid="updateProfileResult" data-payload-textarea="profilePayload">Update Profile</button>
+            <pre id="updateProfileResult"></pre>
+        </div>
+
+        <!-- GET /api/vip/bookings -->
+        <div class="endpoint">
+            <h2>GET /api/vip/bookings</h2>
+            <label for="bookingsPage">Page (number):</label>
+            <input type="number" id="bookingsPage" value="1">
+            <label for="bookingsLimit">Limit (number):</label>
+            <input type="number" id="bookingsLimit" value="10">
+            <label for="bookingsFilter">Filter (all, future, past):</label>
+            <input type="text" id="bookingsFilter" value="all">
+            <button data-method="GET" data-resultid="getBookingsResult" id="getBookingsBtn">Get Bookings</button>
+            <pre id="getBookingsResult"></pre>
+        </div>
+
+        <!-- PUT /api/vip/bookings/{bookingId}/modify -->
+        <div class="endpoint">
+            <h2>POST /api/vip/bookings/{bookingId}/modify</h2>
+            <p style="color:orange;"><strong>Note:</strong> This endpoint will now perform a cancellation as per revised strategy.</p>
+            <label for="modifyBookingId">Booking ID:</label>
+            <input type="text" id="modifyBookingId" placeholder="Enter Booking ID">
+            <label for="modifyBookingPayload">Optional JSON Payload (for cancellation_reason):</label>
+            <textarea id="modifyBookingPayload" rows="3" placeholder='{ "cancellation_reason": "your reason here..." }'></textarea>
+            <button data-method="POST" data-resultid="modifyBookingResult" data-payload-textarea="modifyBookingPayload" id="modifyBookingBtn">Cancel Booking (Simulating Modify)</button>
+            <pre id="modifyBookingResult"></pre>
+        </div>
+
+        <!-- POST /api/vip/bookings/{bookingId}/cancel -->
+        <div class="endpoint">
+            <h2>POST /api/vip/bookings/{bookingId}/cancel</h2>
+            <label for="cancelBookingId">Booking ID:</label>
+            <input type="text" id="cancelBookingId" placeholder="Enter Booking ID">
+            <label for="cancelBookingPayload">Optional JSON Payload (for cancellation_reason):</label>
+            <textarea id="cancelBookingPayload" rows="3" placeholder='{ "cancellation_reason": "your reason here..." }'></textarea>
+            <button data-method="POST" data-resultid="cancelBookingResult" data-payload-textarea="cancelBookingPayload" id="cancelBookingBtn">Cancel Booking</button>
+            <pre id="cancelBookingResult"></pre>
+        </div>
+        
+        <!-- GET /api/vip/packages -->
+        <div class="endpoint">
+            <h2>GET /api/vip/packages</h2>
+            <button data-endpoint="/api/vip/packages" data-method="GET" data-resultid="getPackagesResult">Get Packages</button>
+            <pre id="getPackagesResult"></pre>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('button[data-endpoint], button[id]').forEach(button => {
+                button.addEventListener('click', async function() {
+                    const endpoint = this.dataset.endpoint;
+                    const method = this.dataset.method;
+                    const resultElementId = this.dataset.resultid;
+                    const payloadTextareaId = this.dataset.payloadTextarea;
+                    const payloadInputId = this.dataset.payloadInput;
+                    
+                    let actualEndpoint = endpoint;
+                    let body = null;
+
+                    const resultElement = document.getElementById(resultElementId);
+                    if (!resultElement) return;
+                    resultElement.textContent = 'Loading...';
+
+                    // Define the base URL for the Next.js API
+                    const nextApiBaseUrl = window.location.origin;
+
+                    // Special handling for dynamic endpoints or specific payload structures
+                    if (this.id === 'getBookingsBtn') {
+                        const page = document.getElementById('bookingsPage').value;
+                        const limit = document.getElementById('bookingsLimit').value;
+                        const filter = document.getElementById('bookingsFilter').value;
+                        actualEndpoint = `${nextApiBaseUrl}/api/vip/bookings?page=${page}&limit=${limit}&filter=${filter}`;
+                    } else if (this.id === 'modifyBookingBtn') {
+                        const bookingId = document.getElementById('modifyBookingId').value;
+                        if (!bookingId) {
+                            resultElement.innerHTML = '<span class="error">Error: Booking ID is required for modify/cancel.</span>';
+                            return;
+                        }
+                        actualEndpoint = `${nextApiBaseUrl}/api/vip/bookings/${bookingId}/modify`;
+                        // No body needed for the revised modify (cancel) operation
+                    } else if (this.id === 'cancelBookingBtn') {
+                        const bookingId = document.getElementById('cancelBookingId').value;
+                        if (!bookingId) {
+                            resultElement.innerHTML = '<span class="error">Error: Booking ID is required for cancel.</span>';
+                            return;
+                        }
+                        actualEndpoint = `${nextApiBaseUrl}/api/vip/bookings/${bookingId}/cancel`;
+                    } else if (endpoint) { // For buttons with data-endpoint
+                        actualEndpoint = nextApiBaseUrl + endpoint;
+                    }
+
+                    if (payloadTextareaId) {
+                        const textarea = document.getElementById(payloadTextareaId);
+                        if (textarea.value) {
+                            try {
+                                body = JSON.parse(textarea.value);
+                            } catch (e) {
+                                resultElement.innerHTML = `<span class="error">Invalid JSON in payload for ${payloadTextareaId}: ${e.message}</span>`;
+                                return;
+                            }
+                        }
+                    } else if (payloadInputId) {
+                        const inputElement = document.getElementById(payloadInputId);
+                        if (payloadInputId === 'linkPhone') {
+                            body = { phoneNumber: inputElement.value };
+                        }
+                    }
+
+                    try {
+                        const options = {
+                            method: method,
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include'
+                        };
+                        if (body && (method === 'POST' || method === 'PUT')) {
+                            options.body = JSON.stringify(body);
+                        }
+
+                        console.log(`Making ${method} request to: ${actualEndpoint}`); // Added console log
+
+                        const response = await fetch(actualEndpoint, options);
+                        const responseText = await response.text(); // Get response as text first
+                        
+                        console.log(`Response status: ${response.status}`); // Log status
+                        console.log(`Response text: ${responseText}`); // Log raw response text
+
+                        let data;
+                        try {
+                            data = JSON.parse(responseText); // Try to parse as JSON
+                        } catch (e) {
+                            // If parsing fails, it's likely the HTML error page or non-JSON response
+                            console.error('Failed to parse response as JSON:', e);
+                            console.error('Raw response causing parse error:', responseText);
+                            resultElement.innerHTML = `<span class="error">Fetch Error (Status ${response.status}): Failed to parse response. Check console for raw response.</span> <pre>${responseText.length > 500 ? responseText.substring(0,500) + '...' : responseText}</pre>`;
+                            return;
+                        }
+                        
+                        if (response.ok) {
+                            resultElement.innerHTML = `<span class="success">Success (Status ${response.status}):</span>\n${JSON.stringify(data, null, 2)}`;
+                        } else {
+                            resultElement.innerHTML = `<span class="error">Error (Status ${response.status}):</span>\n${JSON.stringify(data, null, 2)}`;
+                        }
+                    } catch (error) {
+                        console.error('API Call Error:', error);
+                        resultElement.innerHTML = `<span class="error">Fetch Error:</span> ${error.message}${(error.stack ? '\n<pre>' + error.stack + '</pre>' : '')}`;
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html> @

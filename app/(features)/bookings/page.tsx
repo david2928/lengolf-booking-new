@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { Layout } from './components/booking/Layout';
@@ -13,6 +13,8 @@ import { useBookingFlow } from './hooks/useBookingFlow';
 
 export default function BookingsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const { data: session, status } = useSession({
     required: false,
     onUnauthenticated() {

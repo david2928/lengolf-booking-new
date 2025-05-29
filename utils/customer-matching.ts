@@ -1,7 +1,21 @@
 import { createCrmClient } from './supabase/crm';
-import { createServerClient } from './supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { syncPackagesForProfile } from './supabase/crm-packages';
 import type { Database } from '@/types/supabase';
+
+// Create a dedicated Supabase client instance for admin operations within this module
+// This client will use the Service Role Key.
+const supabaseAdminClient = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!, // CRITICAL: Use the Service Role Key
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false
+    }
+  }
+);
 
 // Types
 export interface CrmCustomer {
@@ -27,6 +41,7 @@ export interface MatchResult {
   matched: boolean;
   confidence: number;
   crmCustomerId?: string;
+  stableHashId?: string;
   reasons?: string[];
 }
 
@@ -276,24 +291,40 @@ function calculateMatchConfidence(profile: Profile, customer: CrmCustomer): { co
  * This is the main function that should be called when a user logs in or makes a booking
  * Uses the exact same logic as the sync script
  */
-export async function matchProfileWithCrm(profileId: string): Promise<MatchResult | null> {
+export async function matchProfileWithCrm(
+  profileId: string,
+  options?: { phoneNumberToMatch?: string; source?: string }
+): Promise<MatchResult | null> {
+  const phoneNumberToMatch = options?.phoneNumberToMatch;
+  const source = options?.source || 'sync_script'; // Default source if not provided
+
   try {
     // Get the profile details
-    const supabase = createServerClient();
+    const supabase = supabaseAdminClient;
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, display_name, phone_number, email')
       .eq('id', profileId)
       .single();
-    
+
     if (profileError || !profile) {
-      console.error('Error fetching profile:', profileError);
+      console.error('Error fetching profile for matching:', profileError);
       return null;
     }
-    
-    // Skip profiles without any matching data
-    if (!profile.phone_number && !profile.email && !profile.name && !profile.display_name) {
-      console.log(`Profile ${profileId} has no data for matching`);
+
+    // Construct the profile object to be used for matching
+    // Use the provided phoneNumberToMatch if available, otherwise use the profile's phone number
+    const profileForMatching: Profile = {
+      id: profile.id,
+      name: profile.display_name,  // Use display_name as name
+      email: profile.email,
+      display_name: profile.display_name,
+      phone_number: phoneNumberToMatch || profile.phone_number, // Key change here
+    };
+
+    // Skip if no data for matching (considering profileForMatching)
+    if (!profileForMatching.phone_number && !profileForMatching.email && !profileForMatching.name && !profileForMatching.display_name) {
+      console.log(`Profile ${profileId} (using phone: ${profileForMatching.phone_number || 'N/A'}) has no data for matching for source: ${source}`);
       return null;
     }
     
@@ -323,7 +354,7 @@ export async function matchProfileWithCrm(profileId: string): Promise<MatchResul
         additional_data: rawCustomer // Store all raw data
       };
       
-      const matchResult = calculateMatchConfidence(profile, customer);
+      const matchResult = calculateMatchConfidence(profileForMatching, customer);
       
       if (!bestMatch || matchResult.confidence > bestMatch.confidence) {
         bestMatch = {
@@ -364,19 +395,18 @@ export async function matchProfileWithCrm(profileId: string): Promise<MatchResul
     if (isHighConfidence) {
       const now = new Date().toISOString();
 
-      // Create a descriptive match method based on the reasons
-      let matchMethod = 'sync_script';
-      if (bestMatch.reasons.length > 0) {
-        // Add the primary match reason
-        if (bestMatch.reasons.includes('exact_phone_match')) {
-          matchMethod += '_phone';
-        } else if (bestMatch.reasons.includes('exact_email_match')) {
-          matchMethod += '_email';
-        } else if (bestMatch.reasons.includes('exact_first_name_match') && bestMatch.reasons.includes('exact_last_name_match')) {
-          matchMethod += '_full_name';
-        } else if (bestMatch.reasons.includes('exact_first_name_match')) {
-          matchMethod += '_first_name';
-        }
+      // Create a descriptive match method based on the source and reasons
+      let matchMethod = source; // Start with the provided source
+      if (bestMatch.reasons.includes('exact_phone_match')) {
+        matchMethod += '_phone';
+      } else if (bestMatch.reasons.includes('exact_email_match')) {
+        matchMethod += '_email';
+      } else if (bestMatch.reasons.includes('exact_first_name_match') && bestMatch.reasons.includes('exact_last_name_match')) {
+        matchMethod += '_full_name';
+      } else if (bestMatch.reasons.includes('exact_first_name_match')) {
+        matchMethod += '_first_name';
+      } else if (bestMatch.reasons.length > 0) { // Fallback for other reasons
+        matchMethod += '_' + bestMatch.reasons[0];
       }
       
       try {
@@ -443,6 +473,7 @@ export async function matchProfileWithCrm(profileId: string): Promise<MatchResul
       matched: isHighConfidence,
       confidence: bestMatch.confidence,
       crmCustomerId: bestMatch.customer.id,
+      stableHashId: isHighConfidence ? bestMatch.customer.stable_hash_id : undefined,
       reasons: bestMatch.reasons
     };
     
@@ -477,7 +508,7 @@ export function normalizeCrmCustomerData(customerData: any): CrmCustomer | null 
  * Get the CRM customer mapped to a profile
  */
 export async function getCrmCustomerForProfile(profileId: string): Promise<CrmCustomer | null> {
-  const supabase = createServerClient();
+  const supabase = supabaseAdminClient;
   
   const { data, error } = await supabase
     .from('crm_customer_mapping')
@@ -526,7 +557,7 @@ export async function getOrCreateCrmMapping(
   } = options;
 
   try {
-    const supabase = createServerClient();
+    const supabase = supabaseAdminClient;
     
     console.log(`[CRM Mapping] Starting for profile ${profileId} (source: ${source})`);
     
@@ -578,7 +609,7 @@ export async function getOrCreateCrmMapping(
     try {
       // Race the matching process against the timeout
       const matchResult = await Promise.race([
-        matchProfileWithCrm(profileId),
+        matchProfileWithCrm(profileId, { source }), // Pass the source from getOrCreateCrmMapping's options
         timeoutPromise
       ]);
       
@@ -616,64 +647,81 @@ export async function getOrCreateCrmMapping(
         return {
           profileId,
           crmCustomerId: matchResult.crmCustomerId || '',
-          stableHashId: newMapping?.stable_hash_id || '',
+          stableHashId: matchResult.stableHashId || '',
           confidence: matchResult.confidence,
           isNewMatch: true
         };
       } else {
-        console.log('Profile could not be matched with CRM', {
+        console.log('[CRM Mapping] Profile could not be matched with CRM after attempt', {
           profileId,
           confidence: matchResult?.confidence || 0,
           reasons: matchResult?.reasons || []
         });
-      }
-    } catch (error) {
-      // Improved error handling - check for constraint and timeout errors
-      console.warn('Error during CRM matching', {
-        error: error instanceof Error 
-          ? { message: error.message, stack: error.stack, code: (error as any).code }
-          : error,
-        profileId
-      });
-      
-      // Always check if a mapping exists, regardless of the error type
-      try {
-        // Short delay to let any pending database operations complete
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Check for an existing mapping
-        const { data: existingMapping } = await supabase
+
+        // Check if ANY mapping (matched or placeholder) already exists
+        const { data: existingAnyMapping } = await supabase
           .from('crm_customer_mapping')
-          .select('stable_hash_id, crm_customer_id, match_confidence')
+          .select('id, is_matched') // Select enough to know if it exists and its state
           .eq('profile_id', profileId)
           .maybeSingle();
-          
-        if (existingMapping) {
-          console.info('Found existing mapping despite matching error', {
-            profileId,
-            crmCustomerId: existingMapping.crm_customer_id,
-            stableHashId: existingMapping.stable_hash_id
-          });
-          
-          return {
-            profileId,
-            crmCustomerId: existingMapping.crm_customer_id,
-            stableHashId: existingMapping.stable_hash_id || '',
-            confidence: existingMapping.match_confidence,
-            isNewMatch: false
+        
+        if (!existingAnyMapping) {
+          console.log(`[CRM Mapping] No mapping found for profile ${profileId}. Creating placeholder.`);
+          const now = new Date().toISOString();
+          const placeholderData = {
+            profile_id: profileId,
+            is_matched: false,
+            crm_customer_id: null,
+            stable_hash_id: null,
+            crm_customer_data: {},
+            match_method: `${source}_placeholder_no_match`,
+            match_confidence: 0,
+            created_at: now,
+            updated_at: now,
           };
+          const { error: placeholderError } = await supabase
+            .from('crm_customer_mapping')
+            .insert(placeholderData);
+          if (placeholderError) {
+            console.error('[CRM Mapping] Failed to create placeholder (no match path):', placeholderError);
+          } else {
+            console.log(`[CRM Mapping] Placeholder created for profile ${profileId} (no match path).`);
+          }
         } else {
-          console.warn('No mapping found after error recovery attempt');
+          console.log(`[CRM Mapping] Existing mapping found (is_matched: ${existingAnyMapping.is_matched}) for profile ${profileId}. Placeholder creation skipped.`);
         }
-      } catch (recoveryError) {
-        console.error('Error in recovery attempt', {
-          error: recoveryError,
-          profileId
-        });
+        return null; // No active match was made
       }
+    } catch (error) {
+      console.warn('[CRM Mapping] Error during CRM matching (Promise.race catch):', {
+        error: error instanceof Error ? { message: error.message, name: error.name } : error,
+        profileId,
+        source
+      });
+
+      // Check if ANY mapping exists. If not, create placeholder as a fallback.
+      const { data: recoveryMappingCheck } = await supabase
+          .from('crm_customer_mapping')
+          .select('id')
+          .eq('profile_id', profileId)
+          .maybeSingle();
+
+      if (!recoveryMappingCheck) {
+          console.log(`[CRM Mapping] No mapping found for profile ${profileId} after error/timeout. Creating placeholder.`);
+          const now = new Date().toISOString();
+          const placeholderDataOnError = {
+            profile_id: profileId, is_matched: false, crm_customer_id: null, stable_hash_id: null,
+            crm_customer_data: {}, match_method: `${source}_placeholder_on_error`, match_confidence: 0,
+            created_at: now, updated_at: now,
+          };
+          await supabase.from('crm_customer_mapping').insert(placeholderDataOnError)
+            .then(response => {
+              if (response.error) console.error('[CRM Mapping] Placeholder creation on error/timeout failed:', response.error);
+              else console.log(`[CRM Mapping] Placeholder created on error/timeout for profile ${profileId}`);
+            });
+      }
+      return null; // No active match confirmed due to error
     }
-    
-    return null;
   } catch (error) {
     console.error('Unexpected error in getOrCreateCrmMapping', {
       error: error instanceof Error 

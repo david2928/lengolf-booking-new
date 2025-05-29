@@ -166,21 +166,21 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
 
             <div>
               <h4 className="font-medium text-gray-900 mb-2">Need to Modify or Cancel?</h4>
-              <p className="text-gray-600 mb-2">Contact us through any of these channels:</p>
-              <ul className="list-none space-y-2 text-gray-600">
-                <li className="flex items-center">
-                  <EnvelopeIcon className="h-5 w-5 text-green-600 mr-2" />
-                  <a href="mailto:info@len.golf" className="text-green-600 hover:text-green-700">info@len.golf</a>
-                </li>
-                <li className="flex items-center">
-                  <i className="fab fa-line text-xl text-green-600 mr-2"></i>
-                  <span>LINE: <a href="https://lin.ee/uxQpIXn" className="text-green-600 hover:text-green-700">@lengolf</a></span>
-                </li>
-                <li className="flex items-center">
-                  <PhoneIcon className="h-5 w-5 text-green-600 mr-2" />
-                  <a href="tel:+66966682335" className="text-green-600 hover:text-green-700">+66 96-668-2335</a>
-                </li>
-              </ul>
+              <p className="text-gray-600 mb-3">You can now manage your bookings online through your account:</p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center">
+                  <div className="bg-green-100 p-2 rounded-full mr-3">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-green-800 font-medium">Manage Your Bookings Online</p>
+                    <p className="text-green-700 text-sm">Visit your <a href="/vip/bookings" className="underline font-medium">My Bookings</a> page to modify or cancel reservations.</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-500 text-sm mt-3">You can also contact us directly if you need assistance.</p>
             </div>
           </div>
         </div>

@@ -394,4 +394,92 @@ node scripts/send-test-review-request.js --provider=email --to=user@example.com 
 
 # Send a test LINE review request
 node scripts/send-test-review-request.js --provider=line --to=Uf4177a1781df7fd215e6d2749fd00296 --name="Jane Smith"
-``` 
+```
+
+## Performance Optimizations
+
+### VIP Navigation Performance
+Recent optimizations have been implemented to improve the "My Account" navigation speed:
+
+#### Implemented Optimizations:
+1. **VIP Profile Caching** - 3-minute cache to prevent redundant API calls
+2. **Database Query Optimization** - Single JOIN query instead of multiple round-trips
+3. **Route Prefetching** - VIP routes prefetched on hover for instant navigation
+4. **Cache Warming** - VIP profile fetched proactively on page load
+5. **Performance Monitoring** - API timing logs to track slow requests
+
+#### Performance Monitoring:
+- Slow API calls (>1000ms) are logged as warnings
+- Development mode shows all API timing for debugging
+- Check browser console for `[VIP API Performance]` logs
+
+#### Cache Configuration:
+- VIP Profile Cache: 3 minutes
+- VIP Status Cache: 5 minutes
+- Automatic cache invalidation on user change
+
+#### For Developers:
+- Use `refetchVipProfile()` to force cache refresh
+- Monitor console for performance warnings
+- Consider database indexing if API calls remain slow 
+
+## Environment Variables by Deployment Branch
+
+### Development Environment
+- `NEXT_PUBLIC_APP_URL`: `http://localhost:3000`
+- All other variables should be set in `.env.local`
+
+### Preview/Staging Environment (Vercel Preview Deployments)
+- `NEXT_PUBLIC_APP_URL`: Uses `https://$VERCEL_URL` (automatically set by Vercel)
+- Other variables can be set in Vercel Dashboard under "Preview" environment
+
+### Production Environment
+- `NEXT_PUBLIC_APP_URL`: `https://len.golf`
+- Variables should be set in Vercel Dashboard under "Production" environment
+
+### Setting Environment Variables in Vercel
+
+1. Go to your Vercel project dashboard
+2. Navigate to Settings → Environment Variables
+3. Set variables for specific environments:
+   - **Development**: Variables used when running `vercel dev`
+   - **Preview**: Variables used for preview deployments (feature branches)
+   - **Production**: Variables used for production deployments (main branch)
+
+### Required Environment Variables
+
+#### Email Configuration
+- `EMAIL_HOST`: SMTP server host (default: 27.254.86.99)
+- `EMAIL_PORT`: SMTP server port (default: 587)
+- `EMAIL_USER`: SMTP username
+- `EMAIL_PASSWORD`: SMTP password
+- `EMAIL_FROM`: From email address (default: notification@len.golf)
+
+#### Supabase Configuration
+- `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase anonymous key
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key
+
+#### NextAuth Configuration
+- `NEXTAUTH_SECRET`: Secret for NextAuth.js
+- `NEXTAUTH_URL`: Application URL (should match NEXT_PUBLIC_APP_URL)
+
+### Branch-Specific Deployments
+
+When deploying different branches, you can:
+
+1. **Use different Supabase projects** for staging vs production
+2. **Set different email configurations** for testing vs production
+3. **Configure different LINE notification endpoints** per environment
+
+### Example: Setting up staging environment
+
+1. Create a staging Supabase project
+2. Set preview environment variables in Vercel:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://your-staging-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-staging-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-staging-service-key
+   EMAIL_USER=staging-email@example.com
+   EMAIL_PASSWORD=staging-password
+   ``` 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { createServerClient } from '@/utils/supabase/server';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
 import { parse, addHours, addMinutes } from 'date-fns';
@@ -12,6 +13,26 @@ import { calendar } from '@/lib/googleApiConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { nextTick } from 'node:process';
 import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
+
+// Create a dedicated Supabase client instance for admin operations within this route
+// This client will use the Service Role Key.
+let supabaseAdminClient: SupabaseClient<Database> | null = null;
+const getSupabaseAdminClient = () => {
+  if (!supabaseAdminClient) {
+    supabaseAdminClient = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!, // CRITICAL: Use the Service Role Key
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false
+        }
+      }
+    );
+  }
+  return supabaseAdminClient;
+};
 
 const TIMEZONE = 'Asia/Bangkok';
 
@@ -52,23 +73,28 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
   // If we have a stable hash ID, try to get package info
   if (stableHashId) {
     try {
-      const supabase = createServerClient();
-      const { data: packages } = await supabase
+      const supabase = getSupabaseAdminClient();
+      const { data: packages, error: packagesError } = await supabase
         .from('crm_packages')
         .select('*')
         .eq('stable_hash_id', stableHashId)
-        .gte('expiration_date', new Date().toISOString().split('T')[0]) // Only active packages
-        .order('expiration_date', { ascending: true });
+        .eq('status', 'active');
       
       if (packages && packages.length > 0) {
         // Filter out coaching packages
         const nonCoachingPackages = packages.filter((pkg: any) => 
-          !pkg.package_type_name.toLowerCase().includes('coaching')
+          !pkg.package_type_name?.toLowerCase().includes('coaching') && 
+          !pkg.package_category?.toLowerCase().includes('coaching')
         );
         
         if (nonCoachingPackages.length > 0) {
           const activePackage = nonCoachingPackages[0];
-          packageInfo = `Package (${activePackage.package_type_name})`;
+          // Use package_name which contains the full descriptive name like "Gold (30H)"
+          const packageName = activePackage.package_name || 
+                             activePackage.package_display_name || 
+                             activePackage.package_type_name || 
+                             'Package';
+          packageInfo = `Package (${packageName})`;
         }
       }
     } catch (error) {
@@ -82,21 +108,19 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
 // Helper function to send notifications
 async function sendNotifications(formattedData: any, booking: any, bayDisplayName: string, crmCustomerId?: string, stableHashId?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // const internalApiBasePath = ''; // No longer using relative paths for internal calls
   
-  // Start both notifications in parallel using our utility
   const notificationTasks = [
     // Email notification
     async () => {
       try {
-        // ALWAYS use booking name for email notification recipient name
+        console.log('[CreateBooking Email Notify Task] Starting email notification task.');
         const userName = booking.name;
-        
-        // For email subject, use CRM customer name unless it's a new customer
         const subjectName = crmCustomerId ? (formattedData.customerName || booking.name) : booking.name;
         
         const emailData = {
           userName,
-          subjectName, // Add subject name separately for email subject
+          subjectName,
           email: formattedData.email || booking.email,
           date: formattedData.formattedDate || booking.date,
           startTime: booking.start_time,
@@ -110,28 +134,38 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
           skipCrmMatch: true,
           packageInfo,
           standardizedData: formattedData,
-          customerNotes
+          customerNotes,
+          bookingId: booking.id
         };
+
+        console.log('[CreateBooking Email Notify Task] Prepared emailData:', JSON.stringify(emailData, null, 2));
         
         const response = await fetch(`${baseUrl}/api/notifications/email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(emailData),
         });
-        return response;
+
+        console.log(`[CreateBooking Email Notify Task] Response status from /api/notifications/email: ${response.status}`);
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`[CreateBooking Email Notify Task] Error from /api/notifications/email: ${response.status}`, errorBody);
+          // Throw an error to be caught by executeParallel or handled in its .then()
+          throw new Error(`Email notification failed: ${response.status} - ${errorBody}`);
+        }
+        return response; // Return the original Response object on success
       } catch (error) {
-        console.error('Error sending email notification:', error);
-        return null;
+        console.error('[CreateBooking Email Notify Task] Error sending email notification:', error);
+        // Throw the error to be handled by executeParallel
+        throw error;
       }
     },
     
     // LINE notification
     async () => {
       try {
-        // Use customerName from formattedData with fallbacks
+        console.log('[CreateBooking LINE Notify Task] Starting LINE notification task.');
         const customerNameForLine = formattedData.customerName || booking.name;
-        
-        // Always use "New Customer" for unmatched customers
         const lineCustomerName = crmCustomerId ? customerNameForLine : "New Customer";
         
         const lineData = {
@@ -151,18 +185,32 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
           skipCrmMatch: true,
           packageInfo,
           standardizedData: formattedData,
-          customerNotes
+          customerNotes,
+          bookingId: booking.id
         };
+        
+        console.log('[CreateBooking LINE Notify Task] Prepared lineData:', JSON.stringify(lineData, null, 2));
         
         const response = await fetch(`${baseUrl}/api/notifications/line`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(lineData),
         });
-        return response;
+
+        console.log(`[CreateBooking LINE Notify Task] Response status from /api/notifications/line: ${response.status}`);
+        
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`[CreateBooking LINE Notify Task] Error from /api/notifications/line: ${response.status}`, errorBody);
+          // Throw an error to be caught by executeParallel or handled in its .then()
+          throw new Error(`LINE notification failed: ${response.status} - ${errorBody}`);
+        }
+        return response; // Return the original Response object on success
+
       } catch (error) {
-        console.error('Error sending LINE notification:', error);
-        return null;
+        console.error('[CreateBooking LINE Notify Task] Error sending LINE notification:', error);
+        // Throw the error to be handled by executeParallel
+        throw error;
       }
     }
   ];
@@ -170,8 +218,20 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
   // Return the promise for all notifications completing
   return executeParallel(notificationTasks, { timeout: 10000 })
     .then(results => {
-      console.log('All notifications sent');
-      return { success: true, results };
+      console.log('All notification tasks attempted. Results count:', results.length);
+      results.forEach((result, index) => {
+        if (result instanceof Error) {
+          console.warn(`[CreateBooking Notify Task ${index === 0 ? 'Email' : 'LINE'}] Task failed:`, result.message);
+        } else if (result && !result.ok) {
+          // This case might be redundant if !response.ok throws an error, but good for safety
+          console.warn(`[CreateBooking Notify Task ${index === 0 ? 'Email' : 'LINE'}] Task HTTP error: Status ${result.status}`);
+        } else {
+          console.log(`[CreateBooking Notify Task ${index === 0 ? 'Email' : 'LINE'}] Task completed, status: ${result?.status}`);
+        }
+      });
+      // Determine overall success based on whether any task threw an error or returned a non-ok response
+      const allSucceeded = results.every(result => !(result instanceof Error) && result?.ok);
+      return { success: allSucceeded, results };
     })
     .catch(error => {
       console.error('Error sending notifications:', error);
@@ -200,7 +260,7 @@ async function logBookingProcessStep({
   if (!ENABLE_DETAILED_LOGGING) return;
 
   try {
-    const supabase = createServerClient();
+    const supabase = getSupabaseAdminClient();
     await supabase
       .from('booking_process_logs')
       .insert({
@@ -269,7 +329,8 @@ export async function POST(request: NextRequest) {
       start_time,
       duration,
       number_of_people,
-      customer_notes
+      customer_notes,
+      stable_hash_id: clientSentStableHashId
     } = await request.json();
 
     // Validate required fields
@@ -298,7 +359,7 @@ export async function POST(request: NextRequest) {
     const endDateTime = addHours(startDateTime, duration);
     logTiming('Date parsing', 'success');
 
-    // 4. Get base URL for API calls
+    // Get base URL for API calls that might be used outside sendNotifications if any
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     // 5. Run bay availability check and CRM matching in parallel
@@ -359,15 +420,12 @@ export async function POST(request: NextRequest) {
         
         try {
           // First check for existing mapping
-          const supabase = createServerClient();
+          const supabase = getSupabaseAdminClient();
           const { data: mapping, error: mappingError } = await supabase
             .from('crm_customer_mapping')
-            .select('crm_customer_id, stable_hash_id, crm_customer_data')
-            .eq('profile_id', token.sub)
-            .eq('is_matched', true)
-            .order('match_confidence', { ascending: false })
-            .order('updated_at', { ascending: false })
-            .maybeSingle();
+            .select('*')
+            .eq('profile_id', userId)
+            .single();
           
           if (mappingError) {
             console.error('Error checking for CRM mapping:', mappingError);
@@ -376,7 +434,7 @@ export async function POST(request: NextRequest) {
           
           if (mapping) {
             return {
-              profileId: token.sub,
+              profileId: userId,
               crmCustomerId: mapping.crm_customer_id,
               stableHashId: mapping.stable_hash_id,
               crmCustomerData: mapping.crm_customer_data,
@@ -385,7 +443,7 @@ export async function POST(request: NextRequest) {
           }
           
           // If no mapping found, try creating one
-          return await getOrCreateCrmMapping(token.sub, { source: 'booking' });
+          return await getOrCreateCrmMapping(userId, { source: 'booking' });
         } catch (error) {
           console.error('Error in CRM mapping:', error);
           return null;
@@ -421,33 +479,82 @@ export async function POST(request: NextRequest) {
 
     // 7. Handle CRM matching result
     let crmCustomerId = null;
-    let stableHashId = null;
+    let stableHashId: string | null = null;
     let crmCustomerData = null;
     let customerName = null;
     let isNewCustomer = true; // Flag to identify new customers
 
     if (crmMappingResult) {
-      if ('crmCustomerId' in crmMappingResult) {
-        crmCustomerId = crmMappingResult.crmCustomerId;
-        stableHashId = crmMappingResult.stableHashId;
-        isNewCustomer = false; // Customer exists in CRM system
+      // Explicitly type crmMappingResult for clarity if not already strongly typed
+      const typedCrmMappingResult = crmMappingResult as ({ profileId: string; crmCustomerId: string; stableHashId: string; crmCustomerData?: any; isNewMatch: boolean; } | null);
+      
+      if (typedCrmMappingResult && typedCrmMappingResult.crmCustomerId) { // Check for crmCustomerId to ensure it's a full match object
+        crmCustomerId = typedCrmMappingResult.crmCustomerId;
+        stableHashId = typedCrmMappingResult.stableHashId; // This is the CRM-derived stableHashId
+        isNewCustomer = typedCrmMappingResult.isNewMatch; // isNewMatch is more accurate than just setting to false
         
-        // Extract CRM customer data if available
-        if ('crmCustomerData' in crmMappingResult && crmMappingResult.crmCustomerData) {
-          crmCustomerData = crmMappingResult.crmCustomerData;
-          
-          // Normalize the customer data
+        if (typedCrmMappingResult.crmCustomerData) {
+          crmCustomerData = typedCrmMappingResult.crmCustomerData;
           const normalizedCrmData = normalizeCrmCustomerData(crmCustomerData);
-          
           if (normalizedCrmData?.name) {
             customerName = normalizedCrmData.name;
           }
         }
       }
     }
+    logTiming('CRM data processing', 'success', { crmCustomerIdObtained: !!crmCustomerId, stableHashIdObtained: !!stableHashId });
+
+    // --- BEGIN: Propagation of CRM-derived stable_hash_id to profile links (idempotent) ---
+    if (stableHashId && crmCustomerId) { // Only if we have a definitive CRM link and stable_hash_id from CRM
+      try {
+        const supabase = getSupabaseAdminClient(); // Ensure client is initialized for this scope
+        await supabase
+          .from('crm_customer_mapping')
+          .upsert({
+            profile_id: userId, // userId is token.sub, defined earlier
+            crm_customer_id: crmCustomerId,
+            stable_hash_id: stableHashId,
+            is_matched: true,
+            match_method: 'booking_creation_sync',
+            match_confidence: (crmMappingResult as any)?.confidence || 1,
+          }, { onConflict: 'profile_id' })
+          .select();
+        logTiming('UpsertedCrmCustomerMapping', 'info', { userId, stableHashId });
+
+        const { data: profile, error: profileError } = await supabase // Use the scoped supabase client
+          .from('profiles')
+          .select('display_name, phone_number, email')
+          .eq('id', userId)
+          .single();
+
+        if (profile?.display_name) {
+          await supabase // Use the scoped supabase client
+            .from('profiles')
+            .update({ stable_hash_id: stableHashId })
+            .eq('id', userId)
+            .select();
+          logTiming('UpdatedProfilesStableHashId', 'info', { userId, stableHashId });
+        }
+        
+        // Give the database a moment to propagate the changes before querying
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (propagationError) {
+        console.error('[CreateBooking API] Error propagating stable_hash_id to profile links:', propagationError);
+        logTiming('PropagationErrorStableHashId', 'error', { userId, error: (propagationError as Error).message });
+      }
+    }
+    // --- END: Propagation logic ---
+
+    // Determine the final stable_hash_id to be saved with the booking
+    // Prioritize server-derived (CRM-verified) stableHashId
+    const finalStableHashIdForBooking = stableHashId || clientSentStableHashId || null;
+    
+    // Log what stable_hash_id we're actually using for the booking
+    console.log(`[CreateBooking API] Final stable_hash_id for booking: ${finalStableHashIdForBooking} (server-derived: ${stableHashId}, client-sent: ${clientSentStableHashId})`);
 
     // 8. Create booking record in Supabase
-    const supabase = createServerClient();
+    const supabase = getSupabaseAdminClient();
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
@@ -462,7 +569,8 @@ export async function POST(request: NextRequest) {
         customer_notes,
         user_id: token.sub,
         bay: availableBay,
-        status: 'confirmed'
+        status: 'confirmed',
+        stable_hash_id: finalStableHashIdForBooking
       })
       .select()
       .single();
@@ -480,7 +588,7 @@ export async function POST(request: NextRequest) {
     
     // Update bookingId once we have it
     bookingId = booking.id;
-    logTiming('Booking record creation', 'success', { bookingId });
+    logTiming('Booking record creation', 'success', { bookingId, stable_hash_id: finalStableHashIdForBooking });
 
     // If we don't have a customer name from CRM, use the booking name
     if (!customerName) {
@@ -488,7 +596,8 @@ export async function POST(request: NextRequest) {
     }
     
     // Get package info using the centralized function
-    const packageInfo = await getPackageInfo(stableHashId);
+    // Pass the stableHashId we know to be correct to avoid re-querying
+    const packageInfo = await getPackageInfo(finalStableHashIdForBooking);
     logTiming('Customer data lookup', 'success');
 
     // Now log detailed CRM customer match information after package info is available
@@ -578,7 +687,7 @@ export async function POST(request: NextRequest) {
       booking,
       bayDisplayName,
       crmCustomerId || undefined,
-      stableHashId || undefined,
+      finalStableHashIdForBooking || undefined,
       packageInfo,
       customer_notes
     );
@@ -692,24 +801,28 @@ export async function POST(request: NextRequest) {
           }];
           
           // Update booking with the new calendar_events field
-          supabase
+          console.log(`[Booking Create API - Async] Attempting to update booking ${bookingToUpdateId} with calendar_events:`, newCalendarEventsEntry);
+          getSupabaseAdminClient()
             .from('bookings')
-            .update({ calendar_events: newCalendarEventsEntry }) // Update calendar_events
-            .eq('id', bookingToUpdateId) // Essential: target the correct booking
-            .then(({ error: updateError }) => { // Destructure error from the promise result
+            .update({ 
+              calendar_events: newCalendarEventsEntry,
+              status: 'confirmed'
+            })
+            .eq('id', bookingToUpdateId)
+            .then(response => { // Directly use the response object from Supabase
+              const { error: updateError, data: updateData } = response;
               if (updateError) {
-                console.error(`[Booking Create API - Async] Failed to update booking ${bookingToUpdateId} with calendar_events ${JSON.stringify(newCalendarEventsEntry)}:`, updateError);
-                // Log the error to booking_process_logs if needed
+                console.error(`[Booking Create API - Async] Failed to update booking ${bookingToUpdateId} with calendar_events. Error:`, JSON.stringify(updateError, null, 2), "Payload:", newCalendarEventsEntry);
                 if (ENABLE_DETAILED_LOGGING && userId) {
-                     logBookingProcessStep({
-                        bookingId: bookingToUpdateId,
-                        userId,
-                        step: 'Update booking with calendar_events', // Updated step name
-                        status: 'error',
-                        durationMs: 0, // Duration isn't tracked precisely here
-                        totalDurationMs: Date.now() - apiStartTime,
-                        metadata: { error: updateError.message, eventDetails: newCalendarEventsEntry }
-                    });
+                  logBookingProcessStep({
+                    bookingId: bookingToUpdateId,
+                    userId,
+                    step: 'Update booking with calendar_events',
+                    status: 'error',
+                    durationMs: 0,
+                    totalDurationMs: Date.now() - apiStartTime,
+                    metadata: { error: updateError.message, eventDetails: newCalendarEventsEntry }
+                  });
                 }
               } else {
                 console.log(`[Booking Create API - Async] Successfully updated booking ${bookingToUpdateId} with calendar_events ${JSON.stringify(newCalendarEventsEntry)}`);
@@ -718,9 +831,9 @@ export async function POST(request: NextRequest) {
                   logBookingProcessStep({
                     bookingId: bookingToUpdateId,
                     userId,
-                    step: 'Calendar creation completed & booking updated with calendar_events', // Updated step name
+                    step: 'Calendar creation completed & booking updated with calendar_events',
                     status: 'success',
-                    durationMs: data.processingTime || 0, // From calendar API response
+                    durationMs: data.processingTime || 0,
                     totalDurationMs: Date.now() - apiStartTime,
                     metadata: {
                       calendarEvents: newCalendarEventsEntry,
@@ -737,7 +850,7 @@ export async function POST(request: NextRequest) {
                 logBookingProcessStep({
                     bookingId: booking.id,
                     userId,
-                    step: 'Update booking with calendar_event_id', // This log can remain or be updated
+                    step: 'Update booking with calendar_event_id',
                     status: 'error',
                     durationMs: 0,
                     totalDurationMs: Date.now() - apiStartTime,
@@ -746,11 +859,11 @@ export async function POST(request: NextRequest) {
             }
         }
       })
-      .catch(error => {
-        console.error('Error in calendar creation:', error);
+      .catch(calendarApiError => {
+        console.error(`[Booking Create API - Async] Google Calendar API call failed for booking ${booking.id}. Error:`, calendarApiError instanceof Error ? calendarApiError.message : JSON.stringify(calendarApiError), "Request Data Sent:", calendarData );
         
         // Log calendar creation error
-        if (ENABLE_DETAILED_LOGGING) {
+        if (ENABLE_DETAILED_LOGGING && userId) {
           logBookingProcessStep({
             bookingId: booking.id,
             userId,
@@ -759,7 +872,7 @@ export async function POST(request: NextRequest) {
             durationMs: 0,
             totalDurationMs: Date.now() - apiStartTime,
             metadata: {
-              error: error.message
+              error: calendarApiError instanceof Error ? calendarApiError.message : JSON.stringify(calendarApiError)
             }
           });
         }
@@ -770,7 +883,7 @@ export async function POST(request: NextRequest) {
     if (isNewCustomer && token.sub) {
       try {
         // Check if a review request has already been successfully sent to this user
-        const { data: existingSentRequest, error: sentCheckError } = await supabase
+        const { data: existingSentRequest, error: sentCheckError } = await getSupabaseAdminClient()
           .from('scheduled_review_requests')
           .select('id')
           .eq('user_id', token.sub)
@@ -798,9 +911,9 @@ export async function POST(request: NextRequest) {
         } else {
           // Proceed with scheduling if no prior 'sent' survey
           // Check if this is a LINE user by examining the profile
-          const { data: profile, error: profileError } = await supabase // Added error capture for profile fetch
+          const { data: profile, error: profileError } = await getSupabaseAdminClient()
             .from('profiles')
-            .select('provider, provider_id')
+            .select('display_name, phone_number, email')
             .eq('id', token.sub)
             .single();
 
@@ -813,12 +926,12 @@ export async function POST(request: NextRequest) {
             // throw new Error('Failed to fetch user profile for review request'); // Or handle differently
           } else {
             // Determine the notification provider (LINE or email)
-            const provider = profile?.provider === 'line' ? 'line' : 'email';
+            const provider = profile?.display_name === 'LINE' ? 'line' : 'email';
             
             // Get the appropriate contact info based on the provider
-            // For LINE users, use provider_id (LINE user ID) instead of user_id
+            // For LINE users, use phone_number (LINE user ID) instead of email
             const contactInfo = provider === 'line' 
-              ? profile?.provider_id || '' // Use LINE provider_id
+              ? profile?.phone_number || '' // Use LINE phone_number
               : booking.email;             // Use booking email for non-LINE users
             
             // Make sure we have valid contact info

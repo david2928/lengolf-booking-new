@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { format, addHours } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
+import type { Database } from '@/types/supabase';
 import { useRouter } from 'next/navigation';
-import { User } from '@supabase/supabase-js';
+import { User, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { v4 as uuidv4 } from 'uuid';
@@ -112,6 +113,7 @@ export function BookingDetails({
   const router = useRouter();
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
   const [duration, setDuration] = useState<number>(1);
+  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
   const [email, setEmail] = useState('');
@@ -121,6 +123,7 @@ export function BookingDetails({
   const [loadingStep, setLoadingStep] = useState(0);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
   const [customerNotes, setCustomerNotes] = useState('');
+  const [vipDataPrepopulated, setVipDataPrepopulated] = useState(false);
   const [errors, setErrors] = useState({
     duration: '',
     phoneNumber: '',
@@ -144,53 +147,166 @@ export function BookingDetails({
   }, [status, router]);
 
   useEffect(() => {
+    // Enhanced logging for session and accessToken
+    console.log("[BookingDetails SupabaseSetupEffect] Status:", status);
+    if (session) {
+      console.log("[BookingDetails SupabaseSetupEffect] Session object:", JSON.stringify(session, null, 2));
+      console.log("[BookingDetails SupabaseSetupEffect] Session Access Token for Supabase:", session.accessToken);
+    } else {
+      console.log("[BookingDetails SupabaseSetupEffect] No session object.");
+    }
+
+    const client = createClient(); // Get the singleton instance from '@/utils/supabase/client'
+
+    const setupSupabaseAuth = async () => {
+      if (session?.accessToken) {
+        console.log("[BookingDetails SupabaseSetupEffect] Setting Supabase client auth WITH session.accessToken:", session.accessToken);
+        await client.auth.setSession({ 
+          access_token: session.accessToken,
+          refresh_token: '' // Provide an empty string for the required refresh_token field
+        });
+      } else {
+        console.log("[BookingDetails SupabaseSetupEffect] No session.accessToken. Signing out Supabase client to ensure anon state.");
+        // Use signOut() to clear the session on the client instance and revert to anon.
+        await client.auth.signOut();
+      }
+      setSupabase(client);
+    };
+
+    if (status !== 'loading') { // Only run if session status is determined
+      setupSupabaseAuth();
+    } else {
+      console.log("[BookingDetails SupabaseSetupEffect] Supabase client setup deferred as session status is loading.");
+    }
+  }, [session, status]);
+
+  // Fetch VIP profile data when authenticated
+  useEffect(() => {
+    const fetchVipProfile = async () => {
+      if (status === 'authenticated' && session?.user?.id && !vipDataPrepopulated) {
+        console.log("[BookingDetails VIP Profile] Fetching VIP profile data for user:", session.user.id);
+        
+        try {
+          // Try to get cached VIP profile data first from context
+          // This would require access to VIP context which isn't available here
+          // So let's check for cached data in sessionStorage as a fallback
+          const cachedVipProfileKey = `vip_profile_${session.user.id}`;
+          const cachedVipProfile = sessionStorage.getItem(cachedVipProfileKey);
+          
+          let vipProfile = null;
+          
+          if (cachedVipProfile) {
+            try {
+              const parsedCached = JSON.parse(cachedVipProfile);
+              const cacheAge = Date.now() - (parsedCached.timestamp || 0);
+              const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+              
+              if (cacheAge < CACHE_EXPIRY_MS) {
+                vipProfile = parsedCached.data;
+                console.log("[BookingDetails VIP Profile] Using cached VIP profile data (age:", cacheAge, "ms)");
+              }
+            } catch (e) {
+              console.warn("[BookingDetails VIP Profile] Invalid cached data, will fetch fresh");
+            }
+          }
+          
+          // If no valid cached data, fetch from API
+          if (!vipProfile) {
+            console.log("[BookingDetails VIP Profile] Fetching fresh VIP profile data from API");
+            const response = await fetch('/api/vip/profile', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+
+            if (response.ok) {
+              vipProfile = await response.json();
+              
+              // Cache the result
+              sessionStorage.setItem(cachedVipProfileKey, JSON.stringify({
+                data: vipProfile,
+                timestamp: Date.now()
+              }));
+              console.log("[BookingDetails VIP Profile] Cached fresh VIP profile data");
+            } else if (response.status === 401) {
+              console.log("[BookingDetails VIP Profile] User not authorized for VIP profile - will fall back to session data");
+              return;
+            } else {
+              console.warn("[BookingDetails VIP Profile] Failed to fetch VIP profile:", response.status, response.statusText);
+              return;
+            }
+          }
+          
+          if (vipProfile) {
+            console.log("[BookingDetails VIP Profile] VIP profile data received:", vipProfile);
+            
+            // Prepopulate form with VIP data if available and valid
+            if (vipProfile.name) {
+              setName(vipProfile.name);
+              console.log("[BookingDetails VIP Profile] Set name from VIP profile:", vipProfile.name);
+            }
+            if (vipProfile.email) {
+              setEmail(vipProfile.email);
+              console.log("[BookingDetails VIP Profile] Set email from VIP profile:", vipProfile.email);
+            }
+            if (vipProfile.phoneNumber) {
+              // Format phone number to E.164 if needed
+              let formattedPhoneNumber = vipProfile.phoneNumber;
+              
+              // If the phone number doesn't start with +, format it
+              if (!formattedPhoneNumber.startsWith('+')) {
+                // For Thai numbers: convert 0842695447 to +66842695447, or 842695447 to +66842695447
+                if (formattedPhoneNumber.startsWith('0') && formattedPhoneNumber.length === 10) {
+                  formattedPhoneNumber = '+66' + formattedPhoneNumber.substring(1);
+                } else if (formattedPhoneNumber.length === 9) {
+                  formattedPhoneNumber = '+66' + formattedPhoneNumber;
+                }
+                // Add more country-specific rules if needed
+              }
+              
+              setPhoneNumber(formattedPhoneNumber);
+              console.log("[BookingDetails VIP Profile] Set phone from VIP profile:", formattedPhoneNumber, "(original:", vipProfile.phoneNumber + ")");
+            }
+            if (vipProfile.crmCustomerId) {
+              setCrmCustomerId(vipProfile.crmCustomerId);
+              console.log("[BookingDetails VIP Profile] Set CRM customer ID:", vipProfile.crmCustomerId);
+            }
+            
+            setVipDataPrepopulated(true);
+            console.log("[BookingDetails VIP Profile] VIP data prepopulation completed successfully");
+          }
+        } catch (error) {
+          console.error("[BookingDetails VIP Profile] Error fetching VIP profile:", error);
+        }
+      }
+    };
+
+    fetchVipProfile();
+  }, [status, session?.user?.id, vipDataPrepopulated]);
+
+  useEffect(() => {
     const fetchProfile = async () => {
-      if (session?.user?.id) {
+      console.log("[BookingDetails Profile] fetchProfile called. Supabase client defined?", !!supabase, "Session user ID:", session?.user?.id);
+      if (supabase && session?.user?.id && !vipDataPrepopulated) {
         try {
           const userId = session.user.id;
-          const supabase = createClient();
-          const { data, error } = await supabase
+          const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('*')
+            .select('display_name, phone_number, email')
             .eq('id', userId)
             .single();
 
-          if (error) {
-            console.error('Error fetching profile:', error);
-          } else if (data) {
-            // Set the profile data
-            setProfile(data);
-            
-            // Prefill the form with user data
-            setName(data.display_name || data.name || session?.user?.name || '');
-            setEmail(data.email || session?.user?.email || '');
-            
-            let initialPhoneNumber = data.phone_number || session?.user?.phone || '';
-            if (initialPhoneNumber && !initialPhoneNumber.startsWith('+')) {
-              // Basic assumption: if it's a 10-digit number starting with 0, assume it's a Thai number
-              if (initialPhoneNumber.length === 10 && initialPhoneNumber.startsWith('0')) {
-                initialPhoneNumber = '+66' + initialPhoneNumber.substring(1);
-              }
-              // Add more rules if necessary for other common local formats
-            }
-            setPhoneNumber(initialPhoneNumber || undefined); // Set to undefined if empty for placeholder to show
-            
-            // Get any existing CRM mapping from our database directly
-            // Skip the unnecessary API call to /api/crm/match which is slow
-            try {
-              const { data: mapping } = await supabase
-                .from('crm_customer_mapping')
-                .select('crm_customer_id')
-                .eq('profile_id', userId)
-                .eq('is_matched', true)
-                .maybeSingle();
-                
-              if (mapping?.crm_customer_id) {
-                setCrmCustomerId(mapping.crm_customer_id);
-              }
-            } catch (error) {
-              console.error('Error checking CRM mapping:', error);
-            }
+          if (profileError) {
+            console.error('[BookingDetails Profile] Error fetching profile:', profileError);
+          } else if (profileData) {
+            console.log("[BookingDetails Profile] Setting fallback profile data from profiles");
+            setProfile({
+              name: profileData.display_name || '',
+              email: profileData.email || '',
+              phone_number: profileData.phone_number || '',
+              display_name: profileData.display_name || ''
+            });
           }
         } catch (err) {
           console.error('Failed to fetch profile:', err);
@@ -198,8 +314,11 @@ export function BookingDetails({
       }
     };
 
-    fetchProfile();
-  }, [session?.user?.id, session?.user?.name, session?.user?.email, session?.user?.phone]);
+    // Only fetch basic profile if VIP profile fetch didn't already populate the data
+    if (!vipDataPrepopulated) {
+      fetchProfile();
+    }
+  }, [supabase, session?.user?.id, session?.user?.name, session?.user?.email, session?.user?.phone, vipDataPrepopulated]);
 
   useEffect(() => {
     if (isSubmitting && loadingStep < loadingSteps.length - 1) {
@@ -262,6 +381,12 @@ export function BookingDetails({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!supabase) {
+      toast.error('Booking system is not ready. Please try again in a moment.');
+      console.error('Attempted to submit booking but Supabase client is not initialized.');
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -278,10 +403,63 @@ export function BookingDetails({
     setShowLoadingOverlay(true);
     setLoadingStep(0);
     
+    let determinedStableHashId: string | null = null;
+
     try {
       if (!session?.user?.id) {
         throw new Error('User not authenticated');
       }
+      const profileId = session.user.id;
+
+      // --- BEGIN: Determine stable_hash_id ---
+      if (supabase) { // Ensure supabase client is available
+        // 1. Attempt to get from profiles -> vip_customer_data
+        const { data: profileVipData, error: profileVipError } = await supabase
+          .from('profiles')
+          .select('vip_customer_data_id')
+          .eq('id', profileId)
+          .single();
+
+        if (profileVipError) {
+          console.warn('[BookingDetails] Error fetching vip_customer_data_id from profiles:', profileVipError.message);
+        }
+
+        if (profileVipData?.vip_customer_data_id) {
+          const { data: vipData, error: vipError } = await supabase
+            .from('vip_customer_data')
+            .select('stable_hash_id')
+            .eq('id', profileVipData.vip_customer_data_id)
+            .single();
+          
+          if (!vipError && vipData?.stable_hash_id) {
+            determinedStableHashId = vipData.stable_hash_id;
+            console.log('[BookingDetails] Determined stable_hash_id from vip_customer_data:', determinedStableHashId);
+          }
+        }
+
+        // 2. Fallback to crm_customer_mapping if not found via vip_customer_data
+        if (!determinedStableHashId) {
+          const { data: crmMapData, error: crmMapError } = await supabase
+            .from('crm_customer_mapping')
+            .select('stable_hash_id')
+            .eq('profile_id', profileId)
+            .eq('is_matched', true)
+            .single();
+
+          if (crmMapError) {
+            console.warn('[BookingDetails] Error fetching stable_hash_id from crm_customer_mapping:', crmMapError.message);
+          } else if (crmMapData?.stable_hash_id) {
+            determinedStableHashId = crmMapData.stable_hash_id;
+            console.log('[BookingDetails] Determined stable_hash_id from crm_customer_mapping:', determinedStableHashId);
+          }
+        }
+        if (!determinedStableHashId) {
+            console.log('[BookingDetails] Could not determine stable_hash_id for user:', profileId);
+        }
+      } else {
+        console.warn('[BookingDetails] Supabase client not initialized, cannot determine stable_hash_id.');
+      }
+      // --- END: Determine stable_hash_id ---
       
       // Check if we need to update the user profile
       const profileNeedsUpdate = 
@@ -294,22 +472,15 @@ export function BookingDetails({
       
       // Update profile if needed
       if (profileNeedsUpdate && session?.user?.id) {
-        const supabase = createClient();
-        
-        try {
-          // Only update fields that we know exist in the schema
-          const { data, error } = await supabase
-            .from('profiles')
-            .update({
-              display_name: name,
-              email: email,
-              phone_number: phoneNumber,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', session.user.id);
-        } catch (queryError) {
-          // Silent error handling to avoid exposing to users
-        }
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({
+            display_name: name,
+            email: email,
+            phone_number: phoneNumber,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', session.user.id);
       }
 
       // Step 1: Create the booking record
@@ -328,6 +499,7 @@ export function BookingDetails({
           name,
           email,
           phone_number: phoneNumber,
+          stable_hash_id: determinedStableHashId,
           customer_notes: customerNotes
         })
       });
