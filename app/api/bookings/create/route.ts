@@ -64,7 +64,8 @@ const generateBookingId = () => {
 
 /**
  * Helper function to get package info for a customer
- * This centralizes the package info handling logic
+ * This centralizes the package info handling logic and uses the same 
+ * sophisticated package selection as the VIP API
  */
 async function getPackageInfo(stableHashId: string | null): Promise<string> {
   // Default package info
@@ -77,24 +78,76 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
       const { data: packages, error: packagesError } = await supabase
         .from('crm_packages')
         .select('*')
-        .eq('stable_hash_id', stableHashId)
-        .eq('status', 'active');
+        .eq('stable_hash_id', stableHashId);
+      
+      if (packagesError) {
+        console.error('Error fetching packages:', packagesError);
+        return packageInfo;
+      }
       
       if (packages && packages.length > 0) {
-        // Filter out coaching packages
-        const nonCoachingPackages = packages.filter((pkg: any) => 
-          !pkg.package_type_name?.toLowerCase().includes('coaching') && 
-          !pkg.package_category?.toLowerCase().includes('coaching')
-        );
+        const now = new Date();
         
-        if (nonCoachingPackages.length > 0) {
-          const activePackage = nonCoachingPackages[0];
+        // Filter for active, non-coaching packages using VIP logic
+        const activePackages = packages.filter((pkg: any) => {
+          // Skip coaching packages
+          if (pkg.package_type_name?.toLowerCase().includes('coaching') || 
+              pkg.package_category?.toLowerCase().includes('coaching')) {
+            return false;
+          }
+          
+          // Check if package is not expired
+          const expirationDate = new Date(pkg.expiration_date || '');
+          const isNotExpired = expirationDate > now;
+          
+          // Check if package has remaining capacity
+          // Package is active if:
+          // 1. Not expired, AND
+          // 2. Either has remaining hours > 0 OR has no remaining_hours field (unlimited/session-based packages)
+          const hasRemainingCapacity = pkg.remaining_hours === undefined || 
+                                      pkg.remaining_hours === null || 
+                                      pkg.remaining_hours > 0;
+          
+          return isNotExpired && hasRemainingCapacity;
+        });
+        
+        if (activePackages.length > 0) {
+          // Sort active packages to pick the best one:
+          // 1. Packages with more remaining hours first
+          // 2. Then by later expiration date
+          const sortedPackages = activePackages.sort((a: any, b: any) => {
+            // First, prioritize by remaining hours (more remaining hours = higher priority)
+            const aRemainingHours = a.remaining_hours ?? Infinity; // Treat unlimited as highest priority
+            const bRemainingHours = b.remaining_hours ?? Infinity;
+            
+            if (aRemainingHours !== bRemainingHours) {
+              return bRemainingHours - aRemainingHours; // Descending order (more hours first)
+            }
+            
+            // If remaining hours are equal, prioritize by later expiration date
+            const aExpiration = new Date(a.expiration_date || '1970-01-01').getTime();
+            const bExpiration = new Date(b.expiration_date || '1970-01-01').getTime();
+            
+            return bExpiration - aExpiration; // Descending order (later expiration first)
+          });
+          
+          const selectedPackage = sortedPackages[0];
+          
           // Use package_name which contains the full descriptive name like "Gold (30H)"
-          const packageName = activePackage.package_name || 
-                             activePackage.package_display_name || 
-                             activePackage.package_type_name || 
+          const packageName = selectedPackage.package_name || 
+                             selectedPackage.package_display_name || 
+                             selectedPackage.package_type_name || 
                              'Package';
           packageInfo = `Package (${packageName})`;
+          
+          console.log(`[getPackageInfo] Selected package for ${stableHashId}:`, {
+            packageName,
+            remainingHours: selectedPackage.remaining_hours,
+            expirationDate: selectedPackage.expiration_date,
+            totalActivePackages: activePackages.length
+          });
+        } else {
+          console.log(`[getPackageInfo] No active packages found for ${stableHashId}. Total packages: ${packages.length}`);
         }
       }
     } catch (error) {

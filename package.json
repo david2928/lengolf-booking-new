@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "cleanup-staging-tables": "ts-node scripts/cleanup-staging-tables.ts",
+    "send-vip-announcement": "ts-node scripts/send-vip-announcement.ts"
   },
   "dependencies": {
     "@auth/core": "^0.34.2",
