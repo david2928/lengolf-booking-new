@@ -328,7 +328,7 @@ export async function PUT(request: Request) {
         insertPayload.stable_hash_id = resolvedStableHashId; // Set stable_hash_id if resolved
       }
 
-      const { data: newVipData, error: insertVipError } = await supabaseUserClient
+      const { data: newVipData, error: insertVipError } = await supabaseAdmin
         .from('vip_customer_data')
         .insert(insertPayload)
         .select('id')

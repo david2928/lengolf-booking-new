@@ -4,6 +4,15 @@ import { authOptions } from '@/app/api/auth/options';
 import { matchProfileWithCrm } from '@/utils/customer-matching';
 import { createClient } from '@supabase/supabase-js';
 
+// Helper to create admin client for operations that need to bypass RLS
+const getSupabaseAdminClient = () => {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+};
+
 interface LinkAccountSessionUser {
   id: string;
   name?: string | null; 
@@ -133,7 +142,7 @@ export async function POST(request: Request) {
             vip_phone_number: requestVipPhoneNumber ?? userProfile.phone_number,
             stable_hash_id: matchedStableHashId,
           };
-          const { data: newVipData, error: insertError } = await supabaseUserClient
+          const { data: newVipData, error: insertError } = await getSupabaseAdminClient()
             .from('vip_customer_data')
             .insert(vipDataToInsert)
             .select('id')
@@ -215,7 +224,7 @@ export async function POST(request: Request) {
           vip_phone_number: requestVipPhoneNumber ?? phoneNumber,
           // stable_hash_id remains null for placeholder accounts
         };
-        const { data: newVipData, error: insertError } = await supabaseUserClient
+        const { data: newVipData, error: insertError } = await getSupabaseAdminClient()
           .from('vip_customer_data')
           .insert(vipDataToInsert)
           .select('id')
