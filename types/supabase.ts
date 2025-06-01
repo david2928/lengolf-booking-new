@@ -64,7 +64,17 @@ export interface Database {
           number_of_people: number
           bay: string | null
           status: 'confirmed' | 'cancelled'
-          calendar_event_id?: string | null
+          calendar_events: Json | null
+          customer_notes?: string | null
+          booking_type?: string | null
+          package_name?: string | null
+          stable_hash_id?: string | null
+          google_calendar_sync_status?: string | null
+          updated_by_type?: string | null
+          updated_by_identifier?: string | null
+          cancelled_by_type?: string | null
+          cancelled_by_identifier?: string | null
+          cancellation_reason?: string | null
           created_at: string
           updated_at: string
         }
@@ -80,7 +90,17 @@ export interface Database {
           number_of_people: number
           bay?: string | null
           status?: 'confirmed' | 'cancelled'
-          calendar_event_id?: string | null
+          calendar_events?: Json | null
+          customer_notes?: string | null
+          booking_type?: string | null
+          package_name?: string | null
+          stable_hash_id?: string | null
+          google_calendar_sync_status?: string | null
+          updated_by_type?: string | null
+          updated_by_identifier?: string | null
+          cancelled_by_type?: string | null
+          cancelled_by_identifier?: string | null
+          cancellation_reason?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -96,7 +116,17 @@ export interface Database {
           number_of_people?: number
           bay?: string | null
           status?: 'confirmed' | 'cancelled'
-          calendar_event_id?: string | null
+          calendar_events?: Json | null
+          customer_notes?: string | null
+          booking_type?: string | null
+          package_name?: string | null
+          stable_hash_id?: string | null
+          google_calendar_sync_status?: string | null
+          updated_by_type?: string | null
+          updated_by_identifier?: string | null
+          cancelled_by_type?: string | null
+          cancelled_by_identifier?: string | null
+          cancellation_reason?: string | null
           created_at?: string
           updated_at?: string
         }

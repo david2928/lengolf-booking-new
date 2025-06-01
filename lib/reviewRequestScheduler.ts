@@ -69,7 +69,8 @@ export async function scheduleReviewRequest(options: ScheduleOptions): Promise<b
         scheduled_time: scheduledTime.toISOString(),
         provider: options.provider,
         contact_info: options.contactInfo,
-        sent: false
+        sent: false,
+        status: 'pending'
       });
     
     if (error) {
