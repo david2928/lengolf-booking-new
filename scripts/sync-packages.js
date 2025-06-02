@@ -265,10 +265,11 @@ async function syncPackagesToBookingDb(packages, mapping) {
       crm_package_id: pkg.crm_package_id || pkg.id, // Assuming pkg.id is the CRM package's unique ID
       customer_name: pkg.customer_name || '',
       
-      package_name: pkg.package_name_from_def || null,
-      package_display_name: pkg.package_display_name_from_def || null,
-      package_type_name: pkg.package_type_from_def || null,
-      package_category: pkg.package_type_from_def || null,
+      // Rich package information from CRM - prioritize _from_def fields
+      package_name: pkg.package_name_from_def || pkg.package_name || null,
+      package_display_name: pkg.package_display_name_from_def || pkg.package_display_name || null,
+      package_type_name: pkg.package_type_from_def || pkg.package_type_name || null,
+      package_category: pkg.package_type_from_def || pkg.package_category || null,
       total_hours: pkg.package_total_hours_from_def !== undefined ? pkg.package_total_hours_from_def : null,
       pax: pkg.package_pax_from_def !== undefined ? pkg.package_pax_from_def : null,
       validity_period_definition: pkg.package_validity_period_from_def || null,

@@ -1,0 +1,13 @@
+[2025-06-02T15:38:44.223Z] [info] Starting package sync with configuration:
+{
+  "batchSize": 20,
+  "debugMode": true,
+  "profileId": "all",
+  "stableHashId": "68af65d265eb5b6672e832c9b9cb1c1a"
+}
+[2025-06-02T15:38:44.223Z] [info] Checking if crm_packages table needs schema migration...
+[2025-06-02T15:38:44.996Z] [warn] Error checking if table exists: Could not find the function public.execute_sql(sql) in the schema cache
+[2025-06-02T15:38:44.996Z] [info] Fetching CRM customer mappings with stable_hash_id...
+[2025-06-02T15:38:44.997Z] [info] Filtering for specific stable hash ID: 68af65d265eb5b6672e832c9b9cb1c1a
+[2025-06-02T15:38:45.105Z] [info] Found 0 CRM customer mappings with stable_hash_id
+[2025-06-02T15:38:45.106Z] [warn] No mappings with stable_hash_id found. Run sync-customer-matching.js first to create mappings.
