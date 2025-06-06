@@ -495,8 +495,13 @@ export async function POST(request: NextRequest) {
             };
           }
           
-          // If no mapping found, try creating one
-          return await getOrCreateCrmMapping(userId, { source: 'booking' });
+          // If no mapping found, try creating one using the booking phone number
+          // This allows matching even when the profile phone number differs from booking phone
+          console.log(`[CRM Matching] No existing mapping found for profile ${userId}. Attempting match with booking phone: ${phone_number}`);
+          return await getOrCreateCrmMapping(userId, { 
+            source: 'booking',
+            phoneNumberToMatch: phone_number
+          });
         } catch (error) {
           console.error('Error in CRM mapping:', error);
           return null;

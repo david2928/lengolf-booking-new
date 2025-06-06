@@ -75,11 +75,13 @@ function formatDateWithOrdinal(dateString: string): string {
           day === 2 || day === 22 ? 'nd' :
           day === 3 || day === 23 ? 'rd' : 'th'
         );
-        return dateObj.toLocaleDateString('en-GB', {
+        const formatted = dateObj.toLocaleDateString('en-GB', {
           weekday: 'short',
           day: 'numeric',
           month: 'long'
-        }).replace(/\d+/, dayWithSuffix).replace(/(\w+)/, '$1,');
+        });
+        // Replace the day number with the day + suffix, and ensure weekday has comma
+        return formatted.replace(/\b\d+\b/, dayWithSuffix).replace(/^(\w+)/, '$1,');
     } catch (e) {
         console.warn('Error formatting date, using raw:', dateString);
         return dateString; // fallback
@@ -177,23 +179,7 @@ export async function POST(request: NextRequest) {
 
       let formattedDate = sanitizedBooking.bookingDate; 
       if (!data.standardizedData && sanitizedBooking.bookingDate) {
-          try {
-              const dateObj = new Date(sanitizedBooking.bookingDate);
-              const day = dateObj.getDate();
-              const dayWithSuffix = day + (
-                day === 1 || day === 21 || day === 31 ? 'st' : 
-                day === 2 || day === 22 ? 'nd' : 
-                day === 3 || day === 23 ? 'rd' : 'th'
-              );
-              formattedDate = dateObj.toLocaleDateString('en-GB', { 
-                weekday: 'short', 
-                day: 'numeric', 
-                month: 'long' 
-              }).replace(/\d+/, dayWithSuffix).replace(/(\w+)/, '$1,');
-          } catch (e) {
-              console.warn('Error formatting date for booking creation, using raw:', sanitizedBooking.bookingDate);
-              // formattedDate remains as sanitizedBooking.bookingDate
-          }
+          formattedDate = formatDateWithOrdinal(sanitizedBooking.bookingDate);
       }
 
       const bookingId = data.standardizedData?.bookingId || data.bookingId;

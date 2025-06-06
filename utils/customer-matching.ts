@@ -541,7 +541,8 @@ export async function getOrCreateCrmMapping(
   options: {
     source?: string,
     timeoutMs?: number,
-    forceRefresh?: boolean
+    forceRefresh?: boolean,
+    phoneNumberToMatch?: string
   } = {}
 ): Promise<{
   profileId: string,
@@ -553,13 +554,14 @@ export async function getOrCreateCrmMapping(
   const {
     source = 'unknown',
     timeoutMs = 5000,
-    forceRefresh = false
+    forceRefresh = false,
+    phoneNumberToMatch
   } = options;
 
   try {
     const supabase = supabaseAdminClient;
     
-    console.log(`[CRM Mapping] Starting for profile ${profileId} (source: ${source})`);
+    console.log(`[CRM Mapping] Starting for profile ${profileId} (source: ${source}${phoneNumberToMatch ? `, booking phone: ${phoneNumberToMatch}` : ''})`);
     
     // STEP 1: Check for existing mapping (fast path)
     if (!forceRefresh) {
@@ -609,7 +611,10 @@ export async function getOrCreateCrmMapping(
     try {
       // Race the matching process against the timeout
       const matchResult = await Promise.race([
-        matchProfileWithCrm(profileId, { source }), // Pass the source from getOrCreateCrmMapping's options
+        matchProfileWithCrm(profileId, { 
+          source, 
+          phoneNumberToMatch 
+        }), // Pass both source and phoneNumberToMatch from getOrCreateCrmMapping's options
         timeoutPromise
       ]);
       

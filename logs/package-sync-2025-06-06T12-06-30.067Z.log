@@ -1,0 +1,1237 @@
+[2025-06-06T12:06:30.070Z] [info] Starting package sync with configuration:
+{
+  "batchSize": 20,
+  "debugMode": true,
+  "profileId": "all",
+  "stableHashId": "any"
+}
+[2025-06-06T12:06:30.070Z] [info] Checking if crm_packages table needs schema migration...
+[2025-06-06T12:06:30.232Z] [warn] Error checking if table exists: Could not find the function public.execute_sql(sql) in the schema cache
+[2025-06-06T12:06:30.232Z] [info] Fetching CRM customer mappings with stable_hash_id...
+[2025-06-06T12:06:30.471Z] [info] Found 250 CRM customer mappings with stable_hash_id
+[2025-06-06T12:06:30.471Z] [info] Processing batch 1 of 13
+[2025-06-06T12:06:30.471Z] [info] Processing mapping 1/20 for stable_hash_id 3eae97481b11766db8f57a65a226693c
+[2025-06-06T12:06:30.471Z] [info] Fetching packages for stable_hash_id: 3eae97481b11766db8f57a65a226693c
+[2025-06-06T12:06:30.680Z] [info] Found 0 packages for stable_hash_id 3eae97481b11766db8f57a65a226693c
+[2025-06-06T12:06:30.680Z] [info] No packages found for stable_hash_id 3eae97481b11766db8f57a65a226693c
+[2025-06-06T12:06:30.680Z] [info] Processing mapping 2/20 for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:30.680Z] [info] Fetching packages for stable_hash_id: 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:30.752Z] [info] Found 4 packages for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:30.753Z] [info] Syncing 4 packages for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:30.879Z] [info] Deleted 2 existing packages for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:30.973Z] [info] Added 4 new packages for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:30.973Z] [info] Processed 4 packages for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701 (Added: 4, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:30.974Z] [info] Processing mapping 3/20 for stable_hash_id 78b42f3136f3e127173c85f807b1e16a
+[2025-06-06T12:06:30.974Z] [info] Fetching packages for stable_hash_id: 78b42f3136f3e127173c85f807b1e16a
+[2025-06-06T12:06:31.047Z] [info] Found 0 packages for stable_hash_id 78b42f3136f3e127173c85f807b1e16a
+[2025-06-06T12:06:31.048Z] [info] No packages found for stable_hash_id 78b42f3136f3e127173c85f807b1e16a
+[2025-06-06T12:06:31.048Z] [info] Processing mapping 4/20 for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:31.048Z] [info] Fetching packages for stable_hash_id: 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:31.113Z] [info] Found 2 packages for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:31.113Z] [info] Syncing 2 packages for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:31.242Z] [info] Deleted 2 existing packages for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:31.306Z] [info] Added 2 new packages for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:31.306Z] [info] Processed 2 packages for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:31.306Z] [info] Processing mapping 5/20 for stable_hash_id 5b718df8f237f5145d1723e75d4cde08
+[2025-06-06T12:06:31.307Z] [info] Fetching packages for stable_hash_id: 5b718df8f237f5145d1723e75d4cde08
+[2025-06-06T12:06:31.373Z] [info] Found 0 packages for stable_hash_id 5b718df8f237f5145d1723e75d4cde08
+[2025-06-06T12:06:31.374Z] [info] No packages found for stable_hash_id 5b718df8f237f5145d1723e75d4cde08
+[2025-06-06T12:06:31.374Z] [info] Processing mapping 6/20 for stable_hash_id 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:06:31.374Z] [info] Fetching packages for stable_hash_id: 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:06:31.436Z] [info] Found 1 packages for stable_hash_id 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:06:31.437Z] [info] Syncing 1 packages for stable_hash_id 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:06:31.567Z] [info] Deleted 1 existing packages for stable_hash_id 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:06:31.631Z] [info] Added 1 new packages for stable_hash_id 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:06:31.632Z] [info] Processed 1 packages for stable_hash_id 528e6f77b47a72fae2527e65d5244424 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:31.632Z] [info] Processing mapping 7/20 for stable_hash_id 907d7405967804a08728a3b94e8cc3ac
+[2025-06-06T12:06:31.632Z] [info] Fetching packages for stable_hash_id: 907d7405967804a08728a3b94e8cc3ac
+[2025-06-06T12:06:31.702Z] [info] Found 0 packages for stable_hash_id 907d7405967804a08728a3b94e8cc3ac
+[2025-06-06T12:06:31.703Z] [info] No packages found for stable_hash_id 907d7405967804a08728a3b94e8cc3ac
+[2025-06-06T12:06:31.703Z] [info] Processing mapping 8/20 for stable_hash_id cba3ea5a73efd11107e03c6b53f30643
+[2025-06-06T12:06:31.703Z] [info] Fetching packages for stable_hash_id: cba3ea5a73efd11107e03c6b53f30643
+[2025-06-06T12:06:31.767Z] [info] Found 0 packages for stable_hash_id cba3ea5a73efd11107e03c6b53f30643
+[2025-06-06T12:06:31.767Z] [info] No packages found for stable_hash_id cba3ea5a73efd11107e03c6b53f30643
+[2025-06-06T12:06:31.768Z] [info] Processing mapping 9/20 for stable_hash_id 6ce946fff34825391bdd99296bdef83e
+[2025-06-06T12:06:31.768Z] [info] Fetching packages for stable_hash_id: 6ce946fff34825391bdd99296bdef83e
+[2025-06-06T12:06:31.827Z] [info] Found 0 packages for stable_hash_id 6ce946fff34825391bdd99296bdef83e
+[2025-06-06T12:06:31.828Z] [info] No packages found for stable_hash_id 6ce946fff34825391bdd99296bdef83e
+[2025-06-06T12:06:31.828Z] [info] Processing mapping 10/20 for stable_hash_id 73053e6d606983c10b78d99fee684e6a
+[2025-06-06T12:06:31.828Z] [info] Fetching packages for stable_hash_id: 73053e6d606983c10b78d99fee684e6a
+[2025-06-06T12:06:31.898Z] [info] Found 0 packages for stable_hash_id 73053e6d606983c10b78d99fee684e6a
+[2025-06-06T12:06:31.898Z] [info] No packages found for stable_hash_id 73053e6d606983c10b78d99fee684e6a
+[2025-06-06T12:06:31.898Z] [info] Processing mapping 11/20 for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:31.898Z] [info] Fetching packages for stable_hash_id: d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:31.977Z] [info] Found 1 packages for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:31.978Z] [info] Syncing 1 packages for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:32.115Z] [info] Deleted 1 existing packages for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:32.183Z] [info] Added 1 new packages for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:32.183Z] [info] Processed 1 packages for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:32.184Z] [info] Processing mapping 12/20 for stable_hash_id 3c1f46b3c4dc9a9c43371fde39754506
+[2025-06-06T12:06:32.184Z] [info] Fetching packages for stable_hash_id: 3c1f46b3c4dc9a9c43371fde39754506
+[2025-06-06T12:06:32.246Z] [info] Found 0 packages for stable_hash_id 3c1f46b3c4dc9a9c43371fde39754506
+[2025-06-06T12:06:32.246Z] [info] No packages found for stable_hash_id 3c1f46b3c4dc9a9c43371fde39754506
+[2025-06-06T12:06:32.246Z] [info] Processing mapping 13/20 for stable_hash_id fb85a1ea78888a9e6bba9c46dcc5cf6d
+[2025-06-06T12:06:32.247Z] [info] Fetching packages for stable_hash_id: fb85a1ea78888a9e6bba9c46dcc5cf6d
+[2025-06-06T12:06:32.308Z] [info] Found 0 packages for stable_hash_id fb85a1ea78888a9e6bba9c46dcc5cf6d
+[2025-06-06T12:06:32.308Z] [info] No packages found for stable_hash_id fb85a1ea78888a9e6bba9c46dcc5cf6d
+[2025-06-06T12:06:32.308Z] [info] Processing mapping 14/20 for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:06:32.308Z] [info] Fetching packages for stable_hash_id: d058264113127debc8b65592b1badcd4
+[2025-06-06T12:06:32.388Z] [info] Found 0 packages for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:06:32.388Z] [info] No packages found for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:06:32.388Z] [info] Processing mapping 15/20 for stable_hash_id 1b7350d69e74c38effd787b8d0d6f2db
+[2025-06-06T12:06:32.388Z] [info] Fetching packages for stable_hash_id: 1b7350d69e74c38effd787b8d0d6f2db
+[2025-06-06T12:06:32.487Z] [info] Found 3 packages for stable_hash_id 1b7350d69e74c38effd787b8d0d6f2db
+[2025-06-06T12:06:32.487Z] [info] Syncing 3 packages for stable_hash_id 1b7350d69e74c38effd787b8d0d6f2db
+[2025-06-06T12:06:32.632Z] [info] Deleted 3 existing packages for stable_hash_id 1b7350d69e74c38effd787b8d0d6f2db
+[2025-06-06T12:06:32.697Z] [info] Added 3 new packages for stable_hash_id 1b7350d69e74c38effd787b8d0d6f2db
+[2025-06-06T12:06:32.697Z] [info] Processed 3 packages for stable_hash_id 1b7350d69e74c38effd787b8d0d6f2db (Added: 3, Deleted: 3, Errors: 0)
+[2025-06-06T12:06:32.697Z] [info] Processing mapping 16/20 for stable_hash_id 0fb2b060c41c8b06e33b827e05e9f8f4
+[2025-06-06T12:06:32.697Z] [info] Fetching packages for stable_hash_id: 0fb2b060c41c8b06e33b827e05e9f8f4
+[2025-06-06T12:06:32.768Z] [info] Found 0 packages for stable_hash_id 0fb2b060c41c8b06e33b827e05e9f8f4
+[2025-06-06T12:06:32.768Z] [info] No packages found for stable_hash_id 0fb2b060c41c8b06e33b827e05e9f8f4
+[2025-06-06T12:06:32.768Z] [info] Processing mapping 17/20 for stable_hash_id 615449c845e1971ce505f8057ca5cca3
+[2025-06-06T12:06:32.769Z] [info] Fetching packages for stable_hash_id: 615449c845e1971ce505f8057ca5cca3
+[2025-06-06T12:06:32.829Z] [info] Found 0 packages for stable_hash_id 615449c845e1971ce505f8057ca5cca3
+[2025-06-06T12:06:32.829Z] [info] No packages found for stable_hash_id 615449c845e1971ce505f8057ca5cca3
+[2025-06-06T12:06:32.829Z] [info] Processing mapping 18/20 for stable_hash_id 304f3f338aeefc17b8e04e39f7ff7435
+[2025-06-06T12:06:32.829Z] [info] Fetching packages for stable_hash_id: 304f3f338aeefc17b8e04e39f7ff7435
+[2025-06-06T12:06:32.898Z] [info] Found 0 packages for stable_hash_id 304f3f338aeefc17b8e04e39f7ff7435
+[2025-06-06T12:06:32.898Z] [info] No packages found for stable_hash_id 304f3f338aeefc17b8e04e39f7ff7435
+[2025-06-06T12:06:32.898Z] [info] Processing mapping 19/20 for stable_hash_id a1b63b052b62e6c08210ef13b7907802
+[2025-06-06T12:06:32.898Z] [info] Fetching packages for stable_hash_id: a1b63b052b62e6c08210ef13b7907802
+[2025-06-06T12:06:32.964Z] [info] Found 0 packages for stable_hash_id a1b63b052b62e6c08210ef13b7907802
+[2025-06-06T12:06:32.964Z] [info] No packages found for stable_hash_id a1b63b052b62e6c08210ef13b7907802
+[2025-06-06T12:06:32.964Z] [info] Processing mapping 20/20 for stable_hash_id 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:32.964Z] [info] Fetching packages for stable_hash_id: 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:33.062Z] [info] Found 5 packages for stable_hash_id 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:33.062Z] [info] Syncing 5 packages for stable_hash_id 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:33.189Z] [info] Deleted 4 existing packages for stable_hash_id 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:33.265Z] [info] Added 5 new packages for stable_hash_id 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:33.265Z] [info] Processed 5 packages for stable_hash_id 704dea8929306c8d9599207637042596 (Added: 5, Deleted: 4, Errors: 0)
+[2025-06-06T12:06:33.265Z] [info] Batch 1 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:06:33.765Z] [info] Processing batch 2 of 13
+[2025-06-06T12:06:33.765Z] [info] Processing mapping 1/20 for stable_hash_id 6e0c2fc640c57409a1b1d6bfaa17abc6
+[2025-06-06T12:06:33.766Z] [info] Fetching packages for stable_hash_id: 6e0c2fc640c57409a1b1d6bfaa17abc6
+[2025-06-06T12:06:33.838Z] [info] Found 0 packages for stable_hash_id 6e0c2fc640c57409a1b1d6bfaa17abc6
+[2025-06-06T12:06:33.838Z] [info] No packages found for stable_hash_id 6e0c2fc640c57409a1b1d6bfaa17abc6
+[2025-06-06T12:06:33.838Z] [info] Processing mapping 2/20 for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:33.838Z] [info] Fetching packages for stable_hash_id: c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:33.908Z] [info] Found 2 packages for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:33.908Z] [info] Syncing 2 packages for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:34.043Z] [info] Deleted 2 existing packages for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:34.106Z] [info] Added 2 new packages for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:34.107Z] [info] Processed 2 packages for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19 (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:34.107Z] [info] Processing mapping 3/20 for stable_hash_id 65f34e72803d7d57bf1815f56576b4c8
+[2025-06-06T12:06:34.107Z] [info] Fetching packages for stable_hash_id: 65f34e72803d7d57bf1815f56576b4c8
+[2025-06-06T12:06:34.177Z] [info] Found 3 packages for stable_hash_id 65f34e72803d7d57bf1815f56576b4c8
+[2025-06-06T12:06:34.178Z] [info] Syncing 3 packages for stable_hash_id 65f34e72803d7d57bf1815f56576b4c8
+[2025-06-06T12:06:34.333Z] [info] Deleted 3 existing packages for stable_hash_id 65f34e72803d7d57bf1815f56576b4c8
+[2025-06-06T12:06:34.397Z] [info] Added 3 new packages for stable_hash_id 65f34e72803d7d57bf1815f56576b4c8
+[2025-06-06T12:06:34.398Z] [info] Processed 3 packages for stable_hash_id 65f34e72803d7d57bf1815f56576b4c8 (Added: 3, Deleted: 3, Errors: 0)
+[2025-06-06T12:06:34.398Z] [info] Processing mapping 4/20 for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:34.398Z] [info] Fetching packages for stable_hash_id: d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:34.461Z] [info] Found 1 packages for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:34.461Z] [info] Syncing 1 packages for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:34.597Z] [info] Deleted 1 existing packages for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:34.664Z] [info] Added 1 new packages for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e
+[2025-06-06T12:06:34.664Z] [info] Processed 1 packages for stable_hash_id d7dfd1da95f5ffa75127f4aaa26ca25e (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:34.664Z] [info] Processing mapping 5/20 for stable_hash_id 48729d9d9c3b2111d8f8813e10c5761e
+[2025-06-06T12:06:34.665Z] [info] Fetching packages for stable_hash_id: 48729d9d9c3b2111d8f8813e10c5761e
+[2025-06-06T12:06:34.732Z] [info] Found 0 packages for stable_hash_id 48729d9d9c3b2111d8f8813e10c5761e
+[2025-06-06T12:06:34.732Z] [info] No packages found for stable_hash_id 48729d9d9c3b2111d8f8813e10c5761e
+[2025-06-06T12:06:34.732Z] [info] Processing mapping 6/20 for stable_hash_id b99c9e4efb22affbbcf2996c77db71d6
+[2025-06-06T12:06:34.733Z] [info] Fetching packages for stable_hash_id: b99c9e4efb22affbbcf2996c77db71d6
+[2025-06-06T12:06:34.808Z] [info] Found 0 packages for stable_hash_id b99c9e4efb22affbbcf2996c77db71d6
+[2025-06-06T12:06:34.808Z] [info] No packages found for stable_hash_id b99c9e4efb22affbbcf2996c77db71d6
+[2025-06-06T12:06:34.808Z] [info] Processing mapping 7/20 for stable_hash_id 775530b639ff17d13ad7f0545d371534
+[2025-06-06T12:06:34.808Z] [info] Fetching packages for stable_hash_id: 775530b639ff17d13ad7f0545d371534
+[2025-06-06T12:06:34.876Z] [info] Found 0 packages for stable_hash_id 775530b639ff17d13ad7f0545d371534
+[2025-06-06T12:06:34.876Z] [info] No packages found for stable_hash_id 775530b639ff17d13ad7f0545d371534
+[2025-06-06T12:06:34.876Z] [info] Processing mapping 8/20 for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:34.877Z] [info] Fetching packages for stable_hash_id: 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:34.940Z] [info] Found 1 packages for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:34.940Z] [info] Syncing 1 packages for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:35.072Z] [info] Deleted 1 existing packages for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:35.137Z] [info] Added 1 new packages for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:35.137Z] [info] Processed 1 packages for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:35.138Z] [info] Processing mapping 9/20 for stable_hash_id 6b27a46a7ac5e1680f6dd620b6419cd5
+[2025-06-06T12:06:35.138Z] [info] Fetching packages for stable_hash_id: 6b27a46a7ac5e1680f6dd620b6419cd5
+[2025-06-06T12:06:35.197Z] [info] Found 0 packages for stable_hash_id 6b27a46a7ac5e1680f6dd620b6419cd5
+[2025-06-06T12:06:35.197Z] [info] No packages found for stable_hash_id 6b27a46a7ac5e1680f6dd620b6419cd5
+[2025-06-06T12:06:35.197Z] [info] Processing mapping 10/20 for stable_hash_id 774a2438485e9d43e7adb95886b09bc9
+[2025-06-06T12:06:35.198Z] [info] Fetching packages for stable_hash_id: 774a2438485e9d43e7adb95886b09bc9
+[2025-06-06T12:06:35.267Z] [info] Found 0 packages for stable_hash_id 774a2438485e9d43e7adb95886b09bc9
+[2025-06-06T12:06:35.267Z] [info] No packages found for stable_hash_id 774a2438485e9d43e7adb95886b09bc9
+[2025-06-06T12:06:35.267Z] [info] Processing mapping 11/20 for stable_hash_id f1ac7dd7735a5161ef3e20d26cce4b33
+[2025-06-06T12:06:35.267Z] [info] Fetching packages for stable_hash_id: f1ac7dd7735a5161ef3e20d26cce4b33
+[2025-06-06T12:06:35.324Z] [info] Found 0 packages for stable_hash_id f1ac7dd7735a5161ef3e20d26cce4b33
+[2025-06-06T12:06:35.324Z] [info] No packages found for stable_hash_id f1ac7dd7735a5161ef3e20d26cce4b33
+[2025-06-06T12:06:35.324Z] [info] Processing mapping 12/20 for stable_hash_id a50b8609533852266a182f7556a9a79d
+[2025-06-06T12:06:35.324Z] [info] Fetching packages for stable_hash_id: a50b8609533852266a182f7556a9a79d
+[2025-06-06T12:06:35.386Z] [info] Found 1 packages for stable_hash_id a50b8609533852266a182f7556a9a79d
+[2025-06-06T12:06:35.386Z] [info] Syncing 1 packages for stable_hash_id a50b8609533852266a182f7556a9a79d
+[2025-06-06T12:06:35.525Z] [info] Deleted 0 existing packages for stable_hash_id a50b8609533852266a182f7556a9a79d
+[2025-06-06T12:06:35.596Z] [info] Added 1 new packages for stable_hash_id a50b8609533852266a182f7556a9a79d
+[2025-06-06T12:06:35.596Z] [info] Processed 1 packages for stable_hash_id a50b8609533852266a182f7556a9a79d (Added: 1, Deleted: 0, Errors: 0)
+[2025-06-06T12:06:35.596Z] [info] Processing mapping 13/20 for stable_hash_id 6cec77f05e93b8e13d62859b83f36c68
+[2025-06-06T12:06:35.596Z] [info] Fetching packages for stable_hash_id: 6cec77f05e93b8e13d62859b83f36c68
+[2025-06-06T12:06:35.676Z] [info] Found 0 packages for stable_hash_id 6cec77f05e93b8e13d62859b83f36c68
+[2025-06-06T12:06:35.676Z] [info] No packages found for stable_hash_id 6cec77f05e93b8e13d62859b83f36c68
+[2025-06-06T12:06:35.676Z] [info] Processing mapping 14/20 for stable_hash_id ad594093c7d7bcf8cd36095dfdb107a8
+[2025-06-06T12:06:35.677Z] [info] Fetching packages for stable_hash_id: ad594093c7d7bcf8cd36095dfdb107a8
+[2025-06-06T12:06:35.739Z] [info] Found 0 packages for stable_hash_id ad594093c7d7bcf8cd36095dfdb107a8
+[2025-06-06T12:06:35.739Z] [info] No packages found for stable_hash_id ad594093c7d7bcf8cd36095dfdb107a8
+[2025-06-06T12:06:35.740Z] [info] Processing mapping 15/20 for stable_hash_id 09de344bed3e8073620bb4f9886994f6
+[2025-06-06T12:06:35.740Z] [info] Fetching packages for stable_hash_id: 09de344bed3e8073620bb4f9886994f6
+[2025-06-06T12:06:35.813Z] [info] Found 0 packages for stable_hash_id 09de344bed3e8073620bb4f9886994f6
+[2025-06-06T12:06:35.813Z] [info] No packages found for stable_hash_id 09de344bed3e8073620bb4f9886994f6
+[2025-06-06T12:06:35.813Z] [info] Processing mapping 16/20 for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:35.813Z] [info] Fetching packages for stable_hash_id: 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:35.879Z] [info] Found 3 packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:35.879Z] [info] Syncing 3 packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:36.002Z] [info] Deleted 3 existing packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:36.098Z] [info] Added 3 new packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:36.098Z] [info] Processed 3 packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296 (Added: 3, Deleted: 3, Errors: 0)
+[2025-06-06T12:06:36.098Z] [info] Processing mapping 17/20 for stable_hash_id 643f4ade96a3692028989cfca0bccd33
+[2025-06-06T12:06:36.099Z] [info] Fetching packages for stable_hash_id: 643f4ade96a3692028989cfca0bccd33
+[2025-06-06T12:06:36.201Z] [info] Found 0 packages for stable_hash_id 643f4ade96a3692028989cfca0bccd33
+[2025-06-06T12:06:36.202Z] [info] No packages found for stable_hash_id 643f4ade96a3692028989cfca0bccd33
+[2025-06-06T12:06:36.202Z] [info] Processing mapping 18/20 for stable_hash_id ed558842c0fd50ef79c38c20b7864162
+[2025-06-06T12:06:36.202Z] [info] Fetching packages for stable_hash_id: ed558842c0fd50ef79c38c20b7864162
+[2025-06-06T12:06:36.266Z] [info] Found 0 packages for stable_hash_id ed558842c0fd50ef79c38c20b7864162
+[2025-06-06T12:06:36.267Z] [info] No packages found for stable_hash_id ed558842c0fd50ef79c38c20b7864162
+[2025-06-06T12:06:36.267Z] [info] Processing mapping 19/20 for stable_hash_id 54dae4d67ad32700e7dbeea4cd40dc1b
+[2025-06-06T12:06:36.267Z] [info] Fetching packages for stable_hash_id: 54dae4d67ad32700e7dbeea4cd40dc1b
+[2025-06-06T12:06:36.339Z] [info] Found 0 packages for stable_hash_id 54dae4d67ad32700e7dbeea4cd40dc1b
+[2025-06-06T12:06:36.339Z] [info] No packages found for stable_hash_id 54dae4d67ad32700e7dbeea4cd40dc1b
+[2025-06-06T12:06:36.339Z] [info] Processing mapping 20/20 for stable_hash_id 0c6369b601a372d224e77c366e9bc214
+[2025-06-06T12:06:36.340Z] [info] Fetching packages for stable_hash_id: 0c6369b601a372d224e77c366e9bc214
+[2025-06-06T12:06:36.398Z] [info] Found 0 packages for stable_hash_id 0c6369b601a372d224e77c366e9bc214
+[2025-06-06T12:06:36.398Z] [info] No packages found for stable_hash_id 0c6369b601a372d224e77c366e9bc214
+[2025-06-06T12:06:36.398Z] [info] Batch 2 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:06:36.901Z] [info] Processing batch 3 of 13
+[2025-06-06T12:06:36.901Z] [info] Processing mapping 1/20 for stable_hash_id e5aa3773894a4101d7d2cbbd1be06a97
+[2025-06-06T12:06:36.901Z] [info] Fetching packages for stable_hash_id: e5aa3773894a4101d7d2cbbd1be06a97
+[2025-06-06T12:06:36.966Z] [info] Found 1 packages for stable_hash_id e5aa3773894a4101d7d2cbbd1be06a97
+[2025-06-06T12:06:36.967Z] [info] Syncing 1 packages for stable_hash_id e5aa3773894a4101d7d2cbbd1be06a97
+[2025-06-06T12:06:37.261Z] [info] Deleted 1 existing packages for stable_hash_id e5aa3773894a4101d7d2cbbd1be06a97
+[2025-06-06T12:06:37.343Z] [info] Added 1 new packages for stable_hash_id e5aa3773894a4101d7d2cbbd1be06a97
+[2025-06-06T12:06:37.343Z] [info] Processed 1 packages for stable_hash_id e5aa3773894a4101d7d2cbbd1be06a97 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:37.344Z] [info] Processing mapping 2/20 for stable_hash_id c3ddd2f04127ab35e46d22cdd3839cb3
+[2025-06-06T12:06:37.344Z] [info] Fetching packages for stable_hash_id: c3ddd2f04127ab35e46d22cdd3839cb3
+[2025-06-06T12:06:37.406Z] [info] Found 1 packages for stable_hash_id c3ddd2f04127ab35e46d22cdd3839cb3
+[2025-06-06T12:06:37.407Z] [info] Syncing 1 packages for stable_hash_id c3ddd2f04127ab35e46d22cdd3839cb3
+[2025-06-06T12:06:37.535Z] [info] Deleted 1 existing packages for stable_hash_id c3ddd2f04127ab35e46d22cdd3839cb3
+[2025-06-06T12:06:37.604Z] [info] Added 1 new packages for stable_hash_id c3ddd2f04127ab35e46d22cdd3839cb3
+[2025-06-06T12:06:37.605Z] [info] Processed 1 packages for stable_hash_id c3ddd2f04127ab35e46d22cdd3839cb3 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:37.605Z] [info] Processing mapping 3/20 for stable_hash_id 6df48fab4cdf6e79d419bacf13206b89
+[2025-06-06T12:06:37.605Z] [info] Fetching packages for stable_hash_id: 6df48fab4cdf6e79d419bacf13206b89
+[2025-06-06T12:06:37.697Z] [info] Found 0 packages for stable_hash_id 6df48fab4cdf6e79d419bacf13206b89
+[2025-06-06T12:06:37.697Z] [info] No packages found for stable_hash_id 6df48fab4cdf6e79d419bacf13206b89
+[2025-06-06T12:06:37.697Z] [info] Processing mapping 4/20 for stable_hash_id 24b51fbad6bd0bebe6133785e7a9a3ab
+[2025-06-06T12:06:37.698Z] [info] Fetching packages for stable_hash_id: 24b51fbad6bd0bebe6133785e7a9a3ab
+[2025-06-06T12:06:37.761Z] [info] Found 0 packages for stable_hash_id 24b51fbad6bd0bebe6133785e7a9a3ab
+[2025-06-06T12:06:37.761Z] [info] No packages found for stable_hash_id 24b51fbad6bd0bebe6133785e7a9a3ab
+[2025-06-06T12:06:37.762Z] [info] Processing mapping 5/20 for stable_hash_id b2db7178daa3160b3d2a862027b9c9db
+[2025-06-06T12:06:37.762Z] [info] Fetching packages for stable_hash_id: b2db7178daa3160b3d2a862027b9c9db
+[2025-06-06T12:06:37.824Z] [info] Found 0 packages for stable_hash_id b2db7178daa3160b3d2a862027b9c9db
+[2025-06-06T12:06:37.824Z] [info] No packages found for stable_hash_id b2db7178daa3160b3d2a862027b9c9db
+[2025-06-06T12:06:37.825Z] [info] Processing mapping 6/20 for stable_hash_id 4f5a04783e72d0e584d77075172c0a93
+[2025-06-06T12:06:37.825Z] [info] Fetching packages for stable_hash_id: 4f5a04783e72d0e584d77075172c0a93
+[2025-06-06T12:06:37.895Z] [info] Found 0 packages for stable_hash_id 4f5a04783e72d0e584d77075172c0a93
+[2025-06-06T12:06:37.896Z] [info] No packages found for stable_hash_id 4f5a04783e72d0e584d77075172c0a93
+[2025-06-06T12:06:37.896Z] [info] Processing mapping 7/20 for stable_hash_id 638b795093a7e14f7eb1f365e02d0d8c
+[2025-06-06T12:06:37.896Z] [info] Fetching packages for stable_hash_id: 638b795093a7e14f7eb1f365e02d0d8c
+[2025-06-06T12:06:37.967Z] [info] Found 0 packages for stable_hash_id 638b795093a7e14f7eb1f365e02d0d8c
+[2025-06-06T12:06:37.968Z] [info] No packages found for stable_hash_id 638b795093a7e14f7eb1f365e02d0d8c
+[2025-06-06T12:06:37.968Z] [info] Processing mapping 8/20 for stable_hash_id 52835d4e824a29bce031a6204d58d68d
+[2025-06-06T12:06:37.968Z] [info] Fetching packages for stable_hash_id: 52835d4e824a29bce031a6204d58d68d
+[2025-06-06T12:06:38.031Z] [info] Found 0 packages for stable_hash_id 52835d4e824a29bce031a6204d58d68d
+[2025-06-06T12:06:38.031Z] [info] No packages found for stable_hash_id 52835d4e824a29bce031a6204d58d68d
+[2025-06-06T12:06:38.032Z] [info] Processing mapping 9/20 for stable_hash_id 56c935a606c5c83116a993ba23194764
+[2025-06-06T12:06:38.032Z] [info] Fetching packages for stable_hash_id: 56c935a606c5c83116a993ba23194764
+[2025-06-06T12:06:38.117Z] [info] Found 0 packages for stable_hash_id 56c935a606c5c83116a993ba23194764
+[2025-06-06T12:06:38.117Z] [info] No packages found for stable_hash_id 56c935a606c5c83116a993ba23194764
+[2025-06-06T12:06:38.118Z] [info] Processing mapping 10/20 for stable_hash_id 83c1def8084cee7e5d5cff27e0cd0abf
+[2025-06-06T12:06:38.118Z] [info] Fetching packages for stable_hash_id: 83c1def8084cee7e5d5cff27e0cd0abf
+[2025-06-06T12:06:38.184Z] [info] Found 0 packages for stable_hash_id 83c1def8084cee7e5d5cff27e0cd0abf
+[2025-06-06T12:06:38.184Z] [info] No packages found for stable_hash_id 83c1def8084cee7e5d5cff27e0cd0abf
+[2025-06-06T12:06:38.184Z] [info] Processing mapping 11/20 for stable_hash_id 06a057dbdc4297a179a1fb9e0069f8d4
+[2025-06-06T12:06:38.185Z] [info] Fetching packages for stable_hash_id: 06a057dbdc4297a179a1fb9e0069f8d4
+[2025-06-06T12:06:38.241Z] [info] Found 0 packages for stable_hash_id 06a057dbdc4297a179a1fb9e0069f8d4
+[2025-06-06T12:06:38.241Z] [info] No packages found for stable_hash_id 06a057dbdc4297a179a1fb9e0069f8d4
+[2025-06-06T12:06:38.241Z] [info] Processing mapping 12/20 for stable_hash_id 6f0c6712f752a47a64323ddd237621c3
+[2025-06-06T12:06:38.242Z] [info] Fetching packages for stable_hash_id: 6f0c6712f752a47a64323ddd237621c3
+[2025-06-06T12:06:38.305Z] [info] Found 0 packages for stable_hash_id 6f0c6712f752a47a64323ddd237621c3
+[2025-06-06T12:06:38.305Z] [info] No packages found for stable_hash_id 6f0c6712f752a47a64323ddd237621c3
+[2025-06-06T12:06:38.306Z] [info] Processing mapping 13/20 for stable_hash_id de667d80cabf7e6d943083f70e4b07e9
+[2025-06-06T12:06:38.306Z] [info] Fetching packages for stable_hash_id: de667d80cabf7e6d943083f70e4b07e9
+[2025-06-06T12:06:38.371Z] [info] Found 1 packages for stable_hash_id de667d80cabf7e6d943083f70e4b07e9
+[2025-06-06T12:06:38.371Z] [info] Syncing 1 packages for stable_hash_id de667d80cabf7e6d943083f70e4b07e9
+[2025-06-06T12:06:38.497Z] [info] Deleted 0 existing packages for stable_hash_id de667d80cabf7e6d943083f70e4b07e9
+[2025-06-06T12:06:38.588Z] [info] Added 1 new packages for stable_hash_id de667d80cabf7e6d943083f70e4b07e9
+[2025-06-06T12:06:38.588Z] [info] Processed 1 packages for stable_hash_id de667d80cabf7e6d943083f70e4b07e9 (Added: 1, Deleted: 0, Errors: 0)
+[2025-06-06T12:06:38.588Z] [info] Processing mapping 14/20 for stable_hash_id 96c4ea2ff9a43944e1a28071b6042633
+[2025-06-06T12:06:38.588Z] [info] Fetching packages for stable_hash_id: 96c4ea2ff9a43944e1a28071b6042633
+[2025-06-06T12:06:38.658Z] [info] Found 1 packages for stable_hash_id 96c4ea2ff9a43944e1a28071b6042633
+[2025-06-06T12:06:38.659Z] [info] Syncing 1 packages for stable_hash_id 96c4ea2ff9a43944e1a28071b6042633
+[2025-06-06T12:06:38.790Z] [info] Deleted 1 existing packages for stable_hash_id 96c4ea2ff9a43944e1a28071b6042633
+[2025-06-06T12:06:38.857Z] [info] Added 1 new packages for stable_hash_id 96c4ea2ff9a43944e1a28071b6042633
+[2025-06-06T12:06:38.858Z] [info] Processed 1 packages for stable_hash_id 96c4ea2ff9a43944e1a28071b6042633 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:38.858Z] [info] Processing mapping 15/20 for stable_hash_id 17e926bb6d082ffb47e55cdb81234f6d
+[2025-06-06T12:06:38.858Z] [info] Fetching packages for stable_hash_id: 17e926bb6d082ffb47e55cdb81234f6d
+[2025-06-06T12:06:38.931Z] [info] Found 1 packages for stable_hash_id 17e926bb6d082ffb47e55cdb81234f6d
+[2025-06-06T12:06:38.932Z] [info] Syncing 1 packages for stable_hash_id 17e926bb6d082ffb47e55cdb81234f6d
+[2025-06-06T12:06:39.066Z] [info] Deleted 1 existing packages for stable_hash_id 17e926bb6d082ffb47e55cdb81234f6d
+[2025-06-06T12:06:39.129Z] [info] Added 1 new packages for stable_hash_id 17e926bb6d082ffb47e55cdb81234f6d
+[2025-06-06T12:06:39.130Z] [info] Processed 1 packages for stable_hash_id 17e926bb6d082ffb47e55cdb81234f6d (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:39.130Z] [info] Processing mapping 16/20 for stable_hash_id f6fe8e141e728836a5edc52ece2bbd27
+[2025-06-06T12:06:39.130Z] [info] Fetching packages for stable_hash_id: f6fe8e141e728836a5edc52ece2bbd27
+[2025-06-06T12:06:39.221Z] [info] Found 0 packages for stable_hash_id f6fe8e141e728836a5edc52ece2bbd27
+[2025-06-06T12:06:39.222Z] [info] No packages found for stable_hash_id f6fe8e141e728836a5edc52ece2bbd27
+[2025-06-06T12:06:39.222Z] [info] Processing mapping 17/20 for stable_hash_id e02549e1acf2331b37a847fb4311ac3a
+[2025-06-06T12:06:39.222Z] [info] Fetching packages for stable_hash_id: e02549e1acf2331b37a847fb4311ac3a
+[2025-06-06T12:06:39.290Z] [info] Found 0 packages for stable_hash_id e02549e1acf2331b37a847fb4311ac3a
+[2025-06-06T12:06:39.290Z] [info] No packages found for stable_hash_id e02549e1acf2331b37a847fb4311ac3a
+[2025-06-06T12:06:39.291Z] [info] Processing mapping 18/20 for stable_hash_id 7533382626dd787db9445eb71f3e53dd
+[2025-06-06T12:06:39.291Z] [info] Fetching packages for stable_hash_id: 7533382626dd787db9445eb71f3e53dd
+[2025-06-06T12:06:39.355Z] [info] Found 0 packages for stable_hash_id 7533382626dd787db9445eb71f3e53dd
+[2025-06-06T12:06:39.355Z] [info] No packages found for stable_hash_id 7533382626dd787db9445eb71f3e53dd
+[2025-06-06T12:06:39.356Z] [info] Processing mapping 19/20 for stable_hash_id 6a56720233e266738987c42ff2844c24
+[2025-06-06T12:06:39.356Z] [info] Fetching packages for stable_hash_id: 6a56720233e266738987c42ff2844c24
+[2025-06-06T12:06:39.426Z] [info] Found 0 packages for stable_hash_id 6a56720233e266738987c42ff2844c24
+[2025-06-06T12:06:39.427Z] [info] No packages found for stable_hash_id 6a56720233e266738987c42ff2844c24
+[2025-06-06T12:06:39.427Z] [info] Processing mapping 20/20 for stable_hash_id 26fbe97838be14c23e539427e744efa7
+[2025-06-06T12:06:39.427Z] [info] Fetching packages for stable_hash_id: 26fbe97838be14c23e539427e744efa7
+[2025-06-06T12:06:39.493Z] [info] Found 0 packages for stable_hash_id 26fbe97838be14c23e539427e744efa7
+[2025-06-06T12:06:39.494Z] [info] No packages found for stable_hash_id 26fbe97838be14c23e539427e744efa7
+[2025-06-06T12:06:39.494Z] [info] Batch 3 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:06:39.999Z] [info] Processing batch 4 of 13
+[2025-06-06T12:06:40.000Z] [info] Processing mapping 1/20 for stable_hash_id 6fbfa73b0f0e07c1b786e067d57e8688
+[2025-06-06T12:06:40.000Z] [info] Fetching packages for stable_hash_id: 6fbfa73b0f0e07c1b786e067d57e8688
+[2025-06-06T12:06:40.063Z] [info] Found 0 packages for stable_hash_id 6fbfa73b0f0e07c1b786e067d57e8688
+[2025-06-06T12:06:40.064Z] [info] No packages found for stable_hash_id 6fbfa73b0f0e07c1b786e067d57e8688
+[2025-06-06T12:06:40.064Z] [info] Processing mapping 2/20 for stable_hash_id 09ee99931cae17dcbce590c675d8e1ad
+[2025-06-06T12:06:40.064Z] [info] Fetching packages for stable_hash_id: 09ee99931cae17dcbce590c675d8e1ad
+[2025-06-06T12:06:40.131Z] [info] Found 0 packages for stable_hash_id 09ee99931cae17dcbce590c675d8e1ad
+[2025-06-06T12:06:40.131Z] [info] No packages found for stable_hash_id 09ee99931cae17dcbce590c675d8e1ad
+[2025-06-06T12:06:40.132Z] [info] Processing mapping 3/20 for stable_hash_id 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.132Z] [info] Fetching packages for stable_hash_id: 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.207Z] [info] Found 2 packages for stable_hash_id 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.208Z] [info] Syncing 2 packages for stable_hash_id 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.336Z] [info] Deleted 2 existing packages for stable_hash_id 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.403Z] [info] Added 2 new packages for stable_hash_id 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.403Z] [info] Processed 2 packages for stable_hash_id 3e989127d0a3b146f75973d11f526449 (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:40.403Z] [info] Processing mapping 4/20 for stable_hash_id bfc1aa49b9e8ccec85dfcfdf82c44f04
+[2025-06-06T12:06:40.404Z] [info] Fetching packages for stable_hash_id: bfc1aa49b9e8ccec85dfcfdf82c44f04
+[2025-06-06T12:06:40.468Z] [info] Found 0 packages for stable_hash_id bfc1aa49b9e8ccec85dfcfdf82c44f04
+[2025-06-06T12:06:40.469Z] [info] No packages found for stable_hash_id bfc1aa49b9e8ccec85dfcfdf82c44f04
+[2025-06-06T12:06:40.469Z] [info] Processing mapping 5/20 for stable_hash_id 07617bfc21fb62175b569d80a4a48d0a
+[2025-06-06T12:06:40.469Z] [info] Fetching packages for stable_hash_id: 07617bfc21fb62175b569d80a4a48d0a
+[2025-06-06T12:06:40.542Z] [info] Found 0 packages for stable_hash_id 07617bfc21fb62175b569d80a4a48d0a
+[2025-06-06T12:06:40.542Z] [info] No packages found for stable_hash_id 07617bfc21fb62175b569d80a4a48d0a
+[2025-06-06T12:06:40.542Z] [info] Processing mapping 6/20 for stable_hash_id f31f5e5473bc8dabfe1133d2efe26543
+[2025-06-06T12:06:40.542Z] [info] Fetching packages for stable_hash_id: f31f5e5473bc8dabfe1133d2efe26543
+[2025-06-06T12:06:40.618Z] [info] Found 0 packages for stable_hash_id f31f5e5473bc8dabfe1133d2efe26543
+[2025-06-06T12:06:40.618Z] [info] No packages found for stable_hash_id f31f5e5473bc8dabfe1133d2efe26543
+[2025-06-06T12:06:40.618Z] [info] Processing mapping 7/20 for stable_hash_id 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.618Z] [info] Fetching packages for stable_hash_id: 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.684Z] [info] Found 2 packages for stable_hash_id 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.685Z] [info] Syncing 2 packages for stable_hash_id 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.813Z] [info] Deleted 2 existing packages for stable_hash_id 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.876Z] [info] Added 2 new packages for stable_hash_id 3e989127d0a3b146f75973d11f526449
+[2025-06-06T12:06:40.877Z] [info] Processed 2 packages for stable_hash_id 3e989127d0a3b146f75973d11f526449 (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:40.877Z] [info] Processing mapping 8/20 for stable_hash_id 0b5407a660d31ca49f3ea181809c0230
+[2025-06-06T12:06:40.877Z] [info] Fetching packages for stable_hash_id: 0b5407a660d31ca49f3ea181809c0230
+[2025-06-06T12:06:40.946Z] [info] Found 3 packages for stable_hash_id 0b5407a660d31ca49f3ea181809c0230
+[2025-06-06T12:06:40.946Z] [info] Syncing 3 packages for stable_hash_id 0b5407a660d31ca49f3ea181809c0230
+[2025-06-06T12:06:41.086Z] [info] Deleted 3 existing packages for stable_hash_id 0b5407a660d31ca49f3ea181809c0230
+[2025-06-06T12:06:41.149Z] [info] Added 3 new packages for stable_hash_id 0b5407a660d31ca49f3ea181809c0230
+[2025-06-06T12:06:41.149Z] [info] Processed 3 packages for stable_hash_id 0b5407a660d31ca49f3ea181809c0230 (Added: 3, Deleted: 3, Errors: 0)
+[2025-06-06T12:06:41.150Z] [info] Processing mapping 9/20 for stable_hash_id 980bf657edf58c308eb47667331ba9af
+[2025-06-06T12:06:41.150Z] [info] Fetching packages for stable_hash_id: 980bf657edf58c308eb47667331ba9af
+[2025-06-06T12:06:41.213Z] [info] Found 0 packages for stable_hash_id 980bf657edf58c308eb47667331ba9af
+[2025-06-06T12:06:41.213Z] [info] No packages found for stable_hash_id 980bf657edf58c308eb47667331ba9af
+[2025-06-06T12:06:41.213Z] [info] Processing mapping 10/20 for stable_hash_id 9970317ae2ae5d0a0f07a99b47e31700
+[2025-06-06T12:06:41.213Z] [info] Fetching packages for stable_hash_id: 9970317ae2ae5d0a0f07a99b47e31700
+[2025-06-06T12:06:41.281Z] [info] Found 0 packages for stable_hash_id 9970317ae2ae5d0a0f07a99b47e31700
+[2025-06-06T12:06:41.282Z] [info] No packages found for stable_hash_id 9970317ae2ae5d0a0f07a99b47e31700
+[2025-06-06T12:06:41.282Z] [info] Processing mapping 11/20 for stable_hash_id c7041bea42c6394fc0cd4d3315d2a391
+[2025-06-06T12:06:41.282Z] [info] Fetching packages for stable_hash_id: c7041bea42c6394fc0cd4d3315d2a391
+[2025-06-06T12:06:41.351Z] [info] Found 0 packages for stable_hash_id c7041bea42c6394fc0cd4d3315d2a391
+[2025-06-06T12:06:41.351Z] [info] No packages found for stable_hash_id c7041bea42c6394fc0cd4d3315d2a391
+[2025-06-06T12:06:41.352Z] [info] Processing mapping 12/20 for stable_hash_id e611f6100e45412b0681954e7651f0b7
+[2025-06-06T12:06:41.352Z] [info] Fetching packages for stable_hash_id: e611f6100e45412b0681954e7651f0b7
+[2025-06-06T12:06:41.423Z] [info] Found 0 packages for stable_hash_id e611f6100e45412b0681954e7651f0b7
+[2025-06-06T12:06:41.423Z] [info] No packages found for stable_hash_id e611f6100e45412b0681954e7651f0b7
+[2025-06-06T12:06:41.423Z] [info] Processing mapping 13/20 for stable_hash_id d3c7e69087ff85692024b2dba6502ba9
+[2025-06-06T12:06:41.423Z] [info] Fetching packages for stable_hash_id: d3c7e69087ff85692024b2dba6502ba9
+[2025-06-06T12:06:41.485Z] [info] Found 0 packages for stable_hash_id d3c7e69087ff85692024b2dba6502ba9
+[2025-06-06T12:06:41.485Z] [info] No packages found for stable_hash_id d3c7e69087ff85692024b2dba6502ba9
+[2025-06-06T12:06:41.485Z] [info] Processing mapping 14/20 for stable_hash_id 2b819c8c8918cd5aeb71d9e3c480b95b
+[2025-06-06T12:06:41.486Z] [info] Fetching packages for stable_hash_id: 2b819c8c8918cd5aeb71d9e3c480b95b
+[2025-06-06T12:06:41.562Z] [info] Found 2 packages for stable_hash_id 2b819c8c8918cd5aeb71d9e3c480b95b
+[2025-06-06T12:06:41.563Z] [info] Syncing 2 packages for stable_hash_id 2b819c8c8918cd5aeb71d9e3c480b95b
+[2025-06-06T12:06:41.695Z] [info] Deleted 2 existing packages for stable_hash_id 2b819c8c8918cd5aeb71d9e3c480b95b
+[2025-06-06T12:06:41.767Z] [info] Added 2 new packages for stable_hash_id 2b819c8c8918cd5aeb71d9e3c480b95b
+[2025-06-06T12:06:41.768Z] [info] Processed 2 packages for stable_hash_id 2b819c8c8918cd5aeb71d9e3c480b95b (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:41.768Z] [info] Processing mapping 15/20 for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:41.768Z] [info] Fetching packages for stable_hash_id: 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:41.842Z] [info] Found 3 packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:41.842Z] [info] Syncing 3 packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:42.000Z] [info] Deleted 3 existing packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:42.067Z] [info] Added 3 new packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:42.067Z] [info] Processed 3 packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296 (Added: 3, Deleted: 3, Errors: 0)
+[2025-06-06T12:06:42.067Z] [info] Processing mapping 16/20 for stable_hash_id 99342397d689062b283384dc9b47dfae
+[2025-06-06T12:06:42.067Z] [info] Fetching packages for stable_hash_id: 99342397d689062b283384dc9b47dfae
+[2025-06-06T12:06:42.130Z] [info] Found 0 packages for stable_hash_id 99342397d689062b283384dc9b47dfae
+[2025-06-06T12:06:42.130Z] [info] No packages found for stable_hash_id 99342397d689062b283384dc9b47dfae
+[2025-06-06T12:06:42.130Z] [info] Processing mapping 17/20 for stable_hash_id b41774c91987807a71eb3889ca93989d
+[2025-06-06T12:06:42.130Z] [info] Fetching packages for stable_hash_id: b41774c91987807a71eb3889ca93989d
+[2025-06-06T12:06:42.193Z] [info] Found 0 packages for stable_hash_id b41774c91987807a71eb3889ca93989d
+[2025-06-06T12:06:42.193Z] [info] No packages found for stable_hash_id b41774c91987807a71eb3889ca93989d
+[2025-06-06T12:06:42.193Z] [info] Processing mapping 18/20 for stable_hash_id f55ad167f33f77881580fbd9ff743f8a
+[2025-06-06T12:06:42.193Z] [info] Fetching packages for stable_hash_id: f55ad167f33f77881580fbd9ff743f8a
+[2025-06-06T12:06:42.382Z] [info] Found 0 packages for stable_hash_id f55ad167f33f77881580fbd9ff743f8a
+[2025-06-06T12:06:42.382Z] [info] No packages found for stable_hash_id f55ad167f33f77881580fbd9ff743f8a
+[2025-06-06T12:06:42.382Z] [info] Processing mapping 19/20 for stable_hash_id 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:06:42.382Z] [info] Fetching packages for stable_hash_id: 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:06:42.453Z] [info] Found 5 packages for stable_hash_id 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:06:42.453Z] [info] Syncing 5 packages for stable_hash_id 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:06:42.578Z] [info] Deleted 5 existing packages for stable_hash_id 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:06:42.649Z] [info] Added 5 new packages for stable_hash_id 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:06:42.650Z] [info] Processed 5 packages for stable_hash_id 772b7d640d0468e197700710073a0d72 (Added: 5, Deleted: 5, Errors: 0)
+[2025-06-06T12:06:42.650Z] [info] Processing mapping 20/20 for stable_hash_id 941718824ed4c531a8a47e0c301a5475
+[2025-06-06T12:06:42.650Z] [info] Fetching packages for stable_hash_id: 941718824ed4c531a8a47e0c301a5475
+[2025-06-06T12:06:42.728Z] [info] Found 0 packages for stable_hash_id 941718824ed4c531a8a47e0c301a5475
+[2025-06-06T12:06:42.729Z] [info] No packages found for stable_hash_id 941718824ed4c531a8a47e0c301a5475
+[2025-06-06T12:06:42.729Z] [info] Batch 4 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:06:43.231Z] [info] Processing batch 5 of 13
+[2025-06-06T12:06:43.232Z] [info] Processing mapping 1/20 for stable_hash_id 1e2e346acaee71c75d1b4ced63087ede
+[2025-06-06T12:06:43.232Z] [info] Fetching packages for stable_hash_id: 1e2e346acaee71c75d1b4ced63087ede
+[2025-06-06T12:06:43.295Z] [info] Found 0 packages for stable_hash_id 1e2e346acaee71c75d1b4ced63087ede
+[2025-06-06T12:06:43.296Z] [info] No packages found for stable_hash_id 1e2e346acaee71c75d1b4ced63087ede
+[2025-06-06T12:06:43.296Z] [info] Processing mapping 2/20 for stable_hash_id 4c9e00be9ad6f6a8c27ca626f71b2c8b
+[2025-06-06T12:06:43.296Z] [info] Fetching packages for stable_hash_id: 4c9e00be9ad6f6a8c27ca626f71b2c8b
+[2025-06-06T12:06:43.366Z] [info] Found 2 packages for stable_hash_id 4c9e00be9ad6f6a8c27ca626f71b2c8b
+[2025-06-06T12:06:43.367Z] [info] Syncing 2 packages for stable_hash_id 4c9e00be9ad6f6a8c27ca626f71b2c8b
+[2025-06-06T12:06:43.501Z] [info] Deleted 2 existing packages for stable_hash_id 4c9e00be9ad6f6a8c27ca626f71b2c8b
+[2025-06-06T12:06:43.585Z] [info] Added 2 new packages for stable_hash_id 4c9e00be9ad6f6a8c27ca626f71b2c8b
+[2025-06-06T12:06:43.585Z] [info] Processed 2 packages for stable_hash_id 4c9e00be9ad6f6a8c27ca626f71b2c8b (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:43.585Z] [info] Processing mapping 3/20 for stable_hash_id 14eed9243c9a25055a2556e6bb89304a
+[2025-06-06T12:06:43.586Z] [info] Fetching packages for stable_hash_id: 14eed9243c9a25055a2556e6bb89304a
+[2025-06-06T12:06:43.653Z] [info] Found 1 packages for stable_hash_id 14eed9243c9a25055a2556e6bb89304a
+[2025-06-06T12:06:43.653Z] [info] Syncing 1 packages for stable_hash_id 14eed9243c9a25055a2556e6bb89304a
+[2025-06-06T12:06:43.786Z] [info] Deleted 1 existing packages for stable_hash_id 14eed9243c9a25055a2556e6bb89304a
+[2025-06-06T12:06:43.860Z] [info] Added 1 new packages for stable_hash_id 14eed9243c9a25055a2556e6bb89304a
+[2025-06-06T12:06:43.861Z] [info] Processed 1 packages for stable_hash_id 14eed9243c9a25055a2556e6bb89304a (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:43.861Z] [info] Processing mapping 4/20 for stable_hash_id beb196829ade2b0990749ffcfd9788cb
+[2025-06-06T12:06:43.861Z] [info] Fetching packages for stable_hash_id: beb196829ade2b0990749ffcfd9788cb
+[2025-06-06T12:06:43.922Z] [info] Found 0 packages for stable_hash_id beb196829ade2b0990749ffcfd9788cb
+[2025-06-06T12:06:43.922Z] [info] No packages found for stable_hash_id beb196829ade2b0990749ffcfd9788cb
+[2025-06-06T12:06:43.923Z] [info] Processing mapping 5/20 for stable_hash_id e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:43.923Z] [info] Fetching packages for stable_hash_id: e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:44.000Z] [info] Found 7 packages for stable_hash_id e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:44.001Z] [info] Syncing 7 packages for stable_hash_id e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:44.136Z] [info] Deleted 7 existing packages for stable_hash_id e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:44.202Z] [info] Added 7 new packages for stable_hash_id e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:44.202Z] [info] Processed 7 packages for stable_hash_id e3d5e074593733400be53f082214eb2a (Added: 7, Deleted: 7, Errors: 0)
+[2025-06-06T12:06:44.202Z] [info] Processing mapping 6/20 for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:44.202Z] [info] Fetching packages for stable_hash_id: 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:44.260Z] [info] Found 2 packages for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:44.261Z] [info] Syncing 2 packages for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:44.406Z] [info] Deleted 2 existing packages for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:44.468Z] [info] Added 2 new packages for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:44.468Z] [info] Processed 2 packages for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:44.469Z] [info] Processing mapping 7/20 for stable_hash_id 4d0c7b91fe476a70b210895e37cd5bc2
+[2025-06-06T12:06:44.469Z] [info] Fetching packages for stable_hash_id: 4d0c7b91fe476a70b210895e37cd5bc2
+[2025-06-06T12:06:44.532Z] [info] Found 1 packages for stable_hash_id 4d0c7b91fe476a70b210895e37cd5bc2
+[2025-06-06T12:06:44.532Z] [info] Syncing 1 packages for stable_hash_id 4d0c7b91fe476a70b210895e37cd5bc2
+[2025-06-06T12:06:44.673Z] [info] Deleted 1 existing packages for stable_hash_id 4d0c7b91fe476a70b210895e37cd5bc2
+[2025-06-06T12:06:44.742Z] [info] Added 1 new packages for stable_hash_id 4d0c7b91fe476a70b210895e37cd5bc2
+[2025-06-06T12:06:44.743Z] [info] Processed 1 packages for stable_hash_id 4d0c7b91fe476a70b210895e37cd5bc2 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:44.743Z] [info] Processing mapping 8/20 for stable_hash_id 5a6aed22271cf65e18c812a1562f44a3
+[2025-06-06T12:06:44.743Z] [info] Fetching packages for stable_hash_id: 5a6aed22271cf65e18c812a1562f44a3
+[2025-06-06T12:06:44.804Z] [info] Found 1 packages for stable_hash_id 5a6aed22271cf65e18c812a1562f44a3
+[2025-06-06T12:06:44.804Z] [info] Syncing 1 packages for stable_hash_id 5a6aed22271cf65e18c812a1562f44a3
+[2025-06-06T12:06:44.930Z] [info] Deleted 1 existing packages for stable_hash_id 5a6aed22271cf65e18c812a1562f44a3
+[2025-06-06T12:06:44.992Z] [info] Added 1 new packages for stable_hash_id 5a6aed22271cf65e18c812a1562f44a3
+[2025-06-06T12:06:44.992Z] [info] Processed 1 packages for stable_hash_id 5a6aed22271cf65e18c812a1562f44a3 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:44.993Z] [info] Processing mapping 9/20 for stable_hash_id cf970104acd70241abcf764b90c0d6a8
+[2025-06-06T12:06:44.993Z] [info] Fetching packages for stable_hash_id: cf970104acd70241abcf764b90c0d6a8
+[2025-06-06T12:06:45.058Z] [info] Found 0 packages for stable_hash_id cf970104acd70241abcf764b90c0d6a8
+[2025-06-06T12:06:45.058Z] [info] No packages found for stable_hash_id cf970104acd70241abcf764b90c0d6a8
+[2025-06-06T12:06:45.058Z] [info] Processing mapping 10/20 for stable_hash_id d5abc85f6693e84855cef01d3f9dcc69
+[2025-06-06T12:06:45.058Z] [info] Fetching packages for stable_hash_id: d5abc85f6693e84855cef01d3f9dcc69
+[2025-06-06T12:06:45.116Z] [info] Found 0 packages for stable_hash_id d5abc85f6693e84855cef01d3f9dcc69
+[2025-06-06T12:06:45.116Z] [info] No packages found for stable_hash_id d5abc85f6693e84855cef01d3f9dcc69
+[2025-06-06T12:06:45.117Z] [info] Processing mapping 11/20 for stable_hash_id 327714c86b84ddac55d5e2c863dc7bc9
+[2025-06-06T12:06:45.117Z] [info] Fetching packages for stable_hash_id: 327714c86b84ddac55d5e2c863dc7bc9
+[2025-06-06T12:06:45.178Z] [info] Found 0 packages for stable_hash_id 327714c86b84ddac55d5e2c863dc7bc9
+[2025-06-06T12:06:45.178Z] [info] No packages found for stable_hash_id 327714c86b84ddac55d5e2c863dc7bc9
+[2025-06-06T12:06:45.178Z] [info] Processing mapping 12/20 for stable_hash_id 3a912bb6976cd75566d89e6c1a106efc
+[2025-06-06T12:06:45.179Z] [info] Fetching packages for stable_hash_id: 3a912bb6976cd75566d89e6c1a106efc
+[2025-06-06T12:06:45.247Z] [info] Found 0 packages for stable_hash_id 3a912bb6976cd75566d89e6c1a106efc
+[2025-06-06T12:06:45.248Z] [info] No packages found for stable_hash_id 3a912bb6976cd75566d89e6c1a106efc
+[2025-06-06T12:06:45.248Z] [info] Processing mapping 13/20 for stable_hash_id 09bfcf78f726381c3e1035821e448ba1
+[2025-06-06T12:06:45.248Z] [info] Fetching packages for stable_hash_id: 09bfcf78f726381c3e1035821e448ba1
+[2025-06-06T12:06:45.314Z] [info] Found 0 packages for stable_hash_id 09bfcf78f726381c3e1035821e448ba1
+[2025-06-06T12:06:45.315Z] [info] No packages found for stable_hash_id 09bfcf78f726381c3e1035821e448ba1
+[2025-06-06T12:06:45.315Z] [info] Processing mapping 14/20 for stable_hash_id 780324e4e10118915b12c9ce9dac8bc0
+[2025-06-06T12:06:45.315Z] [info] Fetching packages for stable_hash_id: 780324e4e10118915b12c9ce9dac8bc0
+[2025-06-06T12:06:45.378Z] [info] Found 0 packages for stable_hash_id 780324e4e10118915b12c9ce9dac8bc0
+[2025-06-06T12:06:45.378Z] [info] No packages found for stable_hash_id 780324e4e10118915b12c9ce9dac8bc0
+[2025-06-06T12:06:45.378Z] [info] Processing mapping 15/20 for stable_hash_id 2977e196899dfc1dc9c493aaf0f26408
+[2025-06-06T12:06:45.379Z] [info] Fetching packages for stable_hash_id: 2977e196899dfc1dc9c493aaf0f26408
+[2025-06-06T12:06:45.453Z] [info] Found 0 packages for stable_hash_id 2977e196899dfc1dc9c493aaf0f26408
+[2025-06-06T12:06:45.453Z] [info] No packages found for stable_hash_id 2977e196899dfc1dc9c493aaf0f26408
+[2025-06-06T12:06:45.454Z] [info] Processing mapping 16/20 for stable_hash_id 9c678dcc5dc3c326fd23e662181021fd
+[2025-06-06T12:06:45.454Z] [info] Fetching packages for stable_hash_id: 9c678dcc5dc3c326fd23e662181021fd
+[2025-06-06T12:06:45.517Z] [info] Found 0 packages for stable_hash_id 9c678dcc5dc3c326fd23e662181021fd
+[2025-06-06T12:06:45.517Z] [info] No packages found for stable_hash_id 9c678dcc5dc3c326fd23e662181021fd
+[2025-06-06T12:06:45.517Z] [info] Processing mapping 17/20 for stable_hash_id c30586c7673927857169567e1ae484fb
+[2025-06-06T12:06:45.517Z] [info] Fetching packages for stable_hash_id: c30586c7673927857169567e1ae484fb
+[2025-06-06T12:06:45.578Z] [info] Found 0 packages for stable_hash_id c30586c7673927857169567e1ae484fb
+[2025-06-06T12:06:45.578Z] [info] No packages found for stable_hash_id c30586c7673927857169567e1ae484fb
+[2025-06-06T12:06:45.578Z] [info] Processing mapping 18/20 for stable_hash_id 88f02e1801c541cdd9a66b737e35367a
+[2025-06-06T12:06:45.578Z] [info] Fetching packages for stable_hash_id: 88f02e1801c541cdd9a66b737e35367a
+[2025-06-06T12:06:45.654Z] [info] Found 0 packages for stable_hash_id 88f02e1801c541cdd9a66b737e35367a
+[2025-06-06T12:06:45.654Z] [info] No packages found for stable_hash_id 88f02e1801c541cdd9a66b737e35367a
+[2025-06-06T12:06:45.654Z] [info] Processing mapping 19/20 for stable_hash_id f0f8213edfc57a38cda26e65c8d3d71b
+[2025-06-06T12:06:45.654Z] [info] Fetching packages for stable_hash_id: f0f8213edfc57a38cda26e65c8d3d71b
+[2025-06-06T12:06:45.732Z] [info] Found 0 packages for stable_hash_id f0f8213edfc57a38cda26e65c8d3d71b
+[2025-06-06T12:06:45.732Z] [info] No packages found for stable_hash_id f0f8213edfc57a38cda26e65c8d3d71b
+[2025-06-06T12:06:45.733Z] [info] Processing mapping 20/20 for stable_hash_id 1b0e965d7909b1cc9648537c91834cf5
+[2025-06-06T12:06:45.733Z] [info] Fetching packages for stable_hash_id: 1b0e965d7909b1cc9648537c91834cf5
+[2025-06-06T12:06:45.804Z] [info] Found 4 packages for stable_hash_id 1b0e965d7909b1cc9648537c91834cf5
+[2025-06-06T12:06:45.804Z] [info] Syncing 4 packages for stable_hash_id 1b0e965d7909b1cc9648537c91834cf5
+[2025-06-06T12:06:45.970Z] [info] Deleted 4 existing packages for stable_hash_id 1b0e965d7909b1cc9648537c91834cf5
+[2025-06-06T12:06:46.056Z] [info] Added 4 new packages for stable_hash_id 1b0e965d7909b1cc9648537c91834cf5
+[2025-06-06T12:06:46.057Z] [info] Processed 4 packages for stable_hash_id 1b0e965d7909b1cc9648537c91834cf5 (Added: 4, Deleted: 4, Errors: 0)
+[2025-06-06T12:06:46.057Z] [info] Batch 5 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:06:46.565Z] [info] Processing batch 6 of 13
+[2025-06-06T12:06:46.566Z] [info] Processing mapping 1/20 for stable_hash_id 6ce946fff34825391bdd99296bdef83e
+[2025-06-06T12:06:46.566Z] [info] Fetching packages for stable_hash_id: 6ce946fff34825391bdd99296bdef83e
+[2025-06-06T12:06:46.634Z] [info] Found 0 packages for stable_hash_id 6ce946fff34825391bdd99296bdef83e
+[2025-06-06T12:06:46.634Z] [info] No packages found for stable_hash_id 6ce946fff34825391bdd99296bdef83e
+[2025-06-06T12:06:46.635Z] [info] Processing mapping 2/20 for stable_hash_id db189e6b1b56657bdfc6518d027b3168
+[2025-06-06T12:06:46.635Z] [info] Fetching packages for stable_hash_id: db189e6b1b56657bdfc6518d027b3168
+[2025-06-06T12:06:46.737Z] [info] Found 0 packages for stable_hash_id db189e6b1b56657bdfc6518d027b3168
+[2025-06-06T12:06:46.738Z] [info] No packages found for stable_hash_id db189e6b1b56657bdfc6518d027b3168
+[2025-06-06T12:06:46.738Z] [info] Processing mapping 3/20 for stable_hash_id 9f5354bc0a5120433f8e26b1b9524d99
+[2025-06-06T12:06:46.738Z] [info] Fetching packages for stable_hash_id: 9f5354bc0a5120433f8e26b1b9524d99
+[2025-06-06T12:06:46.802Z] [info] Found 0 packages for stable_hash_id 9f5354bc0a5120433f8e26b1b9524d99
+[2025-06-06T12:06:46.803Z] [info] No packages found for stable_hash_id 9f5354bc0a5120433f8e26b1b9524d99
+[2025-06-06T12:06:46.803Z] [info] Processing mapping 4/20 for stable_hash_id cb357bc21deeb9e03392cea11ddb24b1
+[2025-06-06T12:06:46.803Z] [info] Fetching packages for stable_hash_id: cb357bc21deeb9e03392cea11ddb24b1
+[2025-06-06T12:06:46.869Z] [info] Found 0 packages for stable_hash_id cb357bc21deeb9e03392cea11ddb24b1
+[2025-06-06T12:06:46.869Z] [info] No packages found for stable_hash_id cb357bc21deeb9e03392cea11ddb24b1
+[2025-06-06T12:06:46.870Z] [info] Processing mapping 5/20 for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:46.870Z] [info] Fetching packages for stable_hash_id: 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:46.935Z] [info] Found 4 packages for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:46.935Z] [info] Syncing 4 packages for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:47.059Z] [info] Deleted 4 existing packages for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:47.136Z] [info] Added 4 new packages for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701
+[2025-06-06T12:06:47.137Z] [info] Processed 4 packages for stable_hash_id 17be3bae8e84f9fe18caea5b99db6701 (Added: 4, Deleted: 4, Errors: 0)
+[2025-06-06T12:06:47.137Z] [info] Processing mapping 6/20 for stable_hash_id 9f5354bc0a5120433f8e26b1b9524d99
+[2025-06-06T12:06:47.137Z] [info] Fetching packages for stable_hash_id: 9f5354bc0a5120433f8e26b1b9524d99
+[2025-06-06T12:06:47.208Z] [info] Found 0 packages for stable_hash_id 9f5354bc0a5120433f8e26b1b9524d99
+[2025-06-06T12:06:47.208Z] [info] No packages found for stable_hash_id 9f5354bc0a5120433f8e26b1b9524d99
+[2025-06-06T12:06:47.208Z] [info] Processing mapping 7/20 for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:47.208Z] [info] Fetching packages for stable_hash_id: 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:47.274Z] [info] Found 1 packages for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:47.275Z] [info] Syncing 1 packages for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:47.457Z] [info] Deleted 1 existing packages for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:47.528Z] [info] Added 1 new packages for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:47.528Z] [info] Processed 1 packages for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:47.528Z] [info] Processing mapping 8/20 for stable_hash_id d0c6c76213185b0150ad6912d1715fa5
+[2025-06-06T12:06:47.528Z] [info] Fetching packages for stable_hash_id: d0c6c76213185b0150ad6912d1715fa5
+[2025-06-06T12:06:47.597Z] [info] Found 0 packages for stable_hash_id d0c6c76213185b0150ad6912d1715fa5
+[2025-06-06T12:06:47.597Z] [info] No packages found for stable_hash_id d0c6c76213185b0150ad6912d1715fa5
+[2025-06-06T12:06:47.597Z] [info] Processing mapping 9/20 for stable_hash_id d5aa671353e1b11bdbd3a9795d04a82b
+[2025-06-06T12:06:47.598Z] [info] Fetching packages for stable_hash_id: d5aa671353e1b11bdbd3a9795d04a82b
+[2025-06-06T12:06:47.664Z] [info] Found 2 packages for stable_hash_id d5aa671353e1b11bdbd3a9795d04a82b
+[2025-06-06T12:06:47.664Z] [info] Syncing 2 packages for stable_hash_id d5aa671353e1b11bdbd3a9795d04a82b
+[2025-06-06T12:06:47.796Z] [info] Deleted 2 existing packages for stable_hash_id d5aa671353e1b11bdbd3a9795d04a82b
+[2025-06-06T12:06:47.860Z] [info] Added 2 new packages for stable_hash_id d5aa671353e1b11bdbd3a9795d04a82b
+[2025-06-06T12:06:47.860Z] [info] Processed 2 packages for stable_hash_id d5aa671353e1b11bdbd3a9795d04a82b (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:47.860Z] [info] Processing mapping 10/20 for stable_hash_id 6cec77f05e93b8e13d62859b83f36c68
+[2025-06-06T12:06:47.860Z] [info] Fetching packages for stable_hash_id: 6cec77f05e93b8e13d62859b83f36c68
+[2025-06-06T12:06:47.921Z] [info] Found 0 packages for stable_hash_id 6cec77f05e93b8e13d62859b83f36c68
+[2025-06-06T12:06:47.922Z] [info] No packages found for stable_hash_id 6cec77f05e93b8e13d62859b83f36c68
+[2025-06-06T12:06:47.922Z] [info] Processing mapping 11/20 for stable_hash_id 0fb2b060c41c8b06e33b827e05e9f8f4
+[2025-06-06T12:06:47.922Z] [info] Fetching packages for stable_hash_id: 0fb2b060c41c8b06e33b827e05e9f8f4
+[2025-06-06T12:06:47.990Z] [info] Found 0 packages for stable_hash_id 0fb2b060c41c8b06e33b827e05e9f8f4
+[2025-06-06T12:06:47.990Z] [info] No packages found for stable_hash_id 0fb2b060c41c8b06e33b827e05e9f8f4
+[2025-06-06T12:06:47.990Z] [info] Processing mapping 12/20 for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:47.990Z] [info] Fetching packages for stable_hash_id: 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:48.058Z] [info] Found 2 packages for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:48.059Z] [info] Syncing 2 packages for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:48.187Z] [info] Deleted 2 existing packages for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:48.255Z] [info] Added 2 new packages for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab
+[2025-06-06T12:06:48.255Z] [info] Processed 2 packages for stable_hash_id 5049da03fd8e8ec80d0f905647a221ab (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:48.256Z] [info] Processing mapping 13/20 for stable_hash_id 0ce949b09b9babbf0105740385994921
+[2025-06-06T12:06:48.256Z] [info] Fetching packages for stable_hash_id: 0ce949b09b9babbf0105740385994921
+[2025-06-06T12:06:48.317Z] [info] Found 0 packages for stable_hash_id 0ce949b09b9babbf0105740385994921
+[2025-06-06T12:06:48.317Z] [info] No packages found for stable_hash_id 0ce949b09b9babbf0105740385994921
+[2025-06-06T12:06:48.317Z] [info] Processing mapping 14/20 for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:48.318Z] [info] Fetching packages for stable_hash_id: b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:48.395Z] [info] Found 4 packages for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:48.396Z] [info] Syncing 4 packages for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:48.523Z] [info] Deleted 4 existing packages for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:48.588Z] [info] Added 4 new packages for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:48.588Z] [info] Processed 4 packages for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04 (Added: 4, Deleted: 4, Errors: 0)
+[2025-06-06T12:06:48.589Z] [info] Processing mapping 15/20 for stable_hash_id 7fef83680cbb8597bddf5442eabf89c4
+[2025-06-06T12:06:48.589Z] [info] Fetching packages for stable_hash_id: 7fef83680cbb8597bddf5442eabf89c4
+[2025-06-06T12:06:48.660Z] [info] Found 0 packages for stable_hash_id 7fef83680cbb8597bddf5442eabf89c4
+[2025-06-06T12:06:48.660Z] [info] No packages found for stable_hash_id 7fef83680cbb8597bddf5442eabf89c4
+[2025-06-06T12:06:48.660Z] [info] Processing mapping 16/20 for stable_hash_id ee5d78fecc5921afe7517e78fe154b76
+[2025-06-06T12:06:48.660Z] [info] Fetching packages for stable_hash_id: ee5d78fecc5921afe7517e78fe154b76
+[2025-06-06T12:06:48.726Z] [info] Found 0 packages for stable_hash_id ee5d78fecc5921afe7517e78fe154b76
+[2025-06-06T12:06:48.726Z] [info] No packages found for stable_hash_id ee5d78fecc5921afe7517e78fe154b76
+[2025-06-06T12:06:48.726Z] [info] Processing mapping 17/20 for stable_hash_id cfb5220e9f3188ce5cd8417e3c9528b7
+[2025-06-06T12:06:48.726Z] [info] Fetching packages for stable_hash_id: cfb5220e9f3188ce5cd8417e3c9528b7
+[2025-06-06T12:06:48.788Z] [info] Found 0 packages for stable_hash_id cfb5220e9f3188ce5cd8417e3c9528b7
+[2025-06-06T12:06:48.789Z] [info] No packages found for stable_hash_id cfb5220e9f3188ce5cd8417e3c9528b7
+[2025-06-06T12:06:48.789Z] [info] Processing mapping 18/20 for stable_hash_id 763564ef1cf7a17b51a34cc234a6d1e9
+[2025-06-06T12:06:48.789Z] [info] Fetching packages for stable_hash_id: 763564ef1cf7a17b51a34cc234a6d1e9
+[2025-06-06T12:06:48.852Z] [info] Found 0 packages for stable_hash_id 763564ef1cf7a17b51a34cc234a6d1e9
+[2025-06-06T12:06:48.852Z] [info] No packages found for stable_hash_id 763564ef1cf7a17b51a34cc234a6d1e9
+[2025-06-06T12:06:48.852Z] [info] Processing mapping 19/20 for stable_hash_id de91ea7770c759c8b2dd8a542f1b5377
+[2025-06-06T12:06:48.853Z] [info] Fetching packages for stable_hash_id: de91ea7770c759c8b2dd8a542f1b5377
+[2025-06-06T12:06:48.911Z] [info] Found 0 packages for stable_hash_id de91ea7770c759c8b2dd8a542f1b5377
+[2025-06-06T12:06:48.912Z] [info] No packages found for stable_hash_id de91ea7770c759c8b2dd8a542f1b5377
+[2025-06-06T12:06:48.912Z] [info] Processing mapping 20/20 for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:48.912Z] [info] Fetching packages for stable_hash_id: ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:48.974Z] [info] Found 4 packages for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:48.975Z] [info] Syncing 4 packages for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:49.094Z] [info] Deleted 4 existing packages for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:49.162Z] [info] Added 4 new packages for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:49.163Z] [info] Processed 4 packages for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8 (Added: 4, Deleted: 4, Errors: 0)
+[2025-06-06T12:06:49.163Z] [info] Batch 6 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:06:49.673Z] [info] Processing batch 7 of 13
+[2025-06-06T12:06:49.674Z] [info] Processing mapping 1/20 for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:49.674Z] [info] Fetching packages for stable_hash_id: 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:49.743Z] [info] Found 1 packages for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:49.743Z] [info] Syncing 1 packages for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:49.875Z] [info] Deleted 1 existing packages for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:49.949Z] [info] Added 1 new packages for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75
+[2025-06-06T12:06:49.949Z] [info] Processed 1 packages for stable_hash_id 1b9ff7f2a532b1c748d45b83fb2dda75 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:49.950Z] [info] Processing mapping 2/20 for stable_hash_id cf970104acd70241abcf764b90c0d6a8
+[2025-06-06T12:06:49.950Z] [info] Fetching packages for stable_hash_id: cf970104acd70241abcf764b90c0d6a8
+[2025-06-06T12:06:50.009Z] [info] Found 0 packages for stable_hash_id cf970104acd70241abcf764b90c0d6a8
+[2025-06-06T12:06:50.009Z] [info] No packages found for stable_hash_id cf970104acd70241abcf764b90c0d6a8
+[2025-06-06T12:06:50.009Z] [info] Processing mapping 3/20 for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:06:50.009Z] [info] Fetching packages for stable_hash_id: 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:06:50.082Z] [info] Found 3 packages for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:06:50.082Z] [info] Syncing 3 packages for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:06:50.234Z] [info] Deleted 3 existing packages for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:06:50.309Z] [info] Added 3 new packages for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:06:50.309Z] [info] Processed 3 packages for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9 (Added: 3, Deleted: 3, Errors: 0)
+[2025-06-06T12:06:50.309Z] [info] Processing mapping 4/20 for stable_hash_id c73526c59e44bb6a84c2a6da9f305d30
+[2025-06-06T12:06:50.310Z] [info] Fetching packages for stable_hash_id: c73526c59e44bb6a84c2a6da9f305d30
+[2025-06-06T12:06:50.376Z] [info] Found 0 packages for stable_hash_id c73526c59e44bb6a84c2a6da9f305d30
+[2025-06-06T12:06:50.376Z] [info] No packages found for stable_hash_id c73526c59e44bb6a84c2a6da9f305d30
+[2025-06-06T12:06:50.376Z] [info] Processing mapping 5/20 for stable_hash_id 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:06:50.377Z] [info] Fetching packages for stable_hash_id: 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:06:50.441Z] [info] Found 2 packages for stable_hash_id 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:06:50.441Z] [info] Syncing 2 packages for stable_hash_id 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:06:50.594Z] [info] Deleted 2 existing packages for stable_hash_id 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:06:50.657Z] [info] Added 2 new packages for stable_hash_id 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:06:50.657Z] [info] Processed 2 packages for stable_hash_id 5fc2b95963011ecd0396610941dfe0af (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:50.657Z] [info] Processing mapping 6/20 for stable_hash_id 75c533eedb4989be7dfb16c0ca08ecf1
+[2025-06-06T12:06:50.658Z] [info] Fetching packages for stable_hash_id: 75c533eedb4989be7dfb16c0ca08ecf1
+[2025-06-06T12:06:50.721Z] [info] Found 1 packages for stable_hash_id 75c533eedb4989be7dfb16c0ca08ecf1
+[2025-06-06T12:06:50.721Z] [info] Syncing 1 packages for stable_hash_id 75c533eedb4989be7dfb16c0ca08ecf1
+[2025-06-06T12:06:50.844Z] [info] Deleted 1 existing packages for stable_hash_id 75c533eedb4989be7dfb16c0ca08ecf1
+[2025-06-06T12:06:50.908Z] [info] Added 1 new packages for stable_hash_id 75c533eedb4989be7dfb16c0ca08ecf1
+[2025-06-06T12:06:50.909Z] [info] Processed 1 packages for stable_hash_id 75c533eedb4989be7dfb16c0ca08ecf1 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:50.909Z] [info] Processing mapping 7/20 for stable_hash_id 05d9ce6ba6c1890639b980b55cb90531
+[2025-06-06T12:06:50.909Z] [info] Fetching packages for stable_hash_id: 05d9ce6ba6c1890639b980b55cb90531
+[2025-06-06T12:06:50.973Z] [info] Found 0 packages for stable_hash_id 05d9ce6ba6c1890639b980b55cb90531
+[2025-06-06T12:06:50.974Z] [info] No packages found for stable_hash_id 05d9ce6ba6c1890639b980b55cb90531
+[2025-06-06T12:06:50.974Z] [info] Processing mapping 8/20 for stable_hash_id ed7a23f35f3a28960a467f13fc52e3f8
+[2025-06-06T12:06:50.974Z] [info] Fetching packages for stable_hash_id: ed7a23f35f3a28960a467f13fc52e3f8
+[2025-06-06T12:06:51.037Z] [info] Found 0 packages for stable_hash_id ed7a23f35f3a28960a467f13fc52e3f8
+[2025-06-06T12:06:51.037Z] [info] No packages found for stable_hash_id ed7a23f35f3a28960a467f13fc52e3f8
+[2025-06-06T12:06:51.038Z] [info] Processing mapping 9/20 for stable_hash_id 0f9982330cc45b241eada37d40bccc05
+[2025-06-06T12:06:51.038Z] [info] Fetching packages for stable_hash_id: 0f9982330cc45b241eada37d40bccc05
+[2025-06-06T12:06:51.100Z] [info] Found 0 packages for stable_hash_id 0f9982330cc45b241eada37d40bccc05
+[2025-06-06T12:06:51.100Z] [info] No packages found for stable_hash_id 0f9982330cc45b241eada37d40bccc05
+[2025-06-06T12:06:51.100Z] [info] Processing mapping 10/20 for stable_hash_id 4bdbc2fd0377abf61b97246a26da4321
+[2025-06-06T12:06:51.101Z] [info] Fetching packages for stable_hash_id: 4bdbc2fd0377abf61b97246a26da4321
+[2025-06-06T12:06:51.189Z] [info] Found 0 packages for stable_hash_id 4bdbc2fd0377abf61b97246a26da4321
+[2025-06-06T12:06:51.189Z] [info] No packages found for stable_hash_id 4bdbc2fd0377abf61b97246a26da4321
+[2025-06-06T12:06:51.189Z] [info] Processing mapping 11/20 for stable_hash_id 3753cd8ffae68775bbab6e4c4fa4e36f
+[2025-06-06T12:06:51.189Z] [info] Fetching packages for stable_hash_id: 3753cd8ffae68775bbab6e4c4fa4e36f
+[2025-06-06T12:06:51.252Z] [info] Found 0 packages for stable_hash_id 3753cd8ffae68775bbab6e4c4fa4e36f
+[2025-06-06T12:06:51.253Z] [info] No packages found for stable_hash_id 3753cd8ffae68775bbab6e4c4fa4e36f
+[2025-06-06T12:06:51.253Z] [info] Processing mapping 12/20 for stable_hash_id 9792c337aa557ee33b3e81c1f8e8a2e3
+[2025-06-06T12:06:51.253Z] [info] Fetching packages for stable_hash_id: 9792c337aa557ee33b3e81c1f8e8a2e3
+[2025-06-06T12:06:51.315Z] [info] Found 0 packages for stable_hash_id 9792c337aa557ee33b3e81c1f8e8a2e3
+[2025-06-06T12:06:51.315Z] [info] No packages found for stable_hash_id 9792c337aa557ee33b3e81c1f8e8a2e3
+[2025-06-06T12:06:51.315Z] [info] Processing mapping 13/20 for stable_hash_id a12b265c24632780e29ce1ed474b2178
+[2025-06-06T12:06:51.315Z] [info] Fetching packages for stable_hash_id: a12b265c24632780e29ce1ed474b2178
+[2025-06-06T12:06:51.398Z] [info] Found 0 packages for stable_hash_id a12b265c24632780e29ce1ed474b2178
+[2025-06-06T12:06:51.398Z] [info] No packages found for stable_hash_id a12b265c24632780e29ce1ed474b2178
+[2025-06-06T12:06:51.398Z] [info] Processing mapping 14/20 for stable_hash_id a5b6b64d589db89e19d8946cef7c5924
+[2025-06-06T12:06:51.399Z] [info] Fetching packages for stable_hash_id: a5b6b64d589db89e19d8946cef7c5924
+[2025-06-06T12:06:51.465Z] [info] Found 0 packages for stable_hash_id a5b6b64d589db89e19d8946cef7c5924
+[2025-06-06T12:06:51.465Z] [info] No packages found for stable_hash_id a5b6b64d589db89e19d8946cef7c5924
+[2025-06-06T12:06:51.465Z] [info] Processing mapping 15/20 for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:51.465Z] [info] Fetching packages for stable_hash_id: c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:51.527Z] [info] Found 2 packages for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:51.527Z] [info] Syncing 2 packages for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:51.650Z] [info] Deleted 2 existing packages for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:51.718Z] [info] Added 2 new packages for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19
+[2025-06-06T12:06:51.719Z] [info] Processed 2 packages for stable_hash_id c760cf8ddb5ecca78fbcdd8e13297f19 (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:51.719Z] [info] Processing mapping 16/20 for stable_hash_id 71894a933748e25f0b955b19a1a800f0
+[2025-06-06T12:06:51.719Z] [info] Fetching packages for stable_hash_id: 71894a933748e25f0b955b19a1a800f0
+[2025-06-06T12:06:51.783Z] [info] Found 1 packages for stable_hash_id 71894a933748e25f0b955b19a1a800f0
+[2025-06-06T12:06:51.783Z] [info] Syncing 1 packages for stable_hash_id 71894a933748e25f0b955b19a1a800f0
+[2025-06-06T12:06:51.910Z] [info] Deleted 1 existing packages for stable_hash_id 71894a933748e25f0b955b19a1a800f0
+[2025-06-06T12:06:51.981Z] [info] Added 1 new packages for stable_hash_id 71894a933748e25f0b955b19a1a800f0
+[2025-06-06T12:06:51.982Z] [info] Processed 1 packages for stable_hash_id 71894a933748e25f0b955b19a1a800f0 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:51.982Z] [info] Processing mapping 17/20 for stable_hash_id 42f928dbcfd9b1936974f3498d2e0ea0
+[2025-06-06T12:06:51.982Z] [info] Fetching packages for stable_hash_id: 42f928dbcfd9b1936974f3498d2e0ea0
+[2025-06-06T12:06:52.044Z] [info] Found 0 packages for stable_hash_id 42f928dbcfd9b1936974f3498d2e0ea0
+[2025-06-06T12:06:52.044Z] [info] No packages found for stable_hash_id 42f928dbcfd9b1936974f3498d2e0ea0
+[2025-06-06T12:06:52.045Z] [info] Processing mapping 18/20 for stable_hash_id d42a96dac68e044fe1349699a1d19cfd
+[2025-06-06T12:06:52.045Z] [info] Fetching packages for stable_hash_id: d42a96dac68e044fe1349699a1d19cfd
+[2025-06-06T12:06:52.113Z] [info] Found 0 packages for stable_hash_id d42a96dac68e044fe1349699a1d19cfd
+[2025-06-06T12:06:52.113Z] [info] No packages found for stable_hash_id d42a96dac68e044fe1349699a1d19cfd
+[2025-06-06T12:06:52.113Z] [info] Processing mapping 19/20 for stable_hash_id 3fa278cf13161b37895241fac78a7651
+[2025-06-06T12:06:52.113Z] [info] Fetching packages for stable_hash_id: 3fa278cf13161b37895241fac78a7651
+[2025-06-06T12:06:52.189Z] [info] Found 0 packages for stable_hash_id 3fa278cf13161b37895241fac78a7651
+[2025-06-06T12:06:52.189Z] [info] No packages found for stable_hash_id 3fa278cf13161b37895241fac78a7651
+[2025-06-06T12:06:52.190Z] [info] Processing mapping 20/20 for stable_hash_id 952f3b4e0d833146a332af8b4147faac
+[2025-06-06T12:06:52.190Z] [info] Fetching packages for stable_hash_id: 952f3b4e0d833146a332af8b4147faac
+[2025-06-06T12:06:52.250Z] [info] Found 0 packages for stable_hash_id 952f3b4e0d833146a332af8b4147faac
+[2025-06-06T12:06:52.250Z] [info] No packages found for stable_hash_id 952f3b4e0d833146a332af8b4147faac
+[2025-06-06T12:06:52.251Z] [info] Batch 7 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:06:52.753Z] [info] Processing batch 8 of 13
+[2025-06-06T12:06:52.753Z] [info] Processing mapping 1/20 for stable_hash_id 7e2dd143bded259d90607489dbd6f98e
+[2025-06-06T12:06:52.753Z] [info] Fetching packages for stable_hash_id: 7e2dd143bded259d90607489dbd6f98e
+[2025-06-06T12:06:52.828Z] [info] Found 0 packages for stable_hash_id 7e2dd143bded259d90607489dbd6f98e
+[2025-06-06T12:06:52.829Z] [info] No packages found for stable_hash_id 7e2dd143bded259d90607489dbd6f98e
+[2025-06-06T12:06:52.829Z] [info] Processing mapping 2/20 for stable_hash_id 8b0c7792e20c376b69736f6eeda02197
+[2025-06-06T12:06:52.829Z] [info] Fetching packages for stable_hash_id: 8b0c7792e20c376b69736f6eeda02197
+[2025-06-06T12:06:52.906Z] [info] Found 0 packages for stable_hash_id 8b0c7792e20c376b69736f6eeda02197
+[2025-06-06T12:06:52.906Z] [info] No packages found for stable_hash_id 8b0c7792e20c376b69736f6eeda02197
+[2025-06-06T12:06:52.906Z] [info] Processing mapping 3/20 for stable_hash_id a5b6b64d589db89e19d8946cef7c5924
+[2025-06-06T12:06:52.907Z] [info] Fetching packages for stable_hash_id: a5b6b64d589db89e19d8946cef7c5924
+[2025-06-06T12:06:52.980Z] [info] Found 0 packages for stable_hash_id a5b6b64d589db89e19d8946cef7c5924
+[2025-06-06T12:06:52.980Z] [info] No packages found for stable_hash_id a5b6b64d589db89e19d8946cef7c5924
+[2025-06-06T12:06:52.980Z] [info] Processing mapping 4/20 for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:52.980Z] [info] Fetching packages for stable_hash_id: b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:53.046Z] [info] Found 4 packages for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:53.046Z] [info] Syncing 4 packages for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:53.171Z] [info] Deleted 4 existing packages for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:53.242Z] [info] Added 4 new packages for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04
+[2025-06-06T12:06:53.242Z] [info] Processed 4 packages for stable_hash_id b47c6b5a0961397bd7383ea8e616cd04 (Added: 4, Deleted: 4, Errors: 0)
+[2025-06-06T12:06:53.242Z] [info] Processing mapping 5/20 for stable_hash_id 2255275dc345cc1a75af1885436ccdc6
+[2025-06-06T12:06:53.242Z] [info] Fetching packages for stable_hash_id: 2255275dc345cc1a75af1885436ccdc6
+[2025-06-06T12:06:53.307Z] [info] Found 0 packages for stable_hash_id 2255275dc345cc1a75af1885436ccdc6
+[2025-06-06T12:06:53.308Z] [info] No packages found for stable_hash_id 2255275dc345cc1a75af1885436ccdc6
+[2025-06-06T12:06:53.308Z] [info] Processing mapping 6/20 for stable_hash_id 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:53.308Z] [info] Fetching packages for stable_hash_id: 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:53.374Z] [info] Found 5 packages for stable_hash_id 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:53.374Z] [info] Syncing 5 packages for stable_hash_id 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:53.494Z] [info] Deleted 5 existing packages for stable_hash_id 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:53.595Z] [info] Added 5 new packages for stable_hash_id 704dea8929306c8d9599207637042596
+[2025-06-06T12:06:53.596Z] [info] Processed 5 packages for stable_hash_id 704dea8929306c8d9599207637042596 (Added: 5, Deleted: 5, Errors: 0)
+[2025-06-06T12:06:53.596Z] [info] Processing mapping 7/20 for stable_hash_id c30586c7673927857169567e1ae484fb
+[2025-06-06T12:06:53.596Z] [info] Fetching packages for stable_hash_id: c30586c7673927857169567e1ae484fb
+[2025-06-06T12:06:53.662Z] [info] Found 0 packages for stable_hash_id c30586c7673927857169567e1ae484fb
+[2025-06-06T12:06:53.663Z] [info] No packages found for stable_hash_id c30586c7673927857169567e1ae484fb
+[2025-06-06T12:06:53.663Z] [info] Processing mapping 8/20 for stable_hash_id 6b349d54a0e9f06fe6904be64f3be67a
+[2025-06-06T12:06:53.663Z] [info] Fetching packages for stable_hash_id: 6b349d54a0e9f06fe6904be64f3be67a
+[2025-06-06T12:06:53.731Z] [info] Found 0 packages for stable_hash_id 6b349d54a0e9f06fe6904be64f3be67a
+[2025-06-06T12:06:53.731Z] [info] No packages found for stable_hash_id 6b349d54a0e9f06fe6904be64f3be67a
+[2025-06-06T12:06:53.731Z] [info] Processing mapping 9/20 for stable_hash_id ab96ad96ceea786b506189f5ca783bbb
+[2025-06-06T12:06:53.731Z] [info] Fetching packages for stable_hash_id: ab96ad96ceea786b506189f5ca783bbb
+[2025-06-06T12:06:53.811Z] [info] Found 0 packages for stable_hash_id ab96ad96ceea786b506189f5ca783bbb
+[2025-06-06T12:06:53.811Z] [info] No packages found for stable_hash_id ab96ad96ceea786b506189f5ca783bbb
+[2025-06-06T12:06:53.811Z] [info] Processing mapping 10/20 for stable_hash_id 6e0d51612c87f4d22290c89ba1aba8d0
+[2025-06-06T12:06:53.812Z] [info] Fetching packages for stable_hash_id: 6e0d51612c87f4d22290c89ba1aba8d0
+[2025-06-06T12:06:53.872Z] [info] Found 0 packages for stable_hash_id 6e0d51612c87f4d22290c89ba1aba8d0
+[2025-06-06T12:06:53.873Z] [info] No packages found for stable_hash_id 6e0d51612c87f4d22290c89ba1aba8d0
+[2025-06-06T12:06:53.873Z] [info] Processing mapping 11/20 for stable_hash_id 2d3381f13f384f2157328d8b351b51a2
+[2025-06-06T12:06:53.874Z] [info] Fetching packages for stable_hash_id: 2d3381f13f384f2157328d8b351b51a2
+[2025-06-06T12:06:53.951Z] [info] Found 0 packages for stable_hash_id 2d3381f13f384f2157328d8b351b51a2
+[2025-06-06T12:06:53.951Z] [info] No packages found for stable_hash_id 2d3381f13f384f2157328d8b351b51a2
+[2025-06-06T12:06:53.952Z] [info] Processing mapping 12/20 for stable_hash_id c8eda8657681197b53d718f49df96978
+[2025-06-06T12:06:53.952Z] [info] Fetching packages for stable_hash_id: c8eda8657681197b53d718f49df96978
+[2025-06-06T12:06:54.011Z] [info] Found 1 packages for stable_hash_id c8eda8657681197b53d718f49df96978
+[2025-06-06T12:06:54.012Z] [info] Syncing 1 packages for stable_hash_id c8eda8657681197b53d718f49df96978
+[2025-06-06T12:06:54.132Z] [info] Deleted 1 existing packages for stable_hash_id c8eda8657681197b53d718f49df96978
+[2025-06-06T12:06:54.196Z] [info] Added 1 new packages for stable_hash_id c8eda8657681197b53d718f49df96978
+[2025-06-06T12:06:54.196Z] [info] Processed 1 packages for stable_hash_id c8eda8657681197b53d718f49df96978 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:54.196Z] [info] Processing mapping 13/20 for stable_hash_id 5c68919c553cf7c828651b110cd9f405
+[2025-06-06T12:06:54.196Z] [info] Fetching packages for stable_hash_id: 5c68919c553cf7c828651b110cd9f405
+[2025-06-06T12:06:54.264Z] [info] Found 0 packages for stable_hash_id 5c68919c553cf7c828651b110cd9f405
+[2025-06-06T12:06:54.264Z] [info] No packages found for stable_hash_id 5c68919c553cf7c828651b110cd9f405
+[2025-06-06T12:06:54.265Z] [info] Processing mapping 14/20 for stable_hash_id 924846bcbea6c2f82094262c2b6d782f
+[2025-06-06T12:06:54.265Z] [info] Fetching packages for stable_hash_id: 924846bcbea6c2f82094262c2b6d782f
+[2025-06-06T12:06:54.358Z] [info] Found 0 packages for stable_hash_id 924846bcbea6c2f82094262c2b6d782f
+[2025-06-06T12:06:54.359Z] [info] No packages found for stable_hash_id 924846bcbea6c2f82094262c2b6d782f
+[2025-06-06T12:06:54.359Z] [info] Processing mapping 15/20 for stable_hash_id 18ad6d09f294b174500e7ebfcb5474ce
+[2025-06-06T12:06:54.359Z] [info] Fetching packages for stable_hash_id: 18ad6d09f294b174500e7ebfcb5474ce
+[2025-06-06T12:06:54.418Z] [info] Found 0 packages for stable_hash_id 18ad6d09f294b174500e7ebfcb5474ce
+[2025-06-06T12:06:54.418Z] [info] No packages found for stable_hash_id 18ad6d09f294b174500e7ebfcb5474ce
+[2025-06-06T12:06:54.418Z] [info] Processing mapping 16/20 for stable_hash_id 329f1cf517d1e4ad894019454683efb0
+[2025-06-06T12:06:54.419Z] [info] Fetching packages for stable_hash_id: 329f1cf517d1e4ad894019454683efb0
+[2025-06-06T12:06:54.498Z] [info] Found 0 packages for stable_hash_id 329f1cf517d1e4ad894019454683efb0
+[2025-06-06T12:06:54.498Z] [info] No packages found for stable_hash_id 329f1cf517d1e4ad894019454683efb0
+[2025-06-06T12:06:54.498Z] [info] Processing mapping 17/20 for stable_hash_id df28c7c5f1675c120455efc8bc3d3218
+[2025-06-06T12:06:54.498Z] [info] Fetching packages for stable_hash_id: df28c7c5f1675c120455efc8bc3d3218
+[2025-06-06T12:06:54.565Z] [info] Found 0 packages for stable_hash_id df28c7c5f1675c120455efc8bc3d3218
+[2025-06-06T12:06:54.566Z] [info] No packages found for stable_hash_id df28c7c5f1675c120455efc8bc3d3218
+[2025-06-06T12:06:54.566Z] [info] Processing mapping 18/20 for stable_hash_id 8b40d2d8246438f9ca263f670149fe8a
+[2025-06-06T12:06:54.566Z] [info] Fetching packages for stable_hash_id: 8b40d2d8246438f9ca263f670149fe8a
+[2025-06-06T12:06:54.627Z] [info] Found 0 packages for stable_hash_id 8b40d2d8246438f9ca263f670149fe8a
+[2025-06-06T12:06:54.627Z] [info] No packages found for stable_hash_id 8b40d2d8246438f9ca263f670149fe8a
+[2025-06-06T12:06:54.627Z] [info] Processing mapping 19/20 for stable_hash_id cbaca68ca6f7e5f344533a1e6605ae09
+[2025-06-06T12:06:54.628Z] [info] Fetching packages for stable_hash_id: cbaca68ca6f7e5f344533a1e6605ae09
+[2025-06-06T12:06:54.690Z] [info] Found 0 packages for stable_hash_id cbaca68ca6f7e5f344533a1e6605ae09
+[2025-06-06T12:06:54.691Z] [info] No packages found for stable_hash_id cbaca68ca6f7e5f344533a1e6605ae09
+[2025-06-06T12:06:54.691Z] [info] Processing mapping 20/20 for stable_hash_id 330c4edfb90eccdcb0608ec007aaf692
+[2025-06-06T12:06:54.691Z] [info] Fetching packages for stable_hash_id: 330c4edfb90eccdcb0608ec007aaf692
+[2025-06-06T12:06:54.750Z] [info] Found 4 packages for stable_hash_id 330c4edfb90eccdcb0608ec007aaf692
+[2025-06-06T12:06:54.751Z] [info] Syncing 4 packages for stable_hash_id 330c4edfb90eccdcb0608ec007aaf692
+[2025-06-06T12:06:54.876Z] [info] Deleted 3 existing packages for stable_hash_id 330c4edfb90eccdcb0608ec007aaf692
+[2025-06-06T12:06:54.947Z] [info] Added 4 new packages for stable_hash_id 330c4edfb90eccdcb0608ec007aaf692
+[2025-06-06T12:06:54.947Z] [info] Processed 4 packages for stable_hash_id 330c4edfb90eccdcb0608ec007aaf692 (Added: 4, Deleted: 3, Errors: 0)
+[2025-06-06T12:06:54.947Z] [info] Batch 8 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:06:55.457Z] [info] Processing batch 9 of 13
+[2025-06-06T12:06:55.457Z] [info] Processing mapping 1/20 for stable_hash_id a6d488b1934e78f204547cf5b984efbd
+[2025-06-06T12:06:55.457Z] [info] Fetching packages for stable_hash_id: a6d488b1934e78f204547cf5b984efbd
+[2025-06-06T12:06:55.517Z] [info] Found 0 packages for stable_hash_id a6d488b1934e78f204547cf5b984efbd
+[2025-06-06T12:06:55.517Z] [info] No packages found for stable_hash_id a6d488b1934e78f204547cf5b984efbd
+[2025-06-06T12:06:55.518Z] [info] Processing mapping 2/20 for stable_hash_id c75dacdeee646bdf2e609cea5462f7ce
+[2025-06-06T12:06:55.518Z] [info] Fetching packages for stable_hash_id: c75dacdeee646bdf2e609cea5462f7ce
+[2025-06-06T12:06:55.580Z] [info] Found 0 packages for stable_hash_id c75dacdeee646bdf2e609cea5462f7ce
+[2025-06-06T12:06:55.580Z] [info] No packages found for stable_hash_id c75dacdeee646bdf2e609cea5462f7ce
+[2025-06-06T12:06:55.581Z] [info] Processing mapping 3/20 for stable_hash_id c8108a8b36c6959306da024fd81e0b23
+[2025-06-06T12:06:55.581Z] [info] Fetching packages for stable_hash_id: c8108a8b36c6959306da024fd81e0b23
+[2025-06-06T12:06:55.655Z] [info] Found 0 packages for stable_hash_id c8108a8b36c6959306da024fd81e0b23
+[2025-06-06T12:06:55.656Z] [info] No packages found for stable_hash_id c8108a8b36c6959306da024fd81e0b23
+[2025-06-06T12:06:55.656Z] [info] Processing mapping 4/20 for stable_hash_id 4d1b69fdd1c7cb864adbd3fbaa50e6fb
+[2025-06-06T12:06:55.656Z] [info] Fetching packages for stable_hash_id: 4d1b69fdd1c7cb864adbd3fbaa50e6fb
+[2025-06-06T12:06:55.720Z] [info] Found 0 packages for stable_hash_id 4d1b69fdd1c7cb864adbd3fbaa50e6fb
+[2025-06-06T12:06:55.720Z] [info] No packages found for stable_hash_id 4d1b69fdd1c7cb864adbd3fbaa50e6fb
+[2025-06-06T12:06:55.720Z] [info] Processing mapping 5/20 for stable_hash_id 7b5f244367e822310d7c17ced1c488c3
+[2025-06-06T12:06:55.721Z] [info] Fetching packages for stable_hash_id: 7b5f244367e822310d7c17ced1c488c3
+[2025-06-06T12:06:55.785Z] [info] Found 0 packages for stable_hash_id 7b5f244367e822310d7c17ced1c488c3
+[2025-06-06T12:06:55.785Z] [info] No packages found for stable_hash_id 7b5f244367e822310d7c17ced1c488c3
+[2025-06-06T12:06:55.786Z] [info] Processing mapping 6/20 for stable_hash_id 8b913523b0d94c9ca02652e59a6f9f81
+[2025-06-06T12:06:55.786Z] [info] Fetching packages for stable_hash_id: 8b913523b0d94c9ca02652e59a6f9f81
+[2025-06-06T12:06:55.851Z] [info] Found 0 packages for stable_hash_id 8b913523b0d94c9ca02652e59a6f9f81
+[2025-06-06T12:06:55.851Z] [info] No packages found for stable_hash_id 8b913523b0d94c9ca02652e59a6f9f81
+[2025-06-06T12:06:55.851Z] [info] Processing mapping 7/20 for stable_hash_id 9f65470ff6784c05b91ad47c68ccbf90
+[2025-06-06T12:06:55.851Z] [info] Fetching packages for stable_hash_id: 9f65470ff6784c05b91ad47c68ccbf90
+[2025-06-06T12:06:55.920Z] [info] Found 1 packages for stable_hash_id 9f65470ff6784c05b91ad47c68ccbf90
+[2025-06-06T12:06:55.920Z] [info] Syncing 1 packages for stable_hash_id 9f65470ff6784c05b91ad47c68ccbf90
+[2025-06-06T12:06:56.056Z] [info] Deleted 1 existing packages for stable_hash_id 9f65470ff6784c05b91ad47c68ccbf90
+[2025-06-06T12:06:56.151Z] [info] Added 1 new packages for stable_hash_id 9f65470ff6784c05b91ad47c68ccbf90
+[2025-06-06T12:06:56.151Z] [info] Processed 1 packages for stable_hash_id 9f65470ff6784c05b91ad47c68ccbf90 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:56.151Z] [info] Processing mapping 8/20 for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:56.151Z] [info] Fetching packages for stable_hash_id: 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:56.212Z] [info] Found 1 packages for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:56.212Z] [info] Syncing 1 packages for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:56.345Z] [info] Deleted 1 existing packages for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:56.416Z] [info] Added 1 new packages for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4
+[2025-06-06T12:06:56.416Z] [info] Processed 1 packages for stable_hash_id 590db25cc37065ebeb6c4841329cd2c4 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:56.416Z] [info] Processing mapping 9/20 for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:56.417Z] [info] Fetching packages for stable_hash_id: 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:56.485Z] [info] Found 2 packages for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:56.485Z] [info] Syncing 2 packages for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:56.622Z] [info] Deleted 2 existing packages for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:56.690Z] [info] Added 2 new packages for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e
+[2025-06-06T12:06:56.691Z] [info] Processed 2 packages for stable_hash_id 2145f372ad6fd1bb864cc6562b0ee93e (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:56.691Z] [info] Processing mapping 10/20 for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:06:56.691Z] [info] Fetching packages for stable_hash_id: 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:06:56.756Z] [info] Found 2 packages for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:06:56.757Z] [info] Syncing 2 packages for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:06:56.901Z] [info] Deleted 2 existing packages for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:06:56.965Z] [info] Added 2 new packages for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:06:56.966Z] [info] Processed 2 packages for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1 (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:06:56.966Z] [info] Processing mapping 11/20 for stable_hash_id 3ca93a3d47bfeeeaca6b7cc26a9d4ece
+[2025-06-06T12:06:56.966Z] [info] Fetching packages for stable_hash_id: 3ca93a3d47bfeeeaca6b7cc26a9d4ece
+[2025-06-06T12:06:57.047Z] [info] Found 0 packages for stable_hash_id 3ca93a3d47bfeeeaca6b7cc26a9d4ece
+[2025-06-06T12:06:57.047Z] [info] No packages found for stable_hash_id 3ca93a3d47bfeeeaca6b7cc26a9d4ece
+[2025-06-06T12:06:57.048Z] [info] Processing mapping 12/20 for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:06:57.048Z] [info] Fetching packages for stable_hash_id: d058264113127debc8b65592b1badcd4
+[2025-06-06T12:06:57.120Z] [info] Found 0 packages for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:06:57.120Z] [info] No packages found for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:06:57.121Z] [info] Processing mapping 13/20 for stable_hash_id 06b54da9e85f81c9be6e6b518fa5b4a5
+[2025-06-06T12:06:57.121Z] [info] Fetching packages for stable_hash_id: 06b54da9e85f81c9be6e6b518fa5b4a5
+[2025-06-06T12:06:57.201Z] [info] Found 0 packages for stable_hash_id 06b54da9e85f81c9be6e6b518fa5b4a5
+[2025-06-06T12:06:57.202Z] [info] No packages found for stable_hash_id 06b54da9e85f81c9be6e6b518fa5b4a5
+[2025-06-06T12:06:57.202Z] [info] Processing mapping 14/20 for stable_hash_id ed9dce7dce622ac1466fb337b9093a0f
+[2025-06-06T12:06:57.202Z] [info] Fetching packages for stable_hash_id: ed9dce7dce622ac1466fb337b9093a0f
+[2025-06-06T12:06:57.275Z] [info] Found 0 packages for stable_hash_id ed9dce7dce622ac1466fb337b9093a0f
+[2025-06-06T12:06:57.276Z] [info] No packages found for stable_hash_id ed9dce7dce622ac1466fb337b9093a0f
+[2025-06-06T12:06:57.276Z] [info] Processing mapping 15/20 for stable_hash_id 35ae3d1f94b24b80c36bbac8b00cea06
+[2025-06-06T12:06:57.276Z] [info] Fetching packages for stable_hash_id: 35ae3d1f94b24b80c36bbac8b00cea06
+[2025-06-06T12:06:57.340Z] [info] Found 0 packages for stable_hash_id 35ae3d1f94b24b80c36bbac8b00cea06
+[2025-06-06T12:06:57.340Z] [info] No packages found for stable_hash_id 35ae3d1f94b24b80c36bbac8b00cea06
+[2025-06-06T12:06:57.340Z] [info] Processing mapping 16/20 for stable_hash_id 5c628143be313161e4b78e351eaa7fb8
+[2025-06-06T12:06:57.340Z] [info] Fetching packages for stable_hash_id: 5c628143be313161e4b78e351eaa7fb8
+[2025-06-06T12:06:57.402Z] [info] Found 0 packages for stable_hash_id 5c628143be313161e4b78e351eaa7fb8
+[2025-06-06T12:06:57.402Z] [info] No packages found for stable_hash_id 5c628143be313161e4b78e351eaa7fb8
+[2025-06-06T12:06:57.402Z] [info] Processing mapping 17/20 for stable_hash_id ed009e47ba502e4ae808be1c31edf380
+[2025-06-06T12:06:57.403Z] [info] Fetching packages for stable_hash_id: ed009e47ba502e4ae808be1c31edf380
+[2025-06-06T12:06:57.464Z] [info] Found 0 packages for stable_hash_id ed009e47ba502e4ae808be1c31edf380
+[2025-06-06T12:06:57.464Z] [info] No packages found for stable_hash_id ed009e47ba502e4ae808be1c31edf380
+[2025-06-06T12:06:57.465Z] [info] Processing mapping 18/20 for stable_hash_id fa54cc24ec28528fc40794eb9a7f683e
+[2025-06-06T12:06:57.465Z] [info] Fetching packages for stable_hash_id: fa54cc24ec28528fc40794eb9a7f683e
+[2025-06-06T12:06:57.535Z] [info] Found 0 packages for stable_hash_id fa54cc24ec28528fc40794eb9a7f683e
+[2025-06-06T12:06:57.535Z] [info] No packages found for stable_hash_id fa54cc24ec28528fc40794eb9a7f683e
+[2025-06-06T12:06:57.535Z] [info] Processing mapping 19/20 for stable_hash_id a79bcd8b945d60e7aec00fe7c1e58b57
+[2025-06-06T12:06:57.535Z] [info] Fetching packages for stable_hash_id: a79bcd8b945d60e7aec00fe7c1e58b57
+[2025-06-06T12:06:57.596Z] [info] Found 0 packages for stable_hash_id a79bcd8b945d60e7aec00fe7c1e58b57
+[2025-06-06T12:06:57.596Z] [info] No packages found for stable_hash_id a79bcd8b945d60e7aec00fe7c1e58b57
+[2025-06-06T12:06:57.596Z] [info] Processing mapping 20/20 for stable_hash_id afbd150f0267c8cc823b2490cdcde990
+[2025-06-06T12:06:57.597Z] [info] Fetching packages for stable_hash_id: afbd150f0267c8cc823b2490cdcde990
+[2025-06-06T12:06:57.679Z] [info] Found 0 packages for stable_hash_id afbd150f0267c8cc823b2490cdcde990
+[2025-06-06T12:06:57.679Z] [info] No packages found for stable_hash_id afbd150f0267c8cc823b2490cdcde990
+[2025-06-06T12:06:57.679Z] [info] Batch 9 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:06:58.191Z] [info] Processing batch 10 of 13
+[2025-06-06T12:06:58.191Z] [info] Processing mapping 1/20 for stable_hash_id dc6c38c895652ab68d67ad660f3c75ca
+[2025-06-06T12:06:58.192Z] [info] Fetching packages for stable_hash_id: dc6c38c895652ab68d67ad660f3c75ca
+[2025-06-06T12:06:58.275Z] [info] Found 0 packages for stable_hash_id dc6c38c895652ab68d67ad660f3c75ca
+[2025-06-06T12:06:58.276Z] [info] No packages found for stable_hash_id dc6c38c895652ab68d67ad660f3c75ca
+[2025-06-06T12:06:58.276Z] [info] Processing mapping 2/20 for stable_hash_id b2c4aa457e390b667826b1213497bc88
+[2025-06-06T12:06:58.276Z] [info] Fetching packages for stable_hash_id: b2c4aa457e390b667826b1213497bc88
+[2025-06-06T12:06:58.341Z] [info] Found 0 packages for stable_hash_id b2c4aa457e390b667826b1213497bc88
+[2025-06-06T12:06:58.341Z] [info] No packages found for stable_hash_id b2c4aa457e390b667826b1213497bc88
+[2025-06-06T12:06:58.341Z] [info] Processing mapping 3/20 for stable_hash_id 5344941f2239aa6d3ef4af125ab31979
+[2025-06-06T12:06:58.341Z] [info] Fetching packages for stable_hash_id: 5344941f2239aa6d3ef4af125ab31979
+[2025-06-06T12:06:58.414Z] [info] Found 0 packages for stable_hash_id 5344941f2239aa6d3ef4af125ab31979
+[2025-06-06T12:06:58.414Z] [info] No packages found for stable_hash_id 5344941f2239aa6d3ef4af125ab31979
+[2025-06-06T12:06:58.414Z] [info] Processing mapping 4/20 for stable_hash_id 295eb786cceb2d66303d2c25757b02fb
+[2025-06-06T12:06:58.414Z] [info] Fetching packages for stable_hash_id: 295eb786cceb2d66303d2c25757b02fb
+[2025-06-06T12:06:58.485Z] [info] Found 0 packages for stable_hash_id 295eb786cceb2d66303d2c25757b02fb
+[2025-06-06T12:06:58.485Z] [info] No packages found for stable_hash_id 295eb786cceb2d66303d2c25757b02fb
+[2025-06-06T12:06:58.486Z] [info] Processing mapping 5/20 for stable_hash_id 5c628143be313161e4b78e351eaa7fb8
+[2025-06-06T12:06:58.486Z] [info] Fetching packages for stable_hash_id: 5c628143be313161e4b78e351eaa7fb8
+[2025-06-06T12:06:58.547Z] [info] Found 0 packages for stable_hash_id 5c628143be313161e4b78e351eaa7fb8
+[2025-06-06T12:06:58.547Z] [info] No packages found for stable_hash_id 5c628143be313161e4b78e351eaa7fb8
+[2025-06-06T12:06:58.548Z] [info] Processing mapping 6/20 for stable_hash_id 2c560ea2f57c4a77a27f5a11e6cbba2e
+[2025-06-06T12:06:58.548Z] [info] Fetching packages for stable_hash_id: 2c560ea2f57c4a77a27f5a11e6cbba2e
+[2025-06-06T12:06:58.613Z] [info] Found 0 packages for stable_hash_id 2c560ea2f57c4a77a27f5a11e6cbba2e
+[2025-06-06T12:06:58.613Z] [info] No packages found for stable_hash_id 2c560ea2f57c4a77a27f5a11e6cbba2e
+[2025-06-06T12:06:58.613Z] [info] Processing mapping 7/20 for stable_hash_id c597b7b7eb97321d354da189b52e26ba
+[2025-06-06T12:06:58.613Z] [info] Fetching packages for stable_hash_id: c597b7b7eb97321d354da189b52e26ba
+[2025-06-06T12:06:58.679Z] [info] Found 0 packages for stable_hash_id c597b7b7eb97321d354da189b52e26ba
+[2025-06-06T12:06:58.679Z] [info] No packages found for stable_hash_id c597b7b7eb97321d354da189b52e26ba
+[2025-06-06T12:06:58.679Z] [info] Processing mapping 8/20 for stable_hash_id 23da212b591b920ec99023f8e50fb4b5
+[2025-06-06T12:06:58.680Z] [info] Fetching packages for stable_hash_id: 23da212b591b920ec99023f8e50fb4b5
+[2025-06-06T12:06:58.743Z] [info] Found 0 packages for stable_hash_id 23da212b591b920ec99023f8e50fb4b5
+[2025-06-06T12:06:58.743Z] [info] No packages found for stable_hash_id 23da212b591b920ec99023f8e50fb4b5
+[2025-06-06T12:06:58.743Z] [info] Processing mapping 9/20 for stable_hash_id 25222312377e3c21f64df883d6be5e61
+[2025-06-06T12:06:58.744Z] [info] Fetching packages for stable_hash_id: 25222312377e3c21f64df883d6be5e61
+[2025-06-06T12:06:58.805Z] [info] Found 0 packages for stable_hash_id 25222312377e3c21f64df883d6be5e61
+[2025-06-06T12:06:58.805Z] [info] No packages found for stable_hash_id 25222312377e3c21f64df883d6be5e61
+[2025-06-06T12:06:58.805Z] [info] Processing mapping 10/20 for stable_hash_id a3defa501a9e96608bd7a457ffc1524e
+[2025-06-06T12:06:58.806Z] [info] Fetching packages for stable_hash_id: a3defa501a9e96608bd7a457ffc1524e
+[2025-06-06T12:06:58.870Z] [info] Found 0 packages for stable_hash_id a3defa501a9e96608bd7a457ffc1524e
+[2025-06-06T12:06:58.871Z] [info] No packages found for stable_hash_id a3defa501a9e96608bd7a457ffc1524e
+[2025-06-06T12:06:58.871Z] [info] Processing mapping 11/20 for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:58.871Z] [info] Fetching packages for stable_hash_id: 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:58.953Z] [info] Found 3 packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:58.953Z] [info] Syncing 3 packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:59.082Z] [info] Deleted 3 existing packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:59.155Z] [info] Added 3 new packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296
+[2025-06-06T12:06:59.155Z] [info] Processed 3 packages for stable_hash_id 519cefd56a0595cd29e6a0ec1e0a6296 (Added: 3, Deleted: 3, Errors: 0)
+[2025-06-06T12:06:59.155Z] [info] Processing mapping 12/20 for stable_hash_id 9c3fa221e0caab25bb6d07aea3b532a6
+[2025-06-06T12:06:59.155Z] [info] Fetching packages for stable_hash_id: 9c3fa221e0caab25bb6d07aea3b532a6
+[2025-06-06T12:06:59.220Z] [info] Found 0 packages for stable_hash_id 9c3fa221e0caab25bb6d07aea3b532a6
+[2025-06-06T12:06:59.221Z] [info] No packages found for stable_hash_id 9c3fa221e0caab25bb6d07aea3b532a6
+[2025-06-06T12:06:59.221Z] [info] Processing mapping 13/20 for stable_hash_id a2893c51677aebff949f6385ad978242
+[2025-06-06T12:06:59.221Z] [info] Fetching packages for stable_hash_id: a2893c51677aebff949f6385ad978242
+[2025-06-06T12:06:59.283Z] [info] Found 1 packages for stable_hash_id a2893c51677aebff949f6385ad978242
+[2025-06-06T12:06:59.284Z] [info] Syncing 1 packages for stable_hash_id a2893c51677aebff949f6385ad978242
+[2025-06-06T12:06:59.416Z] [info] Deleted 1 existing packages for stable_hash_id a2893c51677aebff949f6385ad978242
+[2025-06-06T12:06:59.478Z] [info] Added 1 new packages for stable_hash_id a2893c51677aebff949f6385ad978242
+[2025-06-06T12:06:59.478Z] [info] Processed 1 packages for stable_hash_id a2893c51677aebff949f6385ad978242 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:06:59.479Z] [info] Processing mapping 14/20 for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:59.479Z] [info] Fetching packages for stable_hash_id: ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:59.544Z] [info] Found 4 packages for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:59.544Z] [info] Syncing 4 packages for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:59.714Z] [info] Deleted 4 existing packages for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:59.782Z] [info] Added 4 new packages for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8
+[2025-06-06T12:06:59.782Z] [info] Processed 4 packages for stable_hash_id ccb279a7d86a472cfe86827d5f7d32e8 (Added: 4, Deleted: 4, Errors: 0)
+[2025-06-06T12:06:59.783Z] [info] Processing mapping 15/20 for stable_hash_id a203b2974c4ae81059ed13b11ebd55e4
+[2025-06-06T12:06:59.783Z] [info] Fetching packages for stable_hash_id: a203b2974c4ae81059ed13b11ebd55e4
+[2025-06-06T12:06:59.847Z] [info] Found 1 packages for stable_hash_id a203b2974c4ae81059ed13b11ebd55e4
+[2025-06-06T12:06:59.848Z] [info] Syncing 1 packages for stable_hash_id a203b2974c4ae81059ed13b11ebd55e4
+[2025-06-06T12:06:59.974Z] [info] Deleted 1 existing packages for stable_hash_id a203b2974c4ae81059ed13b11ebd55e4
+[2025-06-06T12:07:00.036Z] [info] Added 1 new packages for stable_hash_id a203b2974c4ae81059ed13b11ebd55e4
+[2025-06-06T12:07:00.036Z] [info] Processed 1 packages for stable_hash_id a203b2974c4ae81059ed13b11ebd55e4 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:07:00.036Z] [info] Processing mapping 16/20 for stable_hash_id eb3719a9edf03c2ebcb3deb800c0feb1
+[2025-06-06T12:07:00.037Z] [info] Fetching packages for stable_hash_id: eb3719a9edf03c2ebcb3deb800c0feb1
+[2025-06-06T12:07:00.105Z] [info] Found 1 packages for stable_hash_id eb3719a9edf03c2ebcb3deb800c0feb1
+[2025-06-06T12:07:00.106Z] [info] Syncing 1 packages for stable_hash_id eb3719a9edf03c2ebcb3deb800c0feb1
+[2025-06-06T12:07:00.235Z] [info] Deleted 1 existing packages for stable_hash_id eb3719a9edf03c2ebcb3deb800c0feb1
+[2025-06-06T12:07:00.302Z] [info] Added 1 new packages for stable_hash_id eb3719a9edf03c2ebcb3deb800c0feb1
+[2025-06-06T12:07:00.302Z] [info] Processed 1 packages for stable_hash_id eb3719a9edf03c2ebcb3deb800c0feb1 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:07:00.302Z] [info] Processing mapping 17/20 for stable_hash_id e9d49d4a5f7d952151a7d47f6c4099a4
+[2025-06-06T12:07:00.303Z] [info] Fetching packages for stable_hash_id: e9d49d4a5f7d952151a7d47f6c4099a4
+[2025-06-06T12:07:00.395Z] [info] Found 0 packages for stable_hash_id e9d49d4a5f7d952151a7d47f6c4099a4
+[2025-06-06T12:07:00.396Z] [info] No packages found for stable_hash_id e9d49d4a5f7d952151a7d47f6c4099a4
+[2025-06-06T12:07:00.396Z] [info] Processing mapping 18/20 for stable_hash_id 6a11037c239f2c01785756691743f4b5
+[2025-06-06T12:07:00.396Z] [info] Fetching packages for stable_hash_id: 6a11037c239f2c01785756691743f4b5
+[2025-06-06T12:07:00.532Z] [info] Found 0 packages for stable_hash_id 6a11037c239f2c01785756691743f4b5
+[2025-06-06T12:07:00.533Z] [info] No packages found for stable_hash_id 6a11037c239f2c01785756691743f4b5
+[2025-06-06T12:07:00.533Z] [info] Processing mapping 19/20 for stable_hash_id 075ed965b7d81991498790608a286dc3
+[2025-06-06T12:07:00.533Z] [info] Fetching packages for stable_hash_id: 075ed965b7d81991498790608a286dc3
+[2025-06-06T12:07:00.610Z] [info] Found 0 packages for stable_hash_id 075ed965b7d81991498790608a286dc3
+[2025-06-06T12:07:00.610Z] [info] No packages found for stable_hash_id 075ed965b7d81991498790608a286dc3
+[2025-06-06T12:07:00.611Z] [info] Processing mapping 20/20 for stable_hash_id 2b9ce5d9ad7ebdcf9713ab0fc3e484a8
+[2025-06-06T12:07:00.611Z] [info] Fetching packages for stable_hash_id: 2b9ce5d9ad7ebdcf9713ab0fc3e484a8
+[2025-06-06T12:07:00.685Z] [info] Found 0 packages for stable_hash_id 2b9ce5d9ad7ebdcf9713ab0fc3e484a8
+[2025-06-06T12:07:00.685Z] [info] No packages found for stable_hash_id 2b9ce5d9ad7ebdcf9713ab0fc3e484a8
+[2025-06-06T12:07:00.685Z] [info] Batch 10 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:07:01.197Z] [info] Processing batch 11 of 13
+[2025-06-06T12:07:01.197Z] [info] Processing mapping 1/20 for stable_hash_id d9efebd81c21d8b3b6354a58b59f92da
+[2025-06-06T12:07:01.197Z] [info] Fetching packages for stable_hash_id: d9efebd81c21d8b3b6354a58b59f92da
+[2025-06-06T12:07:01.271Z] [info] Found 0 packages for stable_hash_id d9efebd81c21d8b3b6354a58b59f92da
+[2025-06-06T12:07:01.271Z] [info] No packages found for stable_hash_id d9efebd81c21d8b3b6354a58b59f92da
+[2025-06-06T12:07:01.271Z] [info] Processing mapping 2/20 for stable_hash_id 763564ef1cf7a17b51a34cc234a6d1e9
+[2025-06-06T12:07:01.272Z] [info] Fetching packages for stable_hash_id: 763564ef1cf7a17b51a34cc234a6d1e9
+[2025-06-06T12:07:01.335Z] [info] Found 0 packages for stable_hash_id 763564ef1cf7a17b51a34cc234a6d1e9
+[2025-06-06T12:07:01.335Z] [info] No packages found for stable_hash_id 763564ef1cf7a17b51a34cc234a6d1e9
+[2025-06-06T12:07:01.336Z] [info] Processing mapping 3/20 for stable_hash_id f0192994b13cd98a2367e6c9631f8145
+[2025-06-06T12:07:01.336Z] [info] Fetching packages for stable_hash_id: f0192994b13cd98a2367e6c9631f8145
+[2025-06-06T12:07:01.399Z] [info] Found 0 packages for stable_hash_id f0192994b13cd98a2367e6c9631f8145
+[2025-06-06T12:07:01.399Z] [info] No packages found for stable_hash_id f0192994b13cd98a2367e6c9631f8145
+[2025-06-06T12:07:01.400Z] [info] Processing mapping 4/20 for stable_hash_id 03655b1630a2f43c18fd0fd558028754
+[2025-06-06T12:07:01.400Z] [info] Fetching packages for stable_hash_id: 03655b1630a2f43c18fd0fd558028754
+[2025-06-06T12:07:01.471Z] [info] Found 2 packages for stable_hash_id 03655b1630a2f43c18fd0fd558028754
+[2025-06-06T12:07:01.472Z] [info] Syncing 2 packages for stable_hash_id 03655b1630a2f43c18fd0fd558028754
+[2025-06-06T12:07:01.610Z] [info] Deleted 2 existing packages for stable_hash_id 03655b1630a2f43c18fd0fd558028754
+[2025-06-06T12:07:01.697Z] [info] Added 2 new packages for stable_hash_id 03655b1630a2f43c18fd0fd558028754
+[2025-06-06T12:07:01.697Z] [info] Processed 2 packages for stable_hash_id 03655b1630a2f43c18fd0fd558028754 (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:07:01.697Z] [info] Processing mapping 5/20 for stable_hash_id 1d1cbf2258d1eedf67081d073d8c596b
+[2025-06-06T12:07:01.698Z] [info] Fetching packages for stable_hash_id: 1d1cbf2258d1eedf67081d073d8c596b
+[2025-06-06T12:07:01.768Z] [info] Found 0 packages for stable_hash_id 1d1cbf2258d1eedf67081d073d8c596b
+[2025-06-06T12:07:01.769Z] [info] No packages found for stable_hash_id 1d1cbf2258d1eedf67081d073d8c596b
+[2025-06-06T12:07:01.769Z] [info] Processing mapping 6/20 for stable_hash_id ab6185618f4c5f6a2b508fb2f8dc7eb7
+[2025-06-06T12:07:01.769Z] [info] Fetching packages for stable_hash_id: ab6185618f4c5f6a2b508fb2f8dc7eb7
+[2025-06-06T12:07:01.832Z] [info] Found 0 packages for stable_hash_id ab6185618f4c5f6a2b508fb2f8dc7eb7
+[2025-06-06T12:07:01.832Z] [info] No packages found for stable_hash_id ab6185618f4c5f6a2b508fb2f8dc7eb7
+[2025-06-06T12:07:01.832Z] [info] Processing mapping 7/20 for stable_hash_id c3d4440f999192992589fa446d70fe3b
+[2025-06-06T12:07:01.832Z] [info] Fetching packages for stable_hash_id: c3d4440f999192992589fa446d70fe3b
+[2025-06-06T12:07:01.908Z] [info] Found 0 packages for stable_hash_id c3d4440f999192992589fa446d70fe3b
+[2025-06-06T12:07:01.909Z] [info] No packages found for stable_hash_id c3d4440f999192992589fa446d70fe3b
+[2025-06-06T12:07:01.909Z] [info] Processing mapping 8/20 for stable_hash_id 18172219f7cb107c3cf2020d647ba92c
+[2025-06-06T12:07:01.909Z] [info] Fetching packages for stable_hash_id: 18172219f7cb107c3cf2020d647ba92c
+[2025-06-06T12:07:01.973Z] [info] Found 0 packages for stable_hash_id 18172219f7cb107c3cf2020d647ba92c
+[2025-06-06T12:07:01.973Z] [info] No packages found for stable_hash_id 18172219f7cb107c3cf2020d647ba92c
+[2025-06-06T12:07:01.973Z] [info] Processing mapping 9/20 for stable_hash_id 9531b3484cfdda0e8499a68fea9336f9
+[2025-06-06T12:07:01.973Z] [info] Fetching packages for stable_hash_id: 9531b3484cfdda0e8499a68fea9336f9
+[2025-06-06T12:07:02.047Z] [info] Found 0 packages for stable_hash_id 9531b3484cfdda0e8499a68fea9336f9
+[2025-06-06T12:07:02.047Z] [info] No packages found for stable_hash_id 9531b3484cfdda0e8499a68fea9336f9
+[2025-06-06T12:07:02.048Z] [info] Processing mapping 10/20 for stable_hash_id 43608cb1c7be3daa056491dec3cee040
+[2025-06-06T12:07:02.048Z] [info] Fetching packages for stable_hash_id: 43608cb1c7be3daa056491dec3cee040
+[2025-06-06T12:07:02.130Z] [info] Found 0 packages for stable_hash_id 43608cb1c7be3daa056491dec3cee040
+[2025-06-06T12:07:02.131Z] [info] No packages found for stable_hash_id 43608cb1c7be3daa056491dec3cee040
+[2025-06-06T12:07:02.131Z] [info] Processing mapping 11/20 for stable_hash_id 070ab31d9e2ad2d4aa2ff300cfade2d2
+[2025-06-06T12:07:02.131Z] [info] Fetching packages for stable_hash_id: 070ab31d9e2ad2d4aa2ff300cfade2d2
+[2025-06-06T12:07:02.238Z] [info] Found 0 packages for stable_hash_id 070ab31d9e2ad2d4aa2ff300cfade2d2
+[2025-06-06T12:07:02.238Z] [info] No packages found for stable_hash_id 070ab31d9e2ad2d4aa2ff300cfade2d2
+[2025-06-06T12:07:02.239Z] [info] Processing mapping 12/20 for stable_hash_id 24962b1dc7380cfa35f0b0e584253daa
+[2025-06-06T12:07:02.239Z] [info] Fetching packages for stable_hash_id: 24962b1dc7380cfa35f0b0e584253daa
+[2025-06-06T12:07:02.305Z] [info] Found 0 packages for stable_hash_id 24962b1dc7380cfa35f0b0e584253daa
+[2025-06-06T12:07:02.305Z] [info] No packages found for stable_hash_id 24962b1dc7380cfa35f0b0e584253daa
+[2025-06-06T12:07:02.306Z] [info] Processing mapping 13/20 for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:07:02.306Z] [info] Fetching packages for stable_hash_id: 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:07:02.376Z] [info] Found 2 packages for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:07:02.376Z] [info] Syncing 2 packages for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:07:02.520Z] [info] Deleted 2 existing packages for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:07:02.583Z] [info] Added 2 new packages for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1
+[2025-06-06T12:07:02.583Z] [info] Processed 2 packages for stable_hash_id 8fae4360debb443c7cfebcc0f38897b1 (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:07:02.584Z] [info] Processing mapping 14/20 for stable_hash_id 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:07:02.584Z] [info] Fetching packages for stable_hash_id: 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:07:02.650Z] [info] Found 1 packages for stable_hash_id 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:07:02.650Z] [info] Syncing 1 packages for stable_hash_id 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:07:02.776Z] [info] Deleted 1 existing packages for stable_hash_id 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:07:02.877Z] [info] Added 1 new packages for stable_hash_id 528e6f77b47a72fae2527e65d5244424
+[2025-06-06T12:07:02.877Z] [info] Processed 1 packages for stable_hash_id 528e6f77b47a72fae2527e65d5244424 (Added: 1, Deleted: 1, Errors: 0)
+[2025-06-06T12:07:02.877Z] [info] Processing mapping 15/20 for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:07:02.877Z] [info] Fetching packages for stable_hash_id: 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:07:02.938Z] [info] Found 3 packages for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:07:02.938Z] [info] Syncing 3 packages for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:07:03.069Z] [info] Deleted 3 existing packages for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:07:03.141Z] [info] Added 3 new packages for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9
+[2025-06-06T12:07:03.141Z] [info] Processed 3 packages for stable_hash_id 2a54b7e9c15ac30be4666a3acc9507a9 (Added: 3, Deleted: 3, Errors: 0)
+[2025-06-06T12:07:03.141Z] [info] Processing mapping 16/20 for stable_hash_id 869338d39e32c737a50bd70132d042a7
+[2025-06-06T12:07:03.141Z] [info] Fetching packages for stable_hash_id: 869338d39e32c737a50bd70132d042a7
+[2025-06-06T12:07:03.201Z] [info] Found 0 packages for stable_hash_id 869338d39e32c737a50bd70132d042a7
+[2025-06-06T12:07:03.202Z] [info] No packages found for stable_hash_id 869338d39e32c737a50bd70132d042a7
+[2025-06-06T12:07:03.202Z] [info] Processing mapping 17/20 for stable_hash_id 56c935a606c5c83116a993ba23194764
+[2025-06-06T12:07:03.202Z] [info] Fetching packages for stable_hash_id: 56c935a606c5c83116a993ba23194764
+[2025-06-06T12:07:03.275Z] [info] Found 0 packages for stable_hash_id 56c935a606c5c83116a993ba23194764
+[2025-06-06T12:07:03.275Z] [info] No packages found for stable_hash_id 56c935a606c5c83116a993ba23194764
+[2025-06-06T12:07:03.275Z] [info] Processing mapping 18/20 for stable_hash_id f5744016b6bf540d602c2c0ad884b3c0
+[2025-06-06T12:07:03.276Z] [info] Fetching packages for stable_hash_id: f5744016b6bf540d602c2c0ad884b3c0
+[2025-06-06T12:07:03.356Z] [info] Found 0 packages for stable_hash_id f5744016b6bf540d602c2c0ad884b3c0
+[2025-06-06T12:07:03.356Z] [info] No packages found for stable_hash_id f5744016b6bf540d602c2c0ad884b3c0
+[2025-06-06T12:07:03.356Z] [info] Processing mapping 19/20 for stable_hash_id 1c5f6ed77151bbbd79585e16b642ea4c
+[2025-06-06T12:07:03.356Z] [info] Fetching packages for stable_hash_id: 1c5f6ed77151bbbd79585e16b642ea4c
+[2025-06-06T12:07:03.421Z] [info] Found 0 packages for stable_hash_id 1c5f6ed77151bbbd79585e16b642ea4c
+[2025-06-06T12:07:03.421Z] [info] No packages found for stable_hash_id 1c5f6ed77151bbbd79585e16b642ea4c
+[2025-06-06T12:07:03.421Z] [info] Processing mapping 20/20 for stable_hash_id d6eccae486c3b6a78ea9f9c3374693c6
+[2025-06-06T12:07:03.421Z] [info] Fetching packages for stable_hash_id: d6eccae486c3b6a78ea9f9c3374693c6
+[2025-06-06T12:07:03.489Z] [info] Found 0 packages for stable_hash_id d6eccae486c3b6a78ea9f9c3374693c6
+[2025-06-06T12:07:03.490Z] [info] No packages found for stable_hash_id d6eccae486c3b6a78ea9f9c3374693c6
+[2025-06-06T12:07:03.490Z] [info] Batch 11 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:07:03.992Z] [info] Processing batch 12 of 13
+[2025-06-06T12:07:03.992Z] [info] Processing mapping 1/20 for stable_hash_id 541b9f03b52e795766a262daa3483d7b
+[2025-06-06T12:07:03.992Z] [info] Fetching packages for stable_hash_id: 541b9f03b52e795766a262daa3483d7b
+[2025-06-06T12:07:04.058Z] [info] Found 0 packages for stable_hash_id 541b9f03b52e795766a262daa3483d7b
+[2025-06-06T12:07:04.058Z] [info] No packages found for stable_hash_id 541b9f03b52e795766a262daa3483d7b
+[2025-06-06T12:07:04.058Z] [info] Processing mapping 2/20 for stable_hash_id 0dcbe8da9597533bdff32155c04bbb66
+[2025-06-06T12:07:04.058Z] [info] Fetching packages for stable_hash_id: 0dcbe8da9597533bdff32155c04bbb66
+[2025-06-06T12:07:04.121Z] [info] Found 0 packages for stable_hash_id 0dcbe8da9597533bdff32155c04bbb66
+[2025-06-06T12:07:04.121Z] [info] No packages found for stable_hash_id 0dcbe8da9597533bdff32155c04bbb66
+[2025-06-06T12:07:04.121Z] [info] Processing mapping 3/20 for stable_hash_id 815f8797539b98190dca2b41b51e3236
+[2025-06-06T12:07:04.121Z] [info] Fetching packages for stable_hash_id: 815f8797539b98190dca2b41b51e3236
+[2025-06-06T12:07:04.187Z] [info] Found 0 packages for stable_hash_id 815f8797539b98190dca2b41b51e3236
+[2025-06-06T12:07:04.187Z] [info] No packages found for stable_hash_id 815f8797539b98190dca2b41b51e3236
+[2025-06-06T12:07:04.187Z] [info] Processing mapping 4/20 for stable_hash_id b6cf76a38dc79840b8143b28a25e2e7a
+[2025-06-06T12:07:04.187Z] [info] Fetching packages for stable_hash_id: b6cf76a38dc79840b8143b28a25e2e7a
+[2025-06-06T12:07:04.255Z] [info] Found 0 packages for stable_hash_id b6cf76a38dc79840b8143b28a25e2e7a
+[2025-06-06T12:07:04.255Z] [info] No packages found for stable_hash_id b6cf76a38dc79840b8143b28a25e2e7a
+[2025-06-06T12:07:04.255Z] [info] Processing mapping 5/20 for stable_hash_id 5993ab6fe1f3212b5ccd891b6bc78230
+[2025-06-06T12:07:04.256Z] [info] Fetching packages for stable_hash_id: 5993ab6fe1f3212b5ccd891b6bc78230
+[2025-06-06T12:07:04.317Z] [info] Found 0 packages for stable_hash_id 5993ab6fe1f3212b5ccd891b6bc78230
+[2025-06-06T12:07:04.317Z] [info] No packages found for stable_hash_id 5993ab6fe1f3212b5ccd891b6bc78230
+[2025-06-06T12:07:04.317Z] [info] Processing mapping 6/20 for stable_hash_id 24592bdbaeaeb34bb32c7d37eec080ea
+[2025-06-06T12:07:04.317Z] [info] Fetching packages for stable_hash_id: 24592bdbaeaeb34bb32c7d37eec080ea
+[2025-06-06T12:07:04.390Z] [info] Found 0 packages for stable_hash_id 24592bdbaeaeb34bb32c7d37eec080ea
+[2025-06-06T12:07:04.390Z] [info] No packages found for stable_hash_id 24592bdbaeaeb34bb32c7d37eec080ea
+[2025-06-06T12:07:04.390Z] [info] Processing mapping 7/20 for stable_hash_id b2c623d1a4b1241043eb74bf41b8d614
+[2025-06-06T12:07:04.390Z] [info] Fetching packages for stable_hash_id: b2c623d1a4b1241043eb74bf41b8d614
+[2025-06-06T12:07:04.462Z] [info] Found 0 packages for stable_hash_id b2c623d1a4b1241043eb74bf41b8d614
+[2025-06-06T12:07:04.463Z] [info] No packages found for stable_hash_id b2c623d1a4b1241043eb74bf41b8d614
+[2025-06-06T12:07:04.463Z] [info] Processing mapping 8/20 for stable_hash_id a0fb8076503519d4f0f2f0d2f8e65de0
+[2025-06-06T12:07:04.463Z] [info] Fetching packages for stable_hash_id: a0fb8076503519d4f0f2f0d2f8e65de0
+[2025-06-06T12:07:04.530Z] [info] Found 0 packages for stable_hash_id a0fb8076503519d4f0f2f0d2f8e65de0
+[2025-06-06T12:07:04.530Z] [info] No packages found for stable_hash_id a0fb8076503519d4f0f2f0d2f8e65de0
+[2025-06-06T12:07:04.530Z] [info] Processing mapping 9/20 for stable_hash_id 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:07:04.531Z] [info] Fetching packages for stable_hash_id: 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:07:04.601Z] [info] Found 2 packages for stable_hash_id 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:07:04.602Z] [info] Syncing 2 packages for stable_hash_id 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:07:04.736Z] [info] Deleted 2 existing packages for stable_hash_id 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:07:04.811Z] [info] Added 2 new packages for stable_hash_id 5fc2b95963011ecd0396610941dfe0af
+[2025-06-06T12:07:04.812Z] [info] Processed 2 packages for stable_hash_id 5fc2b95963011ecd0396610941dfe0af (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:07:04.812Z] [info] Processing mapping 10/20 for stable_hash_id 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:07:04.812Z] [info] Fetching packages for stable_hash_id: 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:07:04.891Z] [info] Found 5 packages for stable_hash_id 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:07:04.891Z] [info] Syncing 5 packages for stable_hash_id 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:07:05.030Z] [info] Deleted 5 existing packages for stable_hash_id 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:07:05.102Z] [info] Added 5 new packages for stable_hash_id 772b7d640d0468e197700710073a0d72
+[2025-06-06T12:07:05.102Z] [info] Processed 5 packages for stable_hash_id 772b7d640d0468e197700710073a0d72 (Added: 5, Deleted: 5, Errors: 0)
+[2025-06-06T12:07:05.102Z] [info] Processing mapping 11/20 for stable_hash_id 9f886624c1d82482b7ac0bb5fe5ff3f3
+[2025-06-06T12:07:05.103Z] [info] Fetching packages for stable_hash_id: 9f886624c1d82482b7ac0bb5fe5ff3f3
+[2025-06-06T12:07:05.168Z] [info] Found 0 packages for stable_hash_id 9f886624c1d82482b7ac0bb5fe5ff3f3
+[2025-06-06T12:07:05.168Z] [info] No packages found for stable_hash_id 9f886624c1d82482b7ac0bb5fe5ff3f3
+[2025-06-06T12:07:05.169Z] [info] Processing mapping 12/20 for stable_hash_id 98076f145cc6d42d3a912f965d202173
+[2025-06-06T12:07:05.169Z] [info] Fetching packages for stable_hash_id: 98076f145cc6d42d3a912f965d202173
+[2025-06-06T12:07:05.231Z] [info] Found 0 packages for stable_hash_id 98076f145cc6d42d3a912f965d202173
+[2025-06-06T12:07:05.231Z] [info] No packages found for stable_hash_id 98076f145cc6d42d3a912f965d202173
+[2025-06-06T12:07:05.232Z] [info] Processing mapping 13/20 for stable_hash_id e973cb0ca972a23bb2f6a2bdf37f77be
+[2025-06-06T12:07:05.232Z] [info] Fetching packages for stable_hash_id: e973cb0ca972a23bb2f6a2bdf37f77be
+[2025-06-06T12:07:05.294Z] [info] Found 0 packages for stable_hash_id e973cb0ca972a23bb2f6a2bdf37f77be
+[2025-06-06T12:07:05.294Z] [info] No packages found for stable_hash_id e973cb0ca972a23bb2f6a2bdf37f77be
+[2025-06-06T12:07:05.294Z] [info] Processing mapping 14/20 for stable_hash_id 103863d6bf516efc5d4917c6d4db5d31
+[2025-06-06T12:07:05.294Z] [info] Fetching packages for stable_hash_id: 103863d6bf516efc5d4917c6d4db5d31
+[2025-06-06T12:07:05.366Z] [info] Found 0 packages for stable_hash_id 103863d6bf516efc5d4917c6d4db5d31
+[2025-06-06T12:07:05.366Z] [info] No packages found for stable_hash_id 103863d6bf516efc5d4917c6d4db5d31
+[2025-06-06T12:07:05.366Z] [info] Processing mapping 15/20 for stable_hash_id 69afd1f068509f65ac5a0f668a0a63b2
+[2025-06-06T12:07:05.366Z] [info] Fetching packages for stable_hash_id: 69afd1f068509f65ac5a0f668a0a63b2
+[2025-06-06T12:07:05.444Z] [info] Found 0 packages for stable_hash_id 69afd1f068509f65ac5a0f668a0a63b2
+[2025-06-06T12:07:05.444Z] [info] No packages found for stable_hash_id 69afd1f068509f65ac5a0f668a0a63b2
+[2025-06-06T12:07:05.444Z] [info] Processing mapping 16/20 for stable_hash_id 5519f179239ae268cf83ed1dfbcf7063
+[2025-06-06T12:07:05.444Z] [info] Fetching packages for stable_hash_id: 5519f179239ae268cf83ed1dfbcf7063
+[2025-06-06T12:07:05.518Z] [info] Found 0 packages for stable_hash_id 5519f179239ae268cf83ed1dfbcf7063
+[2025-06-06T12:07:05.519Z] [info] No packages found for stable_hash_id 5519f179239ae268cf83ed1dfbcf7063
+[2025-06-06T12:07:05.519Z] [info] Processing mapping 17/20 for stable_hash_id e4f6f1aeafa0c0a5ddda940580bf4cbd
+[2025-06-06T12:07:05.519Z] [info] Fetching packages for stable_hash_id: e4f6f1aeafa0c0a5ddda940580bf4cbd
+[2025-06-06T12:07:05.588Z] [info] Found 0 packages for stable_hash_id e4f6f1aeafa0c0a5ddda940580bf4cbd
+[2025-06-06T12:07:05.588Z] [info] No packages found for stable_hash_id e4f6f1aeafa0c0a5ddda940580bf4cbd
+[2025-06-06T12:07:05.589Z] [info] Processing mapping 18/20 for stable_hash_id 68af65d265eb5b6672e832c9b9cb1c1a
+[2025-06-06T12:07:05.589Z] [info] Fetching packages for stable_hash_id: 68af65d265eb5b6672e832c9b9cb1c1a
+[2025-06-06T12:07:05.692Z] [info] Found 2 packages for stable_hash_id 68af65d265eb5b6672e832c9b9cb1c1a
+[2025-06-06T12:07:05.693Z] [info] Syncing 2 packages for stable_hash_id 68af65d265eb5b6672e832c9b9cb1c1a
+[2025-06-06T12:07:05.841Z] [info] Deleted 0 existing packages for stable_hash_id 68af65d265eb5b6672e832c9b9cb1c1a
+[2025-06-06T12:07:05.913Z] [info] Added 2 new packages for stable_hash_id 68af65d265eb5b6672e832c9b9cb1c1a
+[2025-06-06T12:07:05.914Z] [info] Processed 2 packages for stable_hash_id 68af65d265eb5b6672e832c9b9cb1c1a (Added: 2, Deleted: 0, Errors: 0)
+[2025-06-06T12:07:05.914Z] [info] Processing mapping 19/20 for stable_hash_id 905ba3ebb915b27e00255aa38414203d
+[2025-06-06T12:07:05.914Z] [info] Fetching packages for stable_hash_id: 905ba3ebb915b27e00255aa38414203d
+[2025-06-06T12:07:05.986Z] [info] Found 1 packages for stable_hash_id 905ba3ebb915b27e00255aa38414203d
+[2025-06-06T12:07:05.986Z] [info] Syncing 1 packages for stable_hash_id 905ba3ebb915b27e00255aa38414203d
+[2025-06-06T12:07:06.111Z] [info] Deleted 0 existing packages for stable_hash_id 905ba3ebb915b27e00255aa38414203d
+[2025-06-06T12:07:06.184Z] [info] Added 1 new packages for stable_hash_id 905ba3ebb915b27e00255aa38414203d
+[2025-06-06T12:07:06.184Z] [info] Processed 1 packages for stable_hash_id 905ba3ebb915b27e00255aa38414203d (Added: 1, Deleted: 0, Errors: 0)
+[2025-06-06T12:07:06.184Z] [info] Processing mapping 20/20 for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:07:06.184Z] [info] Fetching packages for stable_hash_id: d058264113127debc8b65592b1badcd4
+[2025-06-06T12:07:06.255Z] [info] Found 0 packages for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:07:06.256Z] [info] No packages found for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:07:06.256Z] [info] Batch 12 complete. Taking a short break before processing the next batch...
+[2025-06-06T12:07:06.759Z] [info] Processing batch 13 of 13
+[2025-06-06T12:07:06.760Z] [info] Processing mapping 1/10 for stable_hash_id ef51d9bd61ba0849bfce50670993c325
+[2025-06-06T12:07:06.760Z] [info] Fetching packages for stable_hash_id: ef51d9bd61ba0849bfce50670993c325
+[2025-06-06T12:07:06.825Z] [info] Found 2 packages for stable_hash_id ef51d9bd61ba0849bfce50670993c325
+[2025-06-06T12:07:06.825Z] [info] Syncing 2 packages for stable_hash_id ef51d9bd61ba0849bfce50670993c325
+[2025-06-06T12:07:06.971Z] [info] Deleted 2 existing packages for stable_hash_id ef51d9bd61ba0849bfce50670993c325
+[2025-06-06T12:07:07.042Z] [info] Added 2 new packages for stable_hash_id ef51d9bd61ba0849bfce50670993c325
+[2025-06-06T12:07:07.042Z] [info] Processed 2 packages for stable_hash_id ef51d9bd61ba0849bfce50670993c325 (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:07:07.042Z] [info] Processing mapping 2/10 for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:07:07.043Z] [info] Fetching packages for stable_hash_id: d058264113127debc8b65592b1badcd4
+[2025-06-06T12:07:07.109Z] [info] Found 0 packages for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:07:07.109Z] [info] No packages found for stable_hash_id d058264113127debc8b65592b1badcd4
+[2025-06-06T12:07:07.109Z] [info] Processing mapping 3/10 for stable_hash_id a12b265c24632780e29ce1ed474b2178
+[2025-06-06T12:07:07.109Z] [info] Fetching packages for stable_hash_id: a12b265c24632780e29ce1ed474b2178
+[2025-06-06T12:07:07.176Z] [info] Found 0 packages for stable_hash_id a12b265c24632780e29ce1ed474b2178
+[2025-06-06T12:07:07.177Z] [info] No packages found for stable_hash_id a12b265c24632780e29ce1ed474b2178
+[2025-06-06T12:07:07.177Z] [info] Processing mapping 4/10 for stable_hash_id 643d4b0092a4288708be879c34586dd5
+[2025-06-06T12:07:07.177Z] [info] Fetching packages for stable_hash_id: 643d4b0092a4288708be879c34586dd5
+[2025-06-06T12:07:07.241Z] [info] Found 0 packages for stable_hash_id 643d4b0092a4288708be879c34586dd5
+[2025-06-06T12:07:07.241Z] [info] No packages found for stable_hash_id 643d4b0092a4288708be879c34586dd5
+[2025-06-06T12:07:07.242Z] [info] Processing mapping 5/10 for stable_hash_id e9145c49d2712765fbcb2261b08704c1
+[2025-06-06T12:07:07.242Z] [info] Fetching packages for stable_hash_id: e9145c49d2712765fbcb2261b08704c1
+[2025-06-06T12:07:07.313Z] [info] Found 0 packages for stable_hash_id e9145c49d2712765fbcb2261b08704c1
+[2025-06-06T12:07:07.313Z] [info] No packages found for stable_hash_id e9145c49d2712765fbcb2261b08704c1
+[2025-06-06T12:07:07.313Z] [info] Processing mapping 6/10 for stable_hash_id 7d1c97c0c136a81e54c4785b5f700737
+[2025-06-06T12:07:07.313Z] [info] Fetching packages for stable_hash_id: 7d1c97c0c136a81e54c4785b5f700737
+[2025-06-06T12:07:07.382Z] [info] Found 0 packages for stable_hash_id 7d1c97c0c136a81e54c4785b5f700737
+[2025-06-06T12:07:07.382Z] [info] No packages found for stable_hash_id 7d1c97c0c136a81e54c4785b5f700737
+[2025-06-06T12:07:07.382Z] [info] Processing mapping 7/10 for stable_hash_id 57baa3afbea531330d9547eab5d0b0d0
+[2025-06-06T12:07:07.383Z] [info] Fetching packages for stable_hash_id: 57baa3afbea531330d9547eab5d0b0d0
+[2025-06-06T12:07:07.445Z] [info] Found 0 packages for stable_hash_id 57baa3afbea531330d9547eab5d0b0d0
+[2025-06-06T12:07:07.445Z] [info] No packages found for stable_hash_id 57baa3afbea531330d9547eab5d0b0d0
+[2025-06-06T12:07:07.445Z] [info] Processing mapping 8/10 for stable_hash_id f8e29675fc38462d22760572a59fa682
+[2025-06-06T12:07:07.445Z] [info] Fetching packages for stable_hash_id: f8e29675fc38462d22760572a59fa682
+[2025-06-06T12:07:07.513Z] [info] Found 0 packages for stable_hash_id f8e29675fc38462d22760572a59fa682
+[2025-06-06T12:07:07.513Z] [info] No packages found for stable_hash_id f8e29675fc38462d22760572a59fa682
+[2025-06-06T12:07:07.513Z] [info] Processing mapping 9/10 for stable_hash_id d97c51fcb078c8da41898f2bc530b391
+[2025-06-06T12:07:07.514Z] [info] Fetching packages for stable_hash_id: d97c51fcb078c8da41898f2bc530b391
+[2025-06-06T12:07:07.588Z] [info] Found 0 packages for stable_hash_id d97c51fcb078c8da41898f2bc530b391
+[2025-06-06T12:07:07.589Z] [info] No packages found for stable_hash_id d97c51fcb078c8da41898f2bc530b391
+[2025-06-06T12:07:07.589Z] [info] Processing mapping 10/10 for stable_hash_id 33194ba9e2d522b8284b620dca39a5a4
+[2025-06-06T12:07:07.589Z] [info] Fetching packages for stable_hash_id: 33194ba9e2d522b8284b620dca39a5a4
+[2025-06-06T12:07:07.659Z] [info] Found 2 packages for stable_hash_id 33194ba9e2d522b8284b620dca39a5a4
+[2025-06-06T12:07:07.659Z] [info] Syncing 2 packages for stable_hash_id 33194ba9e2d522b8284b620dca39a5a4
+[2025-06-06T12:07:07.796Z] [info] Deleted 2 existing packages for stable_hash_id 33194ba9e2d522b8284b620dca39a5a4
+[2025-06-06T12:07:07.873Z] [info] Added 2 new packages for stable_hash_id 33194ba9e2d522b8284b620dca39a5a4
+[2025-06-06T12:07:07.873Z] [info] Processed 2 packages for stable_hash_id 33194ba9e2d522b8284b620dca39a5a4 (Added: 2, Deleted: 2, Errors: 0)
+[2025-06-06T12:07:07.873Z] [info] ====== Package Sync Completed ======
+[2025-06-06T12:07:07.873Z] [info] Total Mappings Processed: 250
+[2025-06-06T12:07:07.873Z] [info] Total Packages Found: 146
+[2025-06-06T12:07:07.873Z] [info] Total Packages Added: 146
+[2025-06-06T12:07:07.874Z] [info] Total Packages Deleted: 137
+[2025-06-06T12:07:07.874Z] [info] Total Errors: 0

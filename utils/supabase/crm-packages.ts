@@ -366,4 +366,205 @@ export async function syncPackagesForProfile(profileId: string): Promise<void> {
   } catch (error) {
     console.error('Error syncing packages for profile:', error);
   }
+}
+
+/**
+ * Bulk sync packages for all profiles that have CRM mappings
+ * This is used by cron jobs to keep all package data up to date
+ */
+export async function bulkSyncPackagesForAllProfiles(options: {
+  batchSize?: number;
+  maxProfiles?: number;
+  onlyNewProfiles?: boolean;
+} = {}): Promise<{
+  totalProfiles: number;
+  successfulProfiles: number;
+  failedProfiles: number;
+  totalPackages: number;
+  errors: string[];
+}> {
+  const { batchSize = 20, maxProfiles, onlyNewProfiles = false } = options;
+  
+  console.log('[bulkSyncPackages] Starting bulk sync with options:', options);
+  
+  // Use service role client for admin operations
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+  
+  let totalProfiles = 0;
+  let successfulProfiles = 0;
+  let failedProfiles = 0;
+  let totalPackages = 0;
+  const errors: string[] = [];
+  
+  try {
+    // Get all profiles that have CRM mappings with stable_hash_id
+    let query = supabase
+      .from('crm_customer_mapping')
+      .select('profile_id, stable_hash_id, updated_at')
+      .eq('is_matched', true)
+      .not('stable_hash_id', 'is', null);
+    
+    // If only syncing new profiles, filter by recent mappings (last 7 days)
+    if (onlyNewProfiles) {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      query = query.gte('updated_at', weekAgo.toISOString());
+    }
+    
+    // Limit the number of profiles if specified
+    if (maxProfiles) {
+      query = query.limit(maxProfiles);
+    }
+    
+    const { data: mappings, error: mappingsError } = await query;
+    
+    if (mappingsError) {
+      throw new Error(`Failed to fetch mappings: ${mappingsError.message}`);
+    }
+    
+    if (!mappings || mappings.length === 0) {
+      console.log('[bulkSyncPackages] No mappings found');
+      return { totalProfiles: 0, successfulProfiles: 0, failedProfiles: 0, totalPackages: 0, errors: [] };
+    }
+    
+    console.log(`[bulkSyncPackages] Found ${mappings.length} profiles to sync`);
+    totalProfiles = mappings.length;
+    
+    // Process in batches
+    const batches = [];
+    for (let i = 0; i < mappings.length; i += batchSize) {
+      batches.push(mappings.slice(i, i + batchSize));
+    }
+    
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex];
+      console.log(`[bulkSyncPackages] Processing batch ${batchIndex + 1} of ${batches.length}`);
+      
+      // Process batch in parallel
+      const batchPromises = batch.map(async (mapping) => {
+        try {
+          console.log(`[bulkSyncPackages] Syncing packages for profile ${mapping.profile_id}`);
+          
+          // Get packages from CRM
+          const crmSupabase = createCrmClient();
+          const { data: rawCrmPackages, error: crmError } = await crmSupabase
+            .rpc('get_packages_by_hash_id', { p_stable_hash_id: mapping.stable_hash_id });
+          
+          if (crmError) {
+            throw new Error(`CRM error for ${mapping.profile_id}: ${crmError.message}`);
+          }
+          
+          const validPackages = (rawCrmPackages || [])
+            .filter((pkg: any) => {
+              const expirationDate = pkg.expiration_date ? new Date(pkg.expiration_date) : null;
+              return expirationDate && expirationDate > new Date();
+            });
+          
+          // Delete existing packages for this stable_hash_id
+          const { error: deleteError } = await supabase
+            .from('crm_packages')
+            .delete()
+            .eq('stable_hash_id', mapping.stable_hash_id);
+          
+          if (deleteError) {
+            console.warn(`[bulkSyncPackages] Delete error for ${mapping.profile_id}:`, deleteError);
+          }
+          
+          // Insert new packages if any
+          if (validPackages.length > 0) {
+            const packagesToInsert = validPackages.map((pkg: any) => ({
+              crm_package_id: String(pkg.id),
+              stable_hash_id: mapping.stable_hash_id,
+              customer_name: pkg.customer_name || '',
+              
+              // Rich package information from CRM - prioritize _from_def fields
+              package_name: pkg.package_name_from_def || pkg.package_name || null,
+              package_display_name: pkg.package_display_name_from_def || pkg.package_display_name || null,
+              package_type_name: pkg.package_type_from_def || pkg.package_type_name || null,
+              package_category: pkg.package_type_from_def || pkg.package_category || null,
+              total_hours: pkg.package_total_hours_from_def ?? pkg.total_hours ?? null,
+              pax: pkg.package_pax_from_def ?? pkg.pax ?? null,
+              validity_period_definition: pkg.package_validity_period_from_def || pkg.validity_period_definition || null,
+              
+              first_use_date: pkg.first_use_date || null,
+              expiration_date: pkg.expiration_date || null,
+              purchase_date: pkg.created_at_for_purchase_date || pkg.purchase_date || null,
+              
+              remaining_hours: pkg.calculated_remaining_hours ?? pkg.remaining_hours ?? null,
+              used_hours: pkg.calculated_used_hours ?? pkg.used_hours ?? null,
+              
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }));
+            
+            const { error: insertError } = await supabase
+              .from('crm_packages')
+              .insert(packagesToInsert);
+            
+            if (insertError) {
+              throw new Error(`Insert error for ${mapping.profile_id}: ${insertError.message}`);
+            }
+            
+            console.log(`[bulkSyncPackages] Synced ${validPackages.length} packages for profile ${mapping.profile_id}`);
+            return { success: true, packageCount: validPackages.length };
+          } else {
+            console.log(`[bulkSyncPackages] No valid packages for profile ${mapping.profile_id}`);
+            return { success: true, packageCount: 0 };
+          }
+        } catch (error) {
+          const errorMessage = `Profile ${mapping.profile_id}: ${error instanceof Error ? error.message : String(error)}`;
+          console.error(`[bulkSyncPackages] ${errorMessage}`);
+          return { success: false, error: errorMessage };
+        }
+      });
+      
+      // Wait for batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      
+      // Process results
+      for (const result of batchResults) {
+        if (result.success) {
+          successfulProfiles++;
+          totalPackages += result.packageCount || 0;
+        } else {
+          failedProfiles++;
+          errors.push(result.error || 'Unknown error');
+        }
+      }
+      
+      // Add a small delay between batches to avoid rate limits
+      if (batchIndex < batches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    console.log('[bulkSyncPackages] Bulk sync completed:', {
+      totalProfiles,
+      successfulProfiles,
+      failedProfiles,
+      totalPackages,
+      errorCount: errors.length
+    });
+    
+    return {
+      totalProfiles,
+      successfulProfiles,
+      failedProfiles,
+      totalPackages,
+      errors
+    };
+    
+  } catch (error) {
+    console.error('[bulkSyncPackages] Bulk sync failed:', error);
+    return {
+      totalProfiles,
+      successfulProfiles,
+      failedProfiles,
+      totalPackages,
+      errors: [error instanceof Error ? error.message : String(error)]
+    };
+  }
 } 

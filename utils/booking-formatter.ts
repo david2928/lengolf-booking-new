@@ -1,5 +1,28 @@
 import { format } from 'date-fns';
 
+// Helper function to format date with ordinal suffix (matches LINE notification format)
+function formatDateWithOrdinal(dateString: string): string {
+    try {
+        const dateObj = new Date(dateString);
+        const day = dateObj.getDate();
+        const dayWithSuffix = day + (
+          day === 1 || day === 21 || day === 31 ? 'st' :
+          day === 2 || day === 22 ? 'nd' :
+          day === 3 || day === 23 ? 'rd' : 'th'
+        );
+        const formatted = dateObj.toLocaleDateString('en-GB', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'long'
+        });
+        // Replace the day number with the day + suffix, and ensure weekday has comma
+        return formatted.replace(/\b\d+\b/, dayWithSuffix).replace(/^(\w+)/, '$1,');
+    } catch (e) {
+        console.warn('Error formatting date, using raw:', dateString);
+        return dateString; // fallback
+    }
+}
+
 interface Booking {
   id: string;
   name: string;
@@ -49,8 +72,8 @@ export function formatBookingData({
   // Calculate end time
   const endTime = calculateEndTime(booking.start_time, booking.duration);
   
-  // Format date
-  const formattedDate = format(new Date(booking.date), 'MMMM d, yyyy');
+  // Format date using the new ordinal format
+  const formattedDate = formatDateWithOrdinal(booking.date);
   
   // Create standardized booking data for all services
   return {

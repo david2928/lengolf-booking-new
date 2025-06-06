@@ -1,0 +1,26 @@
+[2025-06-06T12:06:13.331Z] [info] Starting package sync with configuration:
+{
+  "batchSize": 20,
+  "debugMode": true,
+  "profileId": "all",
+  "stableHashId": "e3d5e074593733400be53f082214eb2a"
+}
+[2025-06-06T12:06:13.331Z] [info] Checking if crm_packages table needs schema migration...
+[2025-06-06T12:06:13.545Z] [warn] Error checking if table exists: Could not find the function public.execute_sql(sql) in the schema cache
+[2025-06-06T12:06:13.546Z] [info] Fetching CRM customer mappings with stable_hash_id...
+[2025-06-06T12:06:13.547Z] [info] Filtering for specific stable hash ID: e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:13.626Z] [info] Found 1 CRM customer mappings with stable_hash_id
+[2025-06-06T12:06:13.626Z] [info] Processing batch 1 of 1
+[2025-06-06T12:06:13.626Z] [info] Processing mapping 1/1 for stable_hash_id e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:13.627Z] [info] Fetching packages for stable_hash_id: e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:13.750Z] [info] Found 7 packages for stable_hash_id e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:13.751Z] [info] Syncing 7 packages for stable_hash_id e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:13.914Z] [info] Deleted 6 existing packages for stable_hash_id e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:14.076Z] [info] Added 7 new packages for stable_hash_id e3d5e074593733400be53f082214eb2a
+[2025-06-06T12:06:14.076Z] [info] Processed 7 packages for stable_hash_id e3d5e074593733400be53f082214eb2a (Added: 7, Deleted: 6, Errors: 0)
+[2025-06-06T12:06:14.076Z] [info] ====== Package Sync Completed ======
+[2025-06-06T12:06:14.077Z] [info] Total Mappings Processed: 1
+[2025-06-06T12:06:14.077Z] [info] Total Packages Found: 7
+[2025-06-06T12:06:14.077Z] [info] Total Packages Added: 7
+[2025-06-06T12:06:14.077Z] [info] Total Packages Deleted: 6
+[2025-06-06T12:06:14.077Z] [info] Total Errors: 0

@@ -1,0 +1,23 @@
+[2025-06-06T12:06:04.498Z] [info] Starting package sync with configuration:
+{
+  "batchSize": 20,
+  "debugMode": true,
+  "profileId": "d519b890-7eb4-4311-be6b-029a20f2bb54",
+  "stableHashId": "any"
+}
+[2025-06-06T12:06:04.498Z] [info] Checking if crm_packages table needs schema migration...
+[2025-06-06T12:06:04.987Z] [warn] Error checking if table exists: Could not find the function public.execute_sql(sql) in the schema cache
+[2025-06-06T12:06:04.987Z] [info] Fetching CRM customer mappings with stable_hash_id...
+[2025-06-06T12:06:04.988Z] [info] Filtering for specific profile: d519b890-7eb4-4311-be6b-029a20f2bb54
+[2025-06-06T12:06:05.068Z] [info] Found 1 CRM customer mappings with stable_hash_id
+[2025-06-06T12:06:05.068Z] [info] Processing batch 1 of 1
+[2025-06-06T12:06:05.068Z] [info] Processing mapping 1/1 for stable_hash_id 3eae97481b11766db8f57a65a226693c
+[2025-06-06T12:06:05.068Z] [info] Fetching packages for stable_hash_id: 3eae97481b11766db8f57a65a226693c
+[2025-06-06T12:06:05.515Z] [info] Found 0 packages for stable_hash_id 3eae97481b11766db8f57a65a226693c
+[2025-06-06T12:06:05.515Z] [info] No packages found for stable_hash_id 3eae97481b11766db8f57a65a226693c
+[2025-06-06T12:06:05.515Z] [info] ====== Package Sync Completed ======
+[2025-06-06T12:06:05.515Z] [info] Total Mappings Processed: 1
+[2025-06-06T12:06:05.516Z] [info] Total Packages Found: 0
+[2025-06-06T12:06:05.516Z] [info] Total Packages Added: 0
+[2025-06-06T12:06:05.516Z] [info] Total Packages Deleted: 0
+[2025-06-06T12:06:05.516Z] [info] Total Errors: 0

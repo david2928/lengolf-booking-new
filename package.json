@@ -12,7 +12,8 @@
     "test:watch": "jest --watch",
     "format": "prettier --write .",
     "cleanup-staging-tables": "ts-node scripts/cleanup-staging-tables.ts",
-    "send-vip-announcement": "ts-node scripts/send-vip-announcement.ts"
+    "send-vip-announcement": "ts-node scripts/send-vip-announcement.ts",
+    "test-bulk-sync": "ts-node scripts/test-bulk-sync.ts"
   },
   "dependencies": {
     "@auth/core": "^0.34.2",
