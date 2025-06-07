@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/options';
 import { createClient } from '@supabase/supabase-js';
-import { getPackagesForProfile, syncPackagesForProfile, type CrmPackage } from '@/utils/supabase/crm-packages';
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
 import type { VipPackage } from '@/types/vip';
 
@@ -16,39 +15,40 @@ interface VipPackagesSession extends NextAuthSession {
 }
 
 /**
- * Transform CrmPackage to VipPackage format expected by frontend
+ * Transform backoffice function output to VipPackage format expected by frontend
+ * Updated to handle the rich data format from backoffice.get_packages_by_hash_id()
  */
-function transformToVipPackage(pkg: any): VipPackage {
+function transformBackofficeToVipPackage(pkg: any): VipPackage {
   const now = new Date();
-  const expirationDate = new Date(pkg.expiration_date || pkg.expiryDate);
+  const expirationDate = new Date(pkg.expiration_date);
   const isExpired = expirationDate <= now;
   
   // Determine status
   let status: string = 'active';
   if (isExpired) {
     status = 'expired';
-  } else if (pkg.remaining_hours !== undefined && pkg.remaining_hours !== null && pkg.remaining_hours <= 0) {
+  } else if (pkg.calculated_remaining_hours !== undefined && pkg.calculated_remaining_hours !== null && pkg.calculated_remaining_hours <= 0) {
     status = 'depleted';
   }
   
   return {
     id: pkg.id,
     crm_package_id: pkg.crm_package_id,
-    packageName: pkg.package_display_name || pkg.package_name || pkg.package_type_name || 'Package',
-    package_display_name: pkg.package_display_name || pkg.package_name,
-    package_type_name: pkg.package_type_name,
-    packageCategory: pkg.package_category || pkg.package_type_name,
+    packageName: pkg.package_display_name_from_def || pkg.package_name_from_def || 'Package',
+    package_display_name: pkg.package_display_name_from_def,
+    package_type_name: pkg.package_type_from_def,
+    packageCategory: pkg.package_type_from_def,
     
-    purchaseDate: pkg.purchase_date,
+    purchaseDate: pkg.created_at_for_purchase_date,
     first_use_date: pkg.first_use_date,
     expiryDate: pkg.expiration_date,
     
-    totalHours: pkg.total_hours,
-    remainingHours: pkg.remaining_hours,
-    usedHours: pkg.used_hours,
+    totalHours: pkg.package_total_hours_from_def,
+    remainingHours: pkg.calculated_remaining_hours,
+    usedHours: pkg.calculated_used_hours,
     
-    pax: pkg.pax,
-    validityPeriod: pkg.validity_period_definition,
+    pax: pkg.package_pax_from_def,
+    validityPeriod: pkg.package_validity_period_from_def,
     
     customer_name: pkg.customer_name,
     status: status
@@ -57,7 +57,7 @@ function transformToVipPackage(pkg: any): VipPackage {
 
 /**
  * Get packages for the authenticated VIP user
- * Automatically syncs if packages are stale or missing
+ * Now uses direct access to backoffice.get_packages_by_hash_id() for real-time data
  */
 export async function GET() {
   try {
@@ -83,7 +83,6 @@ export async function GET() {
     
     // Find stable_hash_id using the same approach as VIP status API
     let stableHashId: string | null = null;
-    let mappingUpdatedAt: string | null = null;
     
     // First approach: Check vip_customer_data (same as VIP status API)
     const { data: profileVip, error: profileVipError } = await supabase
@@ -95,13 +94,12 @@ export async function GET() {
     if (profileVip?.vip_customer_data_id) {
       const { data: vipData, error: vipDataError } = await supabase
         .from('vip_customer_data')
-        .select('stable_hash_id, updated_at')
+        .select('stable_hash_id')
         .eq('id', profileVip.vip_customer_data_id)
         .single();
       
       if (!vipDataError && vipData?.stable_hash_id) {
         stableHashId = vipData.stable_hash_id;
-        mappingUpdatedAt = vipData.updated_at;
       }
     }
     
@@ -109,14 +107,13 @@ export async function GET() {
     if (!stableHashId) {
       const { data: mapping, error: mappingError } = await supabase
         .from('crm_customer_mapping')
-        .select('stable_hash_id, is_matched, updated_at')
+        .select('stable_hash_id, is_matched')
         .eq('profile_id', profileId)
         .eq('is_matched', true)
         .single();
 
       if (!mappingError && mapping?.stable_hash_id) {
         stableHashId = mapping.stable_hash_id;
-        mappingUpdatedAt = mapping.updated_at;
       }
     }
 
@@ -128,48 +125,20 @@ export async function GET() {
       });
     }
 
-    // Check existing packages and their freshness - using public schema
-    const { data: existingPackages, error: packagesError } = await supabase
-      .from('crm_packages')
-      .select('*, updated_at')
-      .eq('stable_hash_id', stableHashId);
-
-    const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour threshold
-    const mappingAge = mappingUpdatedAt ? new Date(mappingUpdatedAt) : new Date(0); // Use epoch if no mapping time
-    
-    // Determine if we need to sync:
-    // 1. No packages exist, or
-    // 2. Packages are older than 1 hour, or  
-    // 3. Mapping was updated recently (within last hour) but packages are older
-    const shouldSync = !existingPackages || 
-                      existingPackages.length === 0 ||
-                      existingPackages.some((pkg: any) => new Date(pkg.updated_at) < oneHourAgo) ||
-                      (mappingAge > oneHourAgo && existingPackages.some((pkg: any) => new Date(pkg.updated_at) < mappingAge));
-
-    if (shouldSync) {
-      try {
-        await syncPackagesForProfile(profileId);
-      } catch (syncError) {
-        console.error(`[VIP Packages API] Error syncing packages:`, syncError);
-        // Continue with existing data if sync fails
-      }
-    }
-
-    // Get the rich package data directly from public schema instead of using getPackagesForProfile
+    // Get real-time package data directly from backoffice function
     const { data: richPackages, error: richPackagesError } = await supabase
-      .from('crm_packages')
-      .select('*')
-      .eq('stable_hash_id', stableHashId);
+      .schema('backoffice' as any)
+      .rpc('get_packages_by_hash_id', { p_stable_hash_id: stableHashId });
 
     if (richPackagesError) {
-      console.error(`[VIP Packages API] Error fetching rich packages:`, richPackagesError);
+      console.error(`[VIP Packages API] Error fetching packages from backoffice:`, richPackagesError);
       return NextResponse.json({ error: 'Failed to fetch packages' }, { status: 500 });
     }
 
-    const packages = (richPackages || []).map(transformToVipPackage);
+    const packages = (richPackages || []).map(transformBackofficeToVipPackage);
     
     // Categorize packages with improved logic
+    const now = new Date();
     const activePackages = packages.filter((pkg: VipPackage) => {
       const expirationDate = new Date(pkg.expiryDate || '');
       const isNotExpired = expirationDate > now;
@@ -201,12 +170,12 @@ export async function GET() {
     return NextResponse.json({
       activePackages,
       pastPackages,
-      lastSyncTime: new Date().toISOString(),
-      autoSynced: shouldSync
+      dataSource: 'backoffice_direct', // Indicator that we're using direct access
+      fetchTime: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('Error in VIP packages endpoint:', error);
+    console.error('[VIP Packages API] Error in VIP packages endpoint:', error);
     return NextResponse.json({ error: 'Failed to fetch packages' }, { status: 500 });
   }
 } 

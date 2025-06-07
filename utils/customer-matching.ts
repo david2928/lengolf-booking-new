@@ -57,6 +57,17 @@ export interface CrmCustomerMapping {
   stable_hash_id?: string;
 }
 
+// NEW: Simplified profile link interface
+export interface CrmProfileLink {
+  id: string;
+  profile_id: string;
+  stable_hash_id: string;
+  match_confidence: number;
+  match_method?: string;
+  linked_at: string;
+  last_verified: string;
+}
+
 // Configuration for matching
 const CONFIG = {
   confidenceThreshold: 0.6,
@@ -504,9 +515,11 @@ export function normalizeCrmCustomerData(customerData: any): CrmCustomer | null 
 }
 
 /**
+ * @deprecated Use getRealTimeCustomerForProfile() instead for better performance and real-time data
  * Get the CRM customer mapped to a profile
  */
 export async function getCrmCustomerForProfile(profileId: string): Promise<CrmCustomer | null> {
+  console.warn('DEPRECATED: getCrmCustomerForProfile() is deprecated. Use getRealTimeCustomerForProfile() for real-time data access.');
   const supabase = supabaseAdminClient;
   
   const { data, error } = await supabase
@@ -527,6 +540,365 @@ export async function getCrmCustomerForProfile(profileId: string): Promise<CrmCu
 }
 
 /**
+ * NEW: Get real-time customer data for a profile using simplified architecture
+ * This replaces getCrmCustomerForProfile with real-time data access
+ */
+export async function getRealTimeCustomerForProfile(profileId: string): Promise<CrmCustomer | null> {
+  try {
+    const supabase = supabaseAdminClient;
+    
+    // Query the simplified function that joins links with real-time customer data
+    const { data, error } = await supabase.rpc('get_customer_for_profile', {
+      p_profile_id: profileId
+    });
+    
+    if (error) {
+      console.error('Error fetching real-time customer for profile:', error);
+      return null;
+    }
+    
+    if (!data || data.length === 0) {
+      return null;
+    }
+    
+    const customerData = data[0];
+    
+    // Convert to our CrmCustomer interface format
+    return {
+      id: customerData.customer_id,
+      name: customerData.customer_name || '',
+      customer_name: customerData.customer_name || '',
+      email: customerData.email || '',
+      phone_number: customerData.phone_number || '',
+      stable_hash_id: customerData.stable_hash_id || '',
+      additional_data: customerData.raw_data || {}
+    };
+  } catch (error) {
+    console.error('Error in getRealTimeCustomerForProfile:', error);
+    return null;
+  }
+}
+
+/**
+ * NEW: Get profile link status using simplified architecture
+ */
+export async function getProfileCustomerLink(profileId: string): Promise<CrmProfileLink | null> {
+  try {
+    const supabase = supabaseAdminClient;
+    
+    const { data, error } = await supabase.rpc('get_profile_customer_link', {
+      p_profile_id: profileId
+    });
+    
+    if (error) {
+      console.error('Error fetching profile customer link:', error);
+      return null;
+    }
+    
+    if (!data || data.length === 0) {
+      return null;
+    }
+    
+    const linkData = data[0];
+    
+    return {
+      id: '', // Not returned by function, but required by interface
+      profile_id: linkData.profile_id,
+      stable_hash_id: linkData.stable_hash_id,
+      match_confidence: linkData.match_confidence,
+      match_method: linkData.match_method || '',
+      linked_at: linkData.linked_at,
+      last_verified: linkData.last_verified
+    };
+  } catch (error) {
+    console.error('Error in getProfileCustomerLink:', error);
+    return null;
+  }
+}
+
+/**
+ * NEW: Create or update a simplified profile link
+ */
+export async function createProfileLink(
+  profileId: string, 
+  stableHashId: string, 
+  confidence: number, 
+  method: string
+): Promise<boolean> {
+  try {
+    const supabase = supabaseAdminClient;
+    
+    const linkData = {
+      profile_id: profileId,
+      stable_hash_id: stableHashId,
+      match_confidence: confidence,
+      match_method: method,
+      linked_at: new Date().toISOString(),
+      last_verified: new Date().toISOString()
+    };
+    
+    // Use upsert to handle both create and update cases
+    const { error } = await supabase
+      .from('crm_profile_links')
+      .upsert(linkData, {
+        onConflict: 'profile_id',
+        ignoreDuplicates: false
+      });
+    
+    if (error) {
+      console.error('Error creating/updating profile link:', error);
+      return false;
+    }
+    
+    console.log('Successfully created/updated profile link:', {
+      profileId,
+      stableHashId,
+      confidence,
+      method
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error in createProfileLink:', error);
+    return false;
+  }
+}
+
+/**
+ * NEW: Enhanced getOrCreateCrmMapping using simplified architecture
+ * This version is optimized for performance and uses real-time data
+ */
+export async function getOrCreateCrmMappingV2(
+  profileId: string,
+  options: {
+    source?: string,
+    timeoutMs?: number,
+    forceRefresh?: boolean,
+    phoneNumberToMatch?: string
+  } = {}
+): Promise<{
+  profileId: string,
+  crmCustomerId: string,
+  stableHashId: string,
+  confidence: number,
+  isNewMatch: boolean
+} | null> {
+  const {
+    source = 'unknown',
+    timeoutMs = 5000,
+    forceRefresh = false,
+    phoneNumberToMatch
+  } = options;
+
+  try {
+    console.log(`[CRM Mapping V2] Starting for profile ${profileId} (source: ${source}${phoneNumberToMatch ? `, booking phone: ${phoneNumberToMatch}` : ''})`);
+    
+    // STEP 1: Check for existing link (fast path)
+    if (!forceRefresh) {
+      const existingLink = await getProfileCustomerLink(profileId);
+      
+      if (existingLink) {
+        console.log(`[CRM Mapping V2] Found existing link for profile ${profileId}:`, {
+          stableHashId: existingLink.stable_hash_id,
+          confidence: existingLink.match_confidence
+        });
+        
+        // Get real-time customer data
+        const customerData = await getRealTimeCustomerForProfile(profileId);
+        
+        if (customerData) {
+          return {
+            profileId,
+            crmCustomerId: customerData.id,
+            stableHashId: existingLink.stable_hash_id,
+            confidence: existingLink.match_confidence,
+            isNewMatch: false
+          };
+        }
+      } else {
+        console.log(`[CRM Mapping V2] No existing link found for profile ${profileId}`);
+      }
+    }
+    
+    // STEP 2: Attempt matching with timeout (slower path)
+    const timeoutPromise = new Promise<null>((_, reject) => {
+      setTimeout(() => reject(new Error(`CRM matching timed out after ${timeoutMs}ms`)), timeoutMs);
+    });
+    
+    try {
+      const matchResult = await Promise.race([
+        matchProfileWithCrmV2(profileId, { 
+          source, 
+          phoneNumberToMatch 
+        }),
+        timeoutPromise
+      ]);
+      
+      if (matchResult?.matched) {
+        console.log('Successfully matched profile with CRM (V2)', {
+          profileId,
+          crmCustomerId: matchResult.crmCustomerId,
+          confidence: matchResult.confidence,
+          reasons: matchResult.reasons
+        });
+        
+        // Create the simplified link
+        const linkCreated = await createProfileLink(
+          profileId,
+          matchResult.stableHashId || '',
+          matchResult.confidence,
+          `${source}_v2_match`
+        );
+        
+        if (linkCreated) {
+          return {
+            profileId,
+            crmCustomerId: matchResult.crmCustomerId || '',
+            stableHashId: matchResult.stableHashId || '',
+            confidence: matchResult.confidence,
+            isNewMatch: true
+          };
+        }
+      } else {
+        console.log('[CRM Mapping V2] Profile could not be matched with CRM', {
+          profileId,
+          confidence: matchResult?.confidence || 0,
+          reasons: matchResult?.reasons || []
+        });
+        
+        return null; // No active match was made
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('timed out')) {
+        console.warn(`[CRM Mapping V2] Matching timed out for profile ${profileId} after ${timeoutMs}ms`);
+      } else {
+        console.error(`[CRM Mapping V2] Error during matching for profile ${profileId}:`, error);
+      }
+      return null;
+    }
+    
+  } catch (error) {
+    console.error(`[CRM Mapping V2] Unexpected error for profile ${profileId}:`, error);
+    return null;
+  }
+  
+  return null;
+}
+
+/**
+ * NEW: Simplified matching function that uses direct backoffice queries
+ */
+export async function matchProfileWithCrmV2(
+  profileId: string,
+  options?: { phoneNumberToMatch?: string; source?: string }
+): Promise<MatchResult | null> {
+  try {
+    console.log(`[CRM Matching V2] Starting match for profile ${profileId}`);
+    
+    const supabase = supabaseAdminClient;
+    
+    // Get profile data
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, display_name, email, phone_number')
+      .eq('id', profileId)
+      .single();
+    
+    if (profileError || !profile) {
+      console.error('Profile not found:', profileError);
+      return null;
+    }
+    
+    // Prepare phone numbers for matching
+    const phoneToMatch = options?.phoneNumberToMatch || profile.phone_number;
+    const normalizedPhone = normalizePhoneNumber(phoneToMatch);
+    
+    if (!normalizedPhone || normalizedPhone.length < 8) {
+      console.log('No valid phone number available for matching');
+      return null;
+    }
+    
+    console.log(`[CRM Matching V2] Searching customers with phone: ${normalizedPhone}`);
+    
+    // Query customers directly from backoffice using phone matching  
+    const { data: customers, error: customersError } = await (supabase as any)
+      .schema('backoffice')
+      .from('customers')
+      .select('id, customer_name, email, contact_number, stable_hash_id')
+      .ilike('contact_number', `%${normalizedPhone}%`);
+    
+    if (customersError) {
+      console.error('Error querying customers:', customersError);
+      return null;
+    }
+    
+    if (!customers || customers.length === 0) {
+      console.log('No customers found with matching phone number');
+      return null;
+    }
+    
+    console.log(`[CRM Matching V2] Found ${customers.length} potential customer matches`);
+    
+    // Find the best match
+    let bestMatch: any = null;
+    let bestConfidence = 0;
+    let bestReasons: string[] = [];
+    
+    for (const customer of customers) {
+      const { confidence, reasons } = calculateMatchConfidence({
+        id: profile.id,
+        display_name: profile.display_name,
+        email: profile.email,
+        phone_number: phoneToMatch
+      }, {
+        id: customer.id,
+        name: customer.customer_name || '',
+        customer_name: customer.customer_name || '',
+        email: customer.email || '',
+        phone_number: customer.contact_number || '',
+        stable_hash_id: customer.stable_hash_id || '',
+        additional_data: {}
+      });
+      
+      if (confidence > bestConfidence) {
+        bestMatch = customer;
+        bestConfidence = confidence;
+        bestReasons = reasons;
+      }
+    }
+    
+    if (bestMatch && bestConfidence >= CONFIG.confidenceThreshold) {
+      console.log(`[CRM Matching V2] Best match found:`, {
+        customerId: bestMatch.id,
+        customerName: bestMatch.customer_name,
+        confidence: bestConfidence,
+        reasons: bestReasons
+      });
+      
+      return {
+        matched: true,
+        confidence: bestConfidence,
+        crmCustomerId: bestMatch.id,
+        stableHashId: bestMatch.stable_hash_id,
+        reasons: bestReasons
+      };
+    } else {
+      console.log(`[CRM Matching V2] No high-confidence match found. Best confidence: ${bestConfidence}`);
+      return {
+        matched: false,
+        confidence: bestConfidence,
+        reasons: bestReasons || ['No high-confidence match found']
+      };
+    }
+    
+  } catch (error) {
+    console.error('Error in matchProfileWithCrmV2:', error);
+    return null;
+  }
+}
+
+/**
+ * @deprecated Use getOrCreateCrmMappingV2() instead for better performance and simplified architecture
  * Efficiently retrieve or create a CRM mapping for a profile.
  * First checks for existing mapping, then attempts matching only if needed.
  * This approach is optimized for performance in user-facing operations.
@@ -550,188 +922,8 @@ export async function getOrCreateCrmMapping(
   confidence: number,
   isNewMatch: boolean
 } | null> {
-  const {
-    source = 'unknown',
-    timeoutMs = 5000,
-    forceRefresh = false,
-    phoneNumberToMatch
-  } = options;
-
-  try {
-    const supabase = supabaseAdminClient;
-    
-    console.log(`[CRM Mapping] Starting for profile ${profileId} (source: ${source}${phoneNumberToMatch ? `, booking phone: ${phoneNumberToMatch}` : ''})`);
-    
-    // STEP 1: Check for existing mapping (fast path)
-    if (!forceRefresh) {
-      // Modified query to handle multiple mappings - get all matches and sort by confidence
-      const { data: mappings, error: mappingError } = await supabase
-        .from('crm_customer_mapping')
-        .select('profile_id, crm_customer_id, stable_hash_id, match_confidence, match_method, updated_at')
-        .eq('profile_id', profileId)
-        .eq('is_matched', true)
-        .order('match_confidence', { ascending: false }) // Highest confidence first
-        .order('updated_at', { ascending: false }); // Most recent first
-        
-      if (mappingError) {
-        console.error('Error checking for existing mappings:', mappingError);
-      } else if (mappings && mappings.length > 0) {
-        // Use the first mapping (highest confidence, most recent)
-        const bestMapping = mappings[0];
-        
-        console.log(`[CRM Mapping] Found existing mapping for profile ${profileId}:`, {
-          crmCustomerId: bestMapping.crm_customer_id,
-          stableHashId: bestMapping.stable_hash_id,
-          confidence: bestMapping.match_confidence
-        });
-        
-        // Sync packages asynchronously without awaiting to keep operations fast
-        syncPackagesForProfile(profileId).catch(err => {
-          console.warn('Failed to sync packages for existing mapping:', err);
-        });
-        
-        return {
-          profileId,
-          crmCustomerId: bestMapping.crm_customer_id,
-          stableHashId: bestMapping.stable_hash_id,
-          confidence: bestMapping.match_confidence,
-          isNewMatch: false
-        };
-      } else {
-        console.log(`[CRM Mapping] No existing mapping found for profile ${profileId}`);
-      }
-    }
-    
-    // STEP 2: Attempt a match with timeout (slower path)
-    const timeoutPromise = new Promise<null>((_, reject) => {
-      setTimeout(() => reject(new Error(`CRM matching timed out after ${timeoutMs}ms`)), timeoutMs);
-    });
-    
-    try {
-      // Race the matching process against the timeout
-      const matchResult = await Promise.race([
-        matchProfileWithCrm(profileId, { 
-          source, 
-          phoneNumberToMatch 
-        }), // Pass both source and phoneNumberToMatch from getOrCreateCrmMapping's options
-        timeoutPromise
-      ]);
-      
-      if (matchResult?.matched) {
-        console.log('Successfully matched profile with CRM', {
-          profileId,
-          crmCustomerId: matchResult.crmCustomerId,
-          confidence: matchResult.confidence,
-          reasons: matchResult.reasons
-        });
-        
-        // Give the database a moment to complete any ongoing writes
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Retrieve the mapping data
-        const { data: newMapping, error: mappingError } = await supabase
-          .from('crm_customer_mapping')
-          .select('stable_hash_id, crm_customer_id, match_confidence')
-          .eq('profile_id', profileId)
-          .maybeSingle();
-          
-        if (mappingError) {
-          console.error('Error retrieving mapping after match:', mappingError);
-        } else if (!newMapping) {
-          console.warn('Mapping not found after successful match');
-        } else {
-          console.log('Retrieved mapping details', {
-            profileId,
-            crmCustomerId: newMapping.crm_customer_id,
-            stableHashId: newMapping.stable_hash_id
-          });
-        }
-        
-        // Return the mapping information
-        return {
-          profileId,
-          crmCustomerId: matchResult.crmCustomerId || '',
-          stableHashId: matchResult.stableHashId || '',
-          confidence: matchResult.confidence,
-          isNewMatch: true
-        };
-      } else {
-        console.log('[CRM Mapping] Profile could not be matched with CRM after attempt', {
-          profileId,
-          confidence: matchResult?.confidence || 0,
-          reasons: matchResult?.reasons || []
-        });
-
-        // Check if ANY mapping (matched or placeholder) already exists
-        const { data: existingAnyMapping } = await supabase
-          .from('crm_customer_mapping')
-          .select('id, is_matched') // Select enough to know if it exists and its state
-          .eq('profile_id', profileId)
-          .maybeSingle();
-        
-        if (!existingAnyMapping) {
-          console.log(`[CRM Mapping] No mapping found for profile ${profileId}. Creating placeholder.`);
-          const now = new Date().toISOString();
-          const placeholderData = {
-            profile_id: profileId,
-            is_matched: false,
-            crm_customer_id: null,
-            stable_hash_id: null,
-            crm_customer_data: {},
-            match_method: `${source}_placeholder_no_match`,
-            match_confidence: 0,
-            created_at: now,
-            updated_at: now,
-          };
-          const { error: placeholderError } = await supabase
-            .from('crm_customer_mapping')
-            .insert(placeholderData);
-          if (placeholderError) {
-            console.error('[CRM Mapping] Failed to create placeholder (no match path):', placeholderError);
-          } else {
-            console.log(`[CRM Mapping] Placeholder created for profile ${profileId} (no match path).`);
-          }
-        } else {
-          console.log(`[CRM Mapping] Existing mapping found (is_matched: ${existingAnyMapping.is_matched}) for profile ${profileId}. Placeholder creation skipped.`);
-        }
-        return null; // No active match was made
-      }
-    } catch (error) {
-      console.warn('[CRM Mapping] Error during CRM matching (Promise.race catch):', {
-        error: error instanceof Error ? { message: error.message, name: error.name } : error,
-        profileId,
-        source
-      });
-
-      // Check if ANY mapping exists. If not, create placeholder as a fallback.
-      const { data: recoveryMappingCheck } = await supabase
-          .from('crm_customer_mapping')
-          .select('id')
-          .eq('profile_id', profileId)
-          .maybeSingle();
-
-      if (!recoveryMappingCheck) {
-          console.log(`[CRM Mapping] No mapping found for profile ${profileId} after error/timeout. Creating placeholder.`);
-          const now = new Date().toISOString();
-          const placeholderDataOnError = {
-            profile_id: profileId, is_matched: false, crm_customer_id: null, stable_hash_id: null,
-            crm_customer_data: {}, match_method: `${source}_placeholder_on_error`, match_confidence: 0,
-            created_at: now, updated_at: now,
-          };
-          await supabase.from('crm_customer_mapping').insert(placeholderDataOnError)
-            .then(response => {
-              if (response.error) console.error('[CRM Mapping] Placeholder creation on error/timeout failed:', response.error);
-              else console.log(`[CRM Mapping] Placeholder created on error/timeout for profile ${profileId}`);
-            });
-      }
-      return null; // No active match confirmed due to error
-    }
-  } catch (error) {
-    console.error('Unexpected error in getOrCreateCrmMapping', {
-      error: error instanceof Error 
-        ? { message: error.message, stack: error.stack }
-        : error
-    });
-    return null;
-  }
+  console.warn('DEPRECATED: getOrCreateCrmMapping() is deprecated. Use getOrCreateCrmMappingV2() for simplified architecture and better performance.');
+  
+  // For now, delegate to the V2 function for consistency
+  return getOrCreateCrmMappingV2(profileId, options);
 } 

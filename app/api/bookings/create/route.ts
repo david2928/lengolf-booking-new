@@ -77,9 +77,7 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
       const supabase = getSupabaseAdminClient();
       const { data: packages, error: packagesError } = await supabase
         .schema('backoffice' as any)
-        .from('crm_packages')
-        .select('*')
-        .eq('stable_hash_id', stableHashId);
+        .rpc('get_packages_by_hash_id', { p_stable_hash_id: stableHashId });
       
       if (packagesError) {
         console.error('Error fetching packages:', packagesError);
@@ -91,9 +89,9 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
         
         // Filter for active, non-coaching packages using VIP logic
         const activePackages = packages.filter((pkg: any) => {
-          // Skip coaching packages
-          if (pkg.package_type_name?.toLowerCase().includes('coaching') || 
-              pkg.package_category?.toLowerCase().includes('coaching')) {
+          // Skip coaching packages (using backoffice function field names)
+          if (pkg.package_type_from_def?.toLowerCase().includes('coaching') || 
+              pkg.package_name_from_def?.toLowerCase().includes('coaching')) {
             return false;
           }
           
@@ -105,9 +103,9 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
           // Package is active if:
           // 1. Not expired, AND
           // 2. Either has remaining hours > 0 OR has no remaining_hours field (unlimited/session-based packages)
-          const hasRemainingCapacity = pkg.remaining_hours === undefined || 
-                                      pkg.remaining_hours === null || 
-                                      pkg.remaining_hours > 0;
+          const hasRemainingCapacity = pkg.calculated_remaining_hours === undefined || 
+                                      pkg.calculated_remaining_hours === null || 
+                                      pkg.calculated_remaining_hours > 0;
           
           return isNotExpired && hasRemainingCapacity;
         });
@@ -118,8 +116,8 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
           // 2. Then by later expiration date
           const sortedPackages = activePackages.sort((a: any, b: any) => {
             // First, prioritize by remaining hours (more remaining hours = higher priority)
-            const aRemainingHours = a.remaining_hours ?? Infinity; // Treat unlimited as highest priority
-            const bRemainingHours = b.remaining_hours ?? Infinity;
+            const aRemainingHours = a.calculated_remaining_hours ?? Infinity; // Treat unlimited as highest priority
+            const bRemainingHours = b.calculated_remaining_hours ?? Infinity;
             
             if (aRemainingHours !== bRemainingHours) {
               return bRemainingHours - aRemainingHours; // Descending order (more hours first)
@@ -135,15 +133,15 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
           const selectedPackage = sortedPackages[0];
           
           // Use package_name which contains the full descriptive name like "Gold (30H)"
-          const packageName = selectedPackage.package_name || 
-                             selectedPackage.package_display_name || 
-                             selectedPackage.package_type_name || 
+          const packageName = selectedPackage.package_name_from_def || 
+                             selectedPackage.package_display_name_from_def || 
+                             selectedPackage.package_type_from_def || 
                              'Package';
           packageInfo = `Package (${packageName})`;
           
           console.log(`[getPackageInfo] Selected package for ${stableHashId}:`, {
             packageName,
-            remainingHours: selectedPackage.remaining_hours,
+            remainingHours: selectedPackage.calculated_remaining_hours,
             expirationDate: selectedPackage.expiration_date,
             totalActivePackages: activePackages.length
           });

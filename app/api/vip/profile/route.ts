@@ -1,19 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
-import { createClient } from '@supabase/supabase-js'; // Import base Supabase client
+import { createClient } from '@supabase/supabase-js';
+import { getRealTimeCustomerForProfile, getProfileCustomerLink } from '@/utils/customer-matching';
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
 
 // Define a type for our session that includes the accessToken and a well-defined user
-interface VipProfileSessionUser extends NextAuthUser { // NextAuthUser has id, name, email, image
-  id: string; // Ensure id is string and non-optional
-  provider?: string; // As in ExtendedUser from authOptions
-  phone?: string | null;   // As in ExtendedUser from authOptions
+interface VipProfileSessionUser extends NextAuthUser {
+  id: string;
+  provider?: string;
+  phone?: string | null;
 }
 
 interface VipProfileSession extends NextAuthSession {
   accessToken?: string;
-  user: VipProfileSessionUser; // Use our more specific user type
+  user: VipProfileSessionUser;
 }
 
 export async function GET() {
@@ -24,16 +25,16 @@ export async function GET() {
   }
 
   const profileId = session.user.id;
-  const userAccessToken = session.accessToken; // Store for clarity
+  const userAccessToken = session.accessToken;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('[VIP Profile API GET] Supabase URL or Anon Key is not set.');
+    console.error('[VIP Profile API V2] Supabase URL or Anon Key is not set.');
     return NextResponse.json({ error: 'Server configuration error: Supabase connection details missing.' }, { status: 500 });
   }
 
-  // Create a user-specific Supabase client correctly
+  // Create a user-specific Supabase client
   const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
@@ -41,14 +42,11 @@ export async function GET() {
       }
     }
   });
-  // Use service role client for backoffice schema access
-  const crmSupabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
 
   try {
-    // Optimized query: Join profiles with vip_customer_data and vip_tiers in a single query
+    console.log(`[VIP Profile API V2] Getting profile data for user ${profileId}`);
+
+    // NEW: Get basic profile data
     const { data: profileData, error: profileError } = await supabaseUserClient
       .from('profiles')
       .select(`
@@ -62,7 +60,6 @@ export async function GET() {
           vip_display_name,
           vip_email,
           vip_marketing_preference,
-          stable_hash_id,
           vip_phone_number,
           vip_tier_id,
           vip_tiers:vip_tier_id (
@@ -76,11 +73,10 @@ export async function GET() {
       .single();
 
     if (profileError) {
-      console.error('Error fetching user profile with joined data:', profileError);
+      console.error('[VIP Profile API V2] Error fetching user profile:', profileError);
       
-      // If profile not found (PGRST116), this indicates a stale session - force logout
       if (profileError.code === 'PGRST116') {
-        console.warn(`[VIP Profile API] Profile not found for session user ${profileId}. This indicates a stale session. Returning 401 to force logout.`);
+        console.warn(`[VIP Profile API V2] Profile not found for session user ${profileId}. This indicates a stale session.`);
         return NextResponse.json({ 
           error: 'Profile not found. Please log in again.', 
           forceLogout: true 
@@ -89,11 +85,12 @@ export async function GET() {
       
       return NextResponse.json({ error: 'Error fetching user profile data.' }, { status: 500 });
     }
+
     if (!profileData) {
       return NextResponse.json({ error: 'User profile not found.' }, { status: 404 });
     }
 
-    // Extract data from joined results
+    // Extract VIP data
     const vipData = Array.isArray(profileData.vip_customer_data) 
       ? profileData.vip_customer_data[0] 
       : profileData.vip_customer_data;
@@ -101,16 +98,31 @@ export async function GET() {
       ? (Array.isArray(vipData.vip_tiers) ? vipData.vip_tiers[0] : vipData.vip_tiers)
       : null;
 
-    let vipDisplayName = vipData?.vip_display_name ?? profileData.display_name;
-    let vipEmail = vipData?.vip_email ?? profileData.email;
-    let vipMarketingPreference: boolean | null = vipData?.vip_marketing_preference ?? null;
-    let stableHashIdToUse: string | null = vipData?.stable_hash_id ?? null;
-    let vipPhoneNumber: string | null = vipData?.vip_phone_number ?? null;
-    let vipTierInfo: { id: number; name: string; description: string | null } | null = null;
-    
-    let finalResolvedPhoneNumber: string | null = vipPhoneNumber ?? profileData.phone_number ?? null;
+    // NEW: Use simplified architecture to get customer link and real-time data
+    const profileLink = await getProfileCustomerLink(profileId);
+    const customerData = await getRealTimeCustomerForProfile(profileId);
 
-    // Set tier info if available
+    console.log(`[VIP Profile API V2] Profile link found:`, profileLink ? {
+      stableHashId: profileLink.stable_hash_id,
+      confidence: profileLink.match_confidence
+    } : 'none');
+
+    console.log(`[VIP Profile API V2] Customer data found:`, customerData ? {
+      name: customerData.name,
+      phone: customerData.phone_number
+    } : 'none');
+
+    // Determine display values with priority: VIP data > Profile data
+    let displayName = vipData?.vip_display_name || profileData.display_name || null;
+    let email = vipData?.vip_email || profileData.email || null;
+    let marketingPreference: boolean | null = vipData?.vip_marketing_preference ?? null;
+    let vipPhoneNumber: string | null = vipData?.vip_phone_number ?? null;
+
+    // Phone number priority: CRM > VIP > Profile
+    let phoneNumber: string | null = customerData?.phone_number || vipPhoneNumber || profileData.phone_number || null;
+
+    // VIP tier info
+    let vipTierInfo: { id: number; name: string; description: string | null } | null = null;
     if (tierData) {
       vipTierInfo = { 
         id: tierData.id, 
@@ -118,96 +130,48 @@ export async function GET() {
         description: tierData.description 
       };
     }
-    
-    let crmStatus: string = 'not_linked';
-    let crmCustomerIdFromMapping: string | null = null;
-    let finalStableHashId: string | null = stableHashIdToUse;
 
-    // Check CRM customer data if we have a stable_hash_id
-    if (stableHashIdToUse) {
-        const { data: customerData, error: customerError } = await crmSupabase
-            .schema('backoffice' as any)
-            .from('customers') 
-            .select('contact_number, id, stable_hash_id') 
-            .eq('stable_hash_id', stableHashIdToUse)
-            .maybeSingle();
+    // Determine CRM status based on new architecture
+    let crmStatus: string;
+    let crmCustomerId: string | null = null;
+    let stableHashId: string | null = null;
 
-        if (customerError) {
-            console.error('Error fetching CRM customer using stable_hash_id from vip_customer_data:', customerError);
-        } else if (customerData) {
-            // Only use CRM phone if VIP phone number is not available
-            if (customerData.contact_number && !vipPhoneNumber) {
-                finalResolvedPhoneNumber = customerData.contact_number;
-            }
-            crmStatus = 'linked_matched';
-            crmCustomerIdFromMapping = customerData.id;
-            finalStableHashId = customerData.stable_hash_id;
-        } else {
-            crmStatus = 'linked_unmatched'; 
-            console.warn(`[VIP Profile API GET] stable_hash_id ${stableHashIdToUse} found in vip_customer_data, but no matching customer in CRM.`);
-        }
+    if (customerData && profileLink) {
+      crmStatus = 'linked_matched';
+      crmCustomerId = customerData.id;
+      stableHashId = customerData.stable_hash_id || null;
+    } else if (profileLink) {
+      crmStatus = 'linked_unmatched';
+      stableHashId = profileLink.stable_hash_id;
     } else {
-        // Fallback to check crm_customer_mapping if no stable_hash_id in vip_customer_data
-        const { data: mapping, error: mappingError } = await supabaseUserClient
-          .from('crm_customer_mapping')
-          .select('is_matched, crm_customer_id, stable_hash_id')
-          .eq('profile_id', profileId)
-          .maybeSingle();
-
-        if (mappingError) {
-          console.error('Error fetching CRM mapping (crm_customer_mapping):', mappingError);
-        } else if (mapping) {
-            crmCustomerIdFromMapping = mapping.crm_customer_id;
-            finalStableHashId = mapping.stable_hash_id;
-            if (mapping.is_matched && mapping.stable_hash_id) {
-                const { data: customerData, error: customerError } = await crmSupabase
-                    .schema('backoffice' as any)
-                    .from('customers')
-                    .select('contact_number')
-                    .eq('stable_hash_id', mapping.stable_hash_id)
-                    .single();
-                if (customerError) {
-                    console.error('Error fetching CRM customer phone from mapping by stable_hash_id:', customerError);
-                } else if (customerData && customerData.contact_number) {
-                     // CRM phone takes highest precedence if found via mapping
-                     finalResolvedPhoneNumber = customerData.contact_number;
-                }
-                crmStatus = 'linked_matched';
-            } else if (mapping.is_matched && mapping.crm_customer_id && !mapping.stable_hash_id) {
-                 // Fallback if only crm_customer_id is somehow present and matched
-                const { data: customerData, error: customerError } = await crmSupabase
-                    .schema('backoffice' as any)
-                    .from('customers')
-                    .select('contact_number')
-                    .eq('id', mapping.crm_customer_id)
-                    .single();
-                if (customerError) {
-                    console.error('Error fetching CRM customer phone from mapping by crm_customer_id:', customerError);
-                } else if (customerData && customerData.contact_number) {
-                    finalResolvedPhoneNumber = customerData.contact_number;
-                }
-                crmStatus = 'linked_matched';
-            } else {
-                crmStatus = 'linked_unmatched';
-            }
-        }
+      crmStatus = 'not_linked';
     }
 
-    return NextResponse.json({
+    const response = {
       id: profileData.id,
-      name: vipDisplayName,
-      email: vipEmail,
-      phoneNumber: finalResolvedPhoneNumber,
+      name: displayName,
+      email: email,
+      phoneNumber: phoneNumber,
       pictureUrl: profileData.picture_url,
-      marketingPreference: vipMarketingPreference,
+      marketingPreference: marketingPreference,
       crmStatus: crmStatus,
-      crmCustomerId: crmCustomerIdFromMapping,
-      stableHashId: finalStableHashId,
-      vipTier: vipTierInfo
+      crmCustomerId: crmCustomerId,
+      stableHashId: stableHashId,
+      vipTier: vipTierInfo,
+      dataSource: 'simplified_v2'
+    };
+
+    console.log(`[VIP Profile API V2] Returning profile data:`, {
+      id: response.id,
+      crmStatus: response.crmStatus,
+      hasCustomerData: !!customerData,
+      hasProfileLink: !!profileLink
     });
 
+    return NextResponse.json(response);
+
   } catch (error) {
-    console.error('[VIP Profile API GET] Unexpected error:', error);
+    console.error('[VIP Profile API V2] Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

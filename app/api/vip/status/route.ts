@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
 import { createClient } from '@supabase/supabase-js';
+import { getRealTimeCustomerForProfile, getProfileCustomerLink, getOrCreateCrmMappingV2 } from '@/utils/customer-matching';
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
 
 interface VipStatusSessionUser extends NextAuthUser {
@@ -31,189 +32,88 @@ export async function GET(request: NextRequest) {
     }
 
     const profileId = session.user.id;
-    const userAccessToken = session.accessToken; 
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    console.log(`[VIP Status API V2] Checking status for profile ${profileId}`);
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error('[VIP Status API] Supabase URL or Anon Key is not set.');
-      return NextResponse.json({ error: 'Server configuration error: Supabase connection details missing.' }, { status: 500 });
-    }
-
-    const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${userAccessToken}`
-        }
-      }
-    });
-    const supabaseAdminClient = getSupabaseAdminClient(); // For 'customers' table access
-
-    // --- BEGIN: Prioritize vip_customer_data for status ---
-    const { data: profileVip, error: profileVipError } = await supabaseUserClient
-      .from('profiles')
-      .select('vip_customer_data_id')
-      .eq('id', profileId)
-      .single();
-
-    if (profileVipError && profileVipError.code !== 'PGRST116') { // PGRST116 means no rows found, not an actual error here
-      console.error('[VIP Status API] Error fetching profiles:', JSON.stringify(profileVipError, null, 2));
-      // Fall through to crm_customer_mapping if profile fetch fails for other reasons
-    }
-
-    if (profileVip?.vip_customer_data_id) {
-      const { data: vipData, error: vipDataError } = await supabaseUserClient
-        .from('vip_customer_data')
-        .select('stable_hash_id')
-        .eq('id', profileVip.vip_customer_data_id)
-        .single();
-
-      if (vipDataError) {
-        console.warn(`[VIP Status API] Error fetching vip_customer_data for id ${profileVip.vip_customer_data_id}:`, JSON.stringify(vipDataError, null, 2));
-        // Fall through if error, as it might be an RLS issue or the record doesn't exist despite link
-      } else if (vipData?.stable_hash_id) {
-        // Query crm_customer_mapping to confirm the match
-        const { data: crmMappingForVipHash, error: crmMappingError } = await supabaseUserClient
-          .from('crm_customer_mapping')
-          .select('crm_customer_id, stable_hash_id, is_matched') 
-          .eq('stable_hash_id', vipData.stable_hash_id)
-          .eq('is_matched', true) // Only consider confirmed matches
-          .maybeSingle();
-
-        if (crmMappingError) {
-          console.error(`[VIP Status API] Error checking crm_customer_mapping for stable_hash_id ${vipData.stable_hash_id}:`, JSON.stringify(crmMappingError, null, 2));
-          return NextResponse.json({
-            status: 'linked_unmatched', 
-            crmCustomerId: null,
-            stableHashId: vipData.stable_hash_id,
-          });
-        }
-
-        if (crmMappingForVipHash && crmMappingForVipHash.is_matched) {
-          return NextResponse.json({
-            status: 'linked_matched',
-            crmCustomerId: crmMappingForVipHash.crm_customer_id,
-            stableHashId: crmMappingForVipHash.stable_hash_id,
-          });
-        } else {
-          return NextResponse.json({
-            status: 'linked_unmatched', 
-            crmCustomerId: null,
-            stableHashId: vipData.stable_hash_id,
-          });
-        }
+    // NEW: Use simplified architecture - check for existing profile link
+    const profileLink = await getProfileCustomerLink(profileId);
+    
+    if (profileLink) {
+      console.log(`[VIP Status API V2] Found profile link:`, {
+        stableHashId: profileLink.stable_hash_id,
+        confidence: profileLink.match_confidence,
+        method: profileLink.match_method
+      });
+      
+      // Get real-time customer data to verify the link is still valid
+      const customerData = await getRealTimeCustomerForProfile(profileId);
+      
+      if (customerData) {
+        return NextResponse.json({
+          status: 'linked_matched',
+          crmCustomerId: customerData.id,
+          stableHashId: customerData.stable_hash_id,
+          dataSource: 'simplified_v2'
+        });
       } else {
-        // This is a placeholder VIP account - attempt automatic CRM matching if phone number is available
-        
-        // Fetch the vip_customer_data to get the phone number
-        const { data: vipCustomerData, error: vipCustomerDataError } = await supabaseUserClient
-          .from('vip_customer_data')
-          .select('vip_phone_number, vip_display_name, vip_email')
-          .eq('id', profileVip.vip_customer_data_id)
-          .single();
-        
-        if (vipCustomerDataError) {
-          console.error(`[VIP Status API] Error fetching vip_customer_data details for automatic matching:`, vipCustomerDataError);
-          return NextResponse.json({
-            status: 'linked_unmatched',
-            crmCustomerId: null,
-            stableHashId: null,
-          });
-        }
-        
-        if (vipCustomerData?.vip_phone_number) {
-          // Import the matching function
-          const { matchProfileWithCrm } = await import('@/utils/customer-matching');
-          
-          try {
-            const matchResult = await matchProfileWithCrm(profileId, {
-              phoneNumberToMatch: vipCustomerData.vip_phone_number,
-              source: 'automatic_vip_status_background_match',
-            });
-            
-            if (matchResult?.matched && matchResult.stableHashId && matchResult.crmCustomerId) {
-              // Update the vip_customer_data with the matched stable_hash_id
-              const { error: updateError } = await supabaseUserClient
-                .from('vip_customer_data')
-                .update({ 
-                  stable_hash_id: matchResult.stableHashId,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', profileVip.vip_customer_data_id);
-              
-              if (updateError) {
-                console.error(`[VIP Status API] Error updating vip_customer_data with matched stable_hash_id:`, updateError);
-                // Continue anyway - the match was successful, just the update failed
-              }
-              
-              // Trigger package sync for the newly matched user
-              try {
-                const { syncPackagesForProfile } = await import('@/utils/supabase/crm-packages');
-                await syncPackagesForProfile(profileId);
-              } catch (syncError) {
-                console.error(`[VIP Status API] Error syncing packages after automatic match:`, syncError);
-                // Don't fail the response - packages can sync later
-              }
-              
-              // Return the matched status
-              return NextResponse.json({
-                status: 'linked_matched',
-                crmCustomerId: matchResult.crmCustomerId,
-                stableHashId: matchResult.stableHashId,
-              });
-            }
-          } catch (matchError) {
-            console.error(`[VIP Status API] Error during automatic CRM matching:`, matchError);
-            // Continue to return linked_unmatched status
-          }
-        }
-        
-        // If no match found or no phone number, return linked_unmatched
+        // Link exists but customer data not found - possibly stale link
+        console.warn(`[VIP Status API V2] Profile link exists but no customer data found for ${profileId}`);
         return NextResponse.json({
           status: 'linked_unmatched',
           crmCustomerId: null,
-          stableHashId: null,
+          stableHashId: profileLink.stable_hash_id,
+          dataSource: 'simplified_v2'
         });
       }
     }
-    // --- END: Prioritize vip_customer_data ---
 
-    const { data: mapping, error: mappingError } = await supabaseUserClient
-      .from('crm_customer_mapping')
-      .select('is_matched, crm_customer_id, stable_hash_id')
-      .eq('profile_id', profileId)
-      .single();
+    console.log(`[VIP Status API V2] No profile link found for ${profileId}, attempting automatic matching`);
 
-    if (mappingError) {
-      if (mappingError.code === 'PGRST116') { 
+    // NEW: Attempt automatic matching using V2 architecture
+    try {
+      const mappingResult = await getOrCreateCrmMappingV2(profileId, {
+        source: 'vip_status_auto_match',
+        timeoutMs: 3000 // Shorter timeout for API response
+      });
+
+      if (mappingResult) {
+        console.log(`[VIP Status API V2] Successfully created/found mapping:`, {
+          crmCustomerId: mappingResult.crmCustomerId,
+          stableHashId: mappingResult.stableHashId,
+          confidence: mappingResult.confidence,
+          isNewMatch: mappingResult.isNewMatch
+        });
+
+        return NextResponse.json({
+          status: 'linked_matched',
+          crmCustomerId: mappingResult.crmCustomerId,
+          stableHashId: mappingResult.stableHashId,
+          dataSource: 'simplified_v2'
+        });
+      } else {
+        console.log(`[VIP Status API V2] No CRM match could be established for ${profileId}`);
+        
         return NextResponse.json({
           status: 'not_linked',
           crmCustomerId: null,
           stableHashId: null,
+          dataSource: 'simplified_v2'
         });
-      } else {
-        console.error('[VIP Status API] Error fetching crm_customer_mapping:', JSON.stringify(mappingError, null, 2));
-        return NextResponse.json({ error: 'Error fetching link status from database.', details: mappingError.message, code: mappingError.code }, { status: 500 });
       }
-    }
-
-    if (mapping.is_matched && mapping.stable_hash_id) {
+    } catch (error) {
+      console.error(`[VIP Status API V2] Error during automatic matching:`, error);
+      
+      // Fall back to not_linked status
       return NextResponse.json({
-        status: 'linked_matched',
-        crmCustomerId: mapping.crm_customer_id,
-        stableHashId: mapping.stable_hash_id,
-      });
-    } else {
-      return NextResponse.json({
-        status: 'linked_unmatched',
+        status: 'not_linked',
         crmCustomerId: null,
         stableHashId: null,
+        dataSource: 'simplified_v2'
       });
     }
 
   } catch (error) {
-    console.error('[VIP Status API] Unexpected error:', error);
+    console.error('[VIP Status API V2] Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

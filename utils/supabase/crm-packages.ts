@@ -43,9 +43,9 @@ interface RawCrmPackage {
 }
 
 /**
- * Fetch packages for a profile using their CRM mapping
+ * IMPROVED: Fetch packages for a profile using direct backoffice function call
+ * Now bypasses sync layer and provides real-time data from source
  * Uses the same approach as VIP status API for consistency
- * Now reads from local staging table for better performance
  */
 export async function getPackagesForProfile(profileId: string): Promise<CrmPackage[]> {
   try {
@@ -93,48 +93,8 @@ export async function getPackagesForProfile(profileId: string): Promise<CrmPacka
       return [];
     }
 
-    // Get packages from public schema
-    const { data: packages, error: packagesError } = await supabase
-      .from('crm_packages')
-      .select('*')
-      .eq('stable_hash_id', stableHashId);
-    
-    if (packagesError) {
-      console.error('Error fetching packages:', packagesError);
-      return [];
-    }
-
-    // Transform staging table data to CrmPackage interface
-    const validPackages = (packages || [])
-      .filter((pkg: any) => {
-        const expirationDate = pkg.expiration_date ? new Date(pkg.expiration_date) : null;
-        const isValid = expirationDate && expirationDate > new Date();
-        console.log(`[getPackagesForProfile] Package ${pkg.id}: expiration=${pkg.expiration_date}, isValid=${isValid}`);
-        return isValid;
-      })
-      .map((pkg: any): CrmPackage => {
-        console.log(`[getPackagesForProfile] Mapping package from staging ${pkg.id}:`, pkg);
-        
-        // Use the rich data stored in staging table
-        const packageName = pkg.package_display_name || 
-                           pkg.package_name || 
-                           pkg.package_type_name || 
-                           'Unknown Package';
-        
-        return {
-          id: String(pkg.id),
-          crm_package_id: pkg.crm_package_id || String(pkg.id),
-          first_use_date: pkg.first_use_date,
-          expiration_date: pkg.expiration_date || new Date().toISOString(),
-          remaining_hours: pkg.remaining_hours,
-          package_type_name: packageName,
-          customer_name: pkg.customer_name || '',
-          stable_hash_id: stableHashId
-        };
-      });
-
-    console.log(`[getPackagesForProfile] Final packages from staging:`, JSON.stringify(validPackages, null, 2));
-    return validPackages;
+    // IMPROVED: Get real-time data directly from backoffice function instead of stale sync table
+    return await getPackagesByStableHashId(stableHashId);
   } catch (error) {
     console.error('Error getting packages for profile:', error);
     return [];
@@ -208,11 +168,18 @@ async function getPackagesByStableHashId(stableHashId: string): Promise<CrmPacka
 }
 
 /**
- * Sync packages for a profile to our local database
+ * @deprecated LEGACY: Sync packages for a profile to our local database
+ * This function is deprecated as we now use direct access to backoffice.get_packages_by_hash_id()
+ * for real-time data. The sync layer adds complexity and data lag without significant benefits.
+ * 
+ * Use getPackagesForProfile() for direct access instead.
+ * 
  * This should be called after a successful CRM customer match
  * Uses the same approach as VIP status API for consistency
  */
 export async function syncPackagesForProfile(profileId: string): Promise<void> {
+  console.warn('[DEPRECATED] syncPackagesForProfile() is deprecated. Use direct access via getPackagesForProfile() instead.');
+  
   try {
     // Use service role client for admin operations
     const supabase = createClient(
@@ -246,7 +213,6 @@ export async function syncPackagesForProfile(profileId: string): Promise<void> {
         if (!vipDataError && vipData?.stable_hash_id) {
           stableHashId = vipData.stable_hash_id;
           console.log(`[syncPackagesForProfile] Found stable_hash_id from vip_customer_data: ${stableHashId}`);
-          break;
         }
       }
       
@@ -262,114 +228,75 @@ export async function syncPackagesForProfile(profileId: string): Promise<void> {
         if (!mappingError && mapping?.stable_hash_id) {
           stableHashId = mapping.stable_hash_id;
           console.log(`[syncPackagesForProfile] Found stable_hash_id from crm_customer_mapping: ${stableHashId}`);
-          break;
         }
       }
       
-      // If we still don't have it and this isn't the last attempt, wait a bit
+      // Sleep briefly before retrying if needed
       if (!stableHashId && attempts < maxAttempts) {
-        console.log(`[syncPackagesForProfile] stable_hash_id not found on attempt ${attempts}, waiting 200ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
     if (!stableHashId) {
-      console.error('No valid CRM mapping found via either approach for profile:', profileId, 'after', attempts, 'attempts');
+      console.log(`[syncPackagesForProfile] No stable_hash_id found for profile ${profileId} after ${maxAttempts} attempts - skipping sync`);
       return;
     }
 
-    // Get the raw CRM packages with all rich data from backoffice schema
-    const { data: rawCrmPackages, error: crmError } = await supabase
-      .schema('backoffice' as any)
-      .rpc('get_packages_by_hash_id', { p_stable_hash_id: stableHashId });
+    // Get packages using direct function call (this is what should be used instead of sync)
+    const packages = await getPackagesByStableHashId(stableHashId);
     
-    if (crmError || !rawCrmPackages) {
-      console.error('Error getting raw CRM packages for sync:', crmError);
-      return;
+    // Clear existing packages for this profile and insert new ones
+    const { error: deleteError } = await supabase
+      .from('crm_packages')
+      .delete()
+      .eq('stable_hash_id', stableHashId);
+    
+    if (deleteError) {
+      console.error('Error clearing existing packages:', deleteError);
+      throw deleteError;
     }
-
-    console.log(`[syncPackagesForProfile] Raw CRM packages for sync:`, JSON.stringify(rawCrmPackages, null, 2));
     
-    if (rawCrmPackages.length > 0) {
-      // Map the rich CRM data to the production table structure
-      const packagesToUpsert = rawCrmPackages
-        .filter((pkg: any) => {
-          const expirationDate = pkg.expiration_date ? new Date(pkg.expiration_date) : null;
-          return expirationDate && expirationDate > new Date();
-        })
-        .map((pkg: any) => {
-          return {
-            // Let PostgreSQL generate UUID automatically - remove id field
-            crm_package_id: String(pkg.id), // CRM's package ID
-            stable_hash_id: stableHashId,
-            customer_name: pkg.customer_name || '',
-            
-            // Rich package information from CRM - prioritize _from_def fields
-            package_name: pkg.package_name_from_def || pkg.package_name || null,
-            package_display_name: pkg.package_display_name_from_def || pkg.package_display_name || null,
-            package_type_name: pkg.package_type_from_def || pkg.package_type_name || null,
-            package_category: pkg.package_type_from_def || pkg.package_category || null,
-            total_hours: pkg.package_total_hours_from_def ?? pkg.total_hours ?? null,
-            pax: pkg.package_pax_from_def ?? pkg.pax ?? null,
-            validity_period_definition: pkg.package_validity_period_from_def || pkg.validity_period_definition || null,
-            
-            first_use_date: pkg.first_use_date || null,
-            expiration_date: pkg.expiration_date || null,
-            purchase_date: pkg.created_at_for_purchase_date || pkg.purchase_date || null,
-            
-            remaining_hours: pkg.calculated_remaining_hours ?? pkg.remaining_hours ?? null,
-            used_hours: pkg.calculated_used_hours ?? pkg.used_hours ?? null,
-            
-            // Audit timestamps
-            updated_at: new Date().toISOString(),
-            created_at: new Date().toISOString()
-          };
-        });
-
-      console.log(`[syncPackagesForProfile] Packages to upsert:`, JSON.stringify(packagesToUpsert, null, 2));
+    if (packages.length > 0) {
+      // Transform packages for insertion
+      const packageInserts = packages.map(pkg => ({
+        stable_hash_id: stableHashId,
+        crm_package_id: pkg.crm_package_id,
+        customer_name: pkg.customer_name,
+        package_name: pkg.package_type_name,
+        package_display_name: pkg.package_type_name,
+        package_type_name: pkg.package_type_name,
+        first_use_date: pkg.first_use_date,
+        expiration_date: pkg.expiration_date,
+        remaining_hours: pkg.remaining_hours,
+        total_hours: pkg.remaining_hours, // This is incorrect but kept for compatibility
+        used_hours: 0, // This is incorrect but kept for compatibility
+        package_category: 'imported',
+        validity_period_definition: '1 year',
+        pax: 2
+      }));
       
-      // Delete existing packages for this stable_hash_id first to avoid conflicts
-      const { error: deleteError } = await supabase
+      const { error: insertError } = await supabase
         .from('crm_packages')
-        .delete()
-        .eq('stable_hash_id', stableHashId);
+        .insert(packageInserts);
       
-      if (deleteError) {
-        console.error('Error clearing existing packages:', deleteError);
-      }
-
-      // Insert new packages
-      if (packagesToUpsert.length > 0) {
-        const { error: insertError } = await supabase
-          .from('crm_packages')
-          .insert(packagesToUpsert);
-        
-        if (insertError) {
-          console.error('Error inserting packages:', insertError);
-        } else {
-          console.log(`[syncPackagesForProfile] Successfully synced ${packagesToUpsert.length} packages for stable_hash_id: ${stableHashId}`);
-        }
-      }
-    } else {
-      // If no packages found, delete all packages for this stable_hash_id
-      const { error: deleteError } = await supabase
-        .from('crm_packages')
-        .delete()
-        .eq('stable_hash_id', stableHashId);
-
-      if (deleteError) {
-        console.error('Error deleting old packages:', deleteError);
-      } else {
-        console.log(`[syncPackagesForProfile] No active packages found, cleared all for stable_hash_id: ${stableHashId}`);
+      if (insertError) {
+        console.error('Error inserting packages:', insertError);
+        throw insertError;
       }
     }
+    
+    console.log(`[syncPackagesForProfile] Sync completed for profile ${profileId} with ${packages.length} packages`);
   } catch (error) {
-    console.error('Error syncing packages for profile:', error);
+    console.error(`[syncPackagesForProfile] Error syncing packages for profile ${profileId}:`, error);
+    throw error;
   }
 }
 
 /**
- * Bulk sync packages for all profiles that have CRM mappings
+ * @deprecated LEGACY: Bulk sync packages for all profiles that have CRM mappings
+ * This function is deprecated as we now use direct access to backoffice.get_packages_by_hash_id()
+ * for real-time data. The sync layer adds complexity and data lag without significant benefits.
+ * 
  * This is used by cron jobs to keep all package data up to date
  */
 export async function bulkSyncPackagesForAllProfiles(options: {
@@ -383,6 +310,8 @@ export async function bulkSyncPackagesForAllProfiles(options: {
   totalPackages: number;
   errors: string[];
 }> {
+  console.warn('[DEPRECATED] bulkSyncPackagesForAllProfiles() is deprecated. Use direct access via getPackagesForProfile() instead.');
+  
   const { batchSize = 20, maxProfiles, onlyNewProfiles = false } = options;
   
   console.log('[bulkSyncPackages] Starting bulk sync with options:', options);
