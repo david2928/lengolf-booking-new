@@ -195,17 +195,15 @@ SELECT cron.unschedule('daily-package-sync');
 Ensure these environment variables are set:
 
 ```env
-# Main Supabase (Booking Database)
+# Main Supabase (Booking Database) - CRM data now in backoffice schema
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# CRM Supabase
-NEXT_PUBLIC_CRM_SUPABASE_URL=https://crm-project.supabase.co
-NEXT_PUBLIC_CRM_SUPABASE_KEY=crm-anon-key
 
 # Cron job authentication
 CRON_SECRET=2f93c28600516c88c346b197246515c6ce9b82aade54311a75031578bc75da42
 ```
+
+**Note**: CRM environment variables (`NEXT_PUBLIC_CRM_SUPABASE_URL` and `NEXT_PUBLIC_CRM_SUPABASE_KEY`) are no longer needed as CRM data has been migrated to the main Supabase instance under the `backoffice` schema.
 
 ## Testing
 

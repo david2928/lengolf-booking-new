@@ -40,9 +40,7 @@ const CREDENTIALS = {
   SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bisimqmtxjsptehhqpeg.supabase.co',
   SUPABASE_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpc2ltcW10eGpzcHRlaGhxcGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgzOTY5MzEsImV4cCI6MjA1Mzk3MjkzMX0.NZ_mEOOoaKEG1p9LBXkULWwSIr-rWmCbksVZq3OzSYE',
   
-  // CRM Supabase
-  CRM_SUPABASE_URL: process.env.NEXT_PUBLIC_CRM_SUPABASE_URL || 'https://dujqvigihnlfnvmcdrko.supabase.co',
-  CRM_SUPABASE_KEY: process.env.NEXT_PUBLIC_CRM_SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1anF2aWdpaG5sZm52bWNkcmtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM3NTQyNDYsImV4cCI6MjA0OTMzMDI0Nn0.N-KIgE6_nfAY9LarJgFYFjBvjQ6awVgDmUtsBbNzhZM'
+  // CRM data now in backoffice schema - no separate credentials needed
 };
 
 // Parse command line arguments
@@ -89,11 +87,11 @@ function createBookingClient() {
 }
 
 /**
- * Create Supabase client for the CRM database
+ * Create Supabase client for the CRM database (now uses main Supabase with backoffice schema)
  */
 function createCrmClient() {
-  console.log('Creating CRM Supabase client...');
-  return createClient(CREDENTIALS.CRM_SUPABASE_URL, CREDENTIALS.CRM_SUPABASE_KEY);
+  console.log('Creating CRM Supabase client (using main Supabase for backoffice schema)...');
+  return createClient(CREDENTIALS.SUPABASE_URL, CREDENTIALS.SUPABASE_KEY);
 }
 
 /**
@@ -105,7 +103,8 @@ async function fetchAllCrmCustomers() {
   try {
     const supabase = createCrmClient();
     const { data, error } = await supabase
-      .from('customers')  // Correct table name
+      .schema('backoffice')
+      .from('customers')  // Now from backoffice schema
       .select('*');
     
     if (error) {

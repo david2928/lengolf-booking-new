@@ -32,8 +32,6 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_CRM_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_CRM_SUPABASE_URL }}
-          NEXT_PUBLIC_CRM_SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_CRM_SUPABASE_KEY }}
           CONFIDENCE_THRESHOLD: 0.85
           DEBUG_MODE: 'false'
           
@@ -42,8 +40,6 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_CRM_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_CRM_SUPABASE_URL }}
-          NEXT_PUBLIC_CRM_SUPABASE_KEY: ${{ secrets.NEXT_PUBLIC_CRM_SUPABASE_KEY }}
           DEBUG_MODE: 'false'
           
       - name: Log completion

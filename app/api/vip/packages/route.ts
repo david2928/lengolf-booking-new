@@ -128,7 +128,7 @@ export async function GET() {
       });
     }
 
-    // Check existing packages and their freshness - using production table
+    // Check existing packages and their freshness - using public schema
     const { data: existingPackages, error: packagesError } = await supabase
       .from('crm_packages')
       .select('*, updated_at')
@@ -156,7 +156,7 @@ export async function GET() {
       }
     }
 
-    // Get the rich package data directly from production table instead of using getPackagesForProfile
+    // Get the rich package data directly from public schema instead of using getPackagesForProfile
     const { data: richPackages, error: richPackagesError } = await supabase
       .from('crm_packages')
       .select('*')

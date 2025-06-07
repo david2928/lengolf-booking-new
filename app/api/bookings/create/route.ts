@@ -76,6 +76,7 @@ async function getPackageInfo(stableHashId: string | null): Promise<string> {
     try {
       const supabase = getSupabaseAdminClient();
       const { data: packages, error: packagesError } = await supabase
+        .schema('backoffice' as any)
         .from('crm_packages')
         .select('*')
         .eq('stable_hash_id', stableHashId);

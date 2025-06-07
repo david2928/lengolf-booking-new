@@ -9,16 +9,15 @@ require('dotenv').config({ path: '.env.local' });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const crmUrl = process.env.NEXT_PUBLIC_CRM_SUPABASE_URL;
-const crmKey = process.env.NEXT_PUBLIC_CRM_SUPABASE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey || !crmUrl || !crmKey) {
+if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing required environment variables');
   process.exit(1);
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-const crmSupabase = createClient(crmUrl, crmKey);
+// CRM data now in backoffice schema - use same client
+const crmSupabase = supabase;
 
 async function syncUserPackages() {
   const userId = '2f3cf053-af38-437f-8909-f02647b15bda';
@@ -50,9 +49,10 @@ async function syncUserPackages() {
 
     console.log('✅ Profile data:', profile);
 
-    // Get CRM packages using the stable_hash_id
+    // Get CRM packages using the stable_hash_id from backoffice schema
     console.log('2️⃣ Fetching CRM packages...');
     const { data: crmPackages, error: crmError } = await crmSupabase
+      .schema('backoffice')
       .rpc('get_packages_by_hash_id', { p_stable_hash_id: stableHashId });
 
     if (crmError) {
@@ -65,9 +65,10 @@ async function syncUserPackages() {
       console.log('📦 First package sample:', JSON.stringify(crmPackages[0], null, 2));
     }
 
-    // Check current packages in production
-    console.log('3️⃣ Checking current production packages...');
+    // Check current packages in backoffice schema
+    console.log('3️⃣ Checking current backoffice packages...');
     const { data: currentPackages, error: currentError } = await supabase
+      .schema('backoffice')
       .from('crm_packages')
       .select('*')
       .eq('stable_hash_id', stableHashId);
@@ -92,8 +93,9 @@ async function syncUserPackages() {
       console.log(`🔍 Valid packages (not expired): ${validPackages.length}`);
 
       if (validPackages.length > 0) {
-        // Delete existing packages first
+        // Delete existing packages first from backoffice schema
         const { error: deleteError } = await supabase
+          .schema('backoffice')
           .from('crm_packages')
           .delete()
           .eq('stable_hash_id', stableHashId);
@@ -133,8 +135,9 @@ async function syncUserPackages() {
 
         console.log('📝 Packages to insert:', JSON.stringify(packagesToInsert, null, 2));
 
-        // Insert new packages
+        // Insert new packages into backoffice schema
         const { error: insertError } = await supabase
+          .schema('backoffice')
           .from('crm_packages')
           .insert(packagesToInsert);
 
@@ -145,8 +148,9 @@ async function syncUserPackages() {
 
         console.log(`✅ Successfully inserted ${packagesToInsert.length} packages`);
 
-        // Verify the result
+        // Verify the result from backoffice schema
         const { data: verifyPackages, error: verifyError } = await supabase
+          .schema('backoffice')
           .from('crm_packages')
           .select('id, package_name, package_display_name, package_type_name, total_hours, remaining_hours')
           .eq('stable_hash_id', stableHashId);

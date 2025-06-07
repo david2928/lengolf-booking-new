@@ -131,6 +131,7 @@ async function debugCrmMapping(profileId) {
       console.log('5️⃣ Checking customers table for stable_hash_ids...');
       for (const hashId of stableHashIds) {
         const { data: customer, error: customerError } = await supabase
+          .schema('backoffice')
           .from('customers')
           .select('id, customer_name, contact_number, email, stable_hash_id')
           .eq('stable_hash_id', hashId)

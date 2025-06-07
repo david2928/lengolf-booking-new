@@ -1,4 +1,3 @@
-import { createCrmClient } from './supabase/crm';
 import { createClient } from '@supabase/supabase-js';
 import { syncPackagesForProfile } from './supabase/crm-packages';
 import type { Database } from '@/types/supabase';
@@ -328,9 +327,9 @@ export async function matchProfileWithCrm(
       return null;
     }
     
-    // Fetch CRM customers
-    const crmSupabase = createCrmClient();
-    const { data: customers, error: customersError } = await crmSupabase
+    // Fetch CRM customers from backoffice schema
+    const { data: customers, error: customersError } = await supabaseAdminClient
+      .schema('backoffice' as any)
       .from('customers')
       .select('*');
     

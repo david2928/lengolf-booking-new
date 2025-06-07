@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
-import { createCrmClient } from '@/utils/supabase/crm'; // For fetching from customers table
 import { createClient } from '@supabase/supabase-js'; // Import base Supabase client
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
 
@@ -42,7 +41,11 @@ export async function GET() {
       }
     }
   });
-  const crmSupabase = createCrmClient();
+  // Use service role client for backoffice schema access
+  const crmSupabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
   try {
     // Optimized query: Join profiles with vip_customer_data and vip_tiers in a single query
@@ -123,6 +126,7 @@ export async function GET() {
     // Check CRM customer data if we have a stable_hash_id
     if (stableHashIdToUse) {
         const { data: customerData, error: customerError } = await crmSupabase
+            .schema('backoffice' as any)
             .from('customers') 
             .select('contact_number, id, stable_hash_id') 
             .eq('stable_hash_id', stableHashIdToUse)
@@ -157,6 +161,7 @@ export async function GET() {
             finalStableHashId = mapping.stable_hash_id;
             if (mapping.is_matched && mapping.stable_hash_id) {
                 const { data: customerData, error: customerError } = await crmSupabase
+                    .schema('backoffice' as any)
                     .from('customers')
                     .select('contact_number')
                     .eq('stable_hash_id', mapping.stable_hash_id)
@@ -171,6 +176,7 @@ export async function GET() {
             } else if (mapping.is_matched && mapping.crm_customer_id && !mapping.stable_hash_id) {
                  // Fallback if only crm_customer_id is somehow present and matched
                 const { data: customerData, error: customerError } = await crmSupabase
+                    .schema('backoffice' as any)
                     .from('customers')
                     .select('contact_number')
                     .eq('id', mapping.crm_customer_id)

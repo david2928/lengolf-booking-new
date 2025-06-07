@@ -1,4 +1,3 @@
-import { createCrmClient } from './crm';
 import { createServerClient } from './server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -94,7 +93,7 @@ export async function getPackagesForProfile(profileId: string): Promise<CrmPacka
       return [];
     }
 
-    // Get packages from production table
+    // Get packages from public schema
     const { data: packages, error: packagesError } = await supabase
       .from('crm_packages')
       .select('*')
@@ -147,10 +146,11 @@ export async function getPackagesForProfile(profileId: string): Promise<CrmPacka
  */
 async function getPackagesByStableHashId(stableHashId: string): Promise<CrmPackage[]> {
   try {
-    const crmSupabase = createCrmClient();
+    const supabase = createServerClient();
     
-    // Call the database function to get packages
-    const { data: packages, error } = await crmSupabase
+    // Call the database function to get packages from backoffice schema
+    const { data: packages, error } = await supabase
+      .schema('backoffice' as any)
       .rpc('get_packages_by_hash_id', { p_stable_hash_id: stableHashId });
     
     if (error) {
@@ -278,9 +278,9 @@ export async function syncPackagesForProfile(profileId: string): Promise<void> {
       return;
     }
 
-    // Get the raw CRM packages with all rich data
-    const crmSupabase = createCrmClient();
-    const { data: rawCrmPackages, error: crmError } = await crmSupabase
+    // Get the raw CRM packages with all rich data from backoffice schema
+    const { data: rawCrmPackages, error: crmError } = await supabase
+      .schema('backoffice' as any)
       .rpc('get_packages_by_hash_id', { p_stable_hash_id: stableHashId });
     
     if (crmError || !rawCrmPackages) {
@@ -448,9 +448,9 @@ export async function bulkSyncPackagesForAllProfiles(options: {
         try {
           console.log(`[bulkSyncPackages] Syncing packages for profile ${mapping.profile_id}`);
           
-          // Get packages from CRM
-          const crmSupabase = createCrmClient();
-          const { data: rawCrmPackages, error: crmError } = await crmSupabase
+          // Get packages from backoffice schema
+          const { data: rawCrmPackages, error: crmError } = await supabase
+            .schema('backoffice' as any)
             .rpc('get_packages_by_hash_id', { p_stable_hash_id: mapping.stable_hash_id });
           
           if (crmError) {
@@ -463,7 +463,7 @@ export async function bulkSyncPackagesForAllProfiles(options: {
               return expirationDate && expirationDate > new Date();
             });
           
-          // Delete existing packages for this stable_hash_id
+          // Delete existing packages for this stable_hash_id from public schema
           const { error: deleteError } = await supabase
             .from('crm_packages')
             .delete()
