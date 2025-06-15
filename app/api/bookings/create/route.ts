@@ -817,19 +817,26 @@ export async function POST(request: NextRequest) {
     setTimeout(() => {
       const calendarCreationStartTime = Date.now();
       
-      // Add a timeout for the calendar creation request
+      // Create an AbortController for proper request cancellation
+      const abortController = new AbortController();
+      
+      // Add a timeout for the calendar creation request - increased to 60 seconds
       const calendarPromise = fetch(`${baseUrl}/api/bookings/calendar/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': request.headers.get('Authorization') || ''
         },
-        body: JSON.stringify(calendarData)
+        body: JSON.stringify(calendarData),
+        signal: abortController.signal
       });
 
-      // Add a timeout wrapper
+      // Add a timeout wrapper - increased to 60 seconds
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Calendar creation timeout after 30 seconds')), 30000);
+        setTimeout(() => {
+          abortController.abort();
+          reject(new Error('Calendar creation timeout after 60 seconds'));
+        }, 60000);
       });
 
       Promise.race([calendarPromise, timeoutPromise])

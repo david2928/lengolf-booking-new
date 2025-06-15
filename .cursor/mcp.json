@@ -11,18 +11,5 @@
         "sbp_4a7b3363ee6de35786a1fff556286c59c47396e9"
       ]
     }
-  ,
-  
-    "supabase_forms": {
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "@supabase/mcp-server-supabase@latest",
-        "--access-token",
-        "sbp_a0406579e4e9e412ff482ff306031d48870c0dc7"
-      ]
-    }
   }
 }

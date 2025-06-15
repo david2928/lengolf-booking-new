@@ -1,14 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { calendar } from '@/lib/googleApiConfig';
-import { BOOKING_CALENDARS } from '@/lib/bookingCalendarConfig';
-import { parse, addHours, isAfter } from 'date-fns';
-import { zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
-
-const TIMEZONE = 'Asia/Bangkok';
+import { NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+import type { NextRequest } from 'next/server';
+import { createServerClient } from '@/utils/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse request body
+    // 1. Authenticate via NextAuth
+    const token = await getToken({ req: request as any });
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 2. Parse request body
     const { date, startTime, duration } = await request.json();
     
     if (!date || !startTime || !duration) {
@@ -18,36 +21,38 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Format date and time
-    const parsedDateTime = parse(`${date} ${startTime}`, 'yyyy-MM-dd HH:mm', new Date());
-    const startDateTime = zonedTimeToUtc(parsedDateTime, TIMEZONE);
-    const endDateTime = addHours(startDateTime, duration);
+    // 3. Use native database function instead of Google Calendar
+    const supabase = createServerClient();
+    
+    // Convert duration from hours to match database function expectation
+    const durationHours = typeof duration === 'number' ? duration : parseFloat(duration);
+    
+    const { data: bayAvailability, error } = await supabase.rpc('check_all_bays_availability', {
+      p_date: date,
+      p_start_time: startTime,
+      p_duration: durationHours
+    });
 
-    // Check availability for all bays
-    const bayAvailability = await Promise.all(
-      Object.entries(BOOKING_CALENDARS).map(async ([bay, calendarId]) => {
-        try {
-          const events = await calendar.events.list({
-            calendarId,
-            timeMin: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-            timeMax: formatInTimeZone(endDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-            singleEvents: true,
-            orderBy: 'startTime',
-          });
+    if (error) {
+      console.error('Database function error:', error);
+      return NextResponse.json(
+        { error: 'An error occurred while checking bay availability', available: false },
+        { status: 500 }
+      );
+    }
 
-          return {
-            bay,
-            available: !events.data.items || events.data.items.length === 0
-          };
-        } catch (error) {
-          console.error(`Error checking availability for bay ${bay}:`, error);
-          return { bay, available: false };
-        }
-      })
-    );
+    // 4. Transform database response to match expected format
+    if (!bayAvailability || typeof bayAvailability !== 'object') {
+      return NextResponse.json({ 
+        available: false, 
+        message: 'No availability data returned' 
+      });
+    }
 
     // Find available bays
-    const availableBays = bayAvailability.filter(bay => bay.available);
+    const availableBays = Object.entries(bayAvailability)
+      .filter(([_, isAvailable]) => isAvailable === true)
+      .map(([bayName, _]) => bayName);
     
     if (availableBays.length === 0) {
       return NextResponse.json({ 
@@ -59,8 +64,8 @@ export async function POST(request: NextRequest) {
     // Return the first available bay
     return NextResponse.json({
       available: true,
-      bay: availableBays[0].bay,
-      allAvailableBays: availableBays.map(b => b.bay)
+      bay: availableBays[0],
+      allAvailableBays: availableBays
     });
   } catch (error) {
     console.error('Error checking bay availability:', error);
