@@ -14,6 +14,15 @@ interface VipPackagesSession extends NextAuthSession {
   user: VipPackagesSessionUser;
 }
 
+// Helper to create admin client for backoffice schema access
+const getSupabaseAdminClient = () => {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+};
+
 /**
  * Transform backoffice function output to VipPackage format expected by frontend
  * Updated to handle the rich data format from backoffice.get_packages_by_hash_id()
@@ -68,8 +77,8 @@ export async function GET() {
 
     const profileId = session.user.id;
     
-    // Create user-specific Supabase client
-    const supabase = createClient(
+    // Create user-specific Supabase client for profile data access
+    const userSupabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -81,18 +90,21 @@ export async function GET() {
       }
     );
     
+    // Create admin client for backoffice schema access
+    const adminSupabase = getSupabaseAdminClient();
+    
     // Find stable_hash_id using the same approach as VIP status API
     let stableHashId: string | null = null;
     
     // First approach: Check vip_customer_data (same as VIP status API)
-    const { data: profileVip, error: profileVipError } = await supabase
+    const { data: profileVip, error: profileVipError } = await userSupabase
       .from('profiles')
       .select('vip_customer_data_id')
       .eq('id', profileId)
       .single();
 
     if (profileVip?.vip_customer_data_id) {
-      const { data: vipData, error: vipDataError } = await supabase
+      const { data: vipData, error: vipDataError } = await userSupabase
         .from('vip_customer_data')
         .select('stable_hash_id')
         .eq('id', profileVip.vip_customer_data_id)
@@ -105,7 +117,7 @@ export async function GET() {
     
     // Fallback approach: Check crm_customer_mapping  
     if (!stableHashId) {
-      const { data: mapping, error: mappingError } = await supabase
+      const { data: mapping, error: mappingError } = await userSupabase
         .from('crm_customer_mapping')
         .select('stable_hash_id, is_matched')
         .eq('profile_id', profileId)
@@ -125,8 +137,8 @@ export async function GET() {
       });
     }
 
-    // Get real-time package data directly from backoffice function
-    const { data: richPackages, error: richPackagesError } = await supabase
+    // Get real-time package data directly from backoffice function using admin client
+    const { data: richPackages, error: richPackagesError } = await adminSupabase
       .schema('backoffice' as any)
       .rpc('get_packages_by_hash_id', { p_stable_hash_id: stableHashId });
 
@@ -170,7 +182,7 @@ export async function GET() {
     return NextResponse.json({
       activePackages,
       pastPackages,
-      dataSource: 'backoffice_direct', // Indicator that we're using direct access
+      dataSource: 'backoffice_direct_fixed', // Updated indicator
       fetchTime: new Date().toISOString()
     });
 
