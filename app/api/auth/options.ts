@@ -3,7 +3,7 @@ import FacebookProvider from 'next-auth/providers/facebook';
 import LineProvider from 'next-auth/providers/line';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createClient } from '@supabase/supabase-js';
-import { getOrCreateCrmMapping } from '@/utils/customer-matching';
+import { getOrCreateCrmMappingV2 } from '@/utils/customer-matching';
 import { v4 as uuidv4 } from 'uuid';
 import type { NextAuthOptions } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
@@ -246,8 +246,8 @@ export const authOptions: NextAuthOptions = {
         // Attempt to create/refresh CRM mapping record
         if (user.id) {
           try {
-            // Corrected call to getOrCreateCrmMapping
-            await getOrCreateCrmMapping(user.id, { source: 'auth' });
+                            // Use V2 architecture for customer matching
+                await getOrCreateCrmMappingV2(user.id, { source: 'auth' });
           } catch (mappingError) {
             console.error('[NextAuth Callback: signIn] Error processing CRM mapping:', mappingError);
             // Decide if this should prevent sign-in, currently it doesn't

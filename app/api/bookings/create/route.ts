@@ -6,7 +6,7 @@ import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
 import { parse, addHours, addMinutes } from 'date-fns';
 import { zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
-import { getOrCreateCrmMapping, normalizeCrmCustomerData } from '@/utils/customer-matching';
+import { getOrCreateCrmMappingV2, normalizeCrmCustomerData } from '@/utils/customer-matching';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
 import { BOOKING_CALENDARS } from '@/lib/bookingCalendarConfig';
 import { calendar } from '@/lib/googleApiConfig';
@@ -466,43 +466,28 @@ export async function POST(request: NextRequest) {
         }
       })(),
       
-      // CRM matching - get complete mapping data including CRM customer data
+      // CRM matching V2 - streamlined approach using only V2 architecture
       (async () => {
         if (!token.sub) return null;
         
         try {
-          // First check for existing mapping
-          const supabase = getSupabaseAdminClient();
-          const { data: mapping, error: mappingError } = await supabase
-            .from('crm_customer_mapping')
-            .select('*')
-            .eq('profile_id', userId)
-            .single();
-          
-          if (mappingError) {
-            console.error('Error checking for CRM mapping:', mappingError);
-            return null;
-          }
-          
-          if (mapping) {
-            return {
-              profileId: userId,
-              crmCustomerId: mapping.crm_customer_id,
-              stableHashId: mapping.stable_hash_id,
-              crmCustomerData: mapping.crm_customer_data,
-              isNewMatch: false
-            };
-          }
-          
-          // If no mapping found, try creating one using the booking phone number
-          // This allows matching even when the profile phone number differs from booking phone
-          console.log(`[CRM Matching] No existing mapping found for profile ${userId}. Attempting match with booking phone: ${phone_number}`);
-          return await getOrCreateCrmMapping(userId, { 
+          console.log(`[CRM Matching V2] Attempting match for profile ${userId} with booking phone: ${phone_number}`);
+          const v2Result = await getOrCreateCrmMappingV2(userId, { 
             source: 'booking',
             phoneNumberToMatch: phone_number
           });
+          
+          if (v2Result) {
+            console.log(`[CRM Matching V2] Match result - Customer: ${v2Result.crmCustomerId}, New: ${v2Result.isNewMatch}`);
+            return {
+              ...v2Result,
+              dataSource: 'v2_architecture'
+            };
+          }
+          
+          return null;
         } catch (error) {
-          console.error('Error in CRM mapping:', error);
+          console.error('Error in CRM matching V2:', error);
           return null;
         }
       })()
@@ -513,11 +498,12 @@ export async function POST(request: NextRequest) {
     });
     
     // Log more detailed info about the results
-    logTiming('Parallel operations (availability + CRM)', 'success', {
+    logTiming('Parallel operations (availability + CRM V2)', 'success', {
       bayAvailability: availabilityResult?.available || false,
       availableBays: (availabilityResult as any)?.allAvailableBays || [],
       crmMatchFound: !!(crmMappingResult as any)?.crmCustomerId,
-      isNewCrmMatch: !!(crmMappingResult as any)?.isNewMatch
+      isNewCrmMatch: !!(crmMappingResult as any)?.isNewMatch,
+      dataSource: (crmMappingResult as any)?.dataSource || 'unknown'
     });
 
     // 6. Handle availability result
@@ -561,47 +547,33 @@ export async function POST(request: NextRequest) {
     }
     logTiming('CRM data processing', 'success', { crmCustomerIdObtained: !!crmCustomerId, stableHashIdObtained: !!stableHashId });
 
-    // --- BEGIN: Propagation of CRM-derived stable_hash_id to profile links (idempotent) ---
-    if (stableHashId && crmCustomerId) { // Only if we have a definitive CRM link and stable_hash_id from CRM
+    // --- BEGIN: V2 Architecture - Update profile stable_hash_id only ---
+    if (stableHashId && crmCustomerId) {
       try {
-        const supabase = getSupabaseAdminClient(); // Ensure client is initialized for this scope
-        await supabase
-          .from('crm_customer_mapping')
-          .upsert({
-            profile_id: userId, // userId is token.sub, defined earlier
-            crm_customer_id: crmCustomerId,
-            stable_hash_id: stableHashId,
-            is_matched: true,
-            match_method: 'booking_creation_sync',
-            match_confidence: (crmMappingResult as any)?.confidence || 1,
-          }, { onConflict: 'profile_id' })
-          .select();
-        logTiming('UpsertedCrmCustomerMapping', 'info', { userId, stableHashId });
+        const supabase = getSupabaseAdminClient();
 
-        const { data: profile, error: profileError } = await supabase // Use the scoped supabase client
+        // Update profile with stable_hash_id (V2 architecture handles profile links automatically)
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('display_name, phone_number, email')
           .eq('id', userId)
           .single();
 
         if (profile?.display_name) {
-          await supabase // Use the scoped supabase client
+          await supabase
             .from('profiles')
             .update({ stable_hash_id: stableHashId })
             .eq('id', userId)
             .select();
-          logTiming('UpdatedProfilesStableHashId', 'info', { userId, stableHashId });
+          logTiming('UpdatedProfilesStableHashId V2', 'info', { userId, stableHashId });
         }
         
-        // Give the database a moment to propagate the changes before querying
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
       } catch (propagationError) {
-        console.error('[CreateBooking API] Error propagating stable_hash_id to profile links:', propagationError);
-        logTiming('PropagationErrorStableHashId', 'error', { userId, error: (propagationError as Error).message });
+        console.error('[CreateBooking API V2] Error updating profile stable_hash_id:', propagationError);
+        logTiming('PropagationErrorStableHashId V2', 'error', { userId, error: (propagationError as Error).message });
       }
     }
-    // --- END: Propagation logic ---
+    // --- END: V2 Architecture profile update ---
 
     // Determine the final stable_hash_id to be saved with the booking
     // Prioritize server-derived (CRM-verified) stableHashId
