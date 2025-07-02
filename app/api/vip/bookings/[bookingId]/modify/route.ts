@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
 import { sendVipCancellationNotification } from '@/lib/lineNotifyService';
 import type { NotificationBookingData } from '@/lib/lineNotifyService';
-import { deleteCalendarEventForBooking } from '@/lib/calendarService';
+
 // import { callAvailabilityCheck } from '@/lib/availabilityService'; // Placeholder for actual availability check call
 // import { triggerCalendarUpdate, triggerStaffNotification } from '@/lib/notificationService'; // Placeholders
 
@@ -31,17 +31,12 @@ interface ModifyRouteContext {
   params: Promise<ModifyRouteContextParams>;
 }
 
-// Helper to map Bay Name (e.g., "Bay 1") to bay_id (e.g., "bay_1")
-// This is a simplistic assumption, a more robust mapping might be needed
-// based on how BOOKING_CALENDARS keys are structured or if a separate mapping exists.
+// Helper to map Bay Name (e.g., "Bay 1") to bay_id (e.g., "bay_1") 
 function mapBayNameToBayId(bayName: string): string {
   return bayName.toLowerCase().replace(' ', '_');
 }
 
-async function triggerCalendarUpdate(bookingId: string, details: any) {
-  // Placeholder: Implement actual Google Calendar update logic (VIP-BE-013)
-  console.log(`ASYNC_TASK: Triggering Google Calendar update for booking ${bookingId}`, details);
-}
+
 
 async function triggerStaffNotification(bookingId: string, details: any) {
   // Placeholder: Implement actual Staff Notification logic (VIP-BE-012)
@@ -206,16 +201,7 @@ export async function POST(request: NextRequest, context: ModifyRouteContext) {
         .catch(err => console.error('[VIP Modify(Cancel)] Failed to send VIP cancellation notification:', err))
     );
     
-    // Calendar deletion task
-    const googleCalendarEventId = currentBooking.calendar_events?.google_calendar_event_id;
-    if (googleCalendarEventId && currentBooking.bay) {
-      asyncTasks.push(
-        deleteCalendarEventForBooking(bookingId, googleCalendarEventId, currentBooking.bay)
-          .catch(err => console.error('[VIP Modify(Cancel)] Failed to delete calendar event:', err))
-      );
-    } else {
-        console.warn(`[VIP Modify(Cancel)] Missing Google Calendar Event ID or bay for booking ${bookingId}, skipping calendar deletion.`);
-    }
+    // Calendar integration has been removed
 
     // Execute all async tasks in parallel (truly non-blocking - fire and forget)
     setImmediate(() => {

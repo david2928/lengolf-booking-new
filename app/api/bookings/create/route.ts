@@ -4,12 +4,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
-import { parse, addHours, addMinutes } from 'date-fns';
-import { zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
+
 import { getOrCreateCrmMappingV2, normalizeCrmCustomerData } from '@/utils/customer-matching';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
-import { BOOKING_CALENDARS } from '@/lib/bookingCalendarConfig';
-import { calendar } from '@/lib/googleApiConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { nextTick } from 'node:process';
 import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
@@ -405,11 +402,8 @@ export async function POST(request: NextRequest) {
     }
     logTiming('Request parsing', 'success');
 
-    // 3. Format date and time for availability check
-    const parsedDateTime = parse(`${date} ${start_time}`, 'yyyy-MM-dd HH:mm', new Date());
-    const startDateTime = zonedTimeToUtc(parsedDateTime, TIMEZONE);
-    const endDateTime = addHours(startDateTime, duration);
-    logTiming('Date parsing', 'success');
+    // 3. Date validation (native database function handles parsing)
+    logTiming('Date validation', 'success');
 
     // Get base URL for API calls that might be used outside sendNotifications if any
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -419,36 +413,31 @@ export async function POST(request: NextRequest) {
       // Bay availability check
       (async () => {
         try {
-          // Format date and time
-          const parsedDateTime = parse(`${date} ${start_time}`, 'yyyy-MM-dd HH:mm', new Date());
-          const startDateTime = zonedTimeToUtc(parsedDateTime, TIMEZONE);
-          const endDateTime = addHours(startDateTime, duration);
+          // Native database function handles date parsing
 
-          // Check availability for all bays
-          const bayAvailability = await Promise.all(
-            Object.entries(BOOKING_CALENDARS).map(async ([bay, calendarId]) => {
-              try {
-                const events = await calendar.events.list({
-                  calendarId,
-                  timeMin: formatInTimeZone(startDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-                  timeMax: formatInTimeZone(endDateTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-                  singleEvents: true,
-                  orderBy: 'startTime',
-                });
+          // Use native database function instead of Google Calendar
+          const supabase = getSupabaseAdminClient();
+          
+          const { data: bayAvailability, error } = await supabase.rpc('check_all_bays_availability', {
+            p_date: date,
+            p_start_time: start_time,
+            p_duration: parseFloat(duration)
+          });
 
-                return {
-                  bay,
-                  available: !events.data.items || events.data.items.length === 0
-                };
-              } catch (error) {
-                console.error(`Error checking availability for bay ${bay}:`, error);
-                return { bay, available: false };
-              }
-            })
-          );
+          if (error) {
+            console.error('Database function error:', error);
+            return { available: false };
+          }
+
+          // Transform database response
+          if (!bayAvailability || typeof bayAvailability !== 'object') {
+            return { available: false };
+          }
 
           // Find available bays
-          const availableBays = bayAvailability.filter(bay => bay.available);
+          const availableBays = Object.entries(bayAvailability)
+            .filter(([_, isAvailable]) => isAvailable === true)
+            .map(([bayName, _]) => bayName);
           
           if (availableBays.length === 0) {
             return { available: false };
@@ -457,8 +446,8 @@ export async function POST(request: NextRequest) {
           // Return the first available bay
           return {
             available: true,
-            bay: availableBays[0].bay,
-            allAvailableBays: availableBays.map(b => b.bay)
+            bay: availableBays[0],
+            allAvailableBays: availableBays
           };
         } catch (error) {
           console.error('Error checking bay availability:', error);
@@ -599,8 +588,7 @@ export async function POST(request: NextRequest) {
         bay: availableBay,
         status: 'confirmed',
         customer_notes: customer_notes,
-        stable_hash_id: finalStableHashIdForBooking,
-        google_calendar_sync_status: 'pending'
+        stable_hash_id: finalStableHashIdForBooking
       })
       .select()
       .single();
@@ -620,7 +608,7 @@ export async function POST(request: NextRequest) {
     logTiming('Booking creation', 'success', { 
       bookingId: booking.id, 
       bay: availableBay,
-      calendarSyncStatus: 'pending'
+      
     });
 
     // If we don't have a customer name from CRM, use the booking name
@@ -757,247 +745,7 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // 10. Trigger calendar creation in the background (still non-blocking)
-    // This is non-blocking - we'll return to the user before it completes
-    
-    // Format date and time for calendar
-    const calendarDateTime = parse(`${booking.date} ${booking.start_time}`, 'yyyy-MM-dd HH:mm', new Date());
-    const calendarStartTime = zonedTimeToUtc(calendarDateTime, TIMEZONE);
-    const calendarEndTime = addHours(calendarStartTime, booking.duration);
-    
-    // Trigger calendar creation with all required data (non-blocking)
-    const calendarData = {
-      bookingId: booking.id,
-      booking,
-      customerName,  // Use the normalized CRM customer name
-      bayDisplayName,
-      startDateTime: formatInTimeZone(calendarStartTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-      endDateTime: formatInTimeZone(calendarEndTime, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssxxx"),
-      packageInfo
-    };
-    
-    // Log calendar creation initiation
-    logTiming('Calendar creation initiated', 'info', {
-      bookingId: booking.id,
-      bay: availableBay,
-      bayDisplayName,
-      startDateTime: calendarData.startDateTime,
-      endDateTime: calendarData.endDateTime
-    });
-
-    // Use setTimeout to make this non-blocking
-    setTimeout(() => {
-      const calendarCreationStartTime = Date.now();
-      
-      // Create an AbortController for proper request cancellation
-      const abortController = new AbortController();
-      
-      // Add a timeout for the calendar creation request - increased to 60 seconds
-      const calendarPromise = fetch(`${baseUrl}/api/bookings/calendar/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': request.headers.get('Authorization') || ''
-        },
-        body: JSON.stringify(calendarData),
-        signal: abortController.signal
-      });
-
-      // Add a timeout wrapper - increased to 60 seconds
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          abortController.abort();
-          reject(new Error('Calendar creation timeout after 60 seconds'));
-        }, 60000);
-      });
-
-      Promise.race([calendarPromise, timeoutPromise])
-      .then((response: any) => {
-        if (!response.ok) {
-          throw new Error(`Calendar creation failed with status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(async (data) => {
-        const calendarCreationDuration = Date.now() - calendarCreationStartTime;
-        
-        if (data.calendarEventId) {
-          const eventId = data.calendarEventId;
-          const bookingToUpdateId = booking.id; // Capture booking id for use in this scope
-          
-          // Determine calendarId based on the booking's bay
-          // booking.bay should be available here from the earlier insert/select
-          const bookedBay = booking.bay; // Assuming booking object is in scope and has .bay
-          const calendarIdForUpdate = bookedBay ? BOOKING_CALENDARS[bookedBay as keyof typeof BOOKING_CALENDARS] : undefined;
-
-          if (!calendarIdForUpdate) {
-            console.error(`[Booking Create API - Async] Could not determine calendarId for booking ${bookingToUpdateId} with bay ${bookedBay}. Cannot update calendar_events.`);
-            if (ENABLE_DETAILED_LOGGING && userId) {
-              logBookingProcessStep({
-                bookingId: bookingToUpdateId,
-                userId,
-                step: 'Update booking with calendar_events',
-                status: 'error',
-                durationMs: calendarCreationDuration,
-                totalDurationMs: Date.now() - apiStartTime,
-                metadata: { error: 'Could not determine calendarId for update', eventId: eventId, bay: bookedBay }
-              });
-            }
-            return; // Stop if no calendarId can be found
-          }
-
-          const newCalendarEventsEntry = [{
-            eventId: eventId,
-            calendarId: calendarIdForUpdate,
-            status: "confirmed"
-          }];
-          
-          // Update booking with the new calendar_events field
-          console.log(`[Booking Create API - Async] Attempting to update booking ${bookingToUpdateId} with calendar_events:`, newCalendarEventsEntry);
-          
-          try {
-            const response = await getSupabaseAdminClient()
-              .from('bookings')
-              .update({ 
-                calendar_events: newCalendarEventsEntry,
-                google_calendar_sync_status: 'synced'
-              })
-              .eq('id', bookingToUpdateId);
-              
-            const updateDuration = Date.now() - calendarCreationStartTime;
-            const { error: updateError, data: updateData } = response;
-            
-            if (updateError) {
-              console.error(`[Booking Create API - Async] Failed to update booking ${bookingToUpdateId} with calendar_events. Error:`, JSON.stringify(updateError, null, 2), "Payload:", newCalendarEventsEntry);
-              
-              // Log to booking_process_logs table with detailed error info
-              if (ENABLE_DETAILED_LOGGING && userId) {
-                logBookingProcessStep({
-                  bookingId: bookingToUpdateId,
-                  userId,
-                  step: 'Update booking with calendar_events',
-                  status: 'error',
-                  durationMs: updateDuration,
-                  totalDurationMs: Date.now() - apiStartTime,
-                  metadata: { 
-                    error: updateError.message, 
-                    errorCode: updateError.code,
-                    errorDetails: updateError.details,
-                    eventDetails: newCalendarEventsEntry,
-                    supabaseErrorHint: updateError.hint
-                  }
-                });
-              }
-              
-              // Set sync status to failed
-              await getSupabaseAdminClient()
-                .from('bookings')
-                .update({ google_calendar_sync_status: 'failed' })
-                .eq('id', bookingToUpdateId);
-              
-              console.log(`[Booking Create API - Async] Set sync status to failed for booking ${bookingToUpdateId}`);
-            } else {
-              console.log(`[Booking Create API - Async] Successfully updated booking ${bookingToUpdateId} with calendar_events ${JSON.stringify(newCalendarEventsEntry)}`);
-              
-              // Log successful calendar creation AND booking update
-              if (ENABLE_DETAILED_LOGGING && userId) {
-                logBookingProcessStep({
-                  bookingId: bookingToUpdateId,
-                  userId,
-                  step: 'Calendar creation completed & booking updated with calendar_events',
-                  status: 'success',
-                  durationMs: updateDuration,
-                  totalDurationMs: Date.now() - apiStartTime,
-                  metadata: {
-                    calendarEvents: newCalendarEventsEntry,
-                    processingTime: data.processingTime,
-                    calendarCreationDuration,
-                    updateDuration
-                  }
-                });
-              }
-            }
-          } catch (updateError: any) {
-            console.error(`[Booking Create API - Async] Exception in booking update for ${bookingToUpdateId}:`, updateError);
-            
-            if (ENABLE_DETAILED_LOGGING && userId) {
-              logBookingProcessStep({
-                bookingId: bookingToUpdateId,
-                userId,
-                step: 'Update booking with calendar_events - exception',
-                status: 'error',
-                durationMs: Date.now() - calendarCreationStartTime,
-                totalDurationMs: Date.now() - apiStartTime,
-                metadata: { 
-                  error: updateError.message,
-                  eventDetails: newCalendarEventsEntry
-                }
-              });
-            }
-          }
-        } else {
-            // Handle case where calendarEventId is missing from the response
-            console.error(`[Booking Create API - Async] Calendar API call succeeded but event ID was missing for booking ${booking.id}. Response data:`, data);
-            
-            if (ENABLE_DETAILED_LOGGING && userId) {
-                logBookingProcessStep({
-                    bookingId: booking.id,
-                    userId,
-                    step: 'Calendar creation - missing event ID',
-                    status: 'error',
-                    durationMs: calendarCreationDuration,
-                    totalDurationMs: Date.now() - apiStartTime,
-                    metadata: { 
-                      error: 'Calendar event ID missing in calendar API response', 
-                      responseData: data,
-                      calendarCreationDuration
-                    }
-                });
-            }
-            
-            // Set sync status to failed
-            getSupabaseAdminClient()
-              .from('bookings')
-              .update({ google_calendar_sync_status: 'failed' })
-              .eq('id', booking.id)
-              .then(() => {
-                console.log(`[Booking Create API - Async] Set sync status to failed for booking ${booking.id} due to missing event ID`);
-              });
-        }
-      })
-      .catch(calendarApiError => {
-        const calendarCreationDuration = Date.now() - calendarCreationStartTime;
-        console.error(`[Booking Create API - Async] Google Calendar API call failed for booking ${booking.id}. Error:`, calendarApiError instanceof Error ? calendarApiError.message : JSON.stringify(calendarApiError), "Request Data Sent:", calendarData );
-        
-        // Log calendar creation error with more detail
-        if (ENABLE_DETAILED_LOGGING && userId) {
-          logBookingProcessStep({
-            bookingId: booking.id,
-            userId,
-            step: 'Calendar creation error',
-            status: 'error',
-            durationMs: calendarCreationDuration,
-            totalDurationMs: Date.now() - apiStartTime,
-            metadata: {
-              error: calendarApiError instanceof Error ? calendarApiError.message : JSON.stringify(calendarApiError),
-              errorType: calendarApiError?.name || 'Unknown',
-              isTimeout: calendarApiError?.message?.includes('timeout'),
-              calendarData: calendarData,
-              calendarCreationDuration
-            }
-          });
-        }
-        
-        // Set sync status to failed
-        getSupabaseAdminClient()
-          .from('bookings')
-          .update({ google_calendar_sync_status: 'failed' })
-          .eq('id', booking.id)
-          .then(() => {
-            console.log(`[Booking Create API - Async] Set sync status to failed for booking ${booking.id} due to calendar API error`);
-          });
-      });
-    }, 0);
+    // Calendar integration has been removed - booking creation is now complete
 
     // After successful booking creation, schedule review request for new customers
     if (isNewCustomer && token.sub) {

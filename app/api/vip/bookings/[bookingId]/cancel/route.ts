@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
 import { sendVipCancellationNotification } from '@/lib/lineNotifyService';
 import type { NotificationBookingData } from '@/lib/lineNotifyService';
-import { deleteCalendarEventForBooking } from '@/lib/calendarService';
+
 import { format } from 'date-fns';
 
 // Define a type for our session that includes the accessToken and a well-defined user
@@ -285,19 +285,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       console.warn('[VIP Cancel] No email address available for cancellation notification');
     }
     
-    // Calendar deletion task
-    const googleCalendarEventId = currentBooking.calendar_events && currentBooking.calendar_events[0]?.eventId;
-    const googleCalendarId = currentBooking.calendar_events && currentBooking.calendar_events[0]?.calendarId;
-
-    // Ensure bay is also present as it is used in deleteCalendarEventForBooking
-    if (googleCalendarEventId && googleCalendarId && currentBooking.bay) { 
-      asyncTasks.push(
-        deleteCalendarEventForBooking(bookingId, googleCalendarEventId, currentBooking.bay)
-          .catch(err => console.error('Failed to delete calendar event:', err))
-      );
-    } else {
-        console.warn(`Missing calendar event details for booking ${bookingId}, skipping calendar deletion`);
-    }
+    // Calendar integration has been removed
 
     // Execute all async tasks in parallel (truly non-blocking - fire and forget)
     setImmediate(() => {
@@ -315,8 +303,4 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
   }
 }
 
-// Removed unused triggerCalendarUpdateForCancel from this file as it was from example
-
-async function triggerCalendarUpdateForCancel(bookingId: string, details: any) {
-  console.log(`ASYNC_TASK: Triggering Google Calendar update for booking CANCELLATION ${bookingId}`, details);
-} 
+ 

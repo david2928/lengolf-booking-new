@@ -8,11 +8,27 @@
  * and let Supabase Cron trigger our webhook endpoint at the appropriate time.
  */
 
-import { createServerClient } from '@/utils/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 import { addMinutes, addHours, parse } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 
 const TIMEZONE = 'Asia/Bangkok';
+
+// Create service role client for admin operations
+const getServiceRoleClient = () => {
+  return createClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false
+      }
+    }
+  );
+};
 
 interface ScheduleOptions {
   bookingId: string;
@@ -28,7 +44,7 @@ interface ScheduleOptions {
  */
 export async function scheduleReviewRequest(options: ScheduleOptions): Promise<boolean> {
   try {
-    const supabase = createServerClient();
+    const supabase = getServiceRoleClient();
     let scheduledTime: Date;
     
     // If specific delay minutes are provided, use them from current time

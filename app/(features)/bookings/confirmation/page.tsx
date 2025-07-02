@@ -44,7 +44,7 @@ export default async function ConfirmationPage({
     }
   );
   const { data: booking, error: bookingError } = await supabase
-    .from('bookings_vip_staging')
+    .from('bookings')
     .select('*')
     .eq('id', id)
     .single();
