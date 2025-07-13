@@ -75,7 +75,7 @@ export async function findOrCreateCustomer(
       // Create new customer
       console.log(`[Customer Service] Creating new customer: ${name}, ${phone}`);
       
-      const { data: newCustomer, error } = await supabase
+      const { data: newCustomerArray, error } = await supabase
         .rpc('create_customer_with_code', {
           p_customer_name: name,
           p_contact_number: phone,
@@ -87,9 +87,11 @@ export async function findOrCreateCustomer(
           p_customer_profiles: null
         });
       
-      if (error || !newCustomer) {
-        throw new Error(`Customer creation failed: ${error?.message}`);
+      if (error || !newCustomerArray || newCustomerArray.length === 0) {
+        throw new Error(`Customer creation failed: ${error?.message || 'No customer data returned'}`);
       }
+      
+      const newCustomer = newCustomerArray[0];
       
       console.log(`[Customer Service] Created new customer: ${newCustomer.customer_code}`);
       
@@ -98,7 +100,7 @@ export async function findOrCreateCustomer(
           id: newCustomer.id,
           customer_code: newCustomer.customer_code,
           customer_name: newCustomer.customer_name,
-          normalized_phone: newCustomer.normalized_phone,
+          normalized_phone: normalizedPhone, // Use the normalized phone we calculated earlier
           email: newCustomer.email,
           contact_number: newCustomer.contact_number,
           total_visits: 0,

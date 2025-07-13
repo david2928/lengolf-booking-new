@@ -51,12 +51,14 @@ interface BookingDataParams {
   booking: Booking;
   crmData?: CrmData | null;
   bayInfo: BayInfo;
+  isNewCustomer?: boolean;
 }
 
 export function formatBookingData({
   booking,
   crmData,
-  bayInfo
+  bayInfo,
+  isNewCustomer = false
 }: BookingDataParams) {
   // Log the input data for debugging
   console.log(`formatBookingData - Input:`, {
@@ -113,7 +115,7 @@ export function formatBookingData({
     },
     lineNotification: {
       bookingName: booking.name,
-      customerLabel: crmData?.id ? (crmData?.name || booking.name) : "New Customer"
+      customerLabel: isNewCustomer ? "New Customer" : (crmData?.name || booking.name)
     }
   };
 }

@@ -566,7 +566,8 @@ export async function POST(request: NextRequest) {
       bayInfo: {
         id: availableBay,
         displayName: bayDisplayName
-      }
+      },
+      isNewCustomer: isNewCustomer
     });
     logTiming('Data formatting', 'success');
     
