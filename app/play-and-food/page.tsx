@@ -152,12 +152,12 @@ export default function PlayAndFoodPage() {
           <div className="text-gray-700 space-y-3">
             <p>
               Experience the ultimate golf entertainment with our all-in-one packages that combine 
-              golf simulation with delicious food and drinks - just like TopGolf's popular concept!
+              golf simulation with delicious food and drinks!
             </p>
             <p>
-              Each package is designed for groups of 5 people and includes everything you need for 
+              Each package is designed for groups of up to 5 people and includes everything you need for 
               a perfect outing: golf simulator time, fresh food prepared in our kitchen, and beverages. 
-              No hidden costs, no surprises - just pure entertainment value.
+              You can enjoy these packages with fewer people too! No hidden costs, no surprises - just pure entertainment value.
             </p>
             <p className="font-semibold text-green-800">
               Perfect for friend groups, family outings, celebrations, or team building events. 
