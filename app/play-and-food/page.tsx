@@ -121,7 +121,7 @@ export default function PlayAndFoodPage() {
                       ))}
                       {pkg.drinks.map((drink, index) => (
                         <div key={index}>
-                          • {drink.type === 'unlimited' ? 'Unlimited' : `${drink.quantity}x`} {drink.name}
+                          • {drink.type === 'unlimited' ? 'Unlimited' : drink.type === 'per_person' ? `${drink.quantity}x ${drink.name} per person` : `${drink.quantity}x ${drink.name}`}
                         </div>
                       ))}
                     </div>
