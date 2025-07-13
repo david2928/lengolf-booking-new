@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "WebFetch(domain:modelcontextprotocol.io)",
+      "Bash(npx:*)",
+      "Bash(where npx)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(timeout:*)",
+      "mcp__supabase__list_organizations",
+      "mcp__supabase__list_projects",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__search_docs",
+      "WebFetch(domain:github.com)",
+      "Bash(git checkout:*)",
+      "Bash(rm:*)",
+      "Bash(echo:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "mcp__supabase__apply_migration",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
+}

@@ -1,36 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
 
-import { getOrCreateCrmMappingV2, normalizeCrmCustomerData } from '@/utils/customer-matching';
+import { findOrCreateCustomer, getPackageInfoForCustomer } from '@/utils/customer-service';
 import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { nextTick } from 'node:process';
 import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
 
-// Create a dedicated Supabase client instance for admin operations within this route
-// This client will use the Service Role Key.
-let supabaseAdminClient: SupabaseClient<Database> | null = null;
-const getSupabaseAdminClient = () => {
-  if (!supabaseAdminClient) {
-    supabaseAdminClient = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!, // CRITICAL: Use the Service Role Key
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-          detectSessionInUrl: false
-        }
-      }
-    );
-  }
-  return supabaseAdminClient;
-};
-
+const supabase = createAdminClient();
 const TIMEZONE = 'Asia/Bangkok';
 
 // Configuration for detailed booking process logging
@@ -43,14 +23,6 @@ interface AvailabilityResult {
   allAvailableBays?: string[];
 }
 
-// Type definitions for the CRM mapping result
-interface CrmMappingResult {
-  profileId: string;
-  crmCustomerId: string;
-  stableHashId: string;
-  crmCustomerData?: any;
-  isNewMatch: boolean;
-}
 
 // Helper function to generate a booking ID
 const generateBookingId = () => {
@@ -59,103 +31,9 @@ const generateBookingId = () => {
   return `BK${timestamp}${randomNum}`;
 };
 
-/**
- * Helper function to get package info for a customer
- * This centralizes the package info handling logic and uses the same 
- * sophisticated package selection as the VIP API
- */
-async function getPackageInfo(stableHashId: string | null): Promise<string> {
-  // Default package info
-  let packageInfo = 'Normal Bay Rate';
-  
-  // If we have a stable hash ID, try to get package info
-  if (stableHashId) {
-    try {
-      const supabase = getSupabaseAdminClient();
-      const { data: packages, error: packagesError } = await supabase
-        .schema('backoffice' as any)
-        .rpc('get_packages_by_hash_id', { p_stable_hash_id: stableHashId });
-      
-      if (packagesError) {
-        console.error('Error fetching packages:', packagesError);
-        return packageInfo;
-      }
-      
-      if (packages && packages.length > 0) {
-        const now = new Date();
-        
-        // Filter for active, non-coaching packages using VIP logic
-        const activePackages = packages.filter((pkg: any) => {
-          // Skip coaching packages (using backoffice function field names)
-          if (pkg.package_type_from_def?.toLowerCase().includes('coaching') || 
-              pkg.package_name_from_def?.toLowerCase().includes('coaching')) {
-            return false;
-          }
-          
-          // Check if package is not expired
-          const expirationDate = new Date(pkg.expiration_date || '');
-          const isNotExpired = expirationDate > now;
-          
-          // Check if package has remaining capacity
-          // Package is active if:
-          // 1. Not expired, AND
-          // 2. Either has remaining hours > 0 OR has no remaining_hours field (unlimited/session-based packages)
-          const hasRemainingCapacity = pkg.calculated_remaining_hours === undefined || 
-                                      pkg.calculated_remaining_hours === null || 
-                                      pkg.calculated_remaining_hours > 0;
-          
-          return isNotExpired && hasRemainingCapacity;
-        });
-        
-        if (activePackages.length > 0) {
-          // Sort active packages to pick the best one:
-          // 1. Packages with more remaining hours first
-          // 2. Then by later expiration date
-          const sortedPackages = activePackages.sort((a: any, b: any) => {
-            // First, prioritize by remaining hours (more remaining hours = higher priority)
-            const aRemainingHours = a.calculated_remaining_hours ?? Infinity; // Treat unlimited as highest priority
-            const bRemainingHours = b.calculated_remaining_hours ?? Infinity;
-            
-            if (aRemainingHours !== bRemainingHours) {
-              return bRemainingHours - aRemainingHours; // Descending order (more hours first)
-            }
-            
-            // If remaining hours are equal, prioritize by later expiration date
-            const aExpiration = new Date(a.expiration_date || '1970-01-01').getTime();
-            const bExpiration = new Date(b.expiration_date || '1970-01-01').getTime();
-            
-            return bExpiration - aExpiration; // Descending order (later expiration first)
-          });
-          
-          const selectedPackage = sortedPackages[0];
-          
-          // Use package_name which contains the full descriptive name like "Gold (30H)"
-          const packageName = selectedPackage.package_name_from_def || 
-                             selectedPackage.package_display_name_from_def || 
-                             selectedPackage.package_type_from_def || 
-                             'Package';
-          packageInfo = `Package (${packageName})`;
-          
-          console.log(`[getPackageInfo] Selected package for ${stableHashId}:`, {
-            packageName,
-            remainingHours: selectedPackage.calculated_remaining_hours,
-            expirationDate: selectedPackage.expiration_date,
-            totalActivePackages: activePackages.length
-          });
-        } else {
-          console.log(`[getPackageInfo] No active packages found for ${stableHashId}. Total packages: ${packages.length}`);
-        }
-      }
-    } catch (error) {
-      console.error('Error looking up packages:', error);
-    }
-  }
-  
-  return packageInfo;
-}
 
 // Helper function to send notifications
-async function sendNotifications(formattedData: any, booking: any, bayDisplayName: string, crmCustomerId?: string, stableHashId?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
+async function sendNotifications(formattedData: any, booking: any, bayDisplayName: string, customerCode?: string, stableHashId?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   // const internalApiBasePath = ''; // No longer using relative paths for internal calls
   
@@ -165,7 +43,7 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
       try {
         console.log('[CreateBooking Email Notify Task] Starting email notification task.');
         const userName = booking.name;
-        const subjectName = crmCustomerId ? (formattedData.customerName || booking.name) : booking.name;
+        const subjectName = customerCode ? (formattedData.customerName || booking.name) : booking.name;
         
         const emailData = {
           userName,
@@ -178,9 +56,9 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
           numberOfPeople: booking.number_of_people,
           bayNumber: bayDisplayName,
           userId: booking.user_id,
-          crmCustomerId,
+          customerCode,
           stableHashId,
-          skipCrmMatch: true,
+          skipCustomerMatch: true,
           packageInfo,
           standardizedData: formattedData,
           customerNotes,
@@ -215,7 +93,7 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
       try {
         console.log('[CreateBooking LINE Notify Task] Starting LINE notification task.');
         const customerNameForLine = formattedData.customerName || booking.name;
-        const lineCustomerName = crmCustomerId ? customerNameForLine : "New Customer";
+        const lineCustomerName = customerCode ? customerNameForLine : "New Customer";
         
         const lineData = {
           customerName: lineCustomerName,
@@ -229,10 +107,12 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
           duration: booking.duration,
           numberOfPeople: booking.number_of_people,
           profileId: booking.user_id,
-          crmCustomerId,
+          customerCode,
           stableHashId,
-          skipCrmMatch: true,
+          skipCustomerMatch: true,
           packageInfo,
+          bookingType: booking.booking_type, // Add booking_type from database
+          packageName: booking.package_name, // Add package_name from database
           standardizedData: formattedData,
           customerNotes,
           bookingId: booking.id
@@ -309,7 +189,6 @@ async function logBookingProcessStep({
   if (!ENABLE_DETAILED_LOGGING) return;
 
   try {
-    const supabase = getSupabaseAdminClient();
     await supabase
       .from('booking_process_logs')
       .insert({
@@ -379,7 +258,9 @@ export async function POST(request: NextRequest) {
       duration,
       number_of_people,
       customer_notes,
-      stable_hash_id: clientSentStableHashId
+      stable_hash_id: clientSentStableHashId,
+      package_id: playFoodPackageId,
+      package_info: playFoodPackageInfo
     } = await request.json();
 
     // Validate required fields
@@ -408,15 +289,14 @@ export async function POST(request: NextRequest) {
     // Get base URL for API calls that might be used outside sendNotifications if any
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    // 5. Run bay availability check and CRM matching in parallel
-    const [availabilityResult, crmMappingResult] = await Promise.all([
+    // 5. Run bay availability check and customer identification in parallel
+    const [availabilityResult, customerResult] = await Promise.all([
       // Bay availability check
       (async () => {
         try {
           // Native database function handles date parsing
 
           // Use native database function instead of Google Calendar
-          const supabase = getSupabaseAdminClient();
           
           const { data: bayAvailability, error } = await supabase.rpc('check_all_bays_availability', {
             p_date: date,
@@ -455,29 +335,28 @@ export async function POST(request: NextRequest) {
         }
       })(),
       
-      // CRM matching V2 - streamlined approach using only V2 architecture
+      // Customer identification using new customer service
       (async () => {
         if (!token.sub) return null;
         
         try {
-          console.log(`[CRM Matching V2] Attempting match for profile ${userId} with booking phone: ${phone_number}`);
-          const v2Result = await getOrCreateCrmMappingV2(userId, { 
-            source: 'booking',
-            phoneNumberToMatch: phone_number
+          console.log(`[Customer Service] Starting customer identification for user ${userId}`);
+          
+          const result = await findOrCreateCustomer(userId, name, phone_number, email);
+          
+          console.log(`[Customer Service] Customer identification result:`, {
+            isNew: result.is_new_customer,
+            method: result.match_method,
+            confidence: result.confidence,
+            customerId: result.customer.id,
+            customerCode: result.customer.customer_code
           });
           
-          if (v2Result) {
-            console.log(`[CRM Matching V2] Match result - Customer: ${v2Result.crmCustomerId}, New: ${v2Result.isNewMatch}`);
-            return {
-              ...v2Result,
-              dataSource: 'v2_architecture'
-            };
-          }
+          return result;
           
-          return null;
         } catch (error) {
-          console.error('Error in CRM matching V2:', error);
-          return null;
+          console.error('Error in customer service:', error);
+          throw error; // Let the booking fail if customer service fails
         }
       })()
     ]).catch(error => {
@@ -487,12 +366,13 @@ export async function POST(request: NextRequest) {
     });
     
     // Log more detailed info about the results
-    logTiming('Parallel operations (availability + CRM V2)', 'success', {
+    logTiming('Parallel operations (availability + customer service)', 'success', {
       bayAvailability: availabilityResult?.available || false,
       availableBays: (availabilityResult as any)?.allAvailableBays || [],
-      crmMatchFound: !!(crmMappingResult as any)?.crmCustomerId,
-      isNewCrmMatch: !!(crmMappingResult as any)?.isNewMatch,
-      dataSource: (crmMappingResult as any)?.dataSource || 'unknown'
+      customerFound: !!(customerResult as any)?.customer?.id,
+      isNewCustomer: !!(customerResult as any)?.is_new_customer,
+      matchMethod: (customerResult as any)?.match_method || 'unknown',
+      confidence: (customerResult as any)?.confidence || 0
     });
 
     // 6. Handle availability result
@@ -509,70 +389,39 @@ export async function POST(request: NextRequest) {
     const availableBay = availabilityResultWithBay.bay;
     const bayDisplayName = BAY_DISPLAY_NAMES[availableBay] || availableBay;
 
-    // 7. Handle CRM matching result
-    let crmCustomerId = null;
-    let stableHashId: string | null = null;
-    let crmCustomerData = null;
+    // 7. Handle customer identification result
+    let customerId = null;
+    let customerCode = null;
     let customerName = null;
-    let isNewCustomer = true; // Flag to identify new customers
+    let isNewCustomer = true;
 
-    if (crmMappingResult) {
-      // Explicitly type crmMappingResult for clarity if not already strongly typed
-      const typedCrmMappingResult = crmMappingResult as ({ profileId: string; crmCustomerId: string; stableHashId: string; crmCustomerData?: any; isNewMatch: boolean; } | null);
-      
-      if (typedCrmMappingResult && typedCrmMappingResult.crmCustomerId) { // Check for crmCustomerId to ensure it's a full match object
-        crmCustomerId = typedCrmMappingResult.crmCustomerId;
-        stableHashId = typedCrmMappingResult.stableHashId; // This is the CRM-derived stableHashId
-        isNewCustomer = typedCrmMappingResult.isNewMatch; // isNewMatch is more accurate than just setting to false
+    if (customerResult) {
+      const customer = (customerResult as any).customer;
+      if (customer && customer.id) {
+        customerId = customer.id;
+        customerCode = customer.customer_code;
+        customerName = customer.customer_name;
+        isNewCustomer = (customerResult as any).is_new_customer;
         
-        if (typedCrmMappingResult.crmCustomerData) {
-          crmCustomerData = typedCrmMappingResult.crmCustomerData;
-          const normalizedCrmData = normalizeCrmCustomerData(crmCustomerData);
-          if (normalizedCrmData?.name) {
-            customerName = normalizedCrmData.name;
-          }
-        }
+        console.log(`[Customer Service] Using customer: ${customerCode} (${customerId}), New: ${isNewCustomer}`);
       }
+    } else {
+      // If customer identification failed, fail the booking
+      logTiming('Customer identification', 'error', { error: 'Customer identification failed' });
+      return NextResponse.json(
+        { error: 'Failed to identify or create customer' },
+        { status: 500 }
+      );
     }
-    logTiming('CRM data processing', 'success', { crmCustomerIdObtained: !!crmCustomerId, stableHashIdObtained: !!stableHashId });
-
-    // --- BEGIN: V2 Architecture - Update profile stable_hash_id only ---
-    if (stableHashId && crmCustomerId) {
-      try {
-        const supabase = getSupabaseAdminClient();
-
-        // Update profile with stable_hash_id (V2 architecture handles profile links automatically)
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('display_name, phone_number, email')
-          .eq('id', userId)
-          .single();
-
-        if (profile?.display_name) {
-          await supabase
-            .from('profiles')
-            .update({ stable_hash_id: stableHashId })
-            .eq('id', userId)
-            .select();
-          logTiming('UpdatedProfilesStableHashId V2', 'info', { userId, stableHashId });
-        }
-        
-      } catch (propagationError) {
-        console.error('[CreateBooking API V2] Error updating profile stable_hash_id:', propagationError);
-        logTiming('PropagationErrorStableHashId V2', 'error', { userId, error: (propagationError as Error).message });
-      }
-    }
-    // --- END: V2 Architecture profile update ---
-
-    // Determine the final stable_hash_id to be saved with the booking
-    // Prioritize server-derived (CRM-verified) stableHashId
-    const finalStableHashIdForBooking = stableHashId || clientSentStableHashId || null;
     
-    // Log what stable_hash_id we're actually using for the booking
-    console.log(`[CreateBooking API] Final stable_hash_id for booking: ${finalStableHashIdForBooking} (server-derived: ${stableHashId}, client-sent: ${clientSentStableHashId})`);
+    logTiming('Customer data processing', 'success', { 
+      customerIdObtained: !!customerId, 
+      customerCodeObtained: !!customerCode
+    });
 
-    // 8. Create the booking record with initial calendar sync status
-    const supabase = getSupabaseAdminClient();
+    // Profile linking is now handled automatically within findOrCreateCustomer
+
+    // 8. Create the booking record with customer information
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
@@ -588,7 +437,9 @@ export async function POST(request: NextRequest) {
         bay: availableBay,
         status: 'confirmed',
         customer_notes: customer_notes,
-        stable_hash_id: finalStableHashIdForBooking
+        customer_id: customerId, // NEW: Direct customer reference
+        is_new_customer: isNewCustomer
+        // REMOVED: stable_hash_id (deprecated)
       })
       .select()
       .single();
@@ -611,43 +462,44 @@ export async function POST(request: NextRequest) {
       
     });
 
-    // If we don't have a customer name from CRM, use the booking name
+    // If we don't have a customer name from the system, use the booking name
     if (!customerName) {
       customerName = booking.name;
     }
     
-    // Get package info using the centralized function
-    // Pass the stableHashId we know to be correct to avoid re-querying
-    const packageInfo = await getPackageInfo(finalStableHashIdForBooking);
-    logTiming('Customer data lookup', 'success');
+    // Get package info using customer service
+    let packageInfo = 'Normal Bay Rate';
+    let packageId: string | undefined;
+    let packageTypeName: string | undefined;
+    if (customerId) {
+      try {
+        const packageResult = await getPackageInfoForCustomer(customerId);
+        packageInfo = packageResult.packageInfo;
+        packageId = packageResult.packageId;
+        packageTypeName = packageResult.packageTypeName;
+        console.log(`[Customer Service] Package info for ${customerCode}: ${packageInfo}${ packageId ? ` (ID: ${packageId})` : ''}`);
+      } catch (packageError) {
+        console.error('Failed to get package info:', packageError);
+        // Continue with default package info
+      }
+    }
+    logTiming('Package info lookup', 'success', { packageInfo, packageId, customerId });
 
-    // Now log detailed CRM customer match information after package info is available
-    if (crmMappingResult && 'crmCustomerId' in crmMappingResult) {
-      // Log detailed CRM customer match information
-      logTiming('CRM customer match', 'success', {
-        crmCustomerId,
-        stableHashId,
+    // Log detailed customer identification information after package info is available
+    if (customerResult) {
+      // Log successful customer service result
+      logTiming('Customer identification', 'success', {
+        customerId,
+        customerCode,
         matchedName: customerName,
-        isNewMatch: (crmMappingResult as any)?.isNewMatch || false,
-        confidence: (crmMappingResult as any)?.confidence,
-        crmCustomerDetails: {
-          name: crmCustomerData ? normalizeCrmCustomerData(crmCustomerData)?.name || null : null,
-          phone: crmCustomerData ? normalizeCrmCustomerData(crmCustomerData)?.phone_number || null : null,
-          email: crmCustomerData ? normalizeCrmCustomerData(crmCustomerData)?.email || null : null,
-          hasActivePackage: !!packageInfo && packageInfo !== 'Normal Bay Rate'
+        isNewCustomer,
+        matchMethod: (customerResult as any)?.match_method,
+        confidence: (customerResult as any)?.confidence,
+        customerDetails: {
+          hasActivePackage: !!packageInfo && packageInfo !== 'Normal Bay Rate',
+          packageInfo,
+          packageId
         }
-      });
-    } else if (crmMappingResult) {
-      // Log failed CRM match
-      logTiming('CRM customer match', 'info', {
-        matched: false,
-        reason: 'No matching CRM customer found'
-      });
-    } else {
-      // Log failure in CRM matching process
-      logTiming('CRM customer match', 'error', {
-        matched: false,
-        reason: 'CRM matching process failed'
       });
     }
 
@@ -655,22 +507,38 @@ export async function POST(request: NextRequest) {
     let derivedBookingType: string;
     let derivedPackageName: string | null = null;
 
-    const packagePrefix = 'Package (';
-    if (packageInfo.startsWith(packagePrefix) && packageInfo.endsWith(')')) {
+    // Check for Play & Food packages first (only if they have the specific SET_ format)
+    if (playFoodPackageId && playFoodPackageInfo && playFoodPackageId.startsWith('SET_')) {
+      derivedBookingType = 'Play_Food_Package';
+      derivedPackageName = playFoodPackageId; // Use the package ID (SET_A, SET_B, SET_C)
+      console.log(`[Play & Food Package] Booking type: ${derivedBookingType}, Package: ${derivedPackageName}`);
+    }
+    // Then check for simulator/coaching packages (anything other than "Normal Bay Rate")
+    else if (packageInfo !== 'Normal Bay Rate') {
       derivedBookingType = 'Package';
-      derivedPackageName = packageInfo.substring(packagePrefix.length, packageInfo.length - 1);
+      // Use the full package type name (e.g., "Silver (15H)") from the database
+      derivedPackageName = packageTypeName || packageInfo;
+      console.log(`[Simulator Package] Booking type: ${derivedBookingType}, Package: ${derivedPackageName}`);
     } else {
-      derivedBookingType = packageInfo; // e.g., "Normal Bay Rate", "Coaching", etc.
+      derivedBookingType = packageInfo; // "Normal Bay Rate"
       // derivedPackageName remains null
+      console.log(`[Normal Booking] Booking type: ${derivedBookingType}`);
     }
 
-    // Update booking with booking_type and package_name
+    // Update booking with booking_type, package_name, and package_id
+    const updateData: any = { 
+      booking_type: derivedBookingType,
+      package_name: derivedPackageName
+    };
+    
+    // Add package_id only for simulator packages (not Play & Food packages)
+    if (packageId && derivedBookingType === 'Package') {
+      updateData.package_id = packageId;
+    }
+    
     const { error: updateBookingTypeError } = await supabase
       .from('bookings')
-      .update({ 
-        booking_type: derivedBookingType,
-        package_name: derivedPackageName
-      })
+      .update(updateData)
       .eq('id', booking.id);
 
     if (updateBookingTypeError) {
@@ -678,7 +546,7 @@ export async function POST(request: NextRequest) {
       logTiming('Booking type/package update', 'error', { error: updateBookingTypeError.message });
       // Decide if this is a critical error to stop the process
     } else {
-      logTiming('Booking type/package update', 'success', { booking_type: derivedBookingType, package_name: derivedPackageName });
+      logTiming('Booking type/package update', 'success', { booking_type: derivedBookingType, package_name: derivedPackageName, package_id: packageId });
     }
     
     // Update the local booking object with these details
@@ -691,9 +559,9 @@ export async function POST(request: NextRequest) {
     // 9. Format booking data for all services
     const formattedData = formatBookingData({
       booking,
-      crmData: crmCustomerId ? { 
-        id: crmCustomerId,
-        name: customerName  // Use the normalized CRM customer name
+      crmData: customerId ? { 
+        id: customerCode || customerId,
+        name: customerName  // Use the customer name from customer service
       } : null,
       bayInfo: {
         id: availableBay,
@@ -707,8 +575,8 @@ export async function POST(request: NextRequest) {
       formattedData,
       booking,
       bayDisplayName,
-      crmCustomerId || undefined,
-      finalStableHashIdForBooking || undefined,
+      customerCode || customerId || undefined, // Use customer code/ID
+      undefined, // Remove stable_hash_id parameter (deprecated)
       packageInfo,
       customer_notes
     );
@@ -751,7 +619,7 @@ export async function POST(request: NextRequest) {
     if (isNewCustomer && token.sub) {
       try {
         // Check if a review request has already been successfully sent to this user
-        const { data: existingSentRequest, error: sentCheckError } = await getSupabaseAdminClient()
+        const { data: existingSentRequest, error: sentCheckError } = await supabase
           .from('scheduled_review_requests')
           .select('id')
           .eq('user_id', token.sub)
@@ -779,7 +647,7 @@ export async function POST(request: NextRequest) {
         } else {
           // Proceed with scheduling if no prior 'sent' survey
           // Check if this is a LINE user by examining the profile
-          const { data: profile, error: profileError } = await getSupabaseAdminClient()
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('display_name, phone_number, email')
             .eq('id', token.sub)
@@ -849,8 +717,8 @@ export async function POST(request: NextRequest) {
       bookingId: booking.id,
       bay: availableBay,
       bayDisplayName,
-      crmCustomerId,
-      stableHashId,
+      customerId: customerId || undefined,
+      customerCode: customerCode || undefined,
       notificationsSuccess: notificationResults.success,
       processingTime: Date.now() - apiStartTime
     });

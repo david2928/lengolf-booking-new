@@ -3,7 +3,6 @@ import FacebookProvider from 'next-auth/providers/facebook';
 import LineProvider from 'next-auth/providers/line';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createClient } from '@supabase/supabase-js';
-import { getOrCreateCrmMappingV2 } from '@/utils/customer-matching';
 import { v4 as uuidv4 } from 'uuid';
 import type { NextAuthOptions } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
@@ -243,17 +242,10 @@ export const authOptions: NextAuthOptions = {
           if (guestProfile?.provider) user.provider = guestProfile.provider;
         }
 
-        // Attempt to create/refresh CRM mapping record
+        // Customer linking is now handled during booking creation
+        // No need to create customer records during sign-in
         if (user.id) {
-          try {
-                            // Use V2 architecture for customer matching
-                await getOrCreateCrmMappingV2(user.id, { source: 'auth' });
-          } catch (mappingError) {
-            console.error('[NextAuth Callback: signIn] Error processing CRM mapping:', mappingError);
-            // Decide if this should prevent sign-in, currently it doesn't
-          }
-        } else {
-            console.warn("[NextAuth Callback: signIn] User ID not available for CRM mapping.");
+          console.log('[NextAuth Callback: signIn] User signed in successfully:', user.id);
         }
 
         return true; // Proceed with sign-in

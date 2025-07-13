@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
-import { matchProfileWithCrmV2, createProfileLink, getProfileCustomerLink, getRealTimeCustomerForProfile } from '@/utils/customer-matching';
+import { createAdminClient } from '@/utils/supabase/admin';
 
 interface LinkAccountSessionUser {
   id: string;
@@ -36,67 +36,71 @@ export async function POST(request: Request) {
   }
 
   try {
-    console.log(`[VIP Link Account API V2] Attempting to link profile ${profileId} with phone ${phoneNumber}`);
+    console.log(`[VIP Link Account API V3] Attempting to link profile ${profileId} with phone ${phoneNumber}`);
 
-    // Check if profile already has a link
-    const existingLink = await getProfileCustomerLink(profileId);
-    if (existingLink) {
-      console.log(`[VIP Link Account API V2] Profile ${profileId} already has a link to ${existingLink.stable_hash_id}`);
-      
-      // Verify the link is still valid by getting customer data
-      const customerData = await getRealTimeCustomerForProfile(profileId);
-      if (customerData) {
+    const supabase = createAdminClient();
+
+    // Check if profile is already linked
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('customer_id')
+      .eq('id', profileId)
+      .single();
+
+    if (profile?.customer_id) {
+      // Profile already linked - get customer info
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('customer_code, customer_name')
+        .eq('id', profile.customer_id)
+        .single();
+
+      if (customer) {
+        console.log(`[VIP Link Account API V3] Profile already linked to customer ${customer.customer_code}`);
         return NextResponse.json({
           success: true,
           message: 'Your account is already linked to a customer record.',
           status: 'linked_matched',
-          crmCustomerId: customerData.id,
-          stableHashId: customerData.stable_hash_id,
-          dataSource: 'simplified_v2'
+          crmCustomerId: customer.customer_code,
+          stableHashId: null,
+          dataSource: 'customer_service_v3'
         });
-      } else {
-        console.warn(`[VIP Link Account API V2] Existing link for ${profileId} points to invalid customer data`);
-        // Continue with new matching attempt
       }
     }
 
-    // Attempt CRM matching using V2 architecture
-    const matchResult = await matchProfileWithCrmV2(profileId, {
-      phoneNumberToMatch: phoneNumber,
-      source: 'manual_link_vip_ui_phone_v2',
-    });
+    // Look for customer by normalized phone
+    const { data: normalizedPhone } = await supabase
+      .rpc('normalize_phone_number', { phone_input: phoneNumber });
 
-    if (matchResult?.matched && matchResult.stableHashId && matchResult.crmCustomerId) {
-      console.log(`[VIP Link Account API V2] Successfully matched profile ${profileId}:`, {
-        crmCustomerId: matchResult.crmCustomerId,
-        stableHashId: matchResult.stableHashId,
-        confidence: matchResult.confidence
-      });
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('id, customer_code, customer_name')
+      .eq('normalized_phone', normalizedPhone)
+      .single();
 
-      // Create the simplified profile link
-      const linkCreated = await createProfileLink(
-        profileId,
-        matchResult.stableHashId,
-        matchResult.confidence,
-        'manual_link_vip_ui_phone_v2'
-      );
+    if (customer) {
+      // Found customer - link the profile
+      const { error: linkError } = await supabase
+        .from('profiles')
+        .update({ customer_id: customer.id })
+        .eq('id', profileId);
 
-      if (linkCreated) {
-        return NextResponse.json({
-          success: true,
-          message: 'Excellent! Your account is now connected. You have full access to view your booking history, manage future bookings, view your lesson packages, and enjoy all VIP features.',
-          status: 'linked_matched',
-          crmCustomerId: matchResult.crmCustomerId,
-          stableHashId: matchResult.stableHashId,
-          dataSource: 'simplified_v2'
-        });
-      } else {
-        console.error(`[VIP Link Account API V2] Failed to create profile link for ${profileId}`);
+      if (linkError) {
+        console.error(`[VIP Link Account API V3] Failed to link profile:`, linkError);
         return NextResponse.json({ error: 'Failed to create customer link.' }, { status: 500 });
       }
 
+      console.log(`[VIP Link Account API V3] Successfully linked profile ${profileId} to customer ${customer.customer_code}`);
+      return NextResponse.json({
+        success: true,
+        message: 'Excellent! Your account is now connected. You have full access to view your booking history, manage future bookings, view your lesson packages, and enjoy all VIP features.',
+        status: 'linked_matched',
+        crmCustomerId: customer.customer_code,
+        stableHashId: null,
+        dataSource: 'customer_service_v3'
+      });
     } else {
-      console.log(`[VIP Link Account API V2] No CRM match found for profile ${profileId} with phone ${phoneNumber}`);
+      console.log(`[VIP Link Account API V3] No customer found for phone ${phoneNumber}`);
       
       return NextResponse.json({
         error: 'No matching customer account found with that phone number. Please check the number and try again, or contact us if you believe this is an error.'
@@ -104,7 +108,7 @@ export async function POST(request: Request) {
     }
 
   } catch (error) {
-    console.error('[VIP Link Account API V2] Unexpected error:', error);
+    console.error('[VIP Link Account API V3] Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

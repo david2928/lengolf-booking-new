@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { PLAY_FOOD_PACKAGES, type PlayFoodPackage } from '@/types/play-food-packages';
 
 export function useBookingFlow() {
   const { data: session, status } = useSession();
@@ -12,12 +13,24 @@ export function useBookingFlow() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [maxDuration, setMaxDuration] = useState<number>(1);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<PlayFoodPackage | null>(null);
 
   useEffect(() => {
-    if (status === 'authenticated' && searchParams && !isAutoSelecting) {
+    if (searchParams && !isAutoSelecting) {
+      const packageParam = searchParams.get('package');
       const dateParam = searchParams.get('selectDate');
       
-      if (dateParam) {
+      // Handle package parameter
+      if (packageParam && !selectedPackage) {
+        const pkg = PLAY_FOOD_PACKAGES.find(p => p.id === packageParam);
+        if (pkg) {
+          setSelectedPackage(pkg);
+          console.log(`[useBookingFlow] Package selected: ${pkg.name}`);
+        }
+      }
+
+      // Handle date parameter (existing logic)
+      if (status === 'authenticated' && dateParam) {
         setIsAutoSelecting(true);
         try {
           const selectedDateFromParam = new Date(dateParam);
@@ -39,11 +52,14 @@ export function useBookingFlow() {
         }
       }
     }
-  }, [status, isAutoSelecting]);
+  }, [status, searchParams, isAutoSelecting, router]);
 
   const handleDateSelect = (date: Date) => {
     if (status === 'unauthenticated') {
-      const callbackUrl = `/bookings?selectDate=${date.toISOString()}`;
+      let callbackUrl = `/bookings?selectDate=${date.toISOString()}`;
+      if (selectedPackage) {
+        callbackUrl += `&package=${selectedPackage.id}`;
+      }
       signIn(undefined, { callbackUrl });
       return;
     }
@@ -69,14 +85,31 @@ export function useBookingFlow() {
     }
   };
 
+  // Package-related helper functions
+  const getMaxDuration = () => {
+    return selectedPackage ? selectedPackage.duration : maxDuration;
+  };
+
+  const getFixedPeople = () => {
+    return selectedPackage ? 5 : null;
+  };
+
+  const isPackageMode = () => {
+    return selectedPackage !== null;
+  };
+
   return {
     currentStep,
     selectedDate,
     selectedTime,
     maxDuration,
     isAutoSelecting,
+    selectedPackage,
     handleDateSelect,
     handleTimeSelect,
     handleBack,
+    getMaxDuration,
+    getFixedPeople,
+    isPackageMode,
   };
 } 

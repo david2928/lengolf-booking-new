@@ -26,9 +26,13 @@ export default function BookingsPage() {
     selectedDate,
     selectedTime,
     maxDuration,
+    selectedPackage,
     handleDateSelect,
     handleTimeSelect,
     handleBack,
+    getMaxDuration,
+    getFixedPeople,
+    isPackageMode,
   } = useBookingFlow();
 
   if (status === 'loading') {
@@ -92,6 +96,9 @@ export default function BookingsPage() {
             selectedTime={selectedTime}
             maxDuration={maxDuration}
             onBack={handleBack}
+            selectedPackage={selectedPackage}
+            fixedPeople={getFixedPeople()}
+            isPackageMode={isPackageMode()}
           />
         )}
       </div>

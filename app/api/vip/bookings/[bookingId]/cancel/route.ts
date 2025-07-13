@@ -122,10 +122,18 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       cancellation_reason: cancellationReason || null
     };
 
-    const { data: cancelledBooking, error: updateError } = await supabaseUserClient
+    // Use admin client for the booking update to avoid schema permission issues
+    // The check_new_customer trigger tries to access pos.lengolf_sales which requires elevated permissions
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data: cancelledBooking, error: updateError } = await supabaseAdmin
       .from('bookings')
       .update(updatePayload)
       .eq('id', bookingId)
+      .eq('user_id', profileId) // Ensure user can only cancel their own bookings
       .select(`
         *,
         profiles (display_name, phone_number, vip_customer_data_id)

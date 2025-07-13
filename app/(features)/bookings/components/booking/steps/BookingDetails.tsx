@@ -6,6 +6,7 @@ import { format, addHours } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/supabase';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { User, SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
@@ -15,6 +16,8 @@ import type { Session } from 'next-auth';
 import { matchProfileWithCrm } from '@/utils/customer-matching';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
+import type { PlayFoodPackage } from '@/types/play-food-packages';
+import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
 
 interface Profile {
   name: string;
@@ -44,6 +47,9 @@ interface BookingDetailsProps {
   selectedTime: string;
   maxDuration: number;
   onBack: () => void;
+  selectedPackage?: PlayFoodPackage | null;
+  fixedPeople?: number | null;
+  isPackageMode?: boolean;
 }
 
 // Add loading animation components
@@ -109,6 +115,9 @@ export function BookingDetails({
   selectedTime,
   maxDuration,
   onBack,
+  selectedPackage,
+  fixedPeople,
+  isPackageMode = false,
 }: BookingDetailsProps) {
   const router = useRouter();
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
@@ -334,6 +343,22 @@ export function BookingDetails({
     }
   }, [isSubmitting, loadingStep, loadingSteps.length]);
 
+  // Pre-fill form when package is selected
+  useEffect(() => {
+    if (selectedPackage) {
+      setDuration(selectedPackage.duration);
+      // Don't auto-set number of people - let user choose
+    }
+  }, [selectedPackage]);
+
+  // Local state for package selector to allow switching
+  const [localSelectedPackage, setLocalSelectedPackage] = useState<PlayFoodPackage | null>(selectedPackage || null);
+
+  // Update local state when selectedPackage changes
+  useEffect(() => {
+    setLocalSelectedPackage(selectedPackage || null);
+  }, [selectedPackage]);
+
   const validateForm = () => {
     let currentErrors = { duration: '', phoneNumber: '', email: '', name: '' };
     let isValid = true;
@@ -500,7 +525,9 @@ export function BookingDetails({
           email,
           phone_number: phoneNumber,
           stable_hash_id: determinedStableHashId,
-          customer_notes: customerNotes
+          customer_notes: customerNotes,
+          package_id: selectedPackage?.id || null,
+          package_info: selectedPackage ? `${selectedPackage.name} - ${selectedPackage.displayName}` : null
         })
       });
       
@@ -572,10 +599,10 @@ export function BookingDetails({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Selected Info Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-green-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100">
           <div className="flex items-center gap-3">
             <div className="bg-green-50 p-2 sm:p-3 rounded-full">
               <CalendarIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
@@ -589,7 +616,7 @@ export function BookingDetails({
           </div>
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-green-100">
+        <div className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100">
           <div className="flex items-center gap-3">
             <div className="bg-green-50 p-2 sm:p-3 rounded-full">
               <ClockIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
@@ -605,32 +632,109 @@ export function BookingDetails({
       </div>
 
       {/* Booking Form */}
-      <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-xl shadow-sm p-4 sm:p-6">
-        {/* Duration Selection */}
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 bg-white rounded-xl shadow-sm p-3 sm:p-6">
+        {/* Play & Food Package Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Duration (in hours)
-          </label>
-          <div className="grid grid-cols-5 gap-2">
-            {Array.from({ length: maxDuration }, (_, i) => i + 1).map((hours) => (
-              <button
-                key={hours}
-                type="button"
-                onClick={() => setDuration(hours)}
-                className={`flex h-12 items-center justify-center rounded-lg border ${
-                  duration === hours
-                    ? 'border-green-600 bg-green-50 text-green-600 font-medium'
-                    : 'border-gray-300 text-gray-700 hover:border-green-600'
-                }`}
-              >
-                {hours}
-              </button>
-            ))}
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Play & Food Package (Optional)
+            </label>
+            <Link 
+              href="/play-and-food"
+              className="text-xs text-green-600 hover:text-green-700 underline"
+            >
+              View Details
+            </Link>
           </div>
-          {errors.duration && (
-            <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setLocalSelectedPackage(null);
+                setDuration(1);
+                setNumberOfPeople(1);
+                router.replace('/bookings', { scroll: false });
+              }}
+              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+                !localSelectedPackage
+                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                  : 'border-gray-300 text-gray-700 hover:border-green-600'
+              }`}
+            >
+              <span className="text-lg mb-1">—</span>
+              <span>None</span>
+            </button>
+            
+            {PLAY_FOOD_PACKAGES.map((pkg) => {
+              const isAvailable = pkg.duration <= maxDuration;
+              return (
+                <button
+                  key={pkg.id}
+                  type="button"
+                  disabled={!isAvailable}
+                  onClick={() => {
+                    if (isAvailable) {
+                      setLocalSelectedPackage(pkg);
+                      setDuration(pkg.duration);
+                      const newUrl = `/bookings?package=${pkg.id}`;
+                      router.replace(newUrl, { scroll: false });
+                    }
+                  }}
+                  className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+                    localSelectedPackage?.id === pkg.id
+                      ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                      : !isAvailable
+                      ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                      : 'border-gray-300 text-gray-700 hover:border-green-600'
+                  }`}
+                >
+                  <span className="text-lg font-bold mb-1">{pkg.id.split('_')[1]}</span>
+                  <span>฿{pkg.price.toLocaleString()}</span>
+                </button>
+              );
+            })}
+          </div>
+          
+          {localSelectedPackage && (
+            <div className="mt-4 p-3 bg-green-50 rounded-lg">
+              <div className="text-sm font-medium text-green-800 mb-2">
+                {localSelectedPackage.name} - {localSelectedPackage.duration} Hour{localSelectedPackage.duration > 1 ? 's' : ''} - ฿{localSelectedPackage.price.toLocaleString()} NET
+              </div>
+              <div className="text-xs text-gray-600">
+                <span className="font-medium">Includes:</span> Golf simulator, {localSelectedPackage.foodItems.map(f => f.name).join(', ')}, {localSelectedPackage.drinks.map(d => d.type === 'unlimited' ? `Unlimited ${d.name}` : `${d.quantity}x ${d.name}`).join(', ')}
+              </div>
+            </div>
           )}
         </div>
+
+
+        {/* Duration Selection - Only for regular bookings */}
+        {!localSelectedPackage && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Duration (in hours)
+            </label>
+            <div className="grid grid-cols-5 gap-2">
+              {Array.from({ length: maxDuration }, (_, i) => i + 1).map((hours) => (
+                <button
+                  key={hours}
+                  type="button"
+                  onClick={() => setDuration(hours)}
+                  className={`flex h-12 items-center justify-center rounded-lg border ${
+                    duration === hours
+                      ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                      : 'border-gray-300 text-gray-700 hover:border-green-600'
+                  }`}
+                >
+                  {hours}
+                </button>
+              ))}
+            </div>
+            {errors.duration && (
+              <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
+            )}
+          </div>
+        )}
 
         {/* Number of People */}
         <div>

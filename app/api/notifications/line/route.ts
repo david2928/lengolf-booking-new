@@ -22,7 +22,9 @@ interface BookingCreationPayload extends BaseNotificationPayload {
   numberOfPeople: number;
   bookingName: string;
   packageInfo?: string;
-  crmCustomerId?: string;
+  bookingType?: string; // Add booking type
+  packageName?: string; // Add package name
+  customerCode?: string;
   customerNotes?: string;
   standardizedData?: { // This structure is from your provided code
     lineNotification: {
@@ -41,7 +43,7 @@ interface BookingCreationPayload extends BaseNotificationPayload {
     duration: number;
     numberOfPeople: number;
     isNewCustomer?: boolean;
-    crmCustomerId?: string;
+    customerCode?: string;
   }
 }
 
@@ -143,7 +145,7 @@ export async function POST(request: NextRequest) {
 
       if (data.standardizedData) {
         const std = data.standardizedData;
-        const isNewCustomer = !data.crmCustomerId && !std.crmCustomerId;
+        const isNewCustomer = !data.customerCode && !std.customerCode;
         sanitizedBooking = {
           customerName: isNewCustomer ? "New Customer" : (std.lineNotification.customerLabel || std.customerName),
           bookingName: std.lineNotification.bookingName,
@@ -156,12 +158,14 @@ export async function POST(request: NextRequest) {
           duration: std.duration,
           numberOfPeople: std.numberOfPeople,
           packageInfo: data.packageInfo,
+          bookingType: data.bookingType, // Add booking type
+          packageName: data.packageName, // Add package name
           customerNotes: data.customerNotes,
-          crmCustomerId: data.crmCustomerId || std.crmCustomerId
+          customerCode: data.customerCode || std.customerCode
         };
       } else {
         sanitizedBooking = {
-          customerName: data.crmCustomerId ? data.customerName : "New Customer",
+          customerName: data.customerCode ? data.customerName : "New Customer",
           bookingName: data.bookingName,
           email: data.email,
           phoneNumber: data.phoneNumber,
@@ -172,8 +176,10 @@ export async function POST(request: NextRequest) {
           duration: data.duration,
           numberOfPeople: data.numberOfPeople,
           packageInfo: data.packageInfo,
+          bookingType: data.bookingType, // Add booking type
+          packageName: data.packageName, // Add package name
           customerNotes: data.customerNotes,
-          crmCustomerId: data.crmCustomerId
+          customerCode: data.customerCode
         };
       }
 
@@ -193,7 +199,22 @@ export async function POST(request: NextRequest) {
       messageToSend += `\nDate: ${formattedDate}`;
       messageToSend += `\nTime: ${sanitizedBooking.bookingStartTime || 'N/A'} - ${sanitizedBooking.bookingEndTime || 'N/A'}`;
       messageToSend += `\nBay: ${sanitizedBooking.bayNumber || 'N/A'}`;
-      messageToSend += `\nType: ${sanitizedBooking.packageInfo || 'Normal Bay Rate'}`;
+      // Format the type field to show "Package (packageName)" for packages
+      // Use the actual package_name from the booking record (from package_types table)
+      let typeDisplay;
+      console.log(`[LINE Notification] Debug - bookingType: "${sanitizedBooking.bookingType}", packageName: "${sanitizedBooking.packageName}", packageInfo: "${sanitizedBooking.packageInfo}"`);
+      
+      if (sanitizedBooking.bookingType === 'Package' && sanitizedBooking.packageName) {
+        typeDisplay = `Package (${sanitizedBooking.packageName})`;
+        console.log(`[LINE Notification] Using simulator package format: ${typeDisplay}`);
+      } else if (sanitizedBooking.bookingType === 'Play_Food_Package' && sanitizedBooking.packageName) {
+        typeDisplay = `Play & Food Package (${sanitizedBooking.packageName})`;
+        console.log(`[LINE Notification] Using play & food package format: ${typeDisplay}`);
+      } else {
+        typeDisplay = sanitizedBooking.packageInfo || 'Normal Bay Rate';
+        console.log(`[LINE Notification] Using fallback format: ${typeDisplay}`);
+      }
+      messageToSend += `\nType: ${typeDisplay}`;
       messageToSend += `\nPeople: ${sanitizedBooking.numberOfPeople || '1'}`;
       messageToSend += `\nChannel: Website`; // Assuming Website, or pass channel in payload if dynamic
       if (sanitizedBooking.customerNotes) {

@@ -2,8 +2,37 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
 import { createClient } from '@supabase/supabase-js';
-import { getRealTimeCustomerForProfile, getProfileCustomerLink } from '@/utils/customer-matching';
+import { findOrCreateCustomer } from '@/utils/customer-service';
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
+
+// Simple in-memory cache for profile data
+interface CachedProfile {
+  data: any;
+  timestamp: number;
+}
+
+const profileCache = new Map<string, CachedProfile>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
+function getCachedProfile(profileId: string): any | null {
+  const cached = profileCache.get(profileId);
+  if (!cached) return null;
+  
+  const isExpired = Date.now() - cached.timestamp > CACHE_TTL_MS;
+  if (isExpired) {
+    profileCache.delete(profileId);
+    return null;
+  }
+  
+  return cached.data;
+}
+
+function setCachedProfile(profileId: string, data: any): void {
+  profileCache.set(profileId, {
+    data,
+    timestamp: Date.now()
+  });
+}
 
 // Define a type for our session that includes the accessToken and a well-defined user
 interface VipProfileSessionUser extends NextAuthUser {
@@ -44,7 +73,16 @@ export async function GET() {
   });
 
   try {
-    console.log(`[VIP Profile API V2] Getting profile data for user ${profileId}`);
+    console.log(`[Profile API] Getting profile data for user ${profileId}`);
+
+    // Check cache first
+    const cachedProfile = getCachedProfile(profileId);
+    if (cachedProfile) {
+      console.log(`[Profile API] Returning cached profile data for user ${profileId}`);
+      return NextResponse.json(cachedProfile);
+    }
+
+    console.log(`[Profile API] Cache miss, fetching fresh profile data for user ${profileId}`);
 
     // NEW: Get basic profile data
     const { data: profileData, error: profileError } = await supabaseUserClient
@@ -55,6 +93,7 @@ export async function GET() {
         display_name, 
         picture_url, 
         phone_number,
+        customer_id,
         vip_customer_data_id,
         vip_customer_data:vip_customer_data_id (
           vip_display_name,
@@ -73,10 +112,10 @@ export async function GET() {
       .single();
 
     if (profileError) {
-      console.error('[VIP Profile API V2] Error fetching user profile:', profileError);
+      console.error('[Profile API] Error fetching user profile:', profileError);
       
       if (profileError.code === 'PGRST116') {
-        console.warn(`[VIP Profile API V2] Profile not found for session user ${profileId}. This indicates a stale session.`);
+        console.warn(`[Profile API] Profile not found for session user ${profileId}. This indicates a stale session.`);
         return NextResponse.json({ 
           error: 'Profile not found. Please log in again.', 
           forceLogout: true 
@@ -98,19 +137,36 @@ export async function GET() {
       ? (Array.isArray(vipData.vip_tiers) ? vipData.vip_tiers[0] : vipData.vip_tiers)
       : null;
 
-    // NEW: Use simplified architecture to get customer link and real-time data
-    const profileLink = await getProfileCustomerLink(profileId);
-    const customerData = await getRealTimeCustomerForProfile(profileId);
+    // Get customer data from the new customer system if profile is linked
+    let customerData = null;
+    if (profileData.customer_id) {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('id, customer_code, customer_name, contact_number, email')
+        .eq('id', profileData.customer_id)
+        .single();
+      
+      if (customer) {
+        customerData = {
+          id: customer.id,
+          customer_code: customer.customer_code,
+          name: customer.customer_name,
+          phone_number: customer.contact_number,
+          email: customer.email
+        };
+      }
+    }
 
-    console.log(`[VIP Profile API V2] Profile link found:`, profileLink ? {
-      stableHashId: profileLink.stable_hash_id,
-      confidence: profileLink.match_confidence
-    } : 'none');
-
-    console.log(`[VIP Profile API V2] Customer data found:`, customerData ? {
+    console.log(`[Profile API] Customer data found:`, customerData ? {
+      code: customerData.customer_code,
       name: customerData.name,
       phone: customerData.phone_number
-    } : 'none');
+    } : 'none (profile not linked to customer)');
 
     // Determine display values with priority: VIP data > Profile data
     let displayName = vipData?.vip_display_name || profileData.display_name || null;
@@ -118,7 +174,7 @@ export async function GET() {
     let marketingPreference: boolean | null = vipData?.vip_marketing_preference ?? null;
     let vipPhoneNumber: string | null = vipData?.vip_phone_number ?? null;
 
-    // Phone number priority: CRM > VIP > Profile
+    // Phone number priority: Customer > VIP > Profile
     let phoneNumber: string | null = customerData?.phone_number || vipPhoneNumber || profileData.phone_number || null;
 
     // VIP tier info
@@ -131,20 +187,16 @@ export async function GET() {
       };
     }
 
-    // Determine CRM status based on new architecture
-    let crmStatus: string;
-    let crmCustomerId: string | null = null;
+    // Determine customer status based on new architecture
+    let customerStatus: string;
+    let customerCode: string | null = null;
     let stableHashId: string | null = null;
 
-    if (customerData && profileLink) {
-      crmStatus = 'linked_matched';
-      crmCustomerId = customerData.id;
-      stableHashId = customerData.stable_hash_id || null;
-    } else if (profileLink) {
-      crmStatus = 'linked_unmatched';
-      stableHashId = profileLink.stable_hash_id;
+    if (customerData) {
+      customerStatus = 'linked';
+      customerCode = customerData.customer_code;
     } else {
-      crmStatus = 'not_linked';
+      customerStatus = 'not_linked';
     }
 
     const response = {
@@ -154,24 +206,27 @@ export async function GET() {
       phoneNumber: phoneNumber,
       pictureUrl: profileData.picture_url,
       marketingPreference: marketingPreference,
-      crmStatus: crmStatus,
-      crmCustomerId: crmCustomerId,
+      customerStatus: customerStatus,
+      customerCode: customerCode,
       stableHashId: stableHashId,
       vipTier: vipTierInfo,
       dataSource: 'simplified_v2'
     };
 
-    console.log(`[VIP Profile API V2] Returning profile data:`, {
+    console.log(`[Profile API] Returning profile data:`, {
       id: response.id,
-      crmStatus: response.crmStatus,
-      hasCustomerData: !!customerData,
-      hasProfileLink: !!profileLink
+      customerStatus: response.customerStatus,
+      hasCustomerData: !!customerData
     });
+
+    // Cache the response for future requests
+    setCachedProfile(profileId, response);
+    console.log(`[Profile API] Cached profile data for user ${profileId} (TTL: ${CACHE_TTL_MS / 1000}s)`);
 
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error('[VIP Profile API V2] Unexpected error:', error);
+    console.error('[Profile API] Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -189,7 +244,7 @@ export async function PUT(request: Request) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('[VIP Profile API PUT] Supabase URL or Anon Key is not set.');
+    console.error('[Profile API PUT] Supabase URL or Anon Key is not set.');
     return NextResponse.json({ error: 'Server configuration error: Supabase connection details missing.' }, { status: 500 });
   }
 
@@ -225,7 +280,7 @@ export async function PUT(request: Request) {
       .single();
 
     if (userProfileError || !userProfile) {
-      console.error('[VIP Profile API PUT] Error fetching user profile:', userProfileError);
+      console.error('[Profile API PUT] Error fetching user profile:', userProfileError);
       return NextResponse.json({ error: 'User profile not found or error fetching it.' }, { status: userProfileError ? 500 : 404 });
     }
 
@@ -241,12 +296,12 @@ export async function PUT(request: Request) {
         .maybeSingle();
 
       if (mappingError) {
-        console.warn(`[VIP Profile PUT] Error fetching crm_customer_mapping for profile ${profileId}:`, mappingError.message);
+        console.warn(`[Profile PUT] Error fetching crm_customer_mapping for profile ${profileId}:`, mappingError.message);
       } else if (mappingData?.is_matched && mappingData.stable_hash_id) {
         resolvedStableHashId = mappingData.stable_hash_id;
       }
     } catch (e) {
-      console.error('[VIP Profile PUT] Exception fetching stable_hash_id:', e);
+      console.error('[Profile PUT] Exception fetching stable_hash_id:', e);
     }
     // --- END: Determine stable_hash_id ---
 
@@ -259,7 +314,7 @@ export async function PUT(request: Request) {
         .maybeSingle(); // Use maybeSingle as it might not exist
 
       if (existingVipError) {
-        console.warn(`[VIP Profile PUT] Error checking for existing vip_customer_data by stable_hash_id ${resolvedStableHashId}:`, existingVipError.message);
+        console.warn(`[Profile PUT] Error checking for existing vip_customer_data by stable_hash_id ${resolvedStableHashId}:`, existingVipError.message);
         // Proceed with current targetVipDataId from profile if lookup fails, risk of creating duplicate if RLS hides it
       }
 
@@ -272,7 +327,7 @@ export async function PUT(request: Request) {
             .update({ vip_customer_data_id: targetVipDataId })
             .eq('id', profileId);
           if (profileLinkUpdateError) {
-            console.error(`[VIP Profile PUT] Failed to update profiles.vip_customer_data_id for profile ${profileId} to ${targetVipDataId}:`, profileLinkUpdateError.message);
+            console.error(`[Profile PUT] Failed to update profiles.vip_customer_data_id for profile ${profileId} to ${targetVipDataId}:`, profileLinkUpdateError.message);
           }
         }
       } else {
@@ -282,7 +337,7 @@ export async function PUT(request: Request) {
         // the current logic will update that old one. We should ideally update its stable_hash_id or merge.
         // For now, if an existing linked record (targetVipDataId) is present, we let it be updated below,
         // and it will get its stable_hash_id updated there if it was missing.
-        console.log(`[VIP Profile PUT] No existing vip_customer_data found for stable_hash_id ${resolvedStableHashId}. A new record will be created if profile is not already linked, or existing linked record will be updated.`);
+        console.log(`[Profile PUT] No existing vip_customer_data found for stable_hash_id ${resolvedStableHashId}. A new record will be created if profile is not already linked, or existing linked record will be updated.`);
       }
     }
 
@@ -305,8 +360,8 @@ export async function PUT(request: Request) {
         .single();
 
       if (insertVipError || !newVipData) {
-        console.error('[VIP Profile API PUT] Error creating vip_customer_data record:', insertVipError);
-        return NextResponse.json({ error: 'Failed to create VIP profile data.' }, { status: 500 });
+        console.error('[Profile API PUT] Error creating vip_customer_data record:', insertVipError);
+        return NextResponse.json({ error: 'Failed to create profile data.' }, { status: 500 });
       }
       targetVipDataId = newVipData.id;
 
@@ -317,7 +372,7 @@ export async function PUT(request: Request) {
         .eq('id', profileId);
 
       if (updateProfileLinkError) {
-        console.error('[VIP Profile API PUT] Error linking vip_customer_data to profile:', updateProfileLinkError);
+        console.error('[Profile API PUT] Error linking vip_customer_data to profile:', updateProfileLinkError);
         // Non-fatal for the update of vip_customer_data itself, but log it. User might need to retry.
         // Or, decide if this is a hard failure. For now, proceed to update vip_customer_data.
       }
@@ -343,11 +398,11 @@ export async function PUT(request: Request) {
             .eq('id', targetVipDataId)
             .single();
         if (fetchError) {
-            console.warn(`[VIP Profile PUT] Could not fetch current vip_customer_data to check stable_hash_id before update for ID ${targetVipDataId}`);
+            console.warn(`[Profile PUT] Could not fetch current vip_customer_data to check stable_hash_id before update for ID ${targetVipDataId}`);
         }
         if (!currentVipRecord?.stable_hash_id || currentVipRecord.stable_hash_id !== resolvedStableHashId) {
             updatePayload.stable_hash_id = resolvedStableHashId; 
-            console.log(`[VIP Profile PUT] Updating stable_hash_id on existing vip_customer_data (ID: ${targetVipDataId}) to ${resolvedStableHashId}`);
+            console.log(`[Profile PUT] Updating stable_hash_id on existing vip_customer_data (ID: ${targetVipDataId}) to ${resolvedStableHashId}`);
         }
       }
 
@@ -358,8 +413,8 @@ export async function PUT(request: Request) {
           .eq('id', targetVipDataId);
 
         if (updateVipError) {
-          console.error('[VIP Profile API PUT] Error updating vip_customer_data:', updateVipError);
-          return NextResponse.json({ error: 'Failed to update VIP profile data.' }, { status: 500 });
+          console.error('[Profile API PUT] Error updating vip_customer_data:', updateVipError);
+          return NextResponse.json({ error: 'Failed to update profile data.' }, { status: 500 });
         }
       }
     }
@@ -372,7 +427,7 @@ export async function PUT(request: Request) {
             .update({ updated_at: new Date().toISOString() })
             .eq('id', profileId);
         if (touchProfileError) {
-             console.warn('[VIP Profile API PUT] Failed to touch profiles.updated_at:', touchProfileError);
+             console.warn('[Profile API PUT] Failed to touch profiles.updated_at:', touchProfileError);
         }
     }
 
@@ -381,10 +436,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ message: 'No valid fields to update or data is the same.', updatedFields: [] }, { status: 200 });
     }
 
+    // Clear cache after successful update
+    profileCache.delete(profileId);
+    console.log(`[Profile API PUT] Cleared cache for user ${profileId} after profile update`);
+
     return NextResponse.json({ success: true, updatedFields: updatedFieldsAccumulator });
 
   } catch (error) {
-    console.error('[VIP Profile API PUT] Unexpected error:', error);
+    console.error('[Profile API PUT] Unexpected error:', error);
     return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 });
   }
 } 
