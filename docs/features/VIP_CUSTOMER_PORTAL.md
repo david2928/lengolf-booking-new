@@ -187,9 +187,9 @@ graph TD
 ```typescript
 // GET /api/vip/status
 interface VipStatusResponse {
-  status: 'linked_matched' | 'linked_unmatched' | 'not_linked';
-  crmCustomerId?: string;
-  stableHashId?: string;
+  status: 'linked_matched' | 'linked_unmatched' | 'not_linked' | 'vip_data_exists_crm_unmatched';
+  crmCustomerId: string | null;
+  // Note: stable_hash_id removed in 2025 modernization
 }
 ```
 
@@ -198,24 +198,23 @@ interface VipStatusResponse {
 // GET /api/vip/profile
 interface VipProfile {
   id: string;
-  name: string;
-  email: string;
-  phoneNumber: string;
-  marketingPreference: boolean;
-  crmStatus: string;
-  vipTier?: {
-    id: number;
-    name: string;
-    description: string;
-  };
+  name: string | null;
+  email: string | null;
+  phoneNumber: string | null;
+  pictureUrl: string | null;
+  marketingPreference: boolean | null;
+  customerStatus: 'linked' | 'not_linked';
+  customerCode: string | null;
+  vipTier: null; // VIP tiers removed in new system
+  dataSource: 'new_customer_system';
 }
 
 // PUT /api/vip/profile
-interface ProfileUpdateRequest {
+interface UpdateVipProfileRequest {
   display_name?: string;
   email?: string;
   marketingPreference?: boolean;
-  vip_phone_number?: string;
+  // Note: phone number updates removed for security
 }
 ```
 
@@ -254,10 +253,16 @@ interface BookingCancelRequest {
 
 ### Data Sources
 1. **Primary Profile**: `profiles` table with authentication data
-2. **VIP Data**: `vip_customer_data` table with customer preferences
-3. **CRM Integration**: `customers` table via stable hash linking
-4. **Booking Records**: `bookings` table with full audit trail
+2. **Customer Data**: `customers` table with unified customer information
+3. **CRM Integration**: Direct customer_id linking (stable_hash_id deprecated)
+4. **Booking Records**: `bookings` table with customer_id relationships
 5. **Package Information**: `crm_packages` table with usage tracking
+
+### Database Architecture Changes (2025)
+- **Removed**: `vip_customer_data` table dependencies
+- **Simplified**: Direct customer_id relationships instead of stable_hash_id
+- **Enhanced**: Row Level Security (RLS) with admin client patterns
+- **Improved**: Single source of truth via `customers` table
 
 ## 🎨 UI/UX Design Patterns
 
@@ -303,6 +308,55 @@ const VIP_CACHE_CONFIG = {
 - **Image Optimization**: Next.js Image component with WebP
 - **API Debouncing**: Reduced unnecessary API calls
 - **Bundle Splitting**: Route-based code splitting
+
+## 🔧 Security & Access Control
+
+### Row Level Security Implementation
+The VIP portal uses a dual access pattern to ensure secure data access:
+
+```typescript
+// VIP APIs use admin client with explicit access verification
+const adminSupabase = createAdminClient();
+
+// Verify user has access to booking via customer_id or user_id
+const hasDirectAccess = booking.user_id === profileId;
+const hasCustomerAccess = userProfile.customer_id && booking.customer_id === userProfile.customer_id;
+
+if (!hasDirectAccess && !hasCustomerAccess) {
+  return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+}
+```
+
+### Database Access Patterns
+- **Regular Supabase Client**: Used for user profile operations (respects RLS)
+- **Admin Supabase Client**: Used for booking operations (bypasses RLS with explicit verification)
+- **Customer-based Access**: VIP users can access all bookings linked to their customer_id
+- **Legacy Support**: Maintains backward compatibility during transition
+
+### API Security Model
+```typescript
+// Updated VIP API security pattern
+export async function GET(request: NextRequest) {
+  // 1. Validate session
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // 2. Get user's customer_id
+  const { data: userProfile } = await supabase
+    .from('profiles')
+    .select('customer_id')
+    .eq('id', session.user.id)
+    .single();
+
+  // 3. Use admin client for data access with verification
+  const { data: bookings } = await adminSupabase
+    .from('bookings')
+    .select('*')
+    .eq('customer_id', userProfile.customer_id); // Direct customer access
+}
+```
 
 ## 🔧 Development Guidelines
 

@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
 import { sendVipCancellationNotification } from '@/lib/lineNotifyService';
 import type { NotificationBookingData } from '@/lib/lineNotifyService';
@@ -13,7 +14,6 @@ interface VipBookingOpSessionUser extends NextAuthUser {
   id: string;
 }
 interface VipBookingOpSession extends NextAuthSession {
-  accessToken?: string;
   user: VipBookingOpSessionUser;
 }
 
@@ -32,19 +32,13 @@ interface CancelRouteContext {
 export async function POST(request: NextRequest, context: CancelRouteContext) {
   const session = await getServerSession(authOptions) as VipBookingOpSession | null;
 
-  if (!session?.user?.id || !session.accessToken) {
-    return NextResponse.json({ error: 'Unauthorized or missing token' }, { status: 401 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const profileId = session.user.id;
-  const userAccessToken = session.accessToken; // Store for clarity
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Supabase configuration missing');
-    return NextResponse.json({ error: 'Server configuration error: Supabase connection details missing.' }, { status: 500 });
-  }
+  const supabase = createServerClient();
+  const adminSupabase = createAdminClient();
   
   const params = await context.params;
   const { bookingId } = params;
@@ -66,16 +60,21 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     return NextResponse.json({ error: 'cancellation_reason must be a string or null if provided' }, { status: 400 });
   }
   
-  const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${userAccessToken}`
-      }
-    }
-  });
 
   try {
-    const { data: currentBooking, error: fetchError } = await supabaseUserClient
+    // First get user's customer_id to check if they can access this booking
+    const { data: userProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('customer_id')
+      .eq('id', profileId)
+      .single();
+
+    if (profileError || !userProfile) {
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+
+    // Use admin client to fetch booking by ID, then verify access
+    const { data: currentBooking, error: fetchError } = await adminSupabase
       .from('bookings')
       .select(`
         *,
@@ -91,7 +90,11 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       return NextResponse.json({ error: message, details: fetchError?.message }, { status });
     }
 
-    if (currentBooking.user_id !== profileId) {
+    // Check if user has access to this booking (either by user_id or customer_id)
+    const hasDirectAccess = currentBooking.user_id === profileId;
+    const hasCustomerAccess = userProfile.customer_id && currentBooking.customer_id === userProfile.customer_id;
+    
+    if (!hasDirectAccess && !hasCustomerAccess) {
       return NextResponse.json({ error: 'Access denied. You do not own this booking.' }, { status: 403 });
     }
     
@@ -122,21 +125,14 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       cancellation_reason: cancellationReason || null
     };
 
-    // Use admin client for the booking update to avoid schema permission issues
-    // The check_new_customer trigger tries to access pos.lengolf_sales which requires elevated permissions
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    const { data: cancelledBooking, error: updateError } = await supabaseAdmin
+    // Update the booking - don't filter by user_id since we already verified access above
+    const { data: cancelledBooking, error: updateError } = await adminSupabase
       .from('bookings')
       .update(updatePayload)
       .eq('id', bookingId)
-      .eq('user_id', profileId) // Ensure user can only cancel their own bookings
       .select(`
         *,
-        profiles (display_name, phone_number, vip_customer_data_id)
+        profiles (display_name, phone_number, customer_id)
       `)
       .single();
 
@@ -145,31 +141,32 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       return NextResponse.json({ error: 'Failed to cancel booking in database', details: updateError?.message }, { status: 500 });
     }
 
-    // Get phone number and email with priority: VIP customer data > profiles
+    // Get phone number and email with priority: Customer > Profiles
     let finalPhoneNumber = (cancelledBooking.profiles as any)?.phone_number || null;
     let finalEmail = null;
     
-    // Check if user has VIP customer data for enhanced contact info
-    const vipCustomerDataId = (cancelledBooking.profiles as any)?.vip_customer_data_id;
-    if (vipCustomerDataId) {
-      const { data: vipData, error: vipError } = await supabaseUserClient
-        .from('vip_customer_data')
-        .select('vip_phone_number, vip_email')
-        .eq('id', vipCustomerDataId)
+    // Check if user has customer data for enhanced contact info
+    const customerId = (cancelledBooking.profiles as any)?.customer_id;
+    if (customerId) {
+      const { data: customerData, error: customerError } = await adminSupabase
+        .from('customers')
+        .select('contact_number, email')
+        .eq('id', customerId)
         .single();
 
-      if (!vipError && vipData) {
-        // Use VIP phone number if available, otherwise keep profiles phone
-        if (vipData.vip_phone_number) {
-          finalPhoneNumber = vipData.vip_phone_number;
+      if (!customerError && customerData) {
+        if (customerData.contact_number) {
+          finalPhoneNumber = customerData.contact_number;
         }
-        finalEmail = vipData.vip_email;
+        if (customerData.email) {
+          finalEmail = customerData.email;
+        }
       }
     }
     
-    // Fallback to profiles email if no VIP email
+    // Fallback to profiles email if no customer email
     if (!finalEmail) {
-      const { data: profileData, error: profileError } = await supabaseUserClient
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('email')
         .eq('id', profileId)
@@ -202,7 +199,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       notes: cancellationReason ? `Cancellation Reason: ${cancellationReason}` : 'Cancelled by user'
     };
 
-    const { error: historyError } = await supabaseUserClient
+    const { error: historyError } = await supabase
         .from('booking_history')
         .insert(historyEntry);
 

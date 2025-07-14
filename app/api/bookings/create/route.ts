@@ -33,7 +33,7 @@ const generateBookingId = () => {
 
 
 // Helper function to send notifications
-async function sendNotifications(formattedData: any, booking: any, bayDisplayName: string, customerCode?: string, stableHashId?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
+async function sendNotifications(formattedData: any, booking: any, bayDisplayName: string, customerCode?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   // const internalApiBasePath = ''; // No longer using relative paths for internal calls
   
@@ -57,7 +57,6 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
           bayNumber: bayDisplayName,
           userId: booking.user_id,
           customerCode,
-          stableHashId,
           skipCustomerMatch: true,
           packageInfo,
           standardizedData: formattedData,
@@ -108,7 +107,6 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
           numberOfPeople: booking.number_of_people,
           profileId: booking.user_id,
           customerCode,
-          stableHashId,
           skipCustomerMatch: true,
           packageInfo,
           bookingType: booking.booking_type, // Add booking_type from database
@@ -258,7 +256,6 @@ export async function POST(request: NextRequest) {
       duration,
       number_of_people,
       customer_notes,
-      stable_hash_id: clientSentStableHashId,
       package_id: playFoodPackageId,
       package_info: playFoodPackageInfo
     } = await request.json();
@@ -577,7 +574,6 @@ export async function POST(request: NextRequest) {
       booking,
       bayDisplayName,
       customerCode || customerId || undefined, // Use customer code/ID
-      undefined, // Remove stable_hash_id parameter (deprecated)
       packageInfo,
       customer_notes
     );

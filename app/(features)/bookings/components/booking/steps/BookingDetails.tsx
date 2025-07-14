@@ -13,7 +13,6 @@ import { useSession } from 'next-auth/react';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import type { Session } from 'next-auth';
-import { matchProfileWithCrm } from '@/utils/customer-matching';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
@@ -428,63 +427,10 @@ export function BookingDetails({
     setShowLoadingOverlay(true);
     setLoadingStep(0);
     
-    let determinedStableHashId: string | null = null;
-
     try {
       if (!session?.user?.id) {
         throw new Error('User not authenticated');
       }
-      const profileId = session.user.id;
-
-      // --- BEGIN: Determine stable_hash_id ---
-      if (supabase) { // Ensure supabase client is available
-        // 1. Attempt to get from profiles -> vip_customer_data
-        const { data: profileVipData, error: profileVipError } = await supabase
-          .from('profiles')
-          .select('vip_customer_data_id')
-          .eq('id', profileId)
-          .single();
-
-        if (profileVipError) {
-          console.warn('[BookingDetails] Error fetching vip_customer_data_id from profiles:', profileVipError.message);
-        }
-
-        if (profileVipData?.vip_customer_data_id) {
-          const { data: vipData, error: vipError } = await supabase
-            .from('vip_customer_data')
-            .select('stable_hash_id')
-            .eq('id', profileVipData.vip_customer_data_id)
-            .single();
-          
-          if (!vipError && vipData?.stable_hash_id) {
-            determinedStableHashId = vipData.stable_hash_id;
-            console.log('[BookingDetails] Determined stable_hash_id from vip_customer_data:', determinedStableHashId);
-          }
-        }
-
-        // 2. Fallback to crm_customer_mapping if not found via vip_customer_data
-        if (!determinedStableHashId) {
-          const { data: crmMapData, error: crmMapError } = await supabase
-            .from('crm_customer_mapping')
-            .select('stable_hash_id')
-            .eq('profile_id', profileId)
-            .eq('is_matched', true)
-            .single();
-
-          if (crmMapError) {
-            console.warn('[BookingDetails] Error fetching stable_hash_id from crm_customer_mapping:', crmMapError.message);
-          } else if (crmMapData?.stable_hash_id) {
-            determinedStableHashId = crmMapData.stable_hash_id;
-            console.log('[BookingDetails] Determined stable_hash_id from crm_customer_mapping:', determinedStableHashId);
-          }
-        }
-        if (!determinedStableHashId) {
-            console.log('[BookingDetails] Could not determine stable_hash_id for user:', profileId);
-        }
-      } else {
-        console.warn('[BookingDetails] Supabase client not initialized, cannot determine stable_hash_id.');
-      }
-      // --- END: Determine stable_hash_id ---
       
       // Check if we need to update the user profile
       const profileNeedsUpdate = 
@@ -524,7 +470,6 @@ export function BookingDetails({
           name,
           email,
           phone_number: phoneNumber,
-          stable_hash_id: determinedStableHashId,
           customer_notes: customerNotes,
           package_id: selectedPackage?.id || null,
           package_info: selectedPackage ? `${selectedPackage.name} - ${selectedPackage.displayName}` : null

@@ -9,14 +9,13 @@ interface LinkAccountSessionUser {
   email?: string | null;
 }
 interface LinkAccountSession {
-  accessToken?: string;
   user: LinkAccountSessionUser;
 }
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions) as LinkAccountSession | null;
 
-  if (!session?.user?.id || !session.accessToken) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

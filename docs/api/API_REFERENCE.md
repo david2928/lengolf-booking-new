@@ -52,10 +52,10 @@ API Version: v1 (implicit)
 - **Purpose**: Real-time bay availability checking
 - **Authentication**: Optional
 
-### 5. CRM Integration APIs
-- **Endpoint Base**: `/api/crm`
-- **Purpose**: Customer relationship management
-- **Authentication**: Required
+### 5. CRM Integration APIs (Deprecated)
+- **Endpoint Base**: `/api/crm` 
+- **Status**: ⚠️ **DEPRECATED** - Legacy endpoints removed in 2025 modernization
+- **Replacement**: Direct customer data integration via VIP APIs
 
 ### 6. Notification APIs
 - **Endpoint Base**: `/api/notifications`
@@ -69,6 +69,22 @@ API Version: v1 (implicit)
 
 ## 🔧 VIP Customer APIs
 
+### 🚀 2025 Modernization Updates
+The VIP APIs have been modernized with the following key improvements:
+
+- **✅ Simplified Architecture**: Removed dependencies on `vip_customer_data` table and `stable_hash_id`
+- **✅ Enhanced Security**: Implemented dual access pattern with Row Level Security
+- **✅ Customer-Centric Access**: Users can now access all bookings linked to their customer_id
+- **✅ Performance Optimization**: Eliminated complex cross-table joins and legacy lookups
+- **✅ Data Consistency**: Single `customers` table as source of truth
+
+### Security & Access Control
+VIP APIs use a sophisticated dual access pattern:
+- **Regular Client**: For user profile operations (respects RLS)
+- **Admin Client**: For booking operations (bypasses RLS with explicit verification)
+- **Customer Access**: VIP users can access all bookings under their customer_id
+- **Explicit Verification**: Strict access control maintained through programmatic checks
+
 ### Get VIP Status
 ```http
 GET /api/vip/status
@@ -81,9 +97,9 @@ GET /api/vip/status
 **Response**:
 ```typescript
 interface VipStatusResponse {
-  status: 'linked_matched' | 'linked_unmatched' | 'not_linked';
-  crmCustomerId?: string;
-  stableHashId?: string;
+  status: 'linked_matched' | 'linked_unmatched' | 'not_linked' | 'vip_data_exists_crm_unmatched';
+  crmCustomerId: string | null;
+  // Note: stable_hash_id removed in 2025 modernization
 }
 ```
 
@@ -91,8 +107,7 @@ interface VipStatusResponse {
 ```json
 {
   "status": "linked_matched",
-  "crmCustomerId": "CRM-12345",
-  "stableHashId": "abc123def456"
+  "crmCustomerId": "07566f42-dfcd-4230-aa8e-ef8e00125739"
 }
 ```
 
@@ -109,38 +124,31 @@ GET /api/vip/profile
 ```typescript
 interface VipProfile {
   id: string;
-  name: string;
-  email: string;
-  phoneNumber: string;
-  pictureUrl?: string;
-  marketingPreference: boolean;
-  crmStatus: 'linked_matched' | 'linked_unmatched' | 'not_linked';
-  crmCustomerId?: string;
-  stableHashId?: string;
-  vipTier?: {
-    id: number;
-    name: string;
-    description: string;
-  };
+  name: string | null;
+  email: string | null;
+  phoneNumber: string | null;
+  pictureUrl: string | null;
+  marketingPreference: boolean | null;
+  customerStatus: 'linked' | 'not_linked';
+  customerCode: string | null;
+  vipTier: null; // VIP tiers removed in new system
+  dataSource: 'new_customer_system';
 }
 ```
 
 **Example Response**:
 ```json
 {
-  "id": "user-uuid-123",
-  "name": "John Doe",
-  "email": "john@example.com",
-  "phoneNumber": "0812345678",
+  "id": "27585f9f-b171-49f8-a2b5-83c50c005f40",
+  "name": "David",
+  "email": "dgeiermann@gmail.com",
+  "phoneNumber": "+66842695447",
+  "pictureUrl": null,
   "marketingPreference": true,
-  "crmStatus": "linked_matched",
-  "crmCustomerId": "CRM-12345",
-  "stableHashId": "abc123def456",
-  "vipTier": {
-    "id": 1,
-    "name": "Eagle",
-    "description": "Premium tier with exclusive benefits"
-  }
+  "customerStatus": "linked",
+  "customerCode": "CUS-1872",
+  "vipTier": null,
+  "dataSource": "new_customer_system"
 }
 ```
 
@@ -155,29 +163,29 @@ PUT /api/vip/profile
 
 **Request Body**:
 ```typescript
-interface ProfileUpdateRequest {
+interface UpdateVipProfileRequest {
   display_name?: string;
   email?: string;
   marketingPreference?: boolean;
-  vip_phone_number?: string;
+  // Note: phone number updates removed for security
 }
 ```
 
 **Example Request**:
 ```json
 {
-  "display_name": "John Smith",
-  "email": "johnsmith@example.com",
-  "marketingPreference": false,
-  "vip_phone_number": "0812345679"
+  "display_name": "David Geiermann",
+  "email": "dgeiermann@gmail.com",
+  "marketingPreference": false
 }
 ```
 
 **Response**:
 ```json
 {
-  "message": "Profile updated successfully.",
-  "updatedFields": ["display_name", "email", "marketingPreference"]
+  "success": true,
+  "message": "Successfully updated: name, email, marketing_preference",
+  "updatedFields": ["name", "email", "marketing_preference"]
 }
 ```
 
@@ -202,8 +210,7 @@ POST /api/vip/link-account
 {
   "message": "Account linked successfully.",
   "status": "linked_matched",
-  "crmCustomerId": "CRM-12345",
-  "stableHashId": "abc123def456"
+  "crmCustomerId": "07566f42-dfcd-4230-aa8e-ef8e00125739"
 }
 ```
 
@@ -230,17 +237,17 @@ GET /api/vip/bookings?page=1&limit=10&filter=all
 
 **Response**:
 ```typescript
-interface BookingListResponse {
-  data: Booking[];
+interface VipBookingsResponse {
+  bookings: VipBooking[];
   pagination: {
     currentPage: number;
     totalPages: number;
-    totalItems: number;
-    itemsPerPage: number;
+    totalCount: number;
+    limit: number;
   };
 }
 
-interface Booking {
+interface VipBooking {
   id: string;
   date: string;              // YYYY-MM-DD
   startTime: string;         // HH:mm
@@ -248,30 +255,34 @@ interface Booking {
   bay: string;
   status: 'confirmed' | 'cancelled' | 'completed';
   numberOfPeople: number;
-  customerNotes?: string;
+  notes?: string;
+  bookingType?: string | null;
+  createdAt?: string;
 }
 ```
 
 **Example Response**:
 ```json
 {
-  "data": [
+  "bookings": [
     {
-      "id": "booking-123",
-      "date": "2024-01-20",
-      "startTime": "14:00",
-      "duration": 2,
+      "id": "BK250713Z22Q",
+      "date": "2025-07-14",
+      "startTime": "22:00",
+      "duration": 1,
       "bay": "Bay 1",
-      "status": "confirmed",
-      "numberOfPeople": 2,
-      "customerNotes": "Looking forward to the session!"
+      "status": "cancelled",
+      "numberOfPeople": 1,
+      "notes": "Test Booking",
+      "bookingType": "Normal Bay Rate",
+      "createdAt": "2025-07-13T03:12:53.463625Z"
     }
   ],
   "pagination": {
     "currentPage": 1,
-    "totalPages": 3,
-    "totalItems": 25,
-    "itemsPerPage": 10
+    "totalPages": 15,
+    "totalCount": 73,
+    "limit": 5
   }
 }
 ```
@@ -545,7 +556,18 @@ POST /api/availability/check
 }
 ```
 
-## 👥 CRM Integration APIs
+## 👥 CRM Integration APIs (DEPRECATED)
+
+⚠️ **DEPRECATION NOTICE**: The following CRM APIs have been deprecated as of January 2025 and are no longer active. Customer data integration is now handled directly through the unified customer system and VIP APIs.
+
+### Migration Guide
+- **Profile Data**: Use `/api/vip/profile` instead of `/api/crm/profile`
+- **Customer Linking**: Use `/api/vip/link-account` instead of `/api/crm/match`
+- **Package Information**: Use `/api/vip/packages` instead of `/api/crm/packages`
+
+---
+
+## Legacy Documentation (For Reference Only)
 
 ### Get Customer Mapping
 ```http

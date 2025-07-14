@@ -1,26 +1,15 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
-import { createClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/utils/supabase/admin';
-import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
-
-interface VipStatusSessionUser extends NextAuthUser {
-  id: string;
-}
-
-interface VipStatusSession extends NextAuthSession {
-  accessToken?: string;
-  user: VipStatusSessionUser;
-}
 
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions) as VipStatusSession | null;
+    const session = await getServerSession(authOptions);
 
-    if (!session?.user?.id || !session.accessToken) {
-      return NextResponse.json({ error: 'Unauthorized or missing token' }, { status: 401 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const profileId = session.user.id;

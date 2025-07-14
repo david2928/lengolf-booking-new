@@ -4,7 +4,6 @@
 export interface VipStatusResponse {
   status: "linked_matched" | "linked_unmatched" | "not_linked" | "vip_data_exists_crm_unmatched";
   crmCustomerId: string | null;
-  stableHashId: string | null;
 }
 
 // 2. POST /api/vip/link-account
@@ -16,7 +15,6 @@ export interface LinkAccountSuccessResponse {
   message: string;
   status: "linked_matched";
   crmCustomerId: string;
-  stableHashId: string;
 }
 
 // 3. GET /api/vip/profile
@@ -33,10 +31,10 @@ export interface VipProfileResponse {
   phoneNumber: string | null;
   pictureUrl: string | null;
   marketingPreference: boolean | null;
-  crmStatus: "linked_matched" | "linked_unmatched" | "not_linked" | "vip_data_exists_crm_unmatched";
-  crmCustomerId: string | null;
-  stableHashId: string | null;
+  customerStatus: "linked" | "not_linked";
+  customerCode: string | null;
   vipTier: VipTierInfo | null;
+  dataSource?: string;
 }
 
 // 4. PUT /api/vip/profile
@@ -44,10 +42,10 @@ export interface UpdateVipProfileRequest {
   display_name?: string;
   email?: string;
   marketingPreference?: boolean;
-  vip_phone_number?: string | null;
 }
 
 export interface UpdateVipProfileResponse {
+  success: boolean;
   message: string;
   updatedFields: string[];
 }

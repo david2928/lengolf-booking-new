@@ -144,23 +144,28 @@ export async function POST(request: NextRequest) {
             throw new Error(`Failed to retrieve booking: ${bookingError.message}`);
           }
           
-          // Try to get customer name from CRM if possible
+          // Try to get customer name from customer system if possible
           let customerName = bookingData.name; // Default to booking name
           
-          // Check if there's a CRM mapping for this user
+          // Check if there's a customer linked to this user
           if (bookingData.user_id) {
-            const { data: crmMapping, error: crmError } = await supabase
-              .from('crm_customer_mapping')
-              .select('crm_customer_data')
-              .eq('profile_id', bookingData.user_id)
-              .eq('is_matched', true)
-              .order('match_confidence', { ascending: false })
-              .maybeSingle();
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('customer_id')
+              .eq('id', bookingData.user_id)
+              .single();
             
-            if (!crmError && crmMapping?.crm_customer_data?.name) {
-              // Use customer name from CRM if available
-              customerName = crmMapping.crm_customer_data.name;
-              console.log(`ℹ️ Using CRM customer name: ${customerName}`);
+            if (!profileError && profile?.customer_id) {
+              const { data: customer, error: customerError } = await supabase
+                .from('customers')
+                .select('customer_name')
+                .eq('id', profile.customer_id)
+                .single();
+              
+              if (!customerError && customer?.customer_name) {
+                customerName = customer.customer_name;
+                console.log(`ℹ️ Using customer name: ${customerName}`);
+              }
             }
           }
           

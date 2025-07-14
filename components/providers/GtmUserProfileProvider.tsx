@@ -7,18 +7,20 @@ import { pushProfileDataToGtm } from '@/utils/gtm';
 
 export interface UserProfileData {
   profileId: string | null;
-  stableHashId: string | null;
+  customerId: string | null;
+  customerCode: string | null;
 }
 
 /**
  * Provider that pushes user profile data to the Google Tag Manager data layer
- * This makes profileId and stableHashId available for all GTM tracking
+ * This makes profileId and customer information available for all GTM tracking
  */
 export function GtmUserProfileProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const [profileData, setProfileData] = useState<UserProfileData>({
     profileId: null,
-    stableHashId: null,
+    customerId: null,
+    customerCode: null,
   });
 
   // Fetch user profile data and push to GTM data layer
@@ -30,10 +32,10 @@ export function GtmUserProfileProvider({ children }: { children: React.ReactNode
           const supabase = createClient();
           const userId = session.user.id;
 
-          // Get profile data directly
-          const { data: profileData, error: profileError } = await supabase
+          // Get profile data with linked customer information
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('id')
+            .select('id, customer_id')
             .eq('id', userId)
             .single();
 
@@ -42,37 +44,38 @@ export function GtmUserProfileProvider({ children }: { children: React.ReactNode
             return;
           }
 
-          // Get CRM mapping to find stable hash ID
-          const { data: crmMappings, error: crmError } = await supabase
-            .from('crm_customer_mapping')
-            .select('stable_hash_id, crm_customer_id, match_confidence, updated_at')
-            .eq('profile_id', userId)
-            .eq('is_matched', true)
-            .order('match_confidence', { ascending: false }) // Highest confidence first
-            .order('updated_at', { ascending: false }); // Most recent first
+          let customerCode = null;
+          let customerName = null;
 
-          if (crmError) {
-            console.error('Error fetching CRM mappings:', crmError);
+          // If profile has a linked customer, fetch customer details
+          if (profile?.customer_id) {
+            const { data: customer, error: customerError } = await supabase
+              .from('customers')
+              .select('customer_code, customer_name')
+              .eq('id', profile.customer_id)
+              .single();
+
+            if (!customerError && customer) {
+              customerCode = customer.customer_code;
+              customerName = customer.customer_name;
+            }
           }
-
-          // Use the best mapping (first in sorted list)
-          const bestMapping = crmMappings && crmMappings.length > 0 ? crmMappings[0] : null;
-          
-          if (crmMappings && crmMappings.length > 1) {
-            console.warn(`Multiple CRM mappings found (${crmMappings.length}), using highest confidence one`);
-          }
-
-          // Set profile data for GTM
+            
           const userData = {
             profileId: userId,
-            stableHashId: bestMapping?.stable_hash_id || null,
-            customerID: bestMapping?.crm_customer_id || null // For backward compatibility
+            customerId: profile?.customer_id || null,
+            customerCode: customerCode,
+            customerName: customerName,
+            // Legacy fields for backward compatibility
+            stableHashId: null, // Deprecated but kept for existing GTM triggers
+            customerID: customerCode
           };
 
           // Update state
           setProfileData({
             profileId: userData.profileId,
-            stableHashId: userData.stableHashId
+            customerId: userData.customerId,
+            customerCode: userData.customerCode
           });
 
           // Push to GTM data layer

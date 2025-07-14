@@ -4,7 +4,11 @@
 
 interface UserProfileData {
   profileId: string | null;
-  stableHashId: string | null;
+  customerId?: string | null;
+  customerCode?: string | null;
+  customerName?: string | null;
+  // Legacy fields for backward compatibility
+  stableHashId?: string | null;
   customerID?: string | null;
 }
 
@@ -19,8 +23,13 @@ export function pushProfileDataToGtm(profileData: UserProfileData): void {
   window.dataLayer.push({
     event: 'userProfileAvailable',
     profileId: profileData.profileId,
-    stableHashId: profileData.stableHashId,
-    customerID: profileData.customerID || null  // For backward compatibility
+    // New customer fields
+    customerId: profileData.customerId || null,
+    customerCode: profileData.customerCode || null,
+    customerName: profileData.customerName || null,
+    // Legacy fields for backward compatibility
+    stableHashId: profileData.stableHashId || null,
+    customerID: profileData.customerID || profileData.customerCode || null
   });
 }
 

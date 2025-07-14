@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -10,7 +11,6 @@ interface VipBookingsSessionUser extends NextAuthUser {
 }
 
 interface VipBookingsSession extends NextAuthSession {
-  accessToken?: string;
   user: VipBookingsSessionUser;
 }
 
@@ -29,30 +29,13 @@ async function safeSupabaseQuery(query: any) {
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions) as VipBookingsSession | null;
 
-  if (!session?.user?.id || !session.accessToken) {
-    return NextResponse.json({ error: 'Unauthorized or missing token' }, { status: 401 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const profileId = session.user.id;
-  const userAccessToken = session.accessToken;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('[VIP Bookings API GET] Supabase URL or Anon Key is not set.');
-    return NextResponse.json({ error: 'Server configuration error: Supabase connection details missing.' }, { status: 500 });
-  }
-
-  // Add detailed logging for profileId being processed
-  // console.log(`[VIP Bookings API GET] Processing request for profileId: ${profileId}`);
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${userAccessToken}`
-      }
-    }
-  });
+  const supabase = createServerClient();
+  const adminSupabase = createAdminClient();
 
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
@@ -62,7 +45,6 @@ export async function GET(request: NextRequest) {
   const offset = (page - 1) * limit;
 
   try {
-    let userStableHashId: string | null = null;
 
     // Get current date and time in Asia/Bangkok
     const nowInBangkok = new Date();
@@ -72,55 +54,79 @@ export async function GET(request: NextRequest) {
     
     // console.log(`[VIP Bookings API GET] Current server datetime in ${serverTimeZone}: ${todayDate} ${currentTime}`);
 
-    // 1. Try to get stable_hash_id from profiles -> vip_customer_data
+    // Get customer ID from profile
     const profileData = await safeSupabaseQuery(
       supabase
         .from('profiles')
-        .select('vip_customer_data_id')
+        .select('customer_id')
         .eq('id', profileId)
         .single()
     );
 
-    if (profileData && profileData.vip_customer_data_id) {
-      const vipCustomerData = await safeSupabaseQuery(
-        supabase
-          .from('vip_customer_data')
-          .select('stable_hash_id')
-          .eq('id', profileData.vip_customer_data_id)
-          .single()
-      );
-      if (vipCustomerData && vipCustomerData.stable_hash_id) {
-        userStableHashId = vipCustomerData.stable_hash_id;
+    let userCustomerId: string | null = null;
+    if (profileData && profileData.customer_id) {
+      userCustomerId = profileData.customer_id;
+    }
+    
+    console.log(`[VIP Bookings API] Profile ${profileId} has customer_id: ${userCustomerId}`);
+    console.log(`[VIP Bookings API] Filter: ${filter}, Page: ${page}, Limit: ${limit}`);
+    console.log(`[VIP Bookings API] Current date: ${todayDate}, Current time: ${currentTime}`);
+    
+    // Debug: Check total bookings for this user/customer
+    if (userCustomerId) {
+      const { count: totalBookingsByCustomer } = await adminSupabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('customer_id', userCustomerId);
+      
+      const { count: totalBookingsByUser } = await adminSupabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profileId);
+        
+      console.log(`[VIP Bookings API] Total bookings by customer_id ${userCustomerId}: ${totalBookingsByCustomer}`);
+      console.log(`[VIP Bookings API] Total bookings by user_id ${profileId}: ${totalBookingsByUser}`);
+      
+      // Additional debug: Check if bookings exist for customer code CUS-1872
+      const { data: customerInfo } = await supabase
+        .from('customers')
+        .select('customer_code')
+        .eq('id', userCustomerId)
+        .single();
+      
+      if (customerInfo?.customer_code) {
+        console.log(`[VIP Bookings API] Customer code: ${customerInfo.customer_code}`);
+        
+        // Check if any bookings reference this customer code in different fields
+        const { count: bookingsByName } = await adminSupabase
+          .from('bookings')
+          .select('*', { count: 'exact', head: true })
+          .ilike('name', `%${customerInfo.customer_code}%`);
+          
+        const { count: bookingsByEmail } = await adminSupabase
+          .from('bookings')
+          .select('*', { count: 'exact', head: true })
+          .eq('email', 'dgeiermann@gmail.com');
+          
+        console.log(`[VIP Bookings API] Bookings with customer code in name: ${bookingsByName}`);
+        console.log(`[VIP Bookings API] Bookings with email dgeiermann@gmail.com: ${bookingsByEmail}`);
       }
     }
 
-    // 2. If not found, try to get from crm_customer_mapping
-    if (!userStableHashId) {
-      const crmMappingData = await safeSupabaseQuery(
-        supabase
-          .from('crm_customer_mapping')
-          .select('stable_hash_id, is_matched')
-          .eq('profile_id', profileId)
-          .single()
-      );
-      if (crmMappingData && crmMappingData.is_matched && crmMappingData.stable_hash_id) {
-        userStableHashId = crmMappingData.stable_hash_id;
-      }
-    }
-
-    // 3. Query bookings using stable_hash_id OR profile_id
-    // Build query to search both by stable_hash_id (if available) and by user_id (profile_id)
-    let baseQuery = supabase
+    // Query bookings using customer_id and/or profile_id
+    // Build query to search both by customer_id (if available) and by user_id (profile_id)
+    let baseQuery = adminSupabase
       .from('bookings')
       .select('id, date, start_time, duration, bay, status, number_of_people, customer_notes, booking_type, created_at', { count: 'exact' });
 
-    // Query by stable_hash_id AND/OR user_id to capture bookings from before and after CRM matching
-    if (userStableHashId) {
-      // If user has stable_hash_id, query both by stable_hash_id AND user_id to get all bookings
-      baseQuery = baseQuery.or(`stable_hash_id.eq.${userStableHashId},user_id.eq.${profileId}`);
+    // Query by customer_id to get ALL bookings for this customer
+    if (userCustomerId) {
+      baseQuery = baseQuery.eq('customer_id', userCustomerId);
+      console.log(`[VIP Bookings API] Using customer_id filter: ${userCustomerId}`);
     } else {
-      // If no stable_hash_id, query only by user_id (profile_id)
+      // If no customer_id, query only by user_id (profile_id) as fallback
       baseQuery = baseQuery.eq('user_id', profileId);
+      console.log(`[VIP Bookings API] Using user_id filter: ${profileId}`);
     }
 
     // For future bookings, we need to fetch all records first, then sort by status, then paginate
@@ -130,19 +136,19 @@ export async function GET(request: NextRequest) {
 
     if (filter === 'future') {
       // Fetch ALL future bookings first (without pagination)
-      const allFutureQuery = supabase
+      let allFutureQuery = adminSupabase
         .from('bookings')
         .select('id, date, start_time, duration, bay, status, number_of_people, customer_notes, booking_type, created_at', { count: 'exact' });
 
-      // Apply user filtering - same logic as above
-      if (userStableHashId) {
-        allFutureQuery.or(`stable_hash_id.eq.${userStableHashId},user_id.eq.${profileId}`);
+      // Apply customer filtering - same logic as above
+      if (userCustomerId) {
+        allFutureQuery = allFutureQuery.eq('customer_id', userCustomerId);
       } else {
-        allFutureQuery.eq('user_id', profileId);
+        allFutureQuery = allFutureQuery.eq('user_id', profileId);
       }
 
       // Apply future date/time filter
-      allFutureQuery.or(`date.gt.${todayDate},and(date.eq.${todayDate},start_time.gte.${currentTime})`);
+      allFutureQuery = allFutureQuery.or(`date.gt.${todayDate},and(date.eq.${todayDate},start_time.gte.${currentTime})`);
 
       const { data: allFutureBookings, error: futureError, count } = await allFutureQuery;
 
@@ -179,20 +185,29 @@ export async function GET(request: NextRequest) {
     } else {
       // For past and all bookings, use the original approach with database-level sorting
       if (filter === 'past') {
-        baseQuery = baseQuery.or(`date.lt.${todayDate},and(date.eq.${todayDate},start_time.lt.${currentTime})`)
+        const pastFilter = `date.lt.${todayDate},and(date.eq.${todayDate},start_time.lt.${currentTime})`;
+        baseQuery = baseQuery.or(pastFilter)
                      .order('date', { ascending: false })
                      .order('start_time', { ascending: false });
+        console.log(`[VIP Bookings API] Added past filter: ${pastFilter}`);
       } else { // 'all' or any other value
         baseQuery = baseQuery.order('date', { ascending: false }).order('start_time', { ascending: false });
+        console.log(`[VIP Bookings API] Using 'all' filter - no date restriction`);
       }
 
       baseQuery = baseQuery.range(offset, offset + limit - 1);
+      console.log(`[VIP Bookings API] Using pagination: offset ${offset}, limit ${limit}`);
 
       const { data: bookingsData, error, count } = await baseQuery;
 
       if (error) {
-        console.error('Error fetching bookings:', error);
+        console.error('[VIP Bookings API] Error fetching bookings:', error);
         return NextResponse.json({ error: 'Failed to fetch bookings.' }, { status: 500 });
+      }
+
+      console.log(`[VIP Bookings API] Query returned ${bookingsData?.length || 0} bookings, total count: ${count}`);
+      if (bookingsData && bookingsData.length > 0) {
+        console.log(`[VIP Bookings API] Sample booking:`, JSON.stringify(bookingsData[0], null, 2));
       }
 
       allBookingsData = bookingsData || [];
