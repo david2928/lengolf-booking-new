@@ -88,9 +88,12 @@ SUPABASE_SERVICE_ROLE_KEY=
 NEXTAUTH_SECRET=
 NEXTAUTH_URL=
 LINE_CHANNEL_ACCESS_TOKEN=
-EMAIL_HOST=
-EMAIL_USER=
-EMAIL_PASSWORD=
+EMAIL_HOST=               # SMTP server hostname or IP
+EMAIL_PORT=               # SMTP port (default: 587)
+EMAIL_SECURE=             # Use SSL/TLS (default: false)
+EMAIL_USER=               # SMTP username
+EMAIL_PASSWORD=           # SMTP password
+EMAIL_TLS_REJECT_UNAUTHORIZED=  # Reject unauthorized certificates (default: true)
 ```
 
 ## Common Gotchas

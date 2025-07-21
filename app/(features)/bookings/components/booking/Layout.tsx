@@ -86,6 +86,24 @@ export function Layout({ children }: LayoutProps) {
   // Show Link Account for authenticated users who truly need linking
   const shouldShowLinkAccount = sessionStatus === 'authenticated' && isAccountUnmatched;
 
+  // Debug logging
+  console.log('[Booking Layout] VIP Status Debug:', {
+    sessionStatus,
+    provider: session?.user?.provider,
+    isVipEligible,
+    vipProfile: vipProfile ? {
+      crmStatus: vipProfile.crmStatus,
+      hasVipData: vipProfile.hasVipData,
+      isActive: vipProfile.isActive,
+      profileExists: vipProfile.profileExists
+    } : null,
+    vipLoading,
+    vipError,
+    isAccountUnmatched,
+    isUserLinked,
+    shouldShowLinkAccount
+  });
+
   if (sessionStatus === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -193,6 +211,7 @@ export function Layout({ children }: LayoutProps) {
                         {isUserLinked ? (
                           <>
                             <div className="border-t border-gray-100"></div>
+                            {console.log('[Booking Layout] Rendering VIP navigation links for linked user')}
                             <Link href="/vip/profile" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                               <UserIconLucide className="h-4 w-4" />
                               <span>My Profile</span>
@@ -280,6 +299,7 @@ export function Layout({ children }: LayoutProps) {
                     
                     {isUserLinked && (
                       <>
+                        {console.log('[Booking Layout] Rendering mobile VIP navigation for linked user')}
                         <li className="border-t border-primary-foreground/20 pt-2 mt-2">
                           <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PROFILE</p>
                           <ul className="mt-1 space-y-1">

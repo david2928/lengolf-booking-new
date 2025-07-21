@@ -16,15 +16,15 @@ interface EmailConfirmation {
 }
 
 const transporter = nodemailer.createTransport({
-  host: '27.254.86.99', // Direct IP address instead of mail.len.golf
-  port: 587,
-  secure: false, // Use false since port 587 doesn't use SSL
+  host: process.env.EMAIL_HOST || 'mail.len.golf',
+  port: parseInt(process.env.EMAIL_PORT || '587'),
+  secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD,
   },
   tls: {
-    rejectUnauthorized: false, // Allow self-signed certificates if necessary
+    rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false',
   },
 });
 

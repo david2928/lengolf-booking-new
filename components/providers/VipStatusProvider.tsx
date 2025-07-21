@@ -20,6 +20,10 @@ export interface VipProfile {
   crmCustomerId: string | null;
   stableHashId: string | null;
   vipTier: VipTier | null;
+  // Additional computed properties for backward compatibility
+  hasVipData?: boolean;
+  isActive?: boolean;
+  profileExists?: boolean;
 }
 
 interface VipStatusContextType {
@@ -83,23 +87,57 @@ export function VipStatusProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/vip/profile');
-        if (!response.ok) {
-          let errorMsg = `Error fetching VIP profile: ${response.status} ${response.statusText}`;
+        // First get VIP status to determine if user is linked
+        const statusResponse = await fetch('/api/vip/status');
+        if (!statusResponse.ok) {
+          let errorMsg = `Error fetching VIP status: ${statusResponse.status} ${statusResponse.statusText}`;
           try {
-            const errorData = await response.json();
+            const errorData = await statusResponse.json();
             errorMsg = errorData.error || errorMsg;
           } catch (e) {
             // Ignore if response is not JSON
           }
           throw new Error(errorMsg);
         }
-        const data = await response.json();
-        setVipProfile(data);
+        const statusData = await statusResponse.json();
+
+        // Then get profile data for user details
+        const profileResponse = await fetch('/api/vip/profile');
+        if (!profileResponse.ok) {
+          let errorMsg = `Error fetching VIP profile: ${profileResponse.status} ${profileResponse.statusText}`;
+          try {
+            const errorData = await profileResponse.json();
+            errorMsg = errorData.error || errorMsg;
+          } catch (e) {
+            // Ignore if response is not JSON
+          }
+          throw new Error(errorMsg);
+        }
+        const profileData = await profileResponse.json();
+
+        // Transform the data to match VipProfile interface
+        const transformedProfile: VipProfile = {
+          id: profileData.id,
+          name: profileData.name,
+          email: profileData.email,
+          phoneNumber: profileData.phoneNumber,
+          pictureUrl: profileData.pictureUrl,
+          marketingPreference: profileData.marketingPreference,
+          crmStatus: statusData.status, // Use status from /api/vip/status
+          crmCustomerId: statusData.crmCustomerId,
+          stableHashId: null, // Deprecated field
+          vipTier: profileData.vipTier,
+          // Computed properties for backward compatibility
+          hasVipData: statusData.status !== 'not_linked',
+          isActive: statusData.status === 'linked_matched' || statusData.status === 'linked_unmatched',
+          profileExists: true
+        };
+
+        setVipProfile(transformedProfile);
         
         // Update cache
         vipProfileCache.current = {
-          profile: data,
+          profile: transformedProfile,
           lastFetchTime: Date.now(),
           sessionId: session.user.id,
         };
