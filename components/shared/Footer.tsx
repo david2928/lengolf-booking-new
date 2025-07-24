@@ -24,10 +24,19 @@ const SharedFooter = () => {
               href="https://maps.app.goo.gl/M7ygv921XyzcQwBE8" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-gray-600 hover:text-gray-800"
+              className="group inline-flex items-start text-gray-600 hover:text-[#005a32] transition-colors mt-3"
             >
-              The Mercury Ville @ BTS Chidlom<br />
-              Floor 4
+              <svg className="h-5 w-5 mr-2 text-[#005a32] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <div>
+                <span className="underline decoration-dotted underline-offset-2 group-hover:decoration-solid">
+                  The Mercury Ville @ BTS Chidlom<br />
+                  Floor 4
+                </span>
+                <span className="block text-xs mt-1 text-gray-500">Click for directions</span>
+              </div>
             </a>
           </div>
 
@@ -126,10 +135,19 @@ const SharedFooter = () => {
               href="https://maps.app.goo.gl/M7ygv921XyzcQwBE8" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-gray-600"
+              className="group inline-flex items-start text-gray-600 hover:text-[#005a32] transition-colors justify-center"
             >
-              The Mercury Ville @ BTS Chidlom<br />
-              Floor 4
+              <svg className="h-5 w-5 mr-2 text-[#005a32] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <div className="text-left">
+                <span className="underline decoration-dotted underline-offset-2 group-hover:decoration-solid">
+                  The Mercury Ville @ BTS Chidlom<br />
+                  Floor 4
+                </span>
+                <span className="block text-xs mt-1 text-gray-500">Tap for directions</span>
+              </div>
             </a>
           </div>
 
