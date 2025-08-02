@@ -21,6 +21,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
   const today = new Date();
   const tomorrow = addDays(today, 1);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showFacilityInfo, setShowFacilityInfo] = useState(false);
 
   const formatDateLong = (date: Date) => format(date, 'do MMMM yyyy');
 
@@ -77,7 +78,105 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
         </button>
       </div>
 
-      {/* Facility Information (hidden on mobile) */}
+      {/* Facility Information - Mobile Version */}
+      <div className="lg:hidden">
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+          <button
+            onClick={() => setShowFacilityInfo(!showFacilityInfo)}
+            className="w-full flex items-center justify-between"
+          >
+            <div className="flex items-center">
+              <div className="bg-blue-100 p-2 rounded-full">
+                <ShoppingBagIcon className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="ml-3">
+                <div className="text-base font-semibold text-blue-800 text-left">Facility Information</div>
+                <div className="text-sm text-blue-600 text-left">Hours, amenities & menus</div>
+              </div>
+            </div>
+            <div className={`transform transition-transform duration-300 ${showFacilityInfo ? 'rotate-180' : ''}`}>
+              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
+        </div>
+
+        {showFacilityInfo && (
+          <div className="mt-4 bg-gray-50 border-2 border-gray-200 rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2 duration-300">
+            {/* Opening Hours */}
+            <div className="bg-white rounded-lg p-3 shadow-sm">
+              <div className="flex items-start">
+                <div className="bg-green-50 p-1.5 rounded-full shrink-0">
+                  <ClockIcon className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="font-medium text-gray-900 mb-1">Opening Hours</p>
+                  <p className="text-sm text-gray-600">10:00 AM - 11:00 PM daily</p>
+                  <p className="text-xs text-gray-500">Peak: 6-9 PM | Last booking: 10 PM</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bay Capacity */}
+            <div className="bg-white rounded-lg p-3 shadow-sm">
+              <div className="flex items-start">
+                <div className="bg-green-50 p-1.5 rounded-full shrink-0">
+                  <UserGroupIcon className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="font-medium text-gray-900 mb-1">Bay Capacity</p>
+                  <p className="text-sm text-gray-600">Up to 5 players per bay</p>
+                  <p className="text-xs text-gray-500">Perfect for groups & coaching available</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Facilities */}
+            <div className="bg-white rounded-lg p-3 shadow-sm">
+              <div className="flex items-start">
+                <div className="bg-green-50 p-1.5 rounded-full shrink-0">
+                  <ShoppingBagIcon className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="font-medium text-gray-900 mb-2">Facilities & Equipment</p>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <p>• Professional golf clubs (complimentary)</p>
+                    <p>• Club storage for regular players</p>
+                    <p>• Golf gloves available in shop</p>
+                    <p>• Food & beverages (<a href="/images/food_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">food</a> | <a href="/images/drink_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">drinks</a>)</p>
+                    <p>• Spacious putting green (free)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Image Preview */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative h-24 rounded-lg overflow-hidden">
+                <Image
+                  src="/images/pic2.png"
+                  alt="LENGOLF Bay"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 50vw, 200px"
+                />
+              </div>
+              <div className="relative h-24 rounded-lg overflow-hidden">
+                <Image
+                  src="/images/pic1.png"
+                  alt="LENGOLF Facility"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 50vw, 200px"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Facility Information - Desktop Version */}
       <div className="hidden lg:block bg-gray-50 border-2 border-gray-300 rounded-xl p-6">
         <div className="grid grid-cols-5 gap-6">
           <div className="col-span-3 space-y-5">
@@ -123,7 +222,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                     <li>• Professional golf clubs available complimentary</li>
                     <li>• Dedicated club storage for regular players</li>
                     <li>• Professional golf gloves available in our shop</li>
-                    <li>• Food & beverages service available</li>
+                    <li>• Food & beverages service available (<a href="/images/food_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">food menu</a> | <a href="/images/drink_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">drink menu</a>)</li>
                     <li>• Spacious putting green free for all visitors</li>
                   </ul>
                 </div>

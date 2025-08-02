@@ -27,6 +27,8 @@ export default function BookingsPage() {
     selectedTime,
     maxDuration,
     selectedPackage,
+    selectedClubRental,
+    setSelectedClubRental,
     handleDateSelect,
     handleTimeSelect,
     handleBack,
@@ -99,6 +101,8 @@ export default function BookingsPage() {
             selectedPackage={selectedPackage}
             fixedPeople={getFixedPeople()}
             isPackageMode={isPackageMode()}
+            selectedClubRental={selectedClubRental}
+            onClubRentalChange={setSelectedClubRental}
           />
         )}
       </div>

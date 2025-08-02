@@ -35,6 +35,16 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
   // Construct VIP bookings URL
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://booking.len.golf';
   const vipBookingsUrl = `${baseUrl}/vip/bookings`;
+  
+  // Extract club rental info from customer notes
+  let clubRentalInfo = null;
+  if (booking.customerNotes) {
+    const clubRentalMatch = booking.customerNotes.match(/Golf Club Rental: ([^\n]+)/);
+    if (clubRentalMatch) {
+      const [, setName] = clubRentalMatch;
+      clubRentalInfo = { setName: setName.trim() };
+    }
+  }
 
   const emailContent = `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
@@ -76,10 +86,24 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
                 <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Number of People</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.numberOfPeople}</td>
             </tr>
-            ${booking.customerNotes ? `
+            ${clubRentalInfo ? `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Golf Club Rental</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">
+                    <strong>${clubRentalInfo.setName}</strong>
+                    <br><span style="font-size: 14px; color: #666;">Rental charges will be based on ${booking.duration} hour${booking.duration > 1 ? 's' : ''} duration</span>
+                </td>
+            </tr>
+            ` : ''}
+            ${booking.customerNotes && !booking.customerNotes.includes('Golf Club Rental:') ? `
             <tr>
                 <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Notes/Requests</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd; white-space: pre-wrap;">${booking.customerNotes}</td>
+            </tr>
+            ` : booking.customerNotes && booking.customerNotes.includes('Golf Club Rental:') && booking.customerNotes.replace(/Golf Club Rental: [^(]+ \([^)]+\)/, '').trim() ? `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Notes/Requests</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; white-space: pre-wrap;">${booking.customerNotes.replace(/Golf Club Rental: [^(]+ \([^)]+\)/, '').trim()}</td>
             </tr>
             ` : ''}
         </table>

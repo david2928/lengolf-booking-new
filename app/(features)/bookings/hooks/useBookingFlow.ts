@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PLAY_FOOD_PACKAGES, type PlayFoodPackage } from '@/types/play-food-packages';
+import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 
 export function useBookingFlow() {
   const { data: session, status } = useSession();
@@ -14,11 +15,13 @@ export function useBookingFlow() {
   const [maxDuration, setMaxDuration] = useState<number>(1);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PlayFoodPackage | null>(null);
+  const [selectedClubRental, setSelectedClubRental] = useState<string>('none');
 
   useEffect(() => {
     if (searchParams && !isAutoSelecting) {
       const packageParam = searchParams.get('package');
       const dateParam = searchParams.get('selectDate');
+      const clubParam = searchParams.get('club');
       
       // Handle package parameter
       if (packageParam && !selectedPackage) {
@@ -27,6 +30,12 @@ export function useBookingFlow() {
           setSelectedPackage(pkg);
           console.log(`[useBookingFlow] Package selected: ${pkg.name}`);
         }
+      }
+
+      // Handle club rental parameter
+      if (clubParam && GOLF_CLUB_OPTIONS.find(c => c.id === clubParam)) {
+        setSelectedClubRental(clubParam);
+        console.log(`[useBookingFlow] Club rental selected: ${clubParam}`);
       }
 
       // Handle date parameter (existing logic)
@@ -59,6 +68,9 @@ export function useBookingFlow() {
       let callbackUrl = `/bookings?selectDate=${date.toISOString()}`;
       if (selectedPackage) {
         callbackUrl += `&package=${selectedPackage.id}`;
+      }
+      if (selectedClubRental && selectedClubRental !== 'none') {
+        callbackUrl += `&club=${selectedClubRental}`;
       }
       signIn(undefined, { callbackUrl });
       return;
@@ -105,6 +117,8 @@ export function useBookingFlow() {
     maxDuration,
     isAutoSelecting,
     selectedPackage,
+    selectedClubRental,
+    setSelectedClubRental,
     handleDateSelect,
     handleTimeSelect,
     handleBack,

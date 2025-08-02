@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { format, addHours } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/supabase';
@@ -18,6 +18,7 @@ import 'react-phone-number-input/style.css';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
 import Image from 'next/image';
+import { GOLF_CLUB_OPTIONS, GOLF_CLUB_PRICING, formatClubRentalInfo } from '@/types/golf-club-rental';
 
 interface Profile {
   name: string;
@@ -50,6 +51,8 @@ interface BookingDetailsProps {
   selectedPackage?: PlayFoodPackage | null;
   fixedPeople?: number | null;
   isPackageMode?: boolean;
+  selectedClubRental?: string;
+  onClubRentalChange?: (clubId: string) => void;
 }
 
 // Add loading animation components
@@ -118,6 +121,8 @@ export function BookingDetails({
   selectedPackage,
   fixedPeople,
   isPackageMode = false,
+  selectedClubRental = 'none',
+  onClubRentalChange,
 }: BookingDetailsProps) {
   const router = useRouter();
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
@@ -354,6 +359,7 @@ export function BookingDetails({
   // Local state for package selector to allow switching
   const [localSelectedPackage, setLocalSelectedPackage] = useState<PlayFoodPackage | null>(selectedPackage || null);
   const [showPackageModal, setShowPackageModal] = useState(false);
+  const [showClubRentalModal, setShowClubRentalModal] = useState(false);
 
   // Update local state when selectedPackage changes
   useEffect(() => {
@@ -434,6 +440,15 @@ export function BookingDetails({
         throw new Error('User not authenticated');
       }
       
+      // Prepare customer notes with club rental info
+      let finalCustomerNotes = customerNotes;
+      const clubRentalInfo = formatClubRentalInfo(selectedClubRental);
+      if (clubRentalInfo) {
+        finalCustomerNotes = finalCustomerNotes 
+          ? `${finalCustomerNotes}\n${clubRentalInfo}`
+          : clubRentalInfo;
+      }
+      
       // Check if we need to update the user profile
       const profileNeedsUpdate = 
         profile && (
@@ -472,9 +487,9 @@ export function BookingDetails({
           name,
           email,
           phone_number: phoneNumber,
-          customer_notes: customerNotes,
-          package_id: selectedPackage?.id || null,
-          package_info: selectedPackage ? `${selectedPackage.name} - ${selectedPackage.displayName}` : null
+          customer_notes: finalCustomerNotes,
+          package_id: localSelectedPackage?.id || null,
+          package_info: localSelectedPackage ? `${localSelectedPackage.name} - ${localSelectedPackage.displayName}` : null
         })
       });
       
@@ -659,6 +674,72 @@ export function BookingDetails({
           )}
         </div>
 
+        {/* Golf Club Rental Selection */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Golf Club Rental (Optional)
+            </label>
+            <button 
+              type="button"
+              onClick={() => setShowClubRentalModal(true)}
+              className="text-xs text-green-600 hover:text-green-700 underline"
+            >
+              View Details
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => onClubRentalChange?.('none')}
+              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+                selectedClubRental === 'none'
+                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                  : 'border-gray-300 text-gray-700 hover:border-green-600'
+              }`}
+            >
+              <span className="font-semibold text-[11px] sm:text-xs">No Rental</span>
+              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75">Own clubs</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onClubRentalChange?.('standard')}
+              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+                selectedClubRental === 'standard'
+                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                  : 'border-gray-300 text-gray-700 hover:border-green-600'
+              }`}
+            >
+              <span className="font-semibold text-[11px] sm:text-xs">Standard Set</span>
+              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75 text-gray-500">Free</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onClubRentalChange?.('premium-mens')}
+              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+                selectedClubRental === 'premium-mens'
+                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                  : 'border-gray-300 text-gray-700 hover:border-green-600'
+              }`}
+            >
+              <span className="font-semibold text-[11px] sm:text-xs">
+                <span className="text-green-600 font-bold">Premium</span> Clubs
+              </span>
+              <span className="text-[10px] sm:text-xs mt-0.5 opacity-75">฿150+</span>
+            </button>
+          </div>
+          
+          {selectedClubRental === 'premium-mens' && (
+            <div className="mt-3 p-3 bg-green-50 rounded-lg">
+              <div className="text-sm font-medium text-green-800 mb-1">Premium Clubs Selected</div>
+              <div className="text-xs text-gray-600">
+                Pricing: 1hr ฿150 • 2hrs ฿250 • 4hrs ฿400 • Full day ฿1,200
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Duration Selection - Only for regular bookings */}
         {!localSelectedPackage && (
@@ -1011,6 +1092,153 @@ export function BookingDetails({
                   >
                     View full details and menu
                   </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Golf Club Rental Details Modal */}
+      {showClubRentalModal && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowClubRentalModal(false)} />
+          <div className="fixed inset-0 flex items-end sm:items-center justify-center z-50 sm:p-4">
+            <div className="bg-white rounded-t-xl sm:rounded-xl w-full sm:max-w-4xl max-h-[85vh] sm:max-h-[90vh] overflow-hidden relative flex flex-col">
+              {/* Close button */}
+              <button
+                onClick={() => setShowClubRentalModal(false)}
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-500 hover:text-gray-700 z-10 bg-white rounded-full p-1 shadow-sm"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto flex-1">
+                {/* Header */}
+                <div className="text-center mb-4 sm:mb-6">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
+                    <span className="text-green-700">Golf Club Rental</span>
+                    <span className="text-gray-900"> Options</span>
+                  </h2>
+                  <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
+                    Choose from standard or premium golf clubs for your session
+                  </p>
+                </div>
+
+                {/* Pricing Section */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 text-center">Premium Club Pricing</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {GOLF_CLUB_PRICING.map((pricing) => (
+                      <div 
+                        key={pricing.duration}
+                        className="bg-gray-50 rounded-lg p-3 text-center border"
+                      >
+                        <div className="text-sm font-semibold text-gray-900">{pricing.displayText}</div>
+                        <div className="text-lg font-bold text-green-600 mt-1">฿{pricing.price}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Club Options */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  {/* Standard Clubs */}
+                  <div className="bg-gray-50 rounded-lg border p-4 sm:p-6 opacity-75">
+                    <h3 className="text-lg font-bold text-gray-600 mb-2">Standard Set</h3>
+                    <p className="text-sm text-gray-500 mb-3">Quality rental clubs suitable for all skill levels</p>
+                    
+                    <div className="mb-4">
+                      <p className="font-semibold text-gray-600 mb-2 text-sm">Includes:</p>
+                      <ul className="space-y-1 text-sm text-gray-500">
+                        <li className="flex items-start">
+                          <CheckIcon className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                          <span>Full set of clubs</span>
+                        </li>
+                        <li className="flex items-start">
+                          <CheckIcon className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                          <span>Golf bag included</span>
+                        </li>
+                        <li className="flex items-start">
+                          <CheckIcon className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                          <span>Suitable for beginners to intermediate</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div className="text-center py-2 px-3 rounded bg-gray-200 text-gray-500 font-semibold text-sm">
+                      Free with Booking
+                    </div>
+                  </div>
+
+                  {/* Premium Clubs */}
+                  <div className="bg-white rounded-lg border-2 border-green-500 p-4 sm:p-6 relative">
+                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-3 py-0.5 rounded-full text-xs font-semibold">
+                      Premium Choice
+                    </div>
+                    
+                    <h3 className="text-lg font-bold text-green-800 mb-2">Premium Sets</h3>
+                    <p className="text-sm text-gray-600 mb-3">Callaway & Majesty Professional Clubs</p>
+                    
+                    <div className="space-y-3 mb-4">
+                      {/* Men's Set */}
+                      <div className="border-l-4 border-green-500 pl-3">
+                        <h4 className="font-semibold text-gray-800 text-sm">Men's Set - Callaway Warbird</h4>
+                        <p className="text-xs text-gray-600 mb-1">Full set with Uniflex shafts</p>
+                        <ul className="space-y-0.5 text-xs text-gray-600">
+                          <li className="flex items-start">
+                            <CheckIcon className="h-3 w-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
+                            <span>Driver, 5-wood, Irons 5-9, PW, SW</span>
+                          </li>
+                          <li className="flex items-start">
+                            <CheckIcon className="h-3 w-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
+                            <span>Premium Callaway golf bag</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      {/* Women's Set */}
+                      <div className="border-l-4 border-green-500 pl-3">
+                        <h4 className="font-semibold text-gray-800 text-sm">Women's Set - Majesty Shuttle</h4>
+                        <p className="text-xs text-gray-600 mb-1">Ladies flex with premium design</p>
+                        <ul className="space-y-0.5 text-xs text-gray-600">
+                          <li className="flex items-start">
+                            <CheckIcon className="h-3 w-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
+                            <span>12.5° Driver, Irons 7-9, PW, 56° SW</span>
+                          </li>
+                          <li className="flex items-start">
+                            <CheckIcon className="h-3 w-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
+                            <span>Premium ladies golf bag</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="text-center py-2 px-3 rounded bg-green-600 text-white font-semibold text-sm">
+                      Starting from ฿150
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Info */}
+                <div className="mt-6 bg-green-50 rounded-lg p-4 text-center">
+                  <h4 className="font-semibold text-gray-900 mb-2 text-sm">Can I use the clubs outside LENGOLF?</h4>
+                  <p className="text-xs sm:text-sm text-gray-700">
+                    Yes! You can take our rental clubs to play at any golf course in Bangkok or Thailand. 
+                    Perfect for tourists or locals who want to play without owning clubs.
+                  </p>
+                </div>
+
+                {/* Close Button */}
+                <div className="mt-6 text-center">
+                  <button
+                    onClick={() => setShowClubRentalModal(false)}
+                    className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-colors text-sm"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>
