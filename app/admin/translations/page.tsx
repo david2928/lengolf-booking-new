@@ -243,102 +243,115 @@ export default function TranslationManagement() {
   // }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-3xl font-bold">Translation Management</h1>
+    <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold">Translation Management</h1>
+          <div className="text-sm text-gray-600 sm:text-right">
+            Total: {filteredTranslations.length} translations
+          </div>
         </div>
         
-        {/* Instructions */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">How to Use</CardTitle>
+        {/* Instructions - Collapsible on mobile */}
+        <Card className="mb-4 sm:mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">How to Use</CardTitle>
           </CardHeader>
           <CardContent>
-            <ol className="list-decimal list-inside space-y-2 text-sm">
-              <li>Edit translations below by clicking the "Edit" button on each card</li>
+            <ol className="list-decimal list-inside space-y-1 sm:space-y-2 text-xs sm:text-sm">
+              <li>Edit translations by clicking the "Edit" button</li>
               <li>Edits are automatically approved when saved</li>
-              <li>Use "Unreviewed" filter to see translations that need review</li>
-              <li>Run the export script locally: <code className="bg-gray-100 px-2 py-1 rounded text-xs">npx tsx scripts/export-translations-simple.js</code></li>
-              <li>Test the changes in your application</li>
-              <li>Commit and redeploy your application</li>
+              <li>Use filters to find specific translations</li>
+              <li className="hidden sm:list-item">Run export: <code className="bg-gray-100 px-2 py-1 rounded text-xs">npx tsx scripts/export-translations-simple.js</code></li>
+              <li className="sm:hidden">Run export script locally after changes</li>
+              <li>Test and redeploy your application</li>
             </ol>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
+      {/* Filters - Stack on mobile */}
+      <Card className="mb-4 sm:mb-6">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Filters</CardTitle>
         </CardHeader>
-        <CardContent className="flex gap-4">
-          <Select value={selectedNamespace} onValueChange={setSelectedNamespace}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {namespaces.map(ns => (
-                <SelectItem key={ns} value={ns}>
-                  {ns === 'all' ? 'All Namespaces' : ns.charAt(0).toUpperCase() + ns.slice(1)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={reviewFilter} onValueChange={setReviewFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Translations</SelectItem>
-              <SelectItem value="unreviewed">Unreviewed Only</SelectItem>
-              <SelectItem value="reviewed">Reviewed Only</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search translations..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        <CardContent className="space-y-3 sm:space-y-0">
+          {/* Mobile: Stack filters vertically */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="flex-1 sm:flex-none">
+              <Select value={selectedNamespace} onValueChange={setSelectedNamespace}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {namespaces.map(ns => (
+                    <SelectItem key={ns} value={ns}>
+                      {ns === 'all' ? 'All Namespaces' : ns.charAt(0).toUpperCase() + ns.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 sm:flex-none">
+              <Select value={reviewFilter} onValueChange={setReviewFilter}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Translations</SelectItem>
+                  <SelectItem value="unreviewed">Unreviewed Only</SelectItem>
+                  <SelectItem value="reviewed">Reviewed Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search translations..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Translation List */}
       {loading ? (
-        <div className="flex justify-center items-center py-12">
+        <div className="flex justify-center items-center py-8 sm:py-12">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3 sm:gap-4">
           {filteredTranslations.map((translation) => (
-            <Card key={translation.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">
-                        {translation.namespace}.{translation.keyPath}
+            <Card key={translation.id} className="overflow-hidden">
+              <CardHeader className="pb-3 sm:pb-4">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <CardTitle className="text-sm sm:text-lg font-medium break-all">
+                        <span className="text-blue-600">{translation.namespace}</span>
+                        <span className="text-gray-400">.</span>
+                        <span>{translation.keyPath}</span>
                       </CardTitle>
-                      <Badge variant={translation.isApproved ? "default" : "destructive"} className="text-xs">
+                      <Badge variant={translation.isApproved ? "default" : "destructive"} className="text-xs self-start sm:self-center">
                         {translation.isApproved ? "Reviewed" : "Needs Review"}
                       </Badge>
                     </div>
                     {translation.context && (
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                         Used in: {translation.context}
                       </p>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-shrink-0">
                     {!translation.isApproved ? (
                       <Button 
                         size="sm" 
                         variant="outline"
                         onClick={() => handleApproveTranslation(translation)}
+                        className="text-xs px-2 py-1 h-auto"
                       >
                         ✓ Approve
                       </Button>
@@ -347,6 +360,7 @@ export default function TranslationManagement() {
                         size="sm" 
                         variant="ghost"
                         onClick={() => handleUnapproveTranslation(translation)}
+                        className="text-xs px-2 py-1 h-auto"
                       >
                         ↶ Needs Review
                       </Button>
@@ -355,79 +369,109 @@ export default function TranslationManagement() {
                       size="sm" 
                       variant="outline"
                       onClick={() => handleEditTranslation(translation)}
+                      className="text-xs px-2 py-1 h-auto"
                     >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
+                      <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      <span className="hidden sm:inline">Edit</span>
+                      <span className="sm:hidden">Edit</span>
                     </Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-4">
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">English</label>
-                    <p className="p-3 bg-gray-50 rounded border min-h-[60px]">{translation.en}</p>
+                    <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2">🇺🇸 English</label>
+                    <div className="p-2 sm:p-3 bg-gray-50 rounded border min-h-[50px] sm:min-h-[60px] text-sm">
+                      {translation.en || <span className="text-gray-400 italic">No English translation</span>}
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Thai</label>
-                    <p className="p-3 bg-gray-50 rounded border min-h-[60px]">{translation.th}</p>
+                    <label className="block text-xs sm:text-sm font-medium mb-1 sm:mb-2">🇹🇭 Thai</label>
+                    <div className="p-2 sm:p-3 bg-gray-50 rounded border min-h-[50px] sm:min-h-[60px] text-sm">
+                      {translation.th || <span className="text-gray-400 italic">No Thai translation</span>}
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Last updated: {translation.lastUpdated ? new Date(translation.lastUpdated).toLocaleString() : 'Never'}
-                </p>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-2 sm:mt-3 gap-1 sm:gap-0">
+                  <p className="text-xs text-muted-foreground">
+                    Last updated: {translation.lastUpdated ? new Date(translation.lastUpdated).toLocaleDateString() : 'Never'}
+                  </p>
+                  <p className="text-xs text-muted-foreground sm:text-right">
+                    ID: {translation.keyId}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           ))}
+          {filteredTranslations.length === 0 && (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <p className="text-gray-500">No translations found matching your filters.</p>
+                <p className="text-sm text-gray-400 mt-2">Try adjusting your search or filter criteria.</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
-      {/* Edit Translation Dialog */}
+      {/* Edit Translation Dialog - Mobile Responsive */}
       <Dialog open={!!editingTranslation} onOpenChange={() => setEditingTranslation(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              Edit Translation: {editingTranslation?.namespace}.{editingTranslation?.keyPath}
+            <DialogTitle className="text-sm sm:text-base break-all pr-8">
+              Edit Translation: <span className="text-blue-600">{editingTranslation?.namespace}</span>
+              <span className="text-gray-400">.</span>
+              <span>{editingTranslation?.keyPath}</span>
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <div>
-              <Label htmlFor="en-value">English</Label>
+              <Label htmlFor="en-value" className="text-sm font-medium">🇺🇸 English</Label>
               <Textarea
                 id="en-value"
                 value={editValues.en}
                 onChange={(e) => setEditValues({ ...editValues, en: e.target.value })}
-                className="mt-1"
+                className="mt-1 text-sm"
                 rows={3}
+                placeholder="Enter English translation..."
               />
             </div>
             <div>
-              <Label htmlFor="th-value">Thai</Label>
+              <Label htmlFor="th-value" className="text-sm font-medium">🇹🇭 Thai</Label>
               <Textarea
                 id="th-value"
                 value={editValues.th}
                 onChange={(e) => setEditValues({ ...editValues, th: e.target.value })}
-                className="mt-1"
+                className="mt-1 text-sm"
                 rows={3}
+                placeholder="Enter Thai translation..."
               />
             </div>
             <div>
-              <Label htmlFor="reason">Change Reason (Optional)</Label>
+              <Label htmlFor="reason" className="text-sm font-medium">Change Reason (Optional)</Label>
               <Input
                 id="reason"
                 value={editValues.reason}
                 onChange={(e) => setEditValues({ ...editValues, reason: e.target.value })}
                 placeholder="Why are you making this change?"
-                className="mt-1"
+                className="mt-1 text-sm"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingTranslation(null)}>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0 mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setEditingTranslation(null)}
+              className="w-full sm:w-auto"
+            >
               <X className="h-4 w-4 mr-1" />
               Cancel
             </Button>
-            <Button onClick={handleSaveTranslation}>
+            <Button 
+              onClick={handleSaveTranslation}
+              className="w-full sm:w-auto"
+            >
               <Save className="h-4 w-4 mr-1" />
               Save Changes
             </Button>
