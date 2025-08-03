@@ -2,14 +2,12 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/options';
 import { createServerClient } from '@/utils/supabase/server';
-import { createAdminClient } from '@/utils/supabase/admin';
 import type { VipPackage } from '@/types/vip';
 
 /**
  * Transform package data to VipPackage format expected by frontend
  */
 function transformToVipPackage(pkg: any): VipPackage {
-  console.log(`[VIP Packages API] Transforming package:`, JSON.stringify(pkg, null, 2));
   
   const now = new Date();
   // Handle both possible field names for expiration date
@@ -42,7 +40,6 @@ function transformToVipPackage(pkg: any): VipPackage {
     status: status
   };
   
-  console.log(`[VIP Packages API] Transformed package:`, JSON.stringify(transformed, null, 2));
   return transformed;
 }
 
@@ -55,7 +52,6 @@ export async function GET() {
     }
 
     const supabase = createServerClient();
-    const adminSupabase = createAdminClient();
     
     // Get customer ID from profile
     const { data: profile, error: profileError } = await supabase
@@ -72,17 +68,15 @@ export async function GET() {
       });
     }
 
-    // Get packages using the customer_id
-    console.log(`[VIP Packages API] Fetching packages for customer_id: ${profile.customer_id}`);
-    const { data: packages, error: packagesError } = await adminSupabase
-      .rpc('get_customer_packages', { customer_id_param: profile.customer_id });
+    // Get ALL packages using the customer_id (both active and expired)
+    const { data: packages, error: packagesError } = await supabase
+      .rpc('get_all_customer_packages', { customer_id_param: profile.customer_id });
 
     if (packagesError) {
       console.error(`[VIP Packages API] Error fetching packages:`, packagesError);
       return NextResponse.json({ error: 'Failed to fetch packages' }, { status: 500 });
     }
 
-    console.log(`[VIP Packages API] Raw packages data:`, JSON.stringify(packages, null, 2));
 
     const transformedPackages = (packages || []).map(transformToVipPackage);
     

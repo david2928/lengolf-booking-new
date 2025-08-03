@@ -3,8 +3,9 @@
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Suspense } from 'react';
 
-export default function ErrorPage() {
+function ErrorPageContent() {
   const searchParams = useSearchParams();
   const error = searchParams?.get('error') || '';
 
@@ -69,5 +70,33 @@ export default function ErrorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ErrorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center px-4">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <div className="flex flex-col items-center">
+            <div className="relative w-[180px] h-[60px] mb-8">
+              <Image
+                src="/images/logo_v1.png"
+                alt="LENGOLF Logo"
+                fill
+                priority
+                sizes="180px"
+                className="object-contain"
+              />
+            </div>
+            <h2 className="mt-6 text-2xl font-bold text-gray-900">
+              Loading...
+            </h2>
+          </div>
+        </div>
+      </div>
+    }>
+      <ErrorPageContent />
+    </Suspense>
   );
 } 

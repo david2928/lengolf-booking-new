@@ -1,17 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
+import { th, enUS } from 'date-fns/locale';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { Layout } from './components/booking/Layout';
 import { DateSelection } from './components/booking/steps/DateSelection';
 import { TimeSlots } from './components/booking/steps/TimeSlots';
 import { BookingDetails } from './components/booking/steps/BookingDetails';
 import { useBookingFlow } from './hooks/useBookingFlow';
+import { useTranslations } from 'next-intl';
+import { useI18nRouter } from '@/lib/i18n/navigation';
 
-export default function BookingsPage() {
+function BookingsPageContent() {
+  const t = useTranslations('booking');
+  const tCommon = useTranslations('common');
+  const { getCurrentLocale } = useI18nRouter();
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -62,18 +68,22 @@ export default function BookingsPage() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
             {currentStep === 1 
-              ? 'Select Date'
+              ? t('selectDate')
               : currentStep === 2
-              ? 'Select Time'
-              : 'Provide Details'
+              ? t('selectTime')
+              : t('provideDetails')
             }
           </h2>
           <p className="text-gray-600 mt-1">
             {currentStep === 1 
-              ? 'Choose when you\'d like to play.'
+              ? t('chooseDatePrompt')
               : currentStep === 2
-              ? format(selectedDate!, 'EEE, d MMM yyyy')
-              : 'Complete your booking details.'
+              ? (() => {
+                  const locale = getCurrentLocale();
+                  const dateLocale = locale === 'th' ? th : enUS;
+                  return format(selectedDate!, 'EEE, d MMM yyyy', { locale: dateLocale });
+                })()
+              : t('completeDetailsPrompt')
             }
           </p>
         </div>
@@ -115,5 +125,21 @@ export default function BookingsPage() {
         {renderContent()}
       </div>
     </Layout>
+  );
+}
+
+export default function BookingsPage() {
+  return (
+    <Suspense fallback={
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </div>
+      </Layout>
+    }>
+      <BookingsPageContent />
+    </Suspense>
   );
 } 

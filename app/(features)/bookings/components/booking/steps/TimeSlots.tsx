@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ClockIcon, SunIcon, CloudIcon, MoonIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import { useAvailability } from '../../../hooks/useAvailability';
+import { useTranslations } from 'next-intl';
 
 interface TimeSlotsProps {
   selectedDate: Date;
@@ -14,6 +15,8 @@ interface TimeSlotsProps {
 }
 
 export function TimeSlots({ selectedDate, onBack, onTimeSelect }: TimeSlotsProps) {
+  const t = useTranslations('booking');
+  const tCommon = useTranslations('common');
   const { isLoadingSlots, availableSlots, fetchAvailability } = useAvailability();
   const router = useRouter();
 
@@ -26,7 +29,7 @@ export function TimeSlots({ selectedDate, onBack, onTimeSelect }: TimeSlotsProps
       {isLoadingSlots ? (
         <div className="flex flex-col items-center justify-center h-full py-20">
           <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading available times...</p>
+          <p className="mt-4 text-lg text-gray-600">{t('loadingTimes')}</p>
         </div>
       ) : (
         <motion.div 
@@ -53,11 +56,11 @@ export function TimeSlots({ selectedDate, onBack, onTimeSelect }: TimeSlotsProps
                     )}
                     <div>
                       <h3 className="text-lg font-semibold text-white">
-                        {period.charAt(0).toUpperCase() + period.slice(1)}
+                        {t(period as 'morning' | 'afternoon' | 'evening')}
                         <span className="ml-2 text-sm font-normal opacity-90">
-                          {period === 'morning' ? '(10:00 - 13:00)' : 
-                           period === 'afternoon' ? '(13:00 - 17:00)' : 
-                           '(17:00 - 23:00)'}
+                          {period === 'morning' ? t('morningHours') : 
+                           period === 'afternoon' ? t('afternoonHours') : 
+                           t('eveningHours')}
                         </span>
                       </h3>
                     </div>
@@ -84,11 +87,11 @@ export function TimeSlots({ selectedDate, onBack, onTimeSelect }: TimeSlotsProps
                               <span className="text-lg font-semibold">{slot.startTime}</span>
                             </div>
                             <div className="text-gray-600 text-sm ml-6">
-                              Up to {slot.maxHours} hour{slot.maxHours > 1 ? 's' : ''}
+                              {t('upTo')} {slot.maxHours} {slot.maxHours > 1 ? t('hours') : t('hour')}
                             </div>
                           </div>
                           <div className="flex items-center text-green-700 font-medium group-hover:text-green-800">
-                            Select
+                            {t('select')}
                             <svg className="w-5 h-5 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
@@ -108,7 +111,7 @@ export function TimeSlots({ selectedDate, onBack, onTimeSelect }: TimeSlotsProps
             >
               <div className="bg-white rounded-xl shadow-sm p-8 text-center">
                 <p className="text-gray-600 text-lg">
-                  No available time slots for this date.
+                  {t('noSlotsAvailable')}
                 </p>
               </div>
             </motion.div>

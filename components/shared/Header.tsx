@@ -3,6 +3,7 @@
 import React, { ReactNode } from 'react';
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface HeaderProps {
   title: string;
@@ -40,6 +41,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
           
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
             {rightContent}
             
             <button 

@@ -2,12 +2,16 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
 import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
+import { getCurrentLocaleWithFallback } from '@/lib/i18n/session';
 
-export default function PlayAndFoodPage() {
+function PlayAndFoodContent() {
   const [isImageEnlarged, setIsImageEnlarged] = useState(false);
+  const searchParams = useSearchParams();
+  const currentLocale = getCurrentLocaleWithFallback(searchParams || undefined);
 
   return (
     <Layout>
@@ -131,7 +135,7 @@ export default function PlayAndFoodPage() {
                 {/* CTA Button */}
                 <div className="mt-auto">
                   <Link 
-                    href={`/bookings?package=${pkg.id}`}
+                    href={`/bookings?package=${pkg.id}${currentLocale !== 'en' ? `&lang=${currentLocale}` : ''}`}
                     className={`w-full block text-center py-3 px-4 rounded-lg font-semibold transition-colors ${
                       pkg.isPopular 
                         ? 'bg-green-600 hover:bg-green-700 text-white' 
@@ -175,7 +179,7 @@ export default function PlayAndFoodPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
-              href="/bookings"
+              href={`/bookings${currentLocale !== 'en' ? `?lang=${currentLocale}` : ''}`}
               className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
             >
               Regular Booking
@@ -192,5 +196,21 @@ export default function PlayAndFoodPage() {
         </div>
       </div>
     </Layout>
+  );
+}
+
+export default function PlayAndFoodPage() {
+  return (
+    <Suspense fallback={
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </div>
+      </Layout>
+    }>
+      <PlayAndFoodContent />
+    </Suspense>
   );
 }

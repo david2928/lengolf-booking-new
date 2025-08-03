@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
+import { getLocaleFromSearchParams, detectLocaleFromHeaders } from './lib/i18n/config';
 
 // Rate limiting map
 const ipRequestMap = new Map<string, { count: number; timestamp: number }>();
@@ -125,6 +126,35 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Handle locale detection and add to request headers
+  const searchParams = new URLSearchParams(request.nextUrl.search);
+  let locale = getLocaleFromSearchParams(searchParams);
+  
+  // If no lang param, detect from browser headers for first visit
+  if (!searchParams.get('lang')) {
+    const acceptLanguage = request.headers.get('accept-language') || '';
+    if (acceptLanguage.includes('th')) {
+      locale = 'th';
+      
+      // Only redirect to add lang param for main pages, not API routes
+      if (!pathname.startsWith('/api/')) {
+        const url = new URL(request.url);
+        url.searchParams.set('lang', 'th');
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
+  // Add locale to request headers for server components
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-locale', locale);
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
   // Check for bots and rate limiting
   if (isBot(request)) {
     return new NextResponse('Access Denied', { status: 403 });
@@ -139,12 +169,17 @@ export async function middleware(request: NextRequest) {
   
   // Redirect root to login UNLESS it's a Google Ads bot
   if (pathname === '/' && !isGoogleAdsBot) {
-    return NextResponse.redirect(new URL('/bookings', request.url));
+    const url = new URL('/bookings', request.url);
+    // Preserve lang param if it exists
+    if (searchParams.get('lang')) {
+      url.searchParams.set('lang', searchParams.get('lang')!);
+    }
+    return NextResponse.redirect(url);
   }
   
   // Allow Google Ads bots to access any page without authentication
   if (isGoogleAdsBot) {
-    return NextResponse.next();
+    return response;
   }
 
   try {
@@ -154,10 +189,15 @@ export async function middleware(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
 
-    return NextResponse.next();
+    return response;
   } catch (error) {
     console.error('Middleware error:', error);
-    return NextResponse.redirect(new URL('/auth/login', request.url));
+    const loginUrl = new URL('/auth/login', request.url);
+    // Preserve lang param
+    if (searchParams.get('lang')) {
+      loginUrl.searchParams.set('lang', searchParams.get('lang')!);
+    }
+    return NextResponse.redirect(loginUrl);
   }
 }
 

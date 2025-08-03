@@ -273,6 +273,34 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
+    async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
+      // Handle redirects to preserve language parameter
+      try {
+        const parsedUrl = new URL(url);
+        
+        // If the URL already has a lang parameter, use it as-is
+        if (parsedUrl.searchParams.has('lang')) {
+          return url;
+        }
+        
+        // If it's a relative URL starting with '/', treat it as our domain
+        if (url.startsWith('/')) {
+          return `${baseUrl}${url}`;
+        }
+        
+        // For external URLs, ensure it's our domain
+        if (parsedUrl.origin === baseUrl) {
+          return url;
+        }
+        
+        // Fallback to base URL
+        return baseUrl;
+      } catch (error) {
+        console.error('[NextAuth redirect callback] Error:', error);
+        return baseUrl;
+      }
+    },
+
     async jwt({ token, user, account, trigger, session: updateSession }: { 
       token: JWT; 
       user?: ExtendedUser; 

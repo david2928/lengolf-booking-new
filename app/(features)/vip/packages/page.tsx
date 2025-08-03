@@ -10,10 +10,12 @@ import { Info } from 'lucide-react';
 import EmptyState from '../../../../components/vip/EmptyState';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 const VipPackagesPage = () => {
   const { vipStatus, isLoadingVipStatus, session } = useVipContext();
   const router = useRouter();
+  const tVip = useTranslations('vip');
 
   // Redirect unlinked users to link-account page
   // Note: linked_unmatched users can access this page but will see empty state
@@ -30,7 +32,7 @@ const VipPackagesPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading package information...</p>
+        <p className="text-muted-foreground">{tVip('loadingPackageInfo')}</p>
       </div>
     );
   }
@@ -40,7 +42,7 @@ const VipPackagesPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Redirecting to account linking...</p>
+        <p className="text-muted-foreground">{tVip('redirectingToAccountLinking')}</p>
       </div>
     );
   }
@@ -48,8 +50,8 @@ const VipPackagesPage = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">My Packages</h1>
-        <p className="text-muted-foreground">View your active and past lesson or practice packages.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{tVip('myPackagesTitle')}</h1>
+        <p className="text-muted-foreground">{tVip('myPackagesDescription')}</p>
       </div>
       <PackagesList /> {/* This component will handle actual data fetching and display */}
     </div>

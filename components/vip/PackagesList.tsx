@@ -13,6 +13,8 @@ import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import useMediaQuery from '../../hooks/useMediaQuery'; // Import the new hook
 import { X, Maximize2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { useI18nRouter } from '@/lib/i18n/navigation';
 
 // Full screen image modal component
 const FullScreenImageModal: React.FC<{ 
@@ -117,6 +119,8 @@ const PromoPackagesView: React.FC = () => {
 
 const PackagesList: React.FC = () => {
   const { vipStatus, isLoadingVipStatus, sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
+  const tVip = useTranslations('vip');
+  const { getCurrentLocale } = useI18nRouter();
   const [activePackages, setActivePackages] = useState<VipPackage[]>([]);
   const [pastPackages, setPastPackages] = useState<VipPackage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -205,6 +209,7 @@ const PackagesList: React.FC = () => {
     let remainingDisplay: React.ReactNode;
     const [isExpanded, setIsExpanded] = useState(false);
     const isMobile = useMediaQuery('(max-width: 767px)'); // md breakpoint in Tailwind is 768px
+    const tVipCard = useTranslations('vip'); // Add translation hook here
 
     const title = pkg.package_display_name || pkg.packageName;
 
@@ -212,30 +217,34 @@ const PackagesList: React.FC = () => {
     const isCoaching = pkg.packageCategory?.toLowerCase().includes('coaching');
     const isPractice = !isCoaching && !isUnlimited;
 
-    let packageTypeBadgeText = pkg.packageCategory || 'Package'; // Default
+    let packageTypeBadgeText = pkg.packageCategory || tVipCard('package'); // Default
 
     if (isCoaching) {
       if (pkg.pax !== undefined && pkg.pax !== null) {
-        packageTypeBadgeText = `${pkg.pax} Pax`;
+        packageTypeBadgeText = tVipCard('paxPackage', { count: pkg.pax });
       } else {
-        packageTypeBadgeText = 'Coaching';
+        packageTypeBadgeText = tVipCard('coaching');
       }
     } else if (isUnlimited) {
-      packageTypeBadgeText = 'Unlimited';
+      packageTypeBadgeText = tVipCard('unlimited');
     } else { // Practice packages (non-coaching, non-unlimited)
       if (pkg.totalHours !== undefined && pkg.totalHours !== null) {
-        packageTypeBadgeText = `${pkg.totalHours} Hour${pkg.totalHours === 1 ? '' : 's'}`;
+        packageTypeBadgeText = pkg.totalHours === 1 ? tVipCard('hourPackage', { count: pkg.totalHours }) : tVipCard('hoursPackage', { count: pkg.totalHours });
       } else if (pkg.packageCategory) {
         packageTypeBadgeText = pkg.packageCategory;
       } else {
-        packageTypeBadgeText = 'Practice'; // Fallback for practice if no hours/category
+        packageTypeBadgeText = tVipCard('practice'); // Fallback for practice if no hours/category
       }
     }
 
     if (isUnlimited) {
-      remainingDisplay = "Unlimited Usage";
+      remainingDisplay = tVipCard('unlimitedUsage');
     } else if (pkg.remainingHours !== undefined && pkg.remainingHours !== null) {
-      remainingDisplay = `${pkg.remainingHours} hour${pkg.remainingHours === 1 ? '' : 's'} remaining`;
+      if (pkg.remainingHours === 1) {
+        remainingDisplay = tVipCard('hourRemaining', { count: pkg.remainingHours });
+      } else {
+        remainingDisplay = tVipCard('hoursRemaining', { count: pkg.remainingHours });
+      }
     } else {
       remainingDisplay = "N/A";
     }
@@ -265,25 +274,25 @@ const PackagesList: React.FC = () => {
     const packageDetailsContent = (
       <div className="space-y-1.5 text-xs">
         {pkg.purchaseDate && (
-          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>Purchased: {formatDate(pkg.purchaseDate)}</p>
+          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>{tVipCard('purchased')}: {formatDate(pkg.purchaseDate)}</p>
         )}
         {pkg.first_use_date && (
-          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>First Used: {formatDate(pkg.first_use_date)}</p>
+          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>{tVipCard('firstUsed')}: {formatDate(pkg.first_use_date)}</p>
         )}
         {!isUnlimited && pkg.totalHours !== undefined && pkg.totalHours !== null && (
-          <p className="flex items-center"><Clock size={14} className="mr-1.5 text-gray-400"/>Total: {pkg.totalHours} hour{pkg.totalHours === 1 ? '' : 's'}</p>
+          <p className="flex items-center"><Clock size={14} className="mr-1.5 text-gray-400"/>{tVipCard('total')}: {pkg.totalHours} {pkg.totalHours === 1 ? tVipCard('hour') : tVipCard('hours')}</p>
         )}
         {!isUnlimited && pkg.usedHours !== undefined && pkg.usedHours !== null && (
-           <p className="flex items-center"><Clock3 size={14} className="mr-1.5 text-gray-400"/>Used: {pkg.usedHours} hour{pkg.usedHours === 1 ? '' : 's'}</p>
+           <p className="flex items-center"><Clock3 size={14} className="mr-1.5 text-gray-400"/>{tVipCard('used')}: {pkg.usedHours} {pkg.usedHours === 1 ? tVipCard('hour') : tVipCard('hours')}</p>
         )}
         {pkg.pax !== undefined && isCoaching && (
-           <p className="flex items-center"><Users size={14} className="mr-1.5 text-gray-400"/>Pax: {pkg.pax}</p>
+           <p className="flex items-center"><Users size={14} className="mr-1.5 text-gray-400"/>{tVipCard('pax')}: {pkg.pax}</p>
         )}
         {pkg.validityPeriod && !pkg.expiryDate && (
-          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>Validity: {pkg.validityPeriod}</p>
+          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>{tVipCard('validity')}: {pkg.validityPeriod}</p>
         )}
          {(!pkg.purchaseDate && !pkg.first_use_date && (isUnlimited || pkg.totalHours === undefined || pkg.totalHours === null) && !(pkg.pax !== undefined && isCoaching) && (!pkg.validityPeriod || pkg.expiryDate)) && (
-          <p className="text-gray-400">No additional details available.</p>
+          <p className="text-gray-400">{tVipCard('noAdditionalDetails')}</p>
         )}
       </div>
     );
@@ -307,7 +316,7 @@ const PackagesList: React.FC = () => {
                 )}
                 <span className={`px-2.5 py-1 text-xs font-semibold rounded-full flex items-center ${statusBgColor} ${statusColor}`}>
                   <StatusIcon size={14} className="mr-1.5" />
-                  {pkg.status ? pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1) : 'Unknown'}
+                  {pkg.status ? tVipCard(pkg.status.toLowerCase()) : tVipCard('unknown')}
                 </span>
               </div>
             </div>
@@ -327,7 +336,7 @@ const PackagesList: React.FC = () => {
           {pkg.expiryDate && (
             <div className="text-sm text-gray-600 flex items-center">
               <CalendarDays size={14} className="mr-1.5 text-gray-500" /> 
-              Expires: {formatDate(pkg.expiryDate)}
+              {tVipCard('expiresOn')}: {formatDate(pkg.expiryDate)}
               { (new Date(pkg.expiryDate) > new Date()) && (pkg.remainingHours === null || (pkg.remainingHours !== undefined && pkg.remainingHours > 0)) &&
                 (() => {
                   const todayDate = new Date();
@@ -337,7 +346,7 @@ const PackagesList: React.FC = () => {
                   const diffTime = Math.abs(expiry.getTime() - todayDate.getTime());
                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                   if (diffDays >= 0) { 
-                    return <span className="ml-1">({diffDays} day{diffDays !== 1 ? 's' : ''} left)</span>;
+                    return <span className="ml-1">{diffDays === 1 ? tVipCard('dayLeft', { count: diffDays }) : tVipCard('daysLeft', { count: diffDays })}</span>;
                   }
                   return null;
                 })()
@@ -354,9 +363,9 @@ const PackagesList: React.FC = () => {
               onClick={() => setIsExpanded(!isExpanded)}
             >
               {isExpanded ? (
-                <><ChevronUp size={14} className="mr-1" /> Hide Details</>
+                <><ChevronUp size={14} className="mr-1" /> {tVipCard('hideDetails')}</>
               ) : (
-                <><ChevronDown size={14} className="mr-1" /> Show Details</>
+                <><ChevronDown size={14} className="mr-1" /> {tVipCard('showDetails')}</>
               )}
             </Button>
             {isExpanded && (
@@ -372,13 +381,13 @@ const PackagesList: React.FC = () => {
             {isCoaching ? (
               <a href="https://lin.ee/uxQpIXn" target="_blank" rel="noopener noreferrer" className="w-full">
                 <Button className="w-full" variant="default">
-                  <Users size={16} className="mr-2" /> Arrange Lesson (LINE)
+                  <Users size={16} className="mr-2" /> {tVipCard('arrangeLessonLine')}
                 </Button>
               </a>
             ) : (
               <Link href="/bookings/create" className="w-full">
                 <Button className="w-full" variant="default">
-                  <PackageIcon size={16} className="mr-2" /> Book Now
+                  <PackageIcon size={16} className="mr-2" /> {tVipCard('bookNow')}
                 </Button>
               </Link>
             )}
@@ -393,13 +402,13 @@ const PackagesList: React.FC = () => {
       return (
         <EmptyState
           Icon={PackageIcon}
-          title={`No ${title.toLowerCase()} found`}
-          message={title === 'Active Packages' ? 
-            <>You don't have any active packages yet. <br />Contact us to purchase a practice or coaching package!</> :
-            <>You haven't used any packages yet.</>
+          title={title === tVip('activePackages') ? tVip('noActivePackagesFound') : tVip('noPastPackagesFound')}
+          message={title === tVip('activePackages') ? 
+            <>{tVip('noActivePackagesMessage')}</> :
+            <>{tVip('noPastPackagesMessage')}</>
           }
-          action={title === 'Active Packages' ? {
-            text: "Contact Us",
+          action={title === tVip('activePackages') ? {
+            text: tVip('contactUs'),
             href: "https://lin.ee/uxQpIXn"
           } : undefined}
           className="mt-4"
@@ -429,9 +438,9 @@ const PackagesList: React.FC = () => {
     return (
       <EmptyState
         Icon={AlertTriangle}
-        title="Error Loading Packages"
+        title={tVip('errorLoadingPackages')}
         message={error}
-        action={{ text: "Try Again", onClick: () => fetchPackages(true) }}
+        action={{ text: tVip('tryAgain'), onClick: () => fetchPackages(true) }}
         className="mt-4"
       />
     );
@@ -469,19 +478,19 @@ const PackagesList: React.FC = () => {
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="active" className="data-[state=active]:bg-green-100 data-[state=active]:text-green-800">
-            Active Packages ({activePackages.length})
+            {tVip('activePackages')} ({activePackages.length})
           </TabsTrigger>
           <TabsTrigger value="past" className="data-[state=active]:bg-gray-100 data-[state=active]:text-gray-800">
-            Past Packages ({pastPackages.length})
+            {tVip('pastPackages')} ({pastPackages.length})
           </TabsTrigger>
         </TabsList>
         
         <TabsContent value="active" className="mt-6">
-          {renderPackageGroup(activePackages, 'Active Packages')}
+          {renderPackageGroup(activePackages, tVip('activePackages'))}
         </TabsContent>
         
         <TabsContent value="past" className="mt-6">
-          {renderPackageGroup(pastPackages, 'Past Packages')}
+          {renderPackageGroup(pastPackages, tVip('pastPackages'))}
         </TabsContent>
       </Tabs>
     </div>

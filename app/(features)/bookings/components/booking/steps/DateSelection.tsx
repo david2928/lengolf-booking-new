@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { format, addDays } from 'date-fns';
+import { th, enUS } from 'date-fns/locale';
 import Image from 'next/image';
 import {
   CalendarIcon,
@@ -12,18 +13,27 @@ import {
 } from '@heroicons/react/24/outline';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
+import { useTranslations } from 'next-intl';
+import { useI18nRouter } from '@/lib/i18n/navigation';
 
 interface DateSelectionProps {
   onDateSelect: (date: Date) => void;
 }
 
 export function DateSelection({ onDateSelect }: DateSelectionProps) {
+  const t = useTranslations('vip');
+  const tBooking = useTranslations('booking');
+  const { getCurrentLocale } = useI18nRouter();
   const today = new Date();
   const tomorrow = addDays(today, 1);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showFacilityInfo, setShowFacilityInfo] = useState(false);
 
-  const formatDateLong = (date: Date) => format(date, 'do MMMM yyyy');
+  const formatDateLong = (date: Date) => {
+    const locale = getCurrentLocale();
+    const dateLocale = locale === 'th' ? th : enUS;
+    return format(date, 'do MMMM yyyy', { locale: dateLocale });
+  };
 
   return (
     <div className="w-full px-2 sm:px-4 space-y-8">
@@ -39,7 +49,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
               <ClockIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-3 leading-normal">
-              <div className="text-lg sm:text-xl font-bold text-green-800">Today</div>
+              <div className="text-lg sm:text-xl font-bold text-green-800">{t('today')}</div>
               <div className="text-gray-600">{formatDateLong(today)}</div>
             </div>
           </div>
@@ -55,7 +65,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
               <SunIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-3 leading-normal">
-              <div className="text-lg sm:text-xl font-bold text-green-800">Tomorrow</div>
+              <div className="text-lg sm:text-xl font-bold text-green-800">{t('tomorrow')}</div>
               <div className="text-gray-600">{formatDateLong(tomorrow)}</div>
             </div>
           </div>
@@ -71,8 +81,8 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
               <CalendarIcon className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-3 leading-normal">
-              <div className="text-lg sm:text-xl font-bold text-green-800">Select Date</div>
-              <div className="text-gray-600">Choose another date</div>
+              <div className="text-lg sm:text-xl font-bold text-green-800">{tBooking('selectDate')}</div>
+              <div className="text-gray-600">{t('chooseAnotherDate')}</div>
             </div>
           </div>
         </button>
@@ -90,8 +100,8 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                 <ShoppingBagIcon className="h-5 w-5 text-blue-600" />
               </div>
               <div className="ml-3">
-                <div className="text-base font-semibold text-blue-800 text-left">Facility Information</div>
-                <div className="text-sm text-blue-600 text-left">Hours, amenities & menus</div>
+                <div className="text-base font-semibold text-blue-800 text-left">{t('facilityInformation')}</div>
+                <div className="text-sm text-blue-600 text-left">{t('hoursAmenitiesMenus')}</div>
               </div>
             </div>
             <div className={`transform transition-transform duration-300 ${showFacilityInfo ? 'rotate-180' : ''}`}>
@@ -111,9 +121,9 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                   <ClockIcon className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="ml-3">
-                  <p className="font-medium text-gray-900 mb-1">Opening Hours</p>
-                  <p className="text-sm text-gray-600">10:00 AM - 11:00 PM daily</p>
-                  <p className="text-xs text-gray-500">Peak: 6-9 PM | Last booking: 10 PM</p>
+                  <p className="font-medium text-gray-900 mb-1">{t('openingHours')}</p>
+                  <p className="text-sm text-gray-600">{t('dailySchedule')}</p>
+                  <p className="text-xs text-gray-500">{t('peakHours')}</p>
                 </div>
               </div>
             </div>
@@ -125,9 +135,9 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                   <UserGroupIcon className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="ml-3">
-                  <p className="font-medium text-gray-900 mb-1">Bay Capacity</p>
-                  <p className="text-sm text-gray-600">Up to 5 players per bay</p>
-                  <p className="text-xs text-gray-500">Perfect for groups & coaching available</p>
+                  <p className="font-medium text-gray-900 mb-1">{t('bayCapacity')}</p>
+                  <p className="text-sm text-gray-600">{t('upToFivePlayersBay')}</p>
+                  <p className="text-xs text-gray-500">{t('perfectForGroups')}</p>
                 </div>
               </div>
             </div>
@@ -139,13 +149,13 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                   <ShoppingBagIcon className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="ml-3">
-                  <p className="font-medium text-gray-900 mb-2">Facilities & Equipment</p>
+                  <p className="font-medium text-gray-900 mb-2">{t('facilitiesEquipment')}</p>
                   <div className="space-y-1 text-sm text-gray-600">
-                    <p>• Professional golf clubs (complimentary)</p>
-                    <p>• Club storage for regular players</p>
-                    <p>• Golf gloves available in shop</p>
-                    <p>• Food & beverages (<a href="/images/food_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">food</a> | <a href="/images/drink_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">drinks</a>)</p>
-                    <p>• Spacious putting green (free)</p>
+                    <p>• {t('professionalClubsComplimentary')}</p>
+                    <p>• {t('clubStorageRegular')}</p>
+                    <p>• {t('golfGlovesShop')}</p>
+                    <p>• {t('foodBeverages')} (<a href="/images/food_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">{t('foodMenu')}</a> | <a href="/images/drink_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">{t('drinkMenu')}</a>)</p>
+                    <p>• {t('spaciousPuttingGreen')}</p>
                   </div>
                 </div>
               </div>
@@ -180,7 +190,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
       <div className="hidden lg:block bg-gray-50 border-2 border-gray-300 rounded-xl p-6">
         <div className="grid grid-cols-5 gap-6">
           <div className="col-span-3 space-y-5">
-            <h3 className="text-xl font-bold text-green-800 mb-6">Facility Information</h3>
+            <h3 className="text-xl font-bold text-green-800 mb-6">{t('facilityInformation')}</h3>
             
             {/* Opening Hours Section */}
             <div className="space-y-2">
@@ -189,9 +199,9 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                   <ClockIcon className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="ml-3 text-gray-600 leading-normal">
-                  <p><span className="font-medium">Opening Hours:</span> 10:00 AM - 11:00 PM daily</p>
-                  <p className="text-sm text-gray-500">Peak Hours: 6:00 PM - 9:00 PM</p>
-                  <p className="text-sm text-gray-500">Last booking: 10:00 PM (1-hour session)</p>
+                  <p><span className="font-medium">{t('openingHoursDaily')}</span></p>
+                  <p className="text-sm text-gray-500">{t('peakHoursDetail')}</p>
+                  <p className="text-sm text-gray-500">{t('lastBooking')}</p>
                 </div>
               </div>
             </div>
@@ -203,9 +213,9 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                   <UserGroupIcon className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="ml-3 text-gray-600 leading-normal">
-                  <p><span className="font-medium">Bay Capacity:</span> Up to 5 players per bay</p>
-                  <p className="text-sm text-gray-500">Perfect for groups, friends, and family</p>
-                  <p className="text-sm text-gray-500">Professional coaching available upon request</p>
+                  <p><span className="font-medium">{t('bayCapacityDetail')}</span></p>
+                  <p className="text-sm text-gray-500">{t('perfectForGroupsDetail')}</p>
+                  <p className="text-sm text-gray-500">{t('professionalCoaching')}</p>
                 </div>
               </div>
             </div>
@@ -217,13 +227,13 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                   <ShoppingBagIcon className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="ml-3 text-gray-600 leading-normal">
-                  <p><span className="font-medium">Facilities & Equipment:</span></p>
+                  <p><span className="font-medium">{t('facilitiesEquipmentDetail')}</span></p>
                   <ul className="mt-1 space-y-1">
-                    <li>• Professional golf clubs available complimentary</li>
-                    <li>• Dedicated club storage for regular players</li>
-                    <li>• Professional golf gloves available in our shop</li>
-                    <li>• Food & beverages service available (<a href="/images/food_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">food menu</a> | <a href="/images/drink_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">drink menu</a>)</li>
-                    <li>• Spacious putting green free for all visitors</li>
+                    <li>• {t('professionalClubsAvailable')}</li>
+                    <li>• {t('dedicatedClubStorage')}</li>
+                    <li>• {t('professionalGolfGloves')}</li>
+                    <li>• {t('foodBeveragesService')} (<a href="/images/food_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">{t('foodMenuLink')}</a> | <a href="/images/drink_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">{t('drinkMenuLink')}</a>)</li>
+                    <li>• {t('spaciousPuttingGreenFree')}</li>
                   </ul>
                 </div>
               </div>
@@ -268,8 +278,8 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
           >
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Select Date</h3>
-                <p className="text-sm text-gray-500 mt-1">Choose your preferred date</p>
+                <h3 className="text-xl font-bold text-gray-900">{tBooking('selectDateModal')}</h3>
+                <p className="text-sm text-gray-500 mt-1">{t('choosePreferredDate')}</p>
               </div>
               <button
                 onClick={() => setShowCalendar(false)}

@@ -3,11 +3,15 @@
 import Image from 'next/image';
 import { UserIcon } from '@/components/icons';
 import GuestForm from '../components/GuestForm';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 
-export default function LoginPage() {
+function LoginPageContent() {
+  const t = useTranslations('auth');
+  const tCommon = useTranslations('common');
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [browserType, setBrowserType] = useState<'line' | 'facebook' | 'other'>('other');
@@ -54,6 +58,8 @@ export default function LoginPage() {
   const handleProviderSignIn = async (provider: string) => {
     setLoadingProvider(provider);
     try {
+      // Let NextAuth handle the redirect for all providers
+      // The redirect callback in NextAuth options will preserve language parameters
       await signIn(provider, { callbackUrl });
     } catch (error) {
       console.error('Sign in error:', error);
@@ -64,12 +70,15 @@ export default function LoginPage() {
   const LoadingSpinner = () => (
     <div className="flex items-center justify-center">
       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-      <span>Connecting...</span>
+      <span>{t('connecting')}</span>
     </div>
   );
 
   return (
-    <div className="w-full max-w-md px-6 py-12 bg-white rounded-lg shadow-sm">
+    <div className="w-full max-w-md px-6 py-12 bg-white rounded-lg shadow-sm relative">
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher />
+      </div>
       <div className="flex flex-col items-center justify-center">
         <div className="relative w-[180px] h-[60px] mb-8">
           <Image
@@ -82,10 +91,10 @@ export default function LoginPage() {
           />
         </div>
         <h2 className="text-center text-2xl font-bold text-gray-900 mb-3">
-          Welcome to LENGOLF
+          {t('welcomeToLengolf')}
         </h2>
         <p className="text-center text-sm text-gray-600 mb-8">
-          Please choose a login method to start booking your slot
+          {t('loginPrompt')}
         </p>
       </div>
 
@@ -96,19 +105,19 @@ export default function LoginPage() {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5 mt-0.5 shrink-0">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <span>For the best experience, please open this page in your device's external browser (Safari, Chrome, etc.)</span>
+            <span>{t('browserWarning')}</span>
           </div>
         </div>
       )}
 
       {error && (
         <div className="mb-4 p-4 text-sm text-red-800 bg-red-100 rounded-lg">
-          {error === 'OAuthSignin' && 'Error signing in with provider.'}
-          {error === 'OAuthCallback' && 'Error during authentication callback.'}
-          {error === 'OAuthCreateAccount' && 'Error creating account.'}
-          {error === 'EmailCreateAccount' && 'Error creating email account.'}
-          {error === 'Callback' && 'Error during authentication callback.'}
-          {error === 'Default' && 'An error occurred during authentication.'}
+          {error === 'OAuthSignin' && t('errors.oauthSignin')}
+          {error === 'OAuthCallback' && t('errors.oauthCallback')}
+          {error === 'OAuthCreateAccount' && t('errors.oauthCreateAccount')}
+          {error === 'EmailCreateAccount' && t('errors.emailCreateAccount')}
+          {error === 'Callback' && t('errors.callback')}
+          {error === 'Default' && t('errors.default')}
         </div>
       )}
 
@@ -126,7 +135,7 @@ export default function LoginPage() {
             ) : (
               <>
                 <i className="fab fa-line text-lg mr-3"></i>
-                Continue with LINE
+                {t('continueWith', { provider: 'LINE' })}
               </>
             )}
           </button>
@@ -142,7 +151,7 @@ export default function LoginPage() {
             ) : (
               <>
                 <i className="fab fa-facebook text-lg mr-3"></i>
-                Continue with Facebook
+                {t('continueWith', { provider: 'Facebook' })}
               </>
             )}
           </button>
@@ -176,7 +185,7 @@ export default function LoginPage() {
                       fill="#EA4335"
                     />
                   </svg>
-                  Continue with Google
+                  {t('continueWith', { provider: 'Google' })}
                 </>
               )}
             </button>
@@ -191,7 +200,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   <i className="fab fa-facebook text-lg mr-3"></i>
-                  Continue with Facebook
+                  {t('continueWith', { provider: 'Facebook' })}
                 </>
               )}
             </button>
@@ -206,7 +215,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   <i className="fab fa-line text-lg mr-3"></i>
-                  Continue with LINE
+                  {t('continueWith', { provider: 'LINE' })}
                 </>
               )}
             </button>
@@ -219,7 +228,7 @@ export default function LoginPage() {
             <div className="w-full border-t border-gray-200" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-6 text-gray-500">Or</span>
+            <span className="bg-white px-6 text-gray-500">{t('or')}</span>
           </div>
         </div>
 
@@ -230,7 +239,7 @@ export default function LoginPage() {
           className="flex w-full items-center justify-center rounded-lg bg-gray-800 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:outline-none"
         >
           <UserIcon className="mr-3 h-5 w-5" />
-          Continue as Guest
+          {t('continueAsGuest')}
         </button>
       </div>
 
@@ -249,9 +258,37 @@ export default function LoginPage() {
           }}
           className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
         >
-          Privacy Policy
+          {t('privacyPolicy')}
         </a>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-br from-gray-50 to-white">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center">
+            <div className="relative mx-auto w-[200px] h-[67px]">
+              <Image
+                src="/images/logo_v1.png"
+                alt="LENGOLF Logo"
+                fill
+                priority
+                sizes="200px"
+                className="object-contain"
+              />
+            </div>
+            <div className="mt-6">
+              <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 } 

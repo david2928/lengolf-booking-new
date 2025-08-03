@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
+import { useTranslations } from 'next-intl';
 
 interface GuestFormProps {
   onClose: () => void;
@@ -16,6 +17,8 @@ interface GuestFormData {
 }
 
 export default function GuestForm({ onClose }: GuestFormProps) {
+  const t = useTranslations('auth');
+  const tCommon = useTranslations('common');
   const [formData, setFormData] = useState<GuestFormData>({
     name: '',
     email: '',
@@ -31,13 +34,13 @@ export default function GuestForm({ onClose }: GuestFormProps) {
 
     // Validate form data
     if (!formData.name || !formData.email || !formData.phone) {
-      setError('All fields are required.');
+      setError(t('allFieldsRequired'));
       setIsSubmitting(false);
       return;
     }
 
     if (!isValidPhoneNumber(formData.phone || '')) {
-      setError('Please enter a valid phone number.');
+      setError(t('validPhoneRequired'));
       setIsSubmitting(false);
       return;
     }
@@ -51,15 +54,19 @@ export default function GuestForm({ onClose }: GuestFormProps) {
       });
 
       if (result?.error) {
-        setError('Failed to create guest session. Please try again.');
+        setError(t('guestSessionFailed'));
         setIsSubmitting(false);
         return;
       }
 
-      window.location.href = '/bookings';
+      // Preserve language parameter in redirect
+      const currentUrl = new URL(window.location.href);
+      const lang = currentUrl.searchParams.get('lang');
+      const redirectUrl = lang ? `/bookings?lang=${lang}` : '/bookings';
+      window.location.href = redirectUrl;
     } catch (err) {
       console.error('Guest login error:', err);
-      setError('Failed to create guest session. Please try again.');
+      setError(t('guestSessionFailed'));
       setIsSubmitting(false);
     }
   };
@@ -67,7 +74,7 @@ export default function GuestForm({ onClose }: GuestFormProps) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg p-6 max-w-md w-full">
-        <h2 className="text-xl font-semibold mb-4">Guest Information</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('guestInformation')}</h2>
         
         {error && (
           <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -78,7 +85,7 @@ export default function GuestForm({ onClose }: GuestFormProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-              Name
+              {t('guestName')}
             </label>
             <input
               type="text"
@@ -93,7 +100,7 @@ export default function GuestForm({ onClose }: GuestFormProps) {
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
+              {t('guestEmail')}
             </label>
             <input
               type="email"
@@ -108,13 +115,13 @@ export default function GuestForm({ onClose }: GuestFormProps) {
 
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-              Phone
+              {t('guestPhone')}
             </label>
             <PhoneInput
               international
               defaultCountry="TH"
               id="phone"
-              placeholder="Enter phone number"
+              placeholder={t('enterPhoneNumber')}
               value={formData.phone}
               onChange={(value) => setFormData({ ...formData, phone: value })}
               disabled={isSubmitting}
@@ -122,7 +129,7 @@ export default function GuestForm({ onClose }: GuestFormProps) {
             />
             {!formData.phone && !error && (
                 <p className="mt-1 text-xs text-gray-500">
-                  Please select your country code and enter your phone number.
+                  {t('selectCountryAndPhone')}
                 </p>
             )}
           </div>
@@ -134,7 +141,7 @@ export default function GuestForm({ onClose }: GuestFormProps) {
               disabled={isSubmitting}
               className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Cancel
+              {tCommon('cancel')}
             </button>
             <button
               type="submit"
@@ -144,10 +151,10 @@ export default function GuestForm({ onClose }: GuestFormProps) {
               {isSubmitting ? (
                 <div className="flex items-center justify-center">
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  <span>Processing...</span>
+                  <span>{t('processing')}</span>
                 </div>
               ) : (
-                'Continue'
+                tCommon('next')
               )}
             </button>
           </div>

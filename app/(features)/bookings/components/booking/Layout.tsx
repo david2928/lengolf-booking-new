@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession, signOut, signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useVipStatus } from '@/components/providers/VipStatusProvider';
 import { toast } from 'react-hot-toast';
@@ -11,13 +11,17 @@ import Image from 'next/image';
 import SharedFooter from '@/components/shared/Footer';
 import Header from '@/components/shared/Header';
 import { LogOut, Package as PackageIconLucide, Calendar as CalendarIconLucide, Trophy as TrophyIconLucide, Link as LinkIconLucideRadix, User as UserIconLucide } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
-export function Layout({ children }: LayoutProps) {
+function LayoutContent({ children }: LayoutProps) {
+  const t = useTranslations('navigation');
+  const tCommon = useTranslations('common');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
   const { vipProfile, isLoading: vipLoading, error: vipError, refetchVipProfile } = useVipStatus();
   const [isLoading, setIsLoading] = useState(false);
@@ -52,6 +56,19 @@ export function Layout({ children }: LayoutProps) {
       refetchVipProfile();
     }
   }, [sessionStatus, vipProfile, vipLoading, vipError, refetchVipProfile]);
+
+  const handleSignIn = () => {
+    // Preserve language parameter in sign-in redirect
+    const currentLang = searchParams?.get('lang');
+    const callbackUrl = currentLang ? `/bookings?lang=${currentLang}` : '/bookings';
+    
+    if (currentLang) {
+      // Redirect to login page with language parameter
+      window.location.href = `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}&lang=${currentLang}`;
+    } else {
+      signIn(undefined, { callbackUrl });
+    }
+  };
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -116,10 +133,6 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-background flex flex-col">
       <Header
         title="LENGOLF"
-        badge={{
-          text: "Booking",
-          href: "/bookings"
-        }}
         mobileMenuOpen={mobileMenuOpen}
         onToggleMobileMenu={toggleMobileMenu}
         rightContent={
@@ -155,21 +168,21 @@ export function Layout({ children }: LayoutProps) {
                 className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <CurrencyDollarIcon className="h-4 w-4" />
-                <span>Bay Rates</span>
+                <span>{t('bayRates')}</span>
               </button>
               <button
                 onClick={() => setShowPromotions(!showPromotions)}
                 className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <FireIcon className="h-4 w-4" />
-                <span>Promotions</span>
+                <span>{t('promotions')}</span>
               </button>
               <button
                 onClick={() => setShowLessons(!showLessons)}
                 className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <AcademicCapIcon className="h-4 w-4" />
-                <span>Lessons</span>
+                <span>{t('lessons')}</span>
               </button>
 
               {/* Vertical separator */}
@@ -179,7 +192,7 @@ export function Layout({ children }: LayoutProps) {
               {sessionStatus === 'authenticated' && vipLoading ? (
                 <div className="flex items-center gap-2 px-4 py-2 text-white">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Loading...</span>
+                  <span>{tCommon('loading')}</span>
                 </div>
               ) : sessionStatus === 'authenticated' ? (
                 <>
@@ -198,13 +211,13 @@ export function Layout({ children }: LayoutProps) {
                           }
                         }}
                       >
-                        My Account <ChevronDownIcon className="h-4 w-4" />
+                        {t('myAccount')} <ChevronDownIcon className="h-4 w-4" />
                       </button>
                       
                       {/* Dropdown menu */}
                       <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                         <Link href="/vip" className="flex items-center gap-2 px-4 py-3 text-green-700 hover:bg-green-50 transition-colors font-medium border-b border-green-100">
-                          <span>Dashboard</span>
+                          <span>{t('dashboard')}</span>
                           <span className="ml-auto bg-green-700 text-white px-2 py-0.5 rounded text-xs font-medium">VIP</span>
                         </Link>
                         
@@ -214,19 +227,19 @@ export function Layout({ children }: LayoutProps) {
                             {console.log('[Booking Layout] Rendering VIP navigation links for linked user')}
                             <Link href="/vip/profile" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                               <UserIconLucide className="h-4 w-4" />
-                              <span>My Profile</span>
+                              <span>{t('myProfile')}</span>
                             </Link>
                             <Link href="/vip/bookings" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                               <CalendarIconLucide className="h-4 w-4" />
-                              <span>My Bookings</span>
+                              <span>{t('myBookings')}</span>
                             </Link>
                             <Link href="/vip/packages" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                               <PackageIconLucide className="h-4 w-4" />
-                              <span>My Packages</span>
+                              <span>{t('myPackages')}</span>
                             </Link>
                             <Link href="/vip/membership" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                               <TrophyIconLucide className="h-4 w-4" />
-                              <span>Membership</span>
+                              <span>{t('membership')}</span>
                             </Link>
                           </>
                         ) : shouldShowLinkAccount ? (
@@ -234,7 +247,7 @@ export function Layout({ children }: LayoutProps) {
                             <div className="border-t border-gray-100"></div>
                             <Link href="/vip/link-account" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors font-medium">
                               <LinkIconLucideRadix className="h-4 w-4" />
-                              <span>Link Account to Access VIP Features</span>
+                              <span>{t('linkAccount')} to Access VIP Features</span>
                             </Link>
                           </>
                         ) : null}
@@ -247,7 +260,7 @@ export function Layout({ children }: LayoutProps) {
                           className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           <HeroHomeIcon className="h-4 w-4" />
-                          <span>Main Site</span>
+                          <span>{t('mainSite')}</span>
                         </a>
                         <button 
                           onClick={handleSignOut} 
@@ -255,7 +268,7 @@ export function Layout({ children }: LayoutProps) {
                           className="flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors w-full text-left disabled:opacity-50"
                         >
                           <LogOut className="h-4 w-4" />
-                          <span>{isLoading ? 'Signing Out...' : 'Sign Out'}</span>
+                          <span>{isLoading ? t('signingOut') : t('signOut')}</span>
                         </button>
                       </div>
                     </div>
@@ -267,17 +280,17 @@ export function Layout({ children }: LayoutProps) {
                       className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium disabled:opacity-50"
                     >
                       <LogOut className="h-5 w-5" />
-                      {isLoading ? 'Signing Out...' : 'Sign Out'}
+                      {isLoading ? t('signingOut') : t('signOut')}
                     </button>
                   )}
                 </>
               ) : (
                 <button
-                  onClick={() => signIn()}
+                  onClick={handleSignIn}
                   className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium"
                 >
                   <HeroUserIcon className="h-5 w-5" />
-                  Sign In
+                  {t('signIn')}
                 </button>
               )}
             </nav>
@@ -291,7 +304,7 @@ export function Layout({ children }: LayoutProps) {
                     <li>
                       <Link href="/vip" className="flex items-center justify-between gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 bg-primary-foreground/5 border border-white/10" onClick={toggleMobileMenu}>
                         <span className="flex items-center gap-2 font-medium">
-                          Dashboard
+                          {t('dashboard')}
                         </span>
                         <span className="bg-white text-green-700 px-2 py-0.5 rounded text-xs font-medium">VIP</span>
                       </Link>
@@ -303,39 +316,39 @@ export function Layout({ children }: LayoutProps) {
                         <li className="border-t border-primary-foreground/20 pt-2 mt-2">
                           <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PROFILE</p>
                           <ul className="mt-1 space-y-1">
-                            <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><UserIconLucide size={16} />My Profile</Link></li>
+                            <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><UserIconLucide size={16} />{t('myProfile')}</Link></li>
                           </ul>
                         </li>
                         
                         <li className="border-t border-primary-foreground/20 pt-2 mt-2">
                           <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">BOOKINGS</p>
                           <ul className="mt-1 space-y-1">
-                            <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16} />My Bookings</Link></li>
-                            <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>New Booking</Link></li>
+                            <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16} />{t('myBookings')}</Link></li>
+                            <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>{t('newBooking')}</Link></li>
                           </ul>
                         </li>
                         
                         <li className="border-t border-primary-foreground/20 pt-2 mt-2">
                           <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PACKAGES</p>
                           <ul className="mt-1 space-y-1">
-                            <li><Link href="/vip/packages" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><PackageIconLucide size={16} />My Packages</Link></li>
+                            <li><Link href="/vip/packages" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><PackageIconLucide size={16} />{t('myPackages')}</Link></li>
                           </ul>
                         </li>
                         
                         <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                          <Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TrophyIconLucide size={16} />Membership</Link>
+                          <Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TrophyIconLucide size={16} />{t('membership')}</Link>
                         </li>
                       </>
                     )}
                     
                     {shouldShowLinkAccount && (
                       <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                        <Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 font-medium" onClick={toggleMobileMenu}><LinkIconLucideRadix size={16} />Link Account</Link>
+                        <Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 font-medium" onClick={toggleMobileMenu}><LinkIconLucideRadix size={16} />{t('linkAccount')}</Link>
                       </li>
                     )}
                   </>
                ) : (
-                  <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>New Booking</Link></li>
+                  <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>{t('newBooking')}</Link></li>
                )}
               
               <li className="border-t border-primary-foreground/20 pt-2 mt-2">
@@ -347,15 +360,15 @@ export function Layout({ children }: LayoutProps) {
                   onClick={toggleMobileMenu}
                 >
                   <HeroHomeIcon className="h-4 w-4" />
-                  Main Site
+                  {t('mainSite')}
                 </a>
               </li>
               
               <li className="border-t border-primary-foreground/20 pt-2 mt-2">
                 {sessionStatus === 'authenticated' ? (
-                  <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />Sign Out</button>
+                  <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />{t('signOut')}</button>
                 ) : (
-                  <button onClick={() => { signIn(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />Sign In</button>
+                  <button onClick={() => { handleSignIn(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />{t('signIn')}</button>
                 )}
               </li>
             </ul>
@@ -369,7 +382,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
                 <CurrencyDollarIcon className="h-6 w-6 mr-2 text-green-600" />
-                Bay Rates
+                {t('bayRates')}
               </h3>
               <button onClick={() => setShowBayRates(false)} className="text-gray-500 hover:text-gray-700">
                 <XMarkIcon className="h-6 w-6" />
@@ -395,7 +408,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
                 <FireIcon className="h-6 w-6 mr-2 text-green-600" />
-                Promotions
+                {t('promotions')}
               </h3>
               <button onClick={() => setShowPromotions(false)} className="text-gray-500 hover:text-gray-700">
                 <XMarkIcon className="h-6 w-6" />
@@ -463,7 +476,7 @@ export function Layout({ children }: LayoutProps) {
                 </div>
               ) : (
                 <div className="text-center py-10 bg-gray-50 rounded-xl">
-                  <p className="text-gray-500">No promotions available at the moment.</p>
+                  <p className="text-gray-500">{t('noPromotionsAvailable')}</p>
                 </div>
               )}
             </div>
@@ -477,7 +490,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
                 <AcademicCapIcon className="h-6 w-6 mr-2 text-green-600" />
-                Golf Lessons
+                {t('golfLessons')}
               </h3>
               <button onClick={() => setShowLessons(false)} className="text-gray-500 hover:text-gray-700">
                 <XMarkIcon className="h-6 w-6" />
@@ -492,11 +505,10 @@ export function Layout({ children }: LayoutProps) {
                   height={375}
                   className="rounded-xl w-auto h-auto mx-auto object-contain mb-4"
                 />
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">Book Professional Golf Lessons</h4>
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">{t('bookProfessionalLessons')}</h4>
                 <p className="text-gray-600 mb-4">
-                  Improve your golf skills with our professional instructors. 
-                  Various lesson packages available for beginners to advanced players.
-                  <span className="font-medium block mt-1">Golf lessons can only be booked via LINE.</span>
+                  {t('improvingSkills')}
+                  <span className="font-medium block mt-1">{t('lessonsBookingNote')}</span>
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center gap-3 mb-4">
                   <a 
@@ -506,7 +518,7 @@ export function Layout({ children }: LayoutProps) {
                     className="flex items-center justify-center gap-2 bg-[#06C755] text-white px-4 py-2 rounded-lg hover:bg-[#05b04e] transition-colors"
                   >
                     <i className="fab fa-line text-xl"></i>
-                    Contact via LINE
+                    {t('contactViaLine')}
                   </a>
                   <a 
                     href="https://www.len.golf/lessons"
@@ -517,7 +529,7 @@ export function Layout({ children }: LayoutProps) {
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
-                    View for more information
+                    {t('viewMoreInfo')}
                   </a>
                 </div>
               </div>
@@ -532,5 +544,29 @@ export function Layout({ children }: LayoutProps) {
 
       <SharedFooter />
     </div>
+  );
+}
+
+export function Layout({ children }: LayoutProps) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="bg-white shadow-sm">
+          <div className="container mx-auto px-4 h-16 flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </div>
+        <main className="py-8 flex-grow container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </main>
+        <SharedFooter />
+      </div>
+    }>
+      <LayoutContent>
+        {children}
+      </LayoutContent>
+    </Suspense>
   );
 } 

@@ -3,11 +3,21 @@ import { useSession, signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PLAY_FOOD_PACKAGES, type PlayFoodPackage } from '@/types/play-food-packages';
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
+import { useI18nRouter } from '@/lib/i18n/navigation';
 
 export function useBookingFlow() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  
+  let searchParams: URLSearchParams | null = null;
+  try {
+    searchParams = useSearchParams();
+  } catch (error) {
+    // Handle SSR or build-time issues with useSearchParams
+    searchParams = null;
+  }
+  
+  const { getCurrentLocale } = useI18nRouter();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -51,11 +61,15 @@ export function useBookingFlow() {
           setSelectedDate(selectedDateFromParam);
           setCurrentStep(2); 
 
-          router.replace('/bookings', { scroll: false }); 
+          const currentLocale = getCurrentLocale();
+          const bookingUrl = currentLocale !== 'en' ? `/bookings?lang=${currentLocale}` : '/bookings';
+          router.replace(bookingUrl, { scroll: false }); 
 
         } catch (error) {
           console.error("Error processing selectDate param:", error);
-          router.replace('/bookings', { scroll: false }); 
+          const currentLocale = getCurrentLocale();
+          const bookingUrl = currentLocale !== 'en' ? `/bookings?lang=${currentLocale}` : '/bookings';
+          router.replace(bookingUrl, { scroll: false }); 
         } finally {
             setIsAutoSelecting(false);
         }
@@ -65,12 +79,19 @@ export function useBookingFlow() {
 
   const handleDateSelect = (date: Date) => {
     if (status === 'unauthenticated') {
+      const currentLocale = getCurrentLocale();
       let callbackUrl = `/bookings?selectDate=${date.toISOString()}`;
       if (selectedPackage) {
         callbackUrl += `&package=${selectedPackage.id}`;
       }
       if (selectedClubRental && selectedClubRental !== 'none') {
         callbackUrl += `&club=${selectedClubRental}`;
+      }
+      if (currentLocale !== 'en') {
+        callbackUrl += `&lang=${currentLocale}`;
+        // Also add language to the sign-in redirect URL
+        window.location.href = `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}&lang=${currentLocale}`;
+        return;
       }
       signIn(undefined, { callbackUrl });
       return;

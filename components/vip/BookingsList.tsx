@@ -15,6 +15,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import BookingCancelModal from './BookingCancelModal';
 import BookingModifyModal from './BookingModifyModal';
 import { utcToZonedTime, format } from 'date-fns-tz'; // Import from date-fns-tz
+import { useTranslations } from 'next-intl';
+import { useI18nRouter } from '@/lib/i18n/navigation';
+import { th, enUS } from 'date-fns/locale';
 
 interface BookingsListProps {
   onModifyBooking: (bookingId: string) => void; 
@@ -27,6 +30,8 @@ type FilterType = "future" | "past" | "all";
 
 const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBooking, refreshNonce, optimisticUpdates }) => {
   const { vipStatus, isLoadingVipStatus, refetchVipStatus } = useVipContext();
+  const tVip = useTranslations('vip');
+  const { getCurrentLocale } = useI18nRouter();
   const [bookings, setBookings] = useState<VipBooking[]>([]);
   const [paginationData, setPaginationData] = useState<VipBookingsResponse['pagination'] | null>(null);
   const [currentFilter, setCurrentFilter] = useState<FilterType>('future');
@@ -105,17 +110,17 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
   };
 
   const formatDate = (dateString: string): string => {
+    const locale = getCurrentLocale();
+    const dateLocale = locale === 'th' ? th : enUS;
     const date = new Date(dateString + 'T00:00:00'); // Ensure correct date parsing
-    return date.toLocaleDateString("en-US", {
-      weekday: "short", // "Mon"
-      month: "short",   // "Aug"
-      day: "numeric",   // "26"
-    });
+    return format(date, 'EEE, MMM d', { locale: dateLocale });
   };
 
   const formatTime = (booking: VipBooking): string => {
     if (!booking.startTime) return 'N/A';
 
+    const locale = getCurrentLocale();
+    const dateLocale = locale === 'th' ? th : enUS;
     const serverTimeZone = 'Asia/Bangkok'; // As per bookings/create/route.ts
     const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const dateTimeString = `${booking.date}T${booking.startTime}`;
@@ -125,22 +130,32 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
       // then immediately convert this conceptual UTC instant to the user's local timezone for formatting.
       const zonedDate = utcToZonedTime(dateTimeString, localTimeZone, { timeZone: serverTimeZone });
       
-      const startTimeDisplay = format(zonedDate, 'hh:mm a', { timeZone: localTimeZone });
+      const startTimeDisplay = format(zonedDate, 'hh:mm a', { timeZone: localTimeZone, locale: dateLocale });
 
       let endTimeDisplay = '';
       if (booking.duration && typeof booking.duration === 'number' && booking.duration > 0) {
         const endDate = new Date(zonedDate.getTime() + booking.duration * 60 * 60 * 1000);
         // endDate is now conceptually a Date object representing an instant in time.
         // Format this instant in the user's local timezone.
-        endTimeDisplay = ` - ${format(endDate, 'hh:mm a', { timeZone: localTimeZone })}`;
+        endTimeDisplay = ` - ${format(endDate, 'hh:mm a', { timeZone: localTimeZone, locale: dateLocale })}`;
       }
       return `${startTimeDisplay}${endTimeDisplay}`;
     } catch (e) {
         console.error("Error formatting time:", e, "Input:", dateTimeString);
         // Fallback for safety, though ideally this shouldn't happen with valid inputs
         const fallbackDate = new Date(dateTimeString);
-        return fallbackDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        const fallbackLocale = locale === 'th' ? 'th-TH' : 'en-US';
+        return fallbackDate.toLocaleTimeString(fallbackLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
     }
+  };
+
+  const translateStatus = (status: string) => {
+    const statusMap: { [key: string]: string } = {
+      'confirmed': tVip('confirmed'),
+      'cancelled': tVip('cancelled'), 
+      'completed': tVip('completed')
+    };
+    return statusMap[status] || tVip('unknown');
   };
 
   if (isLoadingVipStatus) {
@@ -176,19 +191,19 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
         <Link href="/bookings">
           <Button className="bg-green-700 hover:bg-green-800 text-white">
             <PlusCircle className="mr-2 h-5 w-5" />
-            New Booking
+            {tVip('newBooking')}
           </Button>
         </Link>
       </div>
       <Tabs value={currentFilter} onValueChange={handleFilterChange}>
         <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex bg-muted p-1 rounded-lg">
-          <TabsTrigger value="future" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Future</TabsTrigger>
-          <TabsTrigger value="past" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Past</TabsTrigger>
-          <TabsTrigger value="all" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
+          <TabsTrigger value="future" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">{tVip('future')}</TabsTrigger>
+          <TabsTrigger value="past" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">{tVip('past')}</TabsTrigger>
+          <TabsTrigger value="all" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">{tVip('all')}</TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {isLoading && <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-muted-foreground">Loading bookings...</span></div>}
+      {isLoading && <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-muted-foreground">{tVip('loadingBookings')}</span></div>}
 
       {!isLoading && error && (
          <EmptyState
@@ -222,7 +237,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                 <div className="flex justify-between items-start">
                     <div>
                         <CardTitle className="text-lg font-semibold text-gray-800">{formatDate(booking.date)}</CardTitle>
-                        <CardDescription className="text-sm text-gray-500">Booking ID: {booking.id}</CardDescription>
+                        <CardDescription className="text-sm text-gray-500">{tVip('bookingId')}: {booking.id}</CardDescription>
                     </div>
                     <span
                         className={`absolute top-2 right-2 text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap
@@ -231,7 +246,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                             booking.status === 'completed' ? 'bg-blue-100 text-blue-800' :
                             'bg-gray-100 text-gray-800'}`}
                     >
-                        {booking.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1) : 'Unknown'}
+                        {booking.status ? translateStatus(booking.status) : tVip('unknown')}
                     </span>
                 </div>
               </CardHeader>
@@ -242,12 +257,12 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                 </div>
                 <div className="flex items-center">
                   <Users size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                  <span className="text-gray-600">Pax: {booking.numberOfPeople || 'N/A'}</span>
+                  <span className="text-gray-600">{tVip('people')}: {booking.numberOfPeople || 'N/A'}</span>
                 </div>
                 {booking.notes && (
                   <div className="flex items-start text-gray-600">
                       <InfoIcon size={16} className="mr-2 text-gray-500 flex-shrink-0 mt-0.5" />
-                      <p className="break-words">Note: {booking.notes}</p>
+                      <p className="break-words">{tVip('notes')}: {booking.notes}</p>
                   </div>
                 )}
               </CardContent>
@@ -278,14 +293,14 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                 return (
                   <CardFooter className="flex gap-2 pt-0 pb-4 px-4">
                     <Button variant="outline" onClick={() => onModifyBooking(booking.id)} className="flex-1 py-1 px-2 h-auto text-xs">
-                      <Edit className="mr-1 h-3 w-3" /> Edit
+                      <Edit className="mr-1 h-3 w-3" /> {tVip('edit')}
                     </Button>
                     <Button 
                       variant="outline"
                       onClick={() => onCancelBooking(booking.id)} 
                       className="flex-1 py-1 px-2 h-auto text-xs text-red-600 border-red-500 hover:bg-red-50 hover:text-red-700"
                     >
-                      <XCircle className="mr-1 h-3 w-3" /> Cancel
+                      <XCircle className="mr-1 h-3 w-3" /> {tVip('cancel')}
                     </Button>
                   </CardFooter>
                 );

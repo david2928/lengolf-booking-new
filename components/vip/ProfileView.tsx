@@ -13,17 +13,20 @@ import { getVipProfile, updateVipProfile } from '../../lib/vipService'; // VipAp
 import { VipProfileResponse, UpdateVipProfileRequest, VipApiError } from '../../types/vip'; // VipApiError imported here
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useVipContext } from '../../app/(features)/vip/contexts/VipContext'; // Corrected path
+import { useTranslations } from 'next-intl';
 
-const profileFormSchema = z.object({
-  display_name: z.string().min(2, { message: "Name must be at least 2 characters." }).max(100).optional(),
-  email: z.string().email({ message: "Invalid email address." }).optional(),
+// Move schema creation inside component to access translations
+const createProfileFormSchema = (tVip: any) => z.object({
+  display_name: z.string().min(2, { message: tVip('nameMinLength') }).max(100).optional(),
+  email: z.string().email({ message: tVip('invalidEmail') }).optional(),
   marketingPreference: z.boolean().optional(),
 });
 
-type ProfileFormValues = z.infer<typeof profileFormSchema>;
+type ProfileFormValues = z.infer<ReturnType<typeof createProfileFormSchema>>;
 
 const ProfileView = () => {
   const { vipStatus, sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
+  const tVip = useTranslations('vip');
   const [profile, setProfile] = useState<VipProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +35,8 @@ const ProfileView = () => {
   const { refetchVipStatus, session } = useVipContext();
 
 
+  const profileFormSchema = createProfileFormSchema(tVip);
+  
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
@@ -73,7 +78,7 @@ const ProfileView = () => {
     } catch (err) {
       console.error("Failed to fetch profile", err);
       const typedError = err as VipApiError; // Use VipApiError type
-      setError(typedError.payload?.message || typedError.message || 'Could not load profile data.');
+      setError(typedError.payload?.message || typedError.message || tVip('couldNotLoadProfile'));
     } finally {
       setIsLoading(false);
     }
@@ -96,41 +101,41 @@ const ProfileView = () => {
     }
 
     if (Object.keys(payload).length === 0) {
-      setSubmitStatus({ type: 'success', message: 'No changes to save.'});
+      setSubmitStatus({ type: 'success', message: tVip('noChangesToSave')});
       setIsSubmitting(false);
       return;
     }
 
     try {
       const response = await updateVipProfile(payload);
-      setSubmitStatus({ type: 'success', message: response.message || 'Profile updated successfully!' });
+      setSubmitStatus({ type: 'success', message: response.message || tVip('profileUpdatedSuccess') });
       await fetchProfile(true); // Force refresh to show updated data and update shared context
       if(refetchVipStatus) await refetchVipStatus(); 
     } catch (err) {
       const typedError = err as VipApiError; // Use VipApiError type
-      setSubmitStatus({ type: 'error', message: typedError.payload?.message || typedError.message || 'Failed to update profile.' });
+      setSubmitStatus({ type: 'error', message: typedError.payload?.message || typedError.message || tVip('failedToUpdateProfile') });
     } finally {
       setIsSubmitting(false);
     }
   }
 
   if (isLoading) {
-    return <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading profile...</span></div>;
+    return <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">{tVip('loadingProfile')}</span></div>;
   }
 
   if (error) {
-    return <div className="text-center py-10 text-destructive"><AlertTriangle className="inline-block mr-2"/>{error} <Button onClick={() => fetchProfile(true)} variant="outline" className="ml-2">Try Again</Button></div>;
+    return <div className="text-center py-10 text-destructive"><AlertTriangle className="inline-block mr-2"/>{error} <Button onClick={() => fetchProfile(true)} variant="outline" className="ml-2">{tVip('tryAgain')}</Button></div>;
   }
 
   if (!profile) {
-    return <div className="text-center py-10">No profile data found.</div>;
+    return <div className="text-center py-10">{tVip('noProfileData')}</div>;
   }
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="text-2xl">My Profile</CardTitle>
-        <CardDescription>View and update your personal information and preferences.</CardDescription>
+        <CardTitle className="text-2xl">{tVip('myProfile')}</CardTitle>
+        <CardDescription>{tVip('profileDescription')}</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -140,8 +145,8 @@ const ProfileView = () => {
               name="display_name"
               render={({ field }: { field: ControllerRenderProps<ProfileFormValues, 'display_name'> }) => (
                 <FormItem>
-                  <FormLabel>Display Name</FormLabel>
-                  <FormControl><Input placeholder="Your display name" {...field} /></FormControl>
+                  <FormLabel>{tVip('displayName')}</FormLabel>
+                  <FormControl><Input placeholder={tVip('displayNamePlaceholder')} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -151,17 +156,17 @@ const ProfileView = () => {
               name="email"
               render={({ field }: { field: ControllerRenderProps<ProfileFormValues, 'email'> }) => (
                 <FormItem>
-                  <FormLabel>Email Address</FormLabel>
-                  <FormControl><Input type="email" placeholder="your@email.com" {...field} /></FormControl>
+                  <FormLabel>{tVip('emailAddress')}</FormLabel>
+                  <FormControl><Input type="email" placeholder={tVip('emailPlaceholder')} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
              <div>
-                <FormLabel>Phone Number</FormLabel>
-                <Input value={profile.phoneNumber || 'Not provided'} readOnly disabled className="mt-1 bg-muted/50"/>
+                <FormLabel>{tVip('phoneNumber')}</FormLabel>
+                <Input value={profile.phoneNumber || tVip('notProvided')} readOnly disabled className="mt-1 bg-muted/50"/>
                 <FormDescription className="mt-1 text-sm text-gray-600">
-                    To update your phone number, please contact our staff.
+                    {tVip('phoneUpdateNote')}
                 </FormDescription>
             </div>
 
@@ -177,9 +182,9 @@ const ProfileView = () => {
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>Marketing Preferences</FormLabel>
+                    <FormLabel>{tVip('marketingPreferences')}</FormLabel>
                     <FormDescription>
-                      Receive emails about new promotions, events, and updates.
+                      {tVip('marketingDescription')}
                     </FormDescription>
                   </div>
                 </FormItem>
@@ -195,7 +200,7 @@ const ProfileView = () => {
             )}
             <Button type="submit" disabled={isSubmitting || isLoading}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
+              {isSubmitting ? tVip('saving') : tVip('saveChanges')}
             </Button>
           </CardFooter>
         </form>

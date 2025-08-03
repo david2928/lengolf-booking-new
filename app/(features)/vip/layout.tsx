@@ -11,6 +11,7 @@ import { VipStatusResponse, VipApiError } from '../../../types/vip'; // Adjusted
 import SharedFooter from '@/components/shared/Footer'; // Import the SharedFooter
 import Header from '@/components/shared/Header';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 interface VipLayoutProps {
   children: ReactNode;
@@ -18,6 +19,7 @@ interface VipLayoutProps {
 
 const VipLayout = ({ children }: VipLayoutProps) => {
   const { data: session, status: sessionStatus } = useSession();
+  const tNav = useTranslations('navigation');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
 
@@ -100,7 +102,12 @@ const VipLayout = ({ children }: VipLayoutProps) => {
 
   useEffect(() => {
     if (sessionStatus === 'unauthenticated') {
-      redirect('/auth/login?callbackUrl=/vip'); // Updated to redirect to /vip instead of /vip/dashboard
+      // Preserve language parameter in redirect
+      const currentUrl = new URL(window.location.href);
+      const lang = currentUrl.searchParams.get('lang');
+      const callbackUrl = lang ? `/vip?lang=${lang}` : '/vip';
+      const redirectUrl = lang ? `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}&lang=${lang}` : '/auth/login?callbackUrl=/vip';
+      redirect(redirectUrl);
     }
     
     if (sessionStatus === 'authenticated') {
@@ -218,7 +225,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                 <Link href="/bookings">
                   <button className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium">
                     <Calendar className="h-4 w-4" />
-                    <span>New Booking</span>
+                    <span>{tNav('newBooking')}</span>
                   </button>
                 </Link>
 
@@ -228,13 +235,13 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                 {/* Simple My Account dropdown */}
                 <div className="relative group">
                   <button className="flex items-center gap-1 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-white">
-                    My Account <ChevronDown size={16} />
+                    {tNav('myAccount')} <ChevronDown size={16} />
                   </button>
                   
                   {/* Dropdown menu - matching booking layout style with separators */}
                   <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <Link href="/vip" className="flex items-center gap-2 px-4 py-3 text-green-700 hover:bg-green-50 transition-colors font-medium border-b border-green-100">
-                      <span>Dashboard</span>
+                      <span>{tNav('dashboard')}</span>
                       <span className="ml-auto bg-green-700 text-white px-2 py-0.5 rounded text-xs font-medium">VIP</span>
                     </Link>
                     
@@ -243,19 +250,19 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                         <div className="border-t border-gray-100"></div>
                         <Link href="/vip/profile" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                           <User size={16} />
-                          <span>My Profile</span>
+                          <span>{tNav('myProfile')}</span>
                         </Link>
                         <Link href="/vip/bookings" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                           <Calendar size={16} />
-                          <span>My Bookings</span>
+                          <span>{tNav('myBookings')}</span>
                         </Link>
                         <Link href="/vip/packages" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                           <Package size={16} />
-                          <span>My Packages</span>
+                          <span>{tNav('myPackages')}</span>
                         </Link>
                         <Link href="/vip/membership" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                           <Trophy size={16} />
-                          <span>Membership</span>
+                          <span>{tNav('membership')}</span>
                         </Link>
                       </>
                     ) : shouldShowLinkAccount ? (
@@ -263,7 +270,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                         <div className="border-t border-gray-100"></div>
                         <Link href="/vip/link-account" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors font-medium">
                           <LinkIcon size={16} />
-                          <span>Link Account to Access VIP Features</span>
+                          <span>{tNav('linkAccount')}</span>
                         </Link>
                       </>
                     ) : null}
@@ -276,11 +283,11 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                       className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       <ExternalLink size={16} />
-                      <span>Main Site</span>
+                      <span>{tNav('mainSite')}</span>
                     </a>
                     <button onClick={handleSignOut} className="flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors w-full text-left">
                       <LogOut size={16} />
-                      <span>Sign Out</span>
+                      <span>{tNav('signOut')}</span>
                     </button>
                   </div>
                 </div>
@@ -290,7 +297,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                 <Link href="/bookings">
                   <button className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium">
                     <Calendar className="h-4 w-4" />
-                    <span>New Booking</span>
+                    <span>{tNav('newBooking')}</span>
                   </button>
                 </Link>
 
@@ -331,8 +338,8 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                       <li className="border-t border-primary-foreground/20 pt-2 mt-2">
                         <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">BOOKINGS</p>
                         <ul className="mt-1 space-y-1">
-                          <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />My Bookings</Link></li>
-                          <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />New Booking</Link></li>
+                          <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />{tNav('myBookings')}</Link></li>
+                          <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />{tNav('newBooking')}</Link></li>
                         </ul>
                       </li>
                       
@@ -356,7 +363,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                   )}
                 </>
               ) : (
-                <li><Link href="/bookings" className="block px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}>New Booking</Link></li>
+                <li><Link href="/bookings" className="block px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}>{tNav('newBooking')}</Link></li>
               )}
             
               <li className="border-t border-primary-foreground/20 pt-2 mt-2">

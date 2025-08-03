@@ -9,6 +9,7 @@ import BookingModifyModal from '../../../../components/vip/BookingModifyModal';
 import BookingCancelModal from '../../../../components/vip/BookingCancelModal';
 import { getVipBookings } from '../../../../lib/vipService';
 import type { VipBooking } from '../../../../types/vip';
+import { useTranslations } from 'next-intl';
 
 // Placeholder for Modal components to be added in VIP-FE-007 and VIP-FE-008
 // import ModifyBookingModal from '../../../../components/vip/BookingModifyModal';
@@ -16,6 +17,7 @@ import type { VipBooking } from '../../../../types/vip';
 
 const VipBookingsPage = () => {
   const { vipStatus, isLoadingVipStatus, session, refetchVipStatus } = useVipContext();
+  const tVip = useTranslations('vip');
   const router = useRouter();
   
   const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
@@ -119,7 +121,7 @@ const VipBookingsPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading bookings information...</p>
+        <p className="text-muted-foreground">{tVip('loadingBookingsInfo')}</p>
       </div>
     );
   }
@@ -129,7 +131,7 @@ const VipBookingsPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Redirecting to account linking...</p>
+        <p className="text-muted-foreground">{tVip('redirectingToAccountLinking')}</p>
       </div>
     );
   }
@@ -137,8 +139,8 @@ const VipBookingsPage = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
-        <p className="text-muted-foreground">View and manage your past and upcoming tee times.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{tVip('myBookingsTitle')}</h1>
+        <p className="text-muted-foreground">{tVip('myBookingsDescription')}</p>
       </div>
       
       <BookingsList 

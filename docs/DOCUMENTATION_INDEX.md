@@ -27,6 +27,7 @@ This documentation covers the entire Lengolf Booking Refactor ecosystem, includi
 - **[Customer Relationship Management](./docs/features/CRM_INTEGRATION.md)** - Customer matching algorithms, profile linking, and data synchronization
 - **[Package Management System](./docs/features/PACKAGE_MANAGEMENT.md)** - Package tracking, usage monitoring, and CRM synchronization
 - **[Notification System](./docs/features/NOTIFICATION_SYSTEM.md)** - Email notifications, LINE messaging, and review request automation
+- **[Translation Management System](./docs/features/TRANSLATION_MANAGEMENT.md)** - Database-driven translation management with admin UI, workflow controls, and automated export/import
 
 ### API Reference Documentation
 - **[API Reference](./docs/api/API_REFERENCE.md)** - Complete API endpoint documentation with examples
@@ -117,6 +118,7 @@ This documentation covers the entire Lengolf Booking Refactor ecosystem, includi
 - **Package Management**: Comprehensive tracking of customer packages and usage
 - **Calendar Integration**: Real-time synchronization with Google Calendar
 - **Multi-Provider Auth**: Support for Google, Facebook, LINE, and guest accounts
+- **Translation Management**: Database-driven multi-language content management with admin UI
 - **Mobile Optimization**: Responsive design with LINE LIFF integration
 - **Performance Optimization**: Caching, rate limiting, and monitoring
 
@@ -124,6 +126,7 @@ This documentation covers the entire Lengolf Booking Refactor ecosystem, includi
 - **VIP Migration**: ✅ **Completed** - Full VIP portal with Row Level Security
 - **Customer Matching**: ✅ **Active** - V2 architecture with improved algorithms
 - **Package Synchronization**: ✅ **Active** - Real-time CRM data integration
+- **Translation Management**: ✅ **Active** - Database-driven system with admin UI and workflow management
 - **LINE Integration**: 🔄 **Ready** - LIFF components prepared for deployment
 - **Performance Optimization**: ✅ **Active** - Caching and monitoring implemented
 

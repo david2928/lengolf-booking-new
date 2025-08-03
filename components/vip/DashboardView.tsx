@@ -10,6 +10,7 @@ import LinkAccountPrompt from './LinkAccountPrompt'; // Assuming LinkAccountProm
 import { Session } from "next-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowRight, CalendarDays, Package as PackageLucideIcon, UserCircle } from "lucide-react";
+import { useTranslations } from 'next-intl';
 
 // Temporary local Booking type
 interface Booking {
@@ -45,6 +46,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   primaryActivePackage,
   vipTier
 }) => {
+  const t = useTranslations('vip');
+  const tNav = useTranslations('navigation');
   // Helper function to format date and time
   const formatBookingDateTime = (dateStr: string, timeStr: string) => {
     const dateObj = new Date(`${dateStr}T${timeStr}`);
@@ -55,7 +58,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     return (
       <span>
         <span className="text-green-700 font-semibold">{weekday}, {month} {day}</span>
-        <span className="text-gray-700"> at </span>
+        <span className="text-gray-700"> {t('at')} </span>
         <span className="text-green-700 font-semibold">{time}</span>
       </span>
     );
@@ -67,8 +70,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome, {userName}!</h1>
-          <p className="text-muted-foreground">Your VIP access is ready. Start by making a booking to begin your golf journey!</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('welcome', { userName })}</h1>
+          <p className="text-muted-foreground">{t('vipAccessReady')}</p>
         </div>
         
         {vipTier && (
@@ -77,8 +80,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({
               <Award className="h-6 w-6 text-amber-600" />
             </div>
             <div>
-              <h3 className="font-medium text-amber-700">{vipTier} Tier</h3>
-              <p className="text-sm text-muted-foreground">Enjoy your premium benefits</p>
+              <h3 className="font-medium text-amber-700">{t('tier', { tier: vipTier })}</h3>
+              <p className="text-sm text-muted-foreground">{t('enjoyBenefits')}</p>
             </div>
           </div>
         )}
@@ -88,7 +91,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Upcoming Session Card */}
           <Card className="shadow-lg border-gray-200">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold text-gray-800">Upcoming Session</CardTitle>
+              <CardTitle className="text-xl font-semibold text-gray-800">{t('upcomingSession')}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col md:flex-row items-start md:items-center justify-between">
               <div className="flex-grow mb-4 md:mb-0 md:mr-4">
@@ -103,20 +106,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                     {nextBooking.duration !== undefined && (
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Clock className="mr-3 h-4 w-4 text-gray-400" />
-                        <span>Duration: {nextBooking.duration} hour{nextBooking.duration > 1 ? 's' : ''}</span>
+                        <span>Duration: {nextBooking.duration} {nextBooking.duration > 1 ? t('hours') : t('hour')}</span>
                       </div>
                     )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Make your first booking to see your upcoming sessions here!
+                    {t('noUpcomingFirst')}
                   </p>
                 )}
               </div>
               <Link href={nextBooking ? "/vip/bookings" : "/bookings"} className="w-full md:w-auto md:ml-auto">
                 <Button className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
                   <Calendar className="mr-2 h-4 w-4" />
-                  {nextBooking ? "Manage Bookings" : "Make First Booking"}
+                  {nextBooking ? t('manageBookings') : t('makeFirstBooking')}
                 </Button>
               </Link>
             </CardContent>
@@ -125,18 +128,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Active Package Card - Updated to remove linking CTA */}
           <Card className="shadow-lg border-gray-200">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold text-gray-800">Active Package</CardTitle>
+              <CardTitle className="text-xl font-semibold text-gray-800">{t('activePackage')}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col md:flex-row items-start md:items-center justify-between">
               <div className="flex-grow mb-4 md:mb-0 md:mr-4">
                 <p className="text-sm text-muted-foreground">
-                  No active packages found. Purchase a package to get started with lessons or practice sessions.
+                  {t('noActivePackagePrompt')}
                 </p>
               </div>
               <Link href="/vip/packages" className="w-full md:w-auto md:ml-auto">
                 <Button variant="outline" className="w-full md:w-auto border-primary text-primary hover:bg-primary/10">
                   <PackageLucideIcon className="mr-2 h-4 w-4" />
-                  View Packages
+                  {t('viewPackages')}
                 </Button>
               </Link>
             </CardContent>
@@ -146,16 +149,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Quick Access for unmatched users */}
         <Card className="shadow-lg border-gray-200">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-gray-800">Quick Access</CardTitle>
+            <CardTitle className="text-xl font-semibold text-gray-800">{t('quickAccess')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {[
-                { href: "/bookings", icon: Calendar, label: "Make New Booking" },
-                { href: "/vip/profile", icon: UserCircle, label: "My VIP Profile" },
-                { href: "/vip/bookings", icon: Edit, label: "View My Bookings" },
-                { href: "/vip/packages", icon: PackageLucideIcon, label: "My Packages" },
-                { href: "https://www.len.golf", icon: ExternalLink, label: "LENGOLF Main Site", external: true },
+                { href: "/bookings", icon: Calendar, label: tNav('makeNewBooking') },
+                { href: "/vip/profile", icon: UserCircle, label: t('myVipProfile') },
+                { href: "/vip/bookings", icon: Edit, label: tNav('myBookings') },
+                { href: "/vip/packages", icon: PackageLucideIcon, label: t('myPackages') },
+                { href: "https://www.len.golf", icon: ExternalLink, label: t('lengolfMainSite'), external: true },
               ].map((item) => {
                 const Icon = item.icon;
                 const buttonClasses = "w-full h-auto py-3 px-3 flex items-center justify-start border-gray-300 hover:bg-gray-50 text-gray-700 hover:text-primary";
@@ -192,8 +195,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="space-y-8"> {/* Increased spacing for stacked cards */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Welcome back, {userName}!</h1>
-        <p className="text-muted-foreground">Ready to manage your bookings?</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('welcomeBack', { userName })}</h1>
+        <p className="text-muted-foreground">{t('readyToManage')}</p>
       </div>
       
       {vipTier && (
@@ -202,8 +205,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({
             <Award className="h-6 w-6 text-amber-600" />
           </div>
           <div>
-            <h3 className="font-medium text-amber-700">{vipTier} Tier</h3>
-            <p className="text-sm text-muted-foreground">Enjoy your premium benefits</p>
+            <h3 className="font-medium text-amber-700">{t('tier', { tier: vipTier })}</h3>
+            <p className="text-sm text-muted-foreground">{t('enjoyBenefits')}</p>
           </div>
         </div>
       )}
@@ -213,7 +216,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Upcoming Session Card */}
         <Card className="shadow-lg border-gray-200"> {/* Applied shadow and subtle border */}
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-gray-800">Upcoming Session</CardTitle>
+            <CardTitle className="text-xl font-semibold text-gray-800">{t('upcomingSession')}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col md:flex-row items-start md:items-center justify-between">
             <div className="flex-grow mb-4 md:mb-0 md:mr-4">
@@ -228,18 +231,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                   {nextBooking.duration !== undefined && (
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Clock className="mr-3 h-4 w-4 text-gray-400" />
-                      <span>Duration: {nextBooking.duration} hour{nextBooking.duration > 1 ? 's' : ''}</span>
+                      <span>Duration: {nextBooking.duration} {nextBooking.duration > 1 ? t('hours') : t('hour')}</span>
                     </div>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">You have no upcoming bookings.</p>
+                <p className="text-sm text-muted-foreground">{t('noUpcoming')}</p>
               )}
             </div>
             <Link href="/vip/bookings" className="w-full md:w-auto md:ml-auto">
               <Button className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground">
                 <Calendar className="mr-2 h-4 w-4" />
-                Manage Bookings
+                {t('manageBookings')}
               </Button>
             </Link>
           </CardContent>
@@ -248,7 +251,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Active Package Card */}
         <Card className="shadow-lg border-gray-200"> {/* Applied shadow and subtle border */}
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-gray-800">Active Package</CardTitle>
+            <CardTitle className="text-xl font-semibold text-gray-800">{t('activePackage')}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col md:flex-row items-start md:items-center justify-between">
             <div className="flex-grow mb-4 md:mb-0 md:mr-4">
@@ -264,26 +267,26 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                     <div className="flex items-center text-sm text-muted-foreground">
                        <Clock className="mr-3 h-4 w-4 text-gray-400" />
                       <span>
-                        {primaryActivePackage.hoursRemaining} hour{Number(primaryActivePackage.hoursRemaining) !== 1 ? 's' : ''} remaining
+                        {primaryActivePackage.hoursRemaining} {Number(primaryActivePackage.hoursRemaining) !== 1 ? t('hours') : t('hour')} {t('remaining')}
                       </span>
                     </div>
                   }
                   {primaryActivePackage.expires && 
                     <div className="flex items-center text-sm text-muted-foreground">
                       <CalendarDays className="mr-3 h-4 w-4 text-gray-400" />
-                      <span>Expires: {primaryActivePackage.expires}</span>
+                      <span>{t('expires')}: {primaryActivePackage.expires}</span>
                     </div>
                   }
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No active package found.</p>
+                <p className="text-sm text-muted-foreground">{t('noActivePackage')}</p>
               )}
             </div>
             {primaryActivePackage && (
               <Link href={`/vip/packages`} className="w-full md:w-auto md:ml-auto">
                 <Button variant="outline" className="w-full md:w-auto border-primary text-primary hover:bg-primary/10">
                   <PackageLucideIcon className="mr-2 h-4 w-4" />
-                  View Package Details
+                  {t('viewPackageDetails')}
                 </Button>
               </Link>
             )}
@@ -294,18 +297,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Quick Access */}
       <Card className="shadow-lg border-gray-200"> {/* Applied shadow and subtle border */}
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-800">Quick Access</CardTitle>
+          <CardTitle className="text-xl font-semibold text-gray-800">{t('quickAccess')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { href: "/bookings", icon: Calendar, label: "Make New Booking" },
-              { href: "/vip/bookings", icon: Edit, label: "Manage My Bookings" },
+              { href: "/bookings", icon: Calendar, label: tNav('makeNewBooking') },
+              { href: "/vip/bookings", icon: Edit, label: t('manageBookings') },
               // { href: "#", icon: CalendarLucideIcon, label: "View Bay Rates", onClick: () => alert('Bay Rates: To be implemented') },
               // { href: "#", icon: Megaphone, label: "Show Promotions", onClick: () => alert('Promotions: To be implemented') },
-              { href: "/vip/profile", icon: UserCircle, label: "My VIP Profile" },
-              { href: "/vip/packages", icon: PackageLucideIcon, label: "My Packages" },
-              { href: "https://www.len.golf", icon: ExternalLink, label: "LENGOLF Main Site", external: true },
+              { href: "/vip/profile", icon: UserCircle, label: t('myVipProfile') },
+              { href: "/vip/packages", icon: PackageLucideIcon, label: t('myPackages') },
+              { href: "https://www.len.golf", icon: ExternalLink, label: t('lengolfMainSite'), external: true },
             ].map((item) => {
               const Icon = item.icon;
               // Use subtle border for quick access buttons, consistent padding
