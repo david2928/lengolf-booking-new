@@ -452,7 +452,7 @@ export default function TranslationManagement() {
                     id="en-value"
                     value={editValues.en}
                     onChange={(e) => setEditValues({ ...editValues, en: e.target.value })}
-                    className="mt-2 text-sm min-h-[100px] sm:min-h-[80px] resize-none translation-textarea"
+                    className="mt-2 text-base sm:text-sm min-h-[100px] sm:min-h-[80px] resize-none translation-textarea"
                     rows={4}
                     placeholder="Enter English translation..."
                   />
@@ -468,7 +468,7 @@ export default function TranslationManagement() {
                     id="th-value"
                     value={editValues.th}
                     onChange={(e) => setEditValues({ ...editValues, th: e.target.value })}
-                    className="mt-2 text-sm min-h-[100px] sm:min-h-[80px] resize-none translation-textarea"
+                    className="mt-2 text-base sm:text-sm min-h-[100px] sm:min-h-[80px] resize-none translation-textarea"
                     rows={4}
                     placeholder="Enter Thai translation..."
                   />
@@ -480,7 +480,7 @@ export default function TranslationManagement() {
                     value={editValues.reason}
                     onChange={(e) => setEditValues({ ...editValues, reason: e.target.value })}
                     placeholder="Why are you making this change?"
-                    className="mt-2 text-sm"
+                    className="mt-2 text-base sm:text-sm translation-input"
                   />
                 </div>
 

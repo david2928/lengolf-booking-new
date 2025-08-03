@@ -31,8 +31,17 @@
       width: 100% !important;
     }
 
-    /* Better text area focus handling on mobile */
-    .translation-textarea:focus {
+    /* Prevent zoom on focus for translation inputs */
+    .translation-textarea, 
+    .translation-input {
+      font-size: 16px !important;
+      transform: none !important;
+      zoom: 1 !important;
+    }
+
+    .translation-textarea:focus,
+    .translation-input:focus {
+      font-size: 16px !important;
       transform: none !important;
       zoom: 1 !important;
     }
