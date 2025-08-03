@@ -85,7 +85,7 @@ export default function TranslationManagement() {
           id: `${item.id}`,
           keyId: item.id,
           keyPath: item.key_path,
-          namespace: item.namespace.namespace,
+          namespace: item.namespace?.namespace || 'unknown',
           en: enTranslation?.value || '',
           th: thTranslation?.value || '',
           context: item.context,

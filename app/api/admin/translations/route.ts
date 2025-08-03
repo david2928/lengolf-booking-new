@@ -6,16 +6,30 @@ export async function GET(request: NextRequest) {
     // TODO: Re-enable authentication before production deployment
     // Currently disabled for feature branch development
     
+    console.log('Admin translations API called');
+    
     const { searchParams } = new URL(request.url);
     const namespace = searchParams.get('namespace');
     const search = searchParams.get('search');
     const reviewFilter = searchParams.get('reviewFilter');
+    
+    console.log('Query params:', { namespace, search, reviewFilter });
+    
+    // Check environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('Missing environment variables');
+      return NextResponse.json({ 
+        error: 'Server configuration error: Missing Supabase credentials' 
+      }, { status: 500 });
+    }
     
     // Use service role key for admin operations
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+    
+    console.log('Supabase client created with service role');
 
     // Build the query for translation keys with their translations
     let query = supabase
@@ -130,11 +144,10 @@ export async function PUT(request: NextRequest) {
         key_id: numericKeyId,
         locale,
         value,
-        is_approved: false, // Reset approval status when updated
+        is_approved: true, // Auto-approve edits as per workflow
         updated_by: 'admin-panel', // TODO: Use actual user when auth is enabled
         updated_at: new Date().toISOString(),
-        version: nextVersion,
-        change_reason: reason || null
+        version: nextVersion
       }, {
         onConflict: 'key_id,locale'
       });

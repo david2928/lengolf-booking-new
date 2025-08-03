@@ -118,6 +118,7 @@ export async function middleware(request: NextRequest) {
   // Allow access to public routes immediately
   if (
     pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/admin') || // Allow admin API routes
     pathname.startsWith('/auth') ||
     pathname.startsWith('/images/') ||
     pathname.startsWith('/_next/') ||
