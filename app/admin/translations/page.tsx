@@ -116,19 +116,7 @@ export default function TranslationManagement() {
     if (!editingTranslation) return;
 
     try {
-      // Update English translation
-      const enResponse = await fetch('/api/admin/translations', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          keyId: editingTranslation.keyId,
-          locale: 'en',
-          value: editValues.en,
-          reason: editValues.reason
-        })
-      });
-
-      // Update Thai translation
+      // Only update Thai translation (English is read-only)
       const thResponse = await fetch('/api/admin/translations', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -140,11 +128,11 @@ export default function TranslationManagement() {
         })
       });
 
-      if (!enResponse.ok || !thResponse.ok) {
-        throw new Error('Failed to update translation');
+      if (!thResponse.ok) {
+        throw new Error('Failed to update Thai translation');
       }
 
-      toast.success('Translation updated successfully');
+      toast.success('Thai translation updated successfully');
       setEditingTranslation(null);
       fetchTranslations();
     } catch (error) {
@@ -451,10 +439,10 @@ export default function TranslationManagement() {
                   <Textarea
                     id="en-value"
                     value={editValues.en}
-                    onChange={(e) => setEditValues({ ...editValues, en: e.target.value })}
-                    className="mt-2 text-base sm:text-sm min-h-[100px] sm:min-h-[80px] resize-none translation-textarea"
+                    readOnly
+                    className="mt-2 text-base sm:text-sm min-h-[100px] sm:min-h-[80px] resize-none translation-textarea bg-gray-50 text-gray-700 cursor-not-allowed"
                     rows={4}
-                    placeholder="Enter English translation..."
+                    placeholder="English translation (read-only)"
                   />
                 </div>
                 <div>
