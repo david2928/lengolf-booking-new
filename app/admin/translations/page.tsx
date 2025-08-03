@@ -415,67 +415,101 @@ export default function TranslationManagement() {
         </div>
       )}
 
-      {/* Edit Translation Dialog - Mobile Responsive */}
+      {/* Edit Translation Dialog - Full Screen on Mobile */}
       <Dialog open={!!editingTranslation} onOpenChange={() => setEditingTranslation(null)}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-sm sm:text-base break-all pr-8">
-              Edit Translation: <span className="text-blue-600">{editingTranslation?.namespace}</span>
-              <span className="text-gray-400">.</span>
-              <span>{editingTranslation?.keyPath}</span>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 sm:space-y-4">
-            <div>
-              <Label htmlFor="en-value" className="text-sm font-medium">🇺🇸 English</Label>
-              <Textarea
-                id="en-value"
-                value={editValues.en}
-                onChange={(e) => setEditValues({ ...editValues, en: e.target.value })}
-                className="mt-1 text-sm"
-                rows={3}
-                placeholder="Enter English translation..."
-              />
+        <DialogContent className="w-full h-full sm:w-[95vw] sm:h-auto sm:max-w-2xl sm:max-h-[90vh] p-0 sm:p-6 overflow-hidden sm:overflow-y-auto data-[state=open]:duration-300">
+          {/* Mobile: Full screen layout */}
+          <div className="flex flex-col h-full sm:h-auto">
+            {/* Header - Fixed on mobile, normal on desktop */}
+            <div className="flex-shrink-0 p-4 sm:p-0 border-b sm:border-b-0 bg-white sm:bg-transparent">
+              <DialogHeader className="space-y-3 sm:space-y-2">
+                <DialogTitle className="text-lg sm:text-xl font-semibold text-left pr-8">
+                  Edit Translation
+                </DialogTitle>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium">
+                    {editingTranslation?.namespace}
+                  </span>
+                  <span className="text-gray-400 text-sm">•</span>
+                  <span className="font-mono text-sm text-gray-700 break-all">
+                    {editingTranslation?.keyPath}
+                  </span>
+                </div>
+              </DialogHeader>
             </div>
-            <div>
-              <Label htmlFor="th-value" className="text-sm font-medium">🇹🇭 Thai</Label>
-              <Textarea
-                id="th-value"
-                value={editValues.th}
-                onChange={(e) => setEditValues({ ...editValues, th: e.target.value })}
-                className="mt-1 text-sm"
-                rows={3}
-                placeholder="Enter Thai translation..."
-              />
+
+            {/* Content - Scrollable on mobile */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-0 sm:mt-4">
+              <div className="space-y-4 sm:space-y-4 max-w-none">
+                <div>
+                  <Label htmlFor="en-value" className="text-sm font-medium flex items-center gap-2">
+                    🇺🇸 English
+                    <span className="text-xs text-gray-500 sm:hidden">
+                      ({editValues.en.length} chars)
+                    </span>
+                  </Label>
+                  <Textarea
+                    id="en-value"
+                    value={editValues.en}
+                    onChange={(e) => setEditValues({ ...editValues, en: e.target.value })}
+                    className="mt-2 text-sm min-h-[100px] sm:min-h-[80px] resize-none translation-textarea"
+                    rows={4}
+                    placeholder="Enter English translation..."
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="th-value" className="text-sm font-medium flex items-center gap-2">
+                    🇹🇭 Thai
+                    <span className="text-xs text-gray-500 sm:hidden">
+                      ({editValues.th.length} chars)
+                    </span>
+                  </Label>
+                  <Textarea
+                    id="th-value"
+                    value={editValues.th}
+                    onChange={(e) => setEditValues({ ...editValues, th: e.target.value })}
+                    className="mt-2 text-sm min-h-[100px] sm:min-h-[80px] resize-none translation-textarea"
+                    rows={4}
+                    placeholder="Enter Thai translation..."
+                  />
+                </div>
+                <div className="sm:block">
+                  <Label htmlFor="reason" className="text-sm font-medium">Change Reason (Optional)</Label>
+                  <Input
+                    id="reason"
+                    value={editValues.reason}
+                    onChange={(e) => setEditValues({ ...editValues, reason: e.target.value })}
+                    placeholder="Why are you making this change?"
+                    className="mt-2 text-sm"
+                  />
+                </div>
+
+                {/* Mobile: Add some extra padding at bottom for keyboard */}
+                <div className="h-8 sm:hidden" />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="reason" className="text-sm font-medium">Change Reason (Optional)</Label>
-              <Input
-                id="reason"
-                value={editValues.reason}
-                onChange={(e) => setEditValues({ ...editValues, reason: e.target.value })}
-                placeholder="Why are you making this change?"
-                className="mt-1 text-sm"
-              />
+
+            {/* Footer - Fixed on mobile, normal on desktop */}
+            <div className="flex-shrink-0 p-4 sm:p-0 sm:mt-4 border-t sm:border-t-0 bg-white sm:bg-transparent">
+              <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setEditingTranslation(null)}
+                  className="w-full sm:w-auto order-2 sm:order-1"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSaveTranslation}
+                  className="w-full sm:w-auto order-1 sm:order-2"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </Button>
+              </DialogFooter>
             </div>
           </div>
-          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0 mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setEditingTranslation(null)}
-              className="w-full sm:w-auto"
-            >
-              <X className="h-4 w-4 mr-1" />
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSaveTranslation}
-              className="w-full sm:w-auto"
-            >
-              <Save className="h-4 w-4 mr-1" />
-              Save Changes
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

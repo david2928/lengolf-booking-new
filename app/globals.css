@@ -2,6 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile Translation Modal Styles */
+@layer components {
+  @media (max-width: 640px) {
+    /* Ensure full screen modal on mobile */
+    [data-radix-dialog-overlay] {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 50;
+    }
+    
+    [data-radix-dialog-content] {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 50;
+      border-radius: 0 !important;
+      border: none !important;
+      max-height: 100vh !important;
+      height: 100vh !important;
+      width: 100vw !important;
+      max-width: 100vw !important;
+    }
+
+    /* Prevent body scroll when modal is open */
+    body[data-radix-dialog-open] {
+      overflow: hidden !important;
+      position: fixed !important;
+      width: 100% !important;
+    }
+
+    /* Better text area focus handling on mobile */
+    .translation-textarea:focus {
+      transform: none !important;
+      zoom: 1 !important;
+    }
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%; /* #f0f0f0 as HSL */
