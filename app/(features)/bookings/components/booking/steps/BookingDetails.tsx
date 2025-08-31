@@ -1,7 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CalendarIcon, ClockIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { 
+  CalendarIcon, 
+  ClockIcon, 
+  CheckIcon, 
+  UsersIcon, 
+  ComputerDesktopIcon,
+  HandRaisedIcon,
+  InformationCircleIcon 
+} from '@heroicons/react/24/outline';
 import { format, addHours } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/supabase';
@@ -19,6 +27,7 @@ import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
 import Image from 'next/image';
 import { GOLF_CLUB_OPTIONS, GOLF_CLUB_PRICING, formatClubRentalInfo } from '@/types/golf-club-rental';
+import { BayType, getBayInfo, isAILabBay } from '@/lib/bayConfig';
 
 interface Profile {
   name: string;
@@ -46,6 +55,7 @@ interface ExtendedSession extends Omit<Session, 'user'> {
 interface BookingDetailsProps {
   selectedDate: Date;
   selectedTime: string;
+  selectedBayType?: BayType | null;
   maxDuration: number;
   onBack: () => void;
   selectedPackage?: PlayFoodPackage | null;
@@ -116,6 +126,7 @@ const LoadingOverlay = ({ steps, currentStep }: { steps: string[], currentStep: 
 export function BookingDetails({
   selectedDate,
   selectedTime,
+  selectedBayType,
   maxDuration,
   onBack,
   selectedPackage,
@@ -592,6 +603,75 @@ export function BookingDetails({
           </div>
         </div>
       </div>
+
+      {/* Bay Type Information */}
+      {selectedBayType && (
+        <div className={`rounded-xl p-4 mb-6 border-2 ${
+          selectedBayType === 'ai_lab' 
+            ? 'bg-purple-50 border-purple-200' 
+            : 'bg-green-50 border-green-200'
+        }`}>
+          <div className="flex items-center gap-3 mb-2">
+            {selectedBayType === 'ai_lab' ? (
+              <ComputerDesktopIcon className="h-6 w-6 text-purple-600" />
+            ) : (
+              <UsersIcon className="h-6 w-6 text-green-600" />
+            )}
+            <h3 className={`font-bold text-lg ${
+              selectedBayType === 'ai_lab' ? 'text-purple-800' : 'text-green-800'
+            }`}>
+              {selectedBayType === 'ai_lab' ? 'LENGOLF AI Lab Selected' : 'Social Bay Selected'}
+            </h3>
+          </div>
+          <p className={`text-sm ${
+            selectedBayType === 'ai_lab' ? 'text-purple-700' : 'text-green-700'
+          }`}>
+            {selectedBayType === 'ai_lab' 
+              ? 'Advanced AI-powered swing analysis with dual-angle video replay and left-handed optimization'
+              : 'Perfect for groups, beginners, and social golf experiences'
+            }
+          </p>
+        </div>
+      )}
+
+      {/* AI Lab Group Size Warning */}
+      {selectedBayType === 'ai_lab' && numberOfPeople >= 3 && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+          <div className="flex items-start">
+            <InformationCircleIcon className="h-5 w-5 text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <h4 className="text-sm font-medium text-yellow-800 mb-1">
+                Recommendation for Best Experience
+              </h4>
+              <p className="text-sm text-yellow-700">
+                The LENGOLF AI Lab is optimized for 1-2 experienced players for the most detailed analysis. 
+                Social Bays are recommended for larger groups and beginners.
+              </p>
+              <button
+                onClick={onBack}
+                className="mt-2 text-sm text-yellow-600 hover:text-yellow-500 underline"
+              >
+                ← Go back to select Social Bay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Lab Experience Level Info */}
+      {selectedBayType === 'ai_lab' && (
+        <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg mb-6">
+          <div className="flex items-start gap-3">
+            <HandRaisedIcon className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-purple-700">
+                <strong>LENGOLF AI Lab</strong> features advanced swing analysis technology designed for intermediate+ players. 
+                This bay includes left-handed player optimized setup and detailed performance analytics.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Booking Form */}
       <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 bg-white rounded-xl shadow-sm p-3 sm:p-6">

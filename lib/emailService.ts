@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { isAILabBay } from '@/lib/bayConfig';
 
 interface EmailConfirmation {
   userName: string;
@@ -86,6 +87,22 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
                 <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Number of People</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.numberOfPeople}</td>
             </tr>
+            ${booking.bayNumber ? `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Bay Type</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">
+                    <strong style="color: ${isAILabBay(booking.bayNumber) ? '#8B5CF6' : '#10B981'};">
+                        ${isAILabBay(booking.bayNumber) ? '🤖 LENGOLF AI Lab' : '👥 Social Bay'}
+                    </strong>
+                    <br><span style="font-size: 14px; color: #666;">
+                        ${isAILabBay(booking.bayNumber) 
+                          ? 'Advanced AI swing analysis with dual-angle video replay and left-handed optimization'
+                          : 'Perfect for groups, beginners, and social golf experiences'
+                        }
+                    </span>
+                </td>
+            </tr>
+            ` : ''}
             ${clubRentalInfo ? `
             <tr>
                 <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Golf Club Rental</th>

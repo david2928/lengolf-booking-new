@@ -11,9 +11,13 @@ import {
   UserGroupIcon, 
   UserIcon, 
   PhoneIcon, 
-  EnvelopeIcon 
+  EnvelopeIcon,
+  UsersIcon,
+  ComputerDesktopIcon,
+  HandRaisedIcon
 } from '@heroicons/react/24/outline';
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
+import { getBayInfo, isAILabBay } from '@/lib/bayConfig';
 
 // Dynamically import PageTransition with loading fallback
 const PageTransition = dynamic(
@@ -68,6 +72,44 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
           <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">Booking Confirmed!</h2>
           <p className="text-center text-gray-600">Here are your booking details:</p>
         </div>
+
+        {/* Bay Type Information */}
+        {booking.bay && (
+          <div className={`rounded-xl p-4 mb-6 border-2 ${
+            isAILabBay(booking.bay)
+              ? 'bg-purple-50 border-purple-200' 
+              : 'bg-green-50 border-green-200'
+          }`}>
+            <div className="flex items-center justify-center gap-3">
+              {isAILabBay(booking.bay) ? (
+                <ComputerDesktopIcon className="h-6 w-6 text-purple-600" />
+              ) : (
+                <UsersIcon className="h-6 w-6 text-green-600" />
+              )}
+              <div className="text-center">
+                <h3 className={`font-bold text-lg ${
+                  isAILabBay(booking.bay) ? 'text-purple-800' : 'text-green-800'
+                }`}>
+                  {isAILabBay(booking.bay) ? 'LENGOLF AI Lab' : 'Social Bay'}
+                </h3>
+                <p className={`text-sm ${
+                  isAILabBay(booking.bay) ? 'text-purple-700' : 'text-green-700'
+                }`}>
+                  {isAILabBay(booking.bay) 
+                    ? 'Advanced AI swing analysis with dual-angle video replay'
+                    : 'Perfect for groups and social golf experiences'
+                  }
+                </p>
+                {isAILabBay(booking.bay) && (
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <HandRaisedIcon className="h-4 w-4 text-purple-600" />
+                    <span className="text-xs text-purple-600">Left-handed player optimized</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Booking Details Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
