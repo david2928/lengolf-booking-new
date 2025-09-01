@@ -9,6 +9,10 @@ interface TimeSlot {
   endTime: string;
   maxHours: number;
   period: 'morning' | 'afternoon' | 'evening';
+  availableBays?: string[];
+  socialBayCount?: number;
+  aiLabCount?: number;
+  totalBayCount?: number;
 }
 
 export function useAvailability() {

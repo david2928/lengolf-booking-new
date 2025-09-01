@@ -23,11 +23,16 @@ The Lengolf Booking System is a comprehensive multi-step booking platform that a
 - **Cancellation Process** - Instant cancellation with automated notifications
 - **Guest Management** - Support for guest bookings and user account linking
 
-### 4. Smart Bay Assignment
-- **Availability Algorithm** - Intelligent bay selection based on duration and preferences
-- **Capacity Optimization** - Efficient bay utilization across time slots
-- **Preference Handling** - Customer bay preferences and special requirements
-- **Real-time Updates** - Immediate reflection of availability changes
+### 4. Smart Bay Assignment & Bay Type System
+- **Bay Type Differentiation** - Social Bays (1-3) for groups/beginners, AI Lab (Bay 4) for experienced players
+- **Intelligent Bay Selection** - Algorithm considers group size, experience level, and bay type preferences
+- **Capacity Optimization** - Efficient bay utilization across time slots with type-specific recommendations
+- **Preference Handling** - Customer bay preferences and special requirements (left/right-handed optimization)
+- **Real-time Updates** - Immediate reflection of availability changes across all bay types
+
+#### Bay Types
+- **Social Bays (Bay 1-3)**: Perfect for beginners, groups (3-5 players), casual experiences
+- **LENGOLF AI Lab (Bay 4)**: Advanced AI swing analysis, dual-angle video replay, optimized for 1-2 experienced players
 
 ## 🏗️ Technical Architecture
 
@@ -447,6 +452,32 @@ MAX_ADVANCE_BOOKING_DAYS=30
 - **Retry Mechanisms** - Automatic retry for transient failures
 - **Error Logging** - Comprehensive error tracking and alerting
 - **Recovery Procedures** - Documented procedures for system recovery
+
+## 📈 Recent Updates (January 2025)
+
+### Bay Type System Implementation
+- **Bay Differentiation**: Implemented Social Bays vs AI Lab distinction with appropriate user guidance
+- **Mobile UX Improvements**: Redesigned bay selection filter for better mobile responsiveness
+- **Form Validation**: Enhanced booking form to require bay type selection before submission
+- **Visual Consistency**: Updated confirmation displays with compact card layout instead of prominent banners
+
+### Email & Notification Enhancements
+- **SSL Certificate Handling**: Resolved email delivery issues with proper hostname configuration
+- **Content Optimization**: Removed duplicate golf club rental information from email templates
+- **Pricing Clarity**: Distinguished between complimentary Standard Set and premium club rentals
+- **LINE Integration**: Fixed bay naming consistency in LINE notifications (Bay 4 vs LENGOLF AI Lab)
+
+### User Experience Improvements
+- **Default Selections**: Set Standard Set as default golf club rental choice
+- **Image Support**: Added proper bay type images with fallback handling
+- **Responsive Design**: Improved mobile layouts for time selection and bay filtering
+- **Form Flow**: Enhanced booking details form with better section organization
+
+### Technical Optimizations
+- **Type Safety**: Fixed TypeScript issues across booking components
+- **Data Processing**: Improved customer notes handling to prevent duplication
+- **State Management**: Enhanced booking flow with proper default values
+- **Error Handling**: Added comprehensive validation for all booking steps
 
 ## 🔮 Future Enhancements
 

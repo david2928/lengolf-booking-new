@@ -1,7 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CalendarIcon, ClockIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { 
+  CalendarIcon, 
+  ClockIcon, 
+  CheckIcon, 
+  UsersIcon, 
+  ComputerDesktopIcon,
+  HandRaisedIcon,
+  InformationCircleIcon 
+} from '@heroicons/react/24/outline';
 import { format, addHours } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/supabase';
@@ -19,6 +27,8 @@ import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
 import Image from 'next/image';
 import { GOLF_CLUB_OPTIONS, GOLF_CLUB_PRICING, formatClubRentalInfo } from '@/types/golf-club-rental';
+import { BayType, getBayInfo, isAILabBay } from '@/lib/bayConfig';
+import { BayInfoModal } from '../../BayInfoModal';
 
 interface Profile {
   name: string;
@@ -46,6 +56,7 @@ interface ExtendedSession extends Omit<Session, 'user'> {
 interface BookingDetailsProps {
   selectedDate: Date;
   selectedTime: string;
+  selectedBayType?: BayType | null;
   maxDuration: number;
   onBack: () => void;
   selectedPackage?: PlayFoodPackage | null;
@@ -116,17 +127,19 @@ const LoadingOverlay = ({ steps, currentStep }: { steps: string[], currentStep: 
 export function BookingDetails({
   selectedDate,
   selectedTime,
+  selectedBayType,
   maxDuration,
   onBack,
   selectedPackage,
   fixedPeople,
   isPackageMode = false,
-  selectedClubRental = 'none',
+  selectedClubRental = 'standard',
   onClubRentalChange,
 }: BookingDetailsProps) {
   const router = useRouter();
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
   const [duration, setDuration] = useState<number>(1);
+  const [selectedBay, setSelectedBay] = useState<BayType | null>(selectedBayType || null);
   const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
@@ -147,6 +160,7 @@ export function BookingDetails({
   const [showNoAvailabilityModal, setShowNoAvailabilityModal] = useState(false);
   const [crmCustomerId, setCrmCustomerId] = useState<string | null>(null);
   const [hasBookingError, setHasBookingError] = useState(false);
+  const [showBayInfoModal, setShowBayInfoModal] = useState(false);
   const loadingSteps = [
     "Checking availability",
     "Creating your booking",
@@ -387,9 +401,15 @@ export function BookingDetails({
       isValid = false;
     }
 
+    // Validate bay type selection when coming from "All Bays"
+    if (!selectedBayType && !selectedBay) {
+      toast.error('Please select a bay type to continue');
+      isValid = false;
+    }
+
     setErrors(currentErrors);
 
-    if (!isValid) {
+    if (!isValid && (currentErrors.name || currentErrors.email || currentErrors.phoneNumber)) {
       // Consolidate toast messages or show one generic message
       toast.error('Please fill in all required fields correctly.');
     }
@@ -489,7 +509,8 @@ export function BookingDetails({
           phone_number: phoneNumber,
           customer_notes: finalCustomerNotes,
           package_id: localSelectedPackage?.id || null,
-          package_info: localSelectedPackage ? `${localSelectedPackage.name} - ${localSelectedPackage.displayName}` : null
+          package_info: localSelectedPackage ? `${localSelectedPackage.name} - ${localSelectedPackage.displayName}` : null,
+          preferred_bay_type: selectedBayType || selectedBay
         })
       });
       
@@ -563,7 +584,7 @@ export function BookingDetails({
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Selected Info Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100">
           <div className="flex items-center gap-3">
             <div className="bg-green-50 p-2 sm:p-3 rounded-full">
@@ -591,7 +612,100 @@ export function BookingDetails({
             </div>
           </div>
         </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 sm:p-3 rounded-full ${
+              (selectedBayType === 'ai_lab' || selectedBay === 'ai_lab') 
+                ? 'bg-purple-50' 
+                : 'bg-green-50'
+            }`}>
+              {(selectedBayType === 'ai_lab' || selectedBay === 'ai_lab') ? (
+                <ComputerDesktopIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
+              ) : (
+                <UsersIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-600">
+                Bay Type <span className="text-red-500">*</span>
+              </h3>
+              {!selectedBayType ? (
+                <div className="space-y-2 mt-1">
+                  <div className="flex bg-gray-100 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setSelectedBay('social')}
+                      className={`flex-1 px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                        selectedBay === 'social'
+                          ? 'bg-green-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      Social
+                    </button>
+                    <button
+                      onClick={() => setSelectedBay('ai_lab')}
+                      className={`flex-1 px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                        selectedBay === 'ai_lab'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                      }`}
+                    >
+                      AI Lab
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowBayInfoModal(true)}
+                    className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors"
+                  >
+                    What's the difference?
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <p className={`text-lg sm:text-xl font-bold ${
+                    selectedBayType === 'ai_lab' ? 'text-purple-700' : 'text-green-700'
+                  }`}>
+                    {selectedBayType === 'ai_lab' ? 'AI Lab' : 'Social Bay'}
+                  </p>
+                  <button
+                    onClick={() => setShowBayInfoModal(true)}
+                    className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors"
+                  >
+                    Info
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
+
+
+      {/* AI Lab Group Size Warning */}
+      {(selectedBayType === 'ai_lab' || selectedBay === 'ai_lab') && numberOfPeople >= 3 && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+          <div className="flex items-start">
+            <InformationCircleIcon className="h-5 w-5 text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <h4 className="text-sm font-medium text-yellow-800 mb-1">
+                Recommendation for Best Experience
+              </h4>
+              <p className="text-sm text-yellow-700">
+                The LENGOLF AI Lab is optimized for 1-2 experienced players for the most detailed analysis. 
+                Social Bays are recommended for larger groups and beginners.
+              </p>
+              <button
+                onClick={onBack}
+                className="mt-2 text-sm text-yellow-600 hover:text-yellow-500 underline"
+              >
+                ← Go back to select Social Bay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Booking Form */}
       <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 bg-white rounded-xl shadow-sm p-3 sm:p-6">
@@ -674,72 +788,6 @@ export function BookingDetails({
           )}
         </div>
 
-        {/* Golf Club Rental Selection */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <label className="block text-sm font-medium text-gray-700">
-              Golf Club Rental (Optional)
-            </label>
-            <button 
-              type="button"
-              onClick={() => setShowClubRentalModal(true)}
-              className="text-xs text-green-600 hover:text-green-700 underline"
-            >
-              View Details
-            </button>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => onClubRentalChange?.('none')}
-              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
-                selectedClubRental === 'none'
-                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
-                  : 'border-gray-300 text-gray-700 hover:border-green-600'
-              }`}
-            >
-              <span className="font-semibold text-[11px] sm:text-xs">No Rental</span>
-              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75">Own clubs</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onClubRentalChange?.('standard')}
-              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
-                selectedClubRental === 'standard'
-                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
-                  : 'border-gray-300 text-gray-700 hover:border-green-600'
-              }`}
-            >
-              <span className="font-semibold text-[11px] sm:text-xs">Standard Set</span>
-              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75 text-gray-500">Free</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onClubRentalChange?.('premium-mens')}
-              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
-                selectedClubRental === 'premium-mens'
-                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
-                  : 'border-gray-300 text-gray-700 hover:border-green-600'
-              }`}
-            >
-              <span className="font-semibold text-[11px] sm:text-xs">
-                <span className="text-green-600 font-bold">Premium</span> Clubs
-              </span>
-              <span className="text-[10px] sm:text-xs mt-0.5 opacity-75">฿150+</span>
-            </button>
-          </div>
-          
-          {selectedClubRental === 'premium-mens' && (
-            <div className="mt-3 p-3 bg-green-50 rounded-lg">
-              <div className="text-sm font-medium text-green-800 mb-1">Premium Clubs Selected</div>
-              <div className="text-xs text-gray-600">
-                Pricing: 1hr ฿150 • 2hrs ฿250 • 4hrs ฿400 • Full day ฿1,200
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Duration Selection - Only for regular bookings */}
         {!localSelectedPackage && (
@@ -790,6 +838,73 @@ export function BookingDetails({
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Golf Club Rental Selection */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Golf Club Rental (Optional)
+            </label>
+            <button 
+              type="button"
+              onClick={() => setShowClubRentalModal(true)}
+              className="text-xs text-green-600 hover:text-green-700 underline"
+            >
+              View Details
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => onClubRentalChange?.('standard')}
+              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+                selectedClubRental === 'standard'
+                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                  : 'border-gray-300 text-gray-700 hover:border-green-600'
+              }`}
+            >
+              <span className="font-semibold text-[11px] sm:text-xs">Standard Set</span>
+              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75 text-gray-500">Free</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onClubRentalChange?.('none')}
+              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+                selectedClubRental === 'none'
+                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                  : 'border-gray-300 text-gray-700 hover:border-green-600'
+              }`}
+            >
+              <span className="font-semibold text-[11px] sm:text-xs">No Rental</span>
+              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75">Own clubs</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onClubRentalChange?.('premium-mens')}
+              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+                selectedClubRental === 'premium-mens'
+                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                  : 'border-gray-300 text-gray-700 hover:border-green-600'
+              }`}
+            >
+              <span className="font-semibold text-[11px] sm:text-xs">
+                <span className="text-green-600 font-bold">Premium</span> Clubs
+              </span>
+              <span className="text-[10px] sm:text-xs mt-0.5 opacity-75">฿150+</span>
+            </button>
+          </div>
+          
+          {selectedClubRental === 'premium-mens' && (
+            <div className="mt-3 p-3 bg-green-50 rounded-lg">
+              <div className="text-sm font-medium text-green-800 mb-1">Premium Clubs Selected</div>
+              <div className="text-xs text-gray-600">
+                Pricing: 1hr ฿150 • 2hrs ฿250 • 4hrs ฿400 • Full day ฿1,200
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Contact Information Section */}
@@ -916,12 +1031,13 @@ export function BookingDetails({
               !phoneNumber || 
               !isValidPhoneNumber(phoneNumber || '') ||
               !name ||
-              !email
+              !email ||
+              (!selectedBayType && !selectedBay)
             }
             className={`py-2 px-6 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
               isSubmitting
                 ? 'bg-green-600 opacity-75'
-                : (duration && phoneNumber && isValidPhoneNumber(phoneNumber || '') && name && email)
+                : (duration && phoneNumber && isValidPhoneNumber(phoneNumber || '') && name && email && (selectedBayType || selectedBay))
                 ? 'bg-green-600 hover:bg-green-700'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
@@ -1245,6 +1361,12 @@ export function BookingDetails({
           </div>
         </>
       )}
+      
+      {/* Bay Information Modal */}
+      <BayInfoModal 
+        isOpen={showBayInfoModal} 
+        onClose={() => setShowBayInfoModal(false)} 
+      />
     </div>
   );
 }

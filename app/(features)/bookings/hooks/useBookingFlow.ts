@@ -3,6 +3,7 @@ import { useSession, signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PLAY_FOOD_PACKAGES, type PlayFoodPackage } from '@/types/play-food-packages';
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
+import { BayType } from '@/lib/bayConfig';
 
 export function useBookingFlow() {
   const { data: session, status } = useSession();
@@ -12,10 +13,11 @@ export function useBookingFlow() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedBayType, setSelectedBayType] = useState<BayType | null>(null);
   const [maxDuration, setMaxDuration] = useState<number>(1);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PlayFoodPackage | null>(null);
-  const [selectedClubRental, setSelectedClubRental] = useState<string>('none');
+  const [selectedClubRental, setSelectedClubRental] = useState<string>('standard');
 
   useEffect(() => {
     if (searchParams && !isAutoSelecting) {
@@ -80,9 +82,10 @@ export function useBookingFlow() {
     setCurrentStep(2);
   };
 
-  const handleTimeSelect = (time: string, maxHours: number) => {
+  const handleTimeSelect = (time: string, maxHours: number, bayType?: BayType) => {
     setSelectedTime(time);
     setMaxDuration(maxHours);
+    setSelectedBayType(bayType || null);
     setCurrentStep(3);
   };
 
@@ -92,6 +95,7 @@ export function useBookingFlow() {
         setSelectedDate(null);
       } else if (currentStep === 3) {
         setSelectedTime(null);
+        setSelectedBayType(null);
       }
       setCurrentStep(currentStep - 1);
     }
@@ -114,6 +118,7 @@ export function useBookingFlow() {
     currentStep,
     selectedDate,
     selectedTime,
+    selectedBayType,
     maxDuration,
     isAutoSelecting,
     selectedPackage,

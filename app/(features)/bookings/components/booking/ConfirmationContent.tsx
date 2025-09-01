@@ -11,9 +11,13 @@ import {
   UserGroupIcon, 
   UserIcon, 
   PhoneIcon, 
-  EnvelopeIcon 
+  EnvelopeIcon,
+  UsersIcon,
+  ComputerDesktopIcon,
+  HandRaisedIcon
 } from '@heroicons/react/24/outline';
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
+import { getBayInfo, isAILabBay } from '@/lib/bayConfig';
 
 // Dynamically import PageTransition with loading fallback
 const PageTransition = dynamic(
@@ -70,7 +74,7 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
         </div>
 
         {/* Booking Details Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Date Card */}
           <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-green-100">
             <div className="flex items-center gap-3">
@@ -118,6 +122,31 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
               </div>
             </div>
           </div>
+
+          {/* Bay Type Card */}
+          {booking.bay && (
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-green-100">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 sm:p-3 rounded-full ${
+                  isAILabBay(booking.bay) ? 'bg-purple-50' : 'bg-green-50'
+                }`}>
+                  {isAILabBay(booking.bay) ? (
+                    <ComputerDesktopIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
+                  ) : (
+                    <UsersIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-600">Bay Type</h3>
+                  <p className={`text-lg sm:text-xl font-bold ${
+                    isAILabBay(booking.bay) ? 'text-purple-700' : 'text-green-700'
+                  }`}>
+                    {isAILabBay(booking.bay) ? 'AI Bay' : 'Social Bay'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Contact Information */}
@@ -173,9 +202,15 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
                 <p className="font-semibold text-gray-900">
                   {getClubRentalInfo()?.name}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Club rental charges will be added based on your {booking.duration} hour{booking.duration > 1 ? 's' : ''} booking duration
-                </p>
+                {(getClubRentalInfo() as any)?.id?.includes('premium') ? (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Club rental charges will be added based on your {booking.duration} hour{booking.duration > 1 ? 's' : ''} booking duration
+                  </p>
+                ) : (
+                  <p className="text-sm text-green-600 mt-1">
+                    Complimentary - included with your booking
+                  </p>
+                )}
               </div>
             </div>
           </div>

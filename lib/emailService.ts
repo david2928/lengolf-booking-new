@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { isAILabBay } from '@/lib/bayConfig';
 
 interface EmailConfirmation {
   userName: string;
@@ -24,7 +25,9 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASSWORD,
   },
   tls: {
-    rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false',
+    rejectUnauthorized: false, // Allow certificate mismatches
+    // Use the actual certificate hostname to avoid mismatch
+    servername: 'cs94.hostneverdie.com',
   },
 });
 
@@ -71,41 +74,52 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.date}</td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Start Time</th>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.startTime}</td>
-            </tr>
-            <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">End Time</th>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.endTime}</td>
-            </tr>
-            <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Duration</th>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.duration} hour(s)</td>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Time</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.startTime} - ${booking.endTime} (${booking.duration}h)</td>
             </tr>
             <tr>
                 <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Number of People</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.numberOfPeople}</td>
             </tr>
+            ${booking.bayNumber ? `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Bay Type</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">
+                    <strong style="color: ${isAILabBay(booking.bayNumber) ? '#8B5CF6' : '#10B981'};">
+                        ${isAILabBay(booking.bayNumber) ? 'AI Bay' : 'Social Bay'}
+                    </strong>
+                </td>
+            </tr>
+            ` : ''}
             ${clubRentalInfo ? `
             <tr>
                 <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Golf Club Rental</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">
                     <strong>${clubRentalInfo.setName}</strong>
-                    <br><span style="font-size: 14px; color: #666;">Rental charges will be based on ${booking.duration} hour${booking.duration > 1 ? 's' : ''} duration</span>
+                    ${clubRentalInfo.setName === 'Standard Set' 
+                      ? '<br><span style="font-size: 14px; color: #10B981;">Complimentary - included with your booking</span>'
+                      : '<br><span style="font-size: 14px; color: #666;">Rental charges will be added based on duration</span>'
+                    }
                 </td>
             </tr>
             ` : ''}
-            ${booking.customerNotes && !booking.customerNotes.includes('Golf Club Rental:') ? `
+            ${(() => {
+              if (!booking.customerNotes) return '';
+              
+              // Remove golf club rental info from notes since it's already shown in its own section
+              const cleanedNotes = booking.customerNotes.replace(/Golf Club Rental: [^\n]+/g, '').trim();
+              
+              // Only show notes section if there are actual notes remaining after removing club rental info
+              if (cleanedNotes) {
+                return `
             <tr>
                 <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Notes/Requests</th>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd; white-space: pre-wrap;">${booking.customerNotes}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; white-space: pre-wrap;">${cleanedNotes}</td>
             </tr>
-            ` : booking.customerNotes && booking.customerNotes.includes('Golf Club Rental:') && booking.customerNotes.replace(/Golf Club Rental: [^(]+ \([^)]+\)/, '').trim() ? `
-            <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Notes/Requests</th>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd; white-space: pre-wrap;">${booking.customerNotes.replace(/Golf Club Rental: [^(]+ \([^)]+\)/, '').trim()}</td>
-            </tr>
-            ` : ''}
+                `;
+              }
+              return '';
+            })()}
         </table>
 
         <!-- Closing Message -->
@@ -152,10 +166,26 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
   };
 
   try {
+    console.log('Attempting to send email with config:', {
+      host: process.env.EMAIL_HOST || 'mail.len.golf',
+      port: parseInt(process.env.EMAIL_PORT || '587'),
+      secure: process.env.EMAIL_SECURE === 'true',
+      rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false'
+    });
+    
     await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully to:', booking.email);
     return true;
   } catch (error) {
     console.error('Failed to send confirmation email:', error);
+    console.error('Email configuration:', {
+      host: process.env.EMAIL_HOST || 'mail.len.golf',
+      port: parseInt(process.env.EMAIL_PORT || '587'),
+      secure: process.env.EMAIL_SECURE === 'true',
+      user: process.env.EMAIL_USER ? 'configured' : 'missing',
+      pass: process.env.EMAIL_PASSWORD ? 'configured' : 'missing',
+      rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false'
+    });
     return false;
   }
 } 

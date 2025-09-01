@@ -25,6 +25,7 @@ export default function BookingsPage() {
     currentStep,
     selectedDate,
     selectedTime,
+    selectedBayType,
     maxDuration,
     selectedPackage,
     selectedClubRental,
@@ -96,6 +97,7 @@ export default function BookingsPage() {
           <BookingDetails
             selectedDate={selectedDate}
             selectedTime={selectedTime}
+            selectedBayType={selectedBayType}
             maxDuration={maxDuration}
             onBack={handleBack}
             selectedPackage={selectedPackage}
