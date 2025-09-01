@@ -257,7 +257,8 @@ export async function POST(request: NextRequest) {
       number_of_people,
       customer_notes,
       package_id: playFoodPackageId,
-      package_info: playFoodPackageInfo
+      package_info: playFoodPackageInfo,
+      preferred_bay_type
     } = await request.json();
 
     // Validate required fields
@@ -298,7 +299,8 @@ export async function POST(request: NextRequest) {
           const { data: bayAvailability, error } = await supabase.rpc('check_all_bays_availability', {
             p_date: date,
             p_start_time: start_time,
-            p_duration: parseFloat(duration)
+            p_duration: parseFloat(duration),
+            p_exclude_booking_id: null
           });
 
           if (error) {
@@ -307,12 +309,23 @@ export async function POST(request: NextRequest) {
           }
 
           // Transform database response
-          if (!bayAvailability || typeof bayAvailability !== 'object') {
+          if (!bayAvailability) {
+            return { available: false };
+          }
+
+          // Extract the actual bay availability object from the database response
+          let bayData = bayAvailability;
+          if (Array.isArray(bayAvailability) && bayAvailability.length > 0) {
+            // If it's an array, take the first element
+            bayData = bayAvailability[0];
+          }
+
+          if (typeof bayData !== 'object') {
             return { available: false };
           }
 
           // Find available bays
-          const availableBays = Object.entries(bayAvailability)
+          const availableBays = Object.entries(bayData)
             .filter(([_, isAvailable]) => isAvailable === true)
             .map(([bayName, _]) => bayName);
           
@@ -320,10 +333,32 @@ export async function POST(request: NextRequest) {
             return { available: false };
           }
 
-          // Return the first available bay
+          // Prefer specific bay type if requested and available
+          let selectedBay = availableBays[0]; // Default to first available
+          
+          if (preferred_bay_type) {
+            let preferredBays: string[] = [];
+            
+            if (preferred_bay_type === 'social') {
+              // Social bays are Bay 1, 2, 3
+              preferredBays = ['Bay 1', 'Bay 2', 'Bay 3'];
+            } else if (preferred_bay_type === 'ai_lab') {
+              // AI Lab is Bay 4
+              preferredBays = ['Bay 4'];
+            }
+            
+            // Find first available bay of preferred type
+            const availablePreferredBay = preferredBays.find(bay => availableBays.includes(bay));
+            if (availablePreferredBay) {
+              selectedBay = availablePreferredBay;
+            }
+            // If preferred type is not available, still fallback to any available bay
+            // selectedBay already set to availableBays[0] above
+          }
+
           return {
             available: true,
-            bay: availableBays[0],
+            bay: selectedBay,
             allAvailableBays: availableBays
           };
         } catch (error) {
@@ -374,7 +409,14 @@ export async function POST(request: NextRequest) {
 
     // 6. Handle availability result
     if (!availabilityResult || !availabilityResult.available) {
-      logTiming('Bay availability check', 'error', { available: false });
+      logTiming('Bay availability check', 'error', { 
+        available: false,
+        availabilityResult: availabilityResult,
+        preferred_bay_type: preferred_bay_type,
+        date: date,
+        start_time: start_time,
+        duration: duration
+      });
       return NextResponse.json(
         { error: 'No bays available for the selected time slot' },
         { status: 400 }

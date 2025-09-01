@@ -58,14 +58,14 @@ export const BAY_DISPLAY_NAMES: Record<string, string> = {
   "Bay 1": "Bay 1 (Bar)",
   "Bay 2": "Bay 2",
   "Bay 3": "Bay 3 (Entrance)",
-  "Bay 4": "LENGOLF AI Lab"
+  "Bay 4": "Bay 4"
 };
 
 export const BAY_COLORS: Record<string, string> = {
   "Bay 1 (Bar)": "7",    // Purple/violet color
   "Bay 2": "6",          // Orange/coral color
   "Bay 3 (Entrance)": "4", // Green color
-  "LENGOLF AI Lab": "1"  // Purple color
+  "Bay 4": "1"  // Purple color
 };
 
 // Helper functions

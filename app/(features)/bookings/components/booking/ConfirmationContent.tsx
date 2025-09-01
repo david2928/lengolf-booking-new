@@ -73,46 +73,8 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
           <p className="text-center text-gray-600">Here are your booking details:</p>
         </div>
 
-        {/* Bay Type Information */}
-        {booking.bay && (
-          <div className={`rounded-xl p-4 mb-6 border-2 ${
-            isAILabBay(booking.bay)
-              ? 'bg-purple-50 border-purple-200' 
-              : 'bg-green-50 border-green-200'
-          }`}>
-            <div className="flex items-center justify-center gap-3">
-              {isAILabBay(booking.bay) ? (
-                <ComputerDesktopIcon className="h-6 w-6 text-purple-600" />
-              ) : (
-                <UsersIcon className="h-6 w-6 text-green-600" />
-              )}
-              <div className="text-center">
-                <h3 className={`font-bold text-lg ${
-                  isAILabBay(booking.bay) ? 'text-purple-800' : 'text-green-800'
-                }`}>
-                  {isAILabBay(booking.bay) ? 'LENGOLF AI Lab' : 'Social Bay'}
-                </h3>
-                <p className={`text-sm ${
-                  isAILabBay(booking.bay) ? 'text-purple-700' : 'text-green-700'
-                }`}>
-                  {isAILabBay(booking.bay) 
-                    ? 'Advanced AI swing analysis with dual-angle video replay'
-                    : 'Perfect for groups and social golf experiences'
-                  }
-                </p>
-                {isAILabBay(booking.bay) && (
-                  <div className="flex items-center justify-center gap-2 mt-2">
-                    <HandRaisedIcon className="h-4 w-4 text-purple-600" />
-                    <span className="text-xs text-purple-600">Left-handed player optimized</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Booking Details Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Date Card */}
           <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-green-100">
             <div className="flex items-center gap-3">
@@ -160,6 +122,31 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
               </div>
             </div>
           </div>
+
+          {/* Bay Type Card */}
+          {booking.bay && (
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-green-100">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 sm:p-3 rounded-full ${
+                  isAILabBay(booking.bay) ? 'bg-purple-50' : 'bg-green-50'
+                }`}>
+                  {isAILabBay(booking.bay) ? (
+                    <ComputerDesktopIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
+                  ) : (
+                    <UsersIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-600">Bay Type</h3>
+                  <p className={`text-lg sm:text-xl font-bold ${
+                    isAILabBay(booking.bay) ? 'text-purple-700' : 'text-green-700'
+                  }`}>
+                    {isAILabBay(booking.bay) ? 'AI Bay' : 'Social Bay'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Contact Information */}
@@ -215,9 +202,15 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
                 <p className="font-semibold text-gray-900">
                   {getClubRentalInfo()?.name}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Club rental charges will be added based on your {booking.duration} hour{booking.duration > 1 ? 's' : ''} booking duration
-                </p>
+                {(getClubRentalInfo() as any)?.id?.includes('premium') ? (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Club rental charges will be added based on your {booking.duration} hour{booking.duration > 1 ? 's' : ''} booking duration
+                  </p>
+                ) : (
+                  <p className="text-sm text-green-600 mt-1">
+                    Complimentary - included with your booking
+                  </p>
+                )}
               </div>
             </div>
           </div>

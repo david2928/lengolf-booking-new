@@ -72,12 +72,14 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                         <div className="bg-green-500 p-2 rounded-full mr-3">
                           <UsersIcon className="h-6 w-6 text-white" />
                         </div>
-                        <h3 className="text-xl font-bold text-green-800">
-                          Social Bays
-                        </h3>
-                        <span className="ml-2 px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full font-medium">
-                          3 Available
-                        </span>
+                        <div>
+                          <h3 className="text-xl font-bold text-green-800">
+                            Social Bays
+                          </h3>
+                          <span className="px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full font-medium">
+                            3 Available
+                          </span>
+                        </div>
                       </div>
                       
                       <div className="space-y-4">
@@ -127,9 +129,21 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                           </ul>
                         </div>
                         
-                        {/* Placeholder for image */}
-                        <div className="bg-gray-200 h-40 rounded-lg flex items-center justify-center mt-4">
-                          <span className="text-gray-500 text-sm">Social Bay Experience</span>
+                        {/* Social Bay Image */}
+                        <div className="mt-4">
+                          <img 
+                            src="/images/bays/social-bay.jpg" 
+                            alt="Social Bay Experience"
+                            className="w-full h-40 object-cover rounded-lg"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                          <div className="bg-gray-200 h-40 rounded-lg flex items-center justify-center mt-4 hidden">
+                            <span className="text-gray-500 text-sm">Social Bay Experience</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -174,7 +188,7 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                             </li>
                             <li className="flex items-start">
                               <HandRaisedIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Left-handed players</span>
+                              <span>Left & right-handed players</span>
                             </li>
                           </ul>
                         </div>
@@ -196,14 +210,26 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                             </li>
                             <li className="flex items-start">
                               <HandRaisedIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Left-handed optimized setup</span>
+                              <span>Left & right-handed optimized setup</span>
                             </li>
                           </ul>
                         </div>
                         
-                        {/* Placeholder for image */}
-                        <div className="bg-gray-200 h-40 rounded-lg flex items-center justify-center mt-4">
-                          <span className="text-gray-500 text-sm">AI Lab Technology</span>
+                        {/* AI Lab Image */}
+                        <div className="mt-4">
+                          <img 
+                            src="/images/bays/ai-lab-technology.jpg" 
+                            alt="AI Lab Technology"
+                            className="w-full h-40 object-cover rounded-lg"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                          <div className="bg-gray-200 h-40 rounded-lg flex items-center justify-center mt-4 hidden">
+                            <span className="text-gray-500 text-sm">AI Lab Technology</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -258,7 +284,7 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                           </li>
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                            <span>A left-handed player seeking optimal setup</span>
+                            <span>Looking for optimized setup (left or right-handed)</span>
                           </li>
                         </ul>
                       </div>

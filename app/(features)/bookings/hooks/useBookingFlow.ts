@@ -17,7 +17,7 @@ export function useBookingFlow() {
   const [maxDuration, setMaxDuration] = useState<number>(1);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PlayFoodPackage | null>(null);
-  const [selectedClubRental, setSelectedClubRental] = useState<string>('none');
+  const [selectedClubRental, setSelectedClubRental] = useState<string>('standard');
 
   useEffect(() => {
     if (searchParams && !isAutoSelecting) {

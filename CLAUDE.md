@@ -93,7 +93,7 @@ EMAIL_PORT=               # SMTP port (default: 587)
 EMAIL_SECURE=             # Use SSL/TLS (default: false)
 EMAIL_USER=               # SMTP username
 EMAIL_PASSWORD=           # SMTP password
-EMAIL_TLS_REJECT_UNAUTHORIZED=  # Reject unauthorized certificates (default: true)
+EMAIL_TLS_REJECT_UNAUTHORIZED=false  # Set to false to allow self-signed certificates (default: true)
 ```
 
 ## Common Gotchas
