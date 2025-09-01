@@ -28,7 +28,9 @@
       "Bash(mv:*)",
       "Bash(vercel pull:*)",
       "Bash(vercel:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)"
     ],
     "deny": []
   },
