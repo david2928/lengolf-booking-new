@@ -41,7 +41,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
   };
 
   return (
-    <div className="p-4">
+    <div className="p-4 pb-6 md:pb-4">
       <div className="flex space-x-2">
         <Input
           type="text"
@@ -50,16 +50,16 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
           onKeyPress={handleKeyPress}
           placeholder="Type your message..."
           disabled={disabled || isSending}
-          className="flex-1 border-gray-300 focus:border-primary focus:ring-primary"
+          className="flex-1 border-gray-300 focus:border-primary focus:ring-primary h-12 md:h-10 text-base md:text-sm"
           maxLength={1000}
         />
         <Button
           onClick={handleSend}
           disabled={!message.trim() || disabled || isSending}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground px-3"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 h-12 md:h-10 md:px-3"
           size="sm"
         >
-          <Send className="h-4 w-4" />
+          <Send className="h-5 w-5 md:h-4 md:w-4" />
         </Button>
       </div>
 

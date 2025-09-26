@@ -86,23 +86,6 @@ export function Layout({ children }: LayoutProps) {
   // Show Link Account for authenticated users who truly need linking
   const shouldShowLinkAccount = sessionStatus === 'authenticated' && isAccountUnmatched;
 
-  // Debug logging
-  console.log('[Booking Layout] VIP Status Debug:', {
-    sessionStatus,
-    provider: session?.user?.provider,
-    isVipEligible,
-    vipProfile: vipProfile ? {
-      crmStatus: vipProfile.crmStatus,
-      hasVipData: vipProfile.hasVipData,
-      isActive: vipProfile.isActive,
-      profileExists: vipProfile.profileExists
-    } : null,
-    vipLoading,
-    vipError,
-    isAccountUnmatched,
-    isUserLinked,
-    shouldShowLinkAccount
-  });
 
   if (sessionStatus === 'loading') {
     return (

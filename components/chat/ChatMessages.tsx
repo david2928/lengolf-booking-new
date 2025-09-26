@@ -5,8 +5,9 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { MessageCircle, Bot, User } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { MessageCircle, Bot, User, X } from 'lucide-react';
+import Image from 'next/image';
 import type { ChatMessage } from '@/hooks/useChatSession';
 
 interface ChatMessagesProps {
@@ -36,7 +37,7 @@ export function ChatMessages({ messages, isLoading, isTyping, error }: ChatMessa
   const showEmptyState = !isLoading && messages.length === 0;
 
   return (
-    <div className="flex min-h-full flex-col justify-end gap-4 p-4">
+    <div className="flex min-h-full flex-col justify-end gap-4 p-4 py-6 md:py-4">
       {/* Loading indicator */}
       {isLoading && messages.length === 0 && (
         <div className="space-y-4">
@@ -102,7 +103,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
   return (
     <div className={`flex ${isCustomer ? 'justify-end' : 'justify-start'} animate-in fade-in-0 slide-in-from-bottom-1 duration-300`}>
-      <div className="max-w-[80%]">
+      <div className="max-w-[85%] md:max-w-[80%]">
         {/* Sender name for bot/staff messages */}
         {!isCustomer && message.sender_name && (
           <div className="flex items-center space-x-1 mb-1 ml-1">
@@ -119,15 +120,23 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
         {/* Message bubble */}
         <div
-          className={`overflow-hidden rounded-lg px-4 py-2 shadow-sm ${
+          className={`overflow-hidden rounded-lg shadow-sm ${
             isCustomer
               ? 'bg-primary text-primary-foreground ml-auto'
               : 'bg-gray-100 text-gray-900'
+          } ${
+            message.message_type === 'image' ? 'p-2' : 'px-4 py-2'
           }`}
         >
-          <p className="text-sm whitespace-pre-wrap break-words break-all">
-            {message.message_text}
-          </p>
+          {message.message_type === 'image' && message.image_url ? (
+            <ImageMessage
+              imageUrl={message.image_url}
+            />
+          ) : (
+            <p className="text-base md:text-sm whitespace-pre-wrap break-words">
+              {message.message_text}
+            </p>
+          )}
         </div>
 
         {/* Timestamp */}
@@ -138,5 +147,54 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function ImageMessage({ imageUrl }: { imageUrl: string }) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  return (
+    <>
+      <div className="space-y-2">
+        <Image
+          src={imageUrl}
+          alt="Image from chat"
+          width={128}
+          height={128}
+          className="max-w-32 h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity border"
+          onClick={() => setIsModalOpen(true)}
+          onError={(e) => {
+            console.warn('Failed to load chat image:', imageUrl);
+            e.currentTarget.src = '/images/image-placeholder.png';
+            e.currentTarget.alt = 'Image could not be loaded';
+          }}
+        />
+      </div>
+
+      {/* Full-size image modal */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div className="relative max-w-4xl max-h-4xl p-4">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full w-8 h-8 flex items-center justify-center hover:bg-opacity-75 transition-opacity"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <Image
+              src={imageUrl}
+              alt="Full size image"
+              width={800}
+              height={600}
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

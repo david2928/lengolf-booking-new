@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { ChatMessages } from './ChatMessages';
 import { ChatInput } from './ChatInput';
 import type { ChatMessage, ChatSession } from '@/hooks/useChatSession';
+import { getChatHeaderMessage } from '@/lib/businessHours';
 
 interface ChatWindowProps {
   onClose: () => void;
@@ -72,26 +73,37 @@ export function ChatWindow({
   };
 
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm sm:max-w-md">
-      <div className="flex h-[28rem] max-h-[calc(100vh-3rem)] flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl">
+    <div className="fixed z-50
+      /* Mobile: Full screen with slide-up animation */
+      inset-0 md:inset-auto
+      /* Desktop: Floating bottom-right */
+      md:bottom-6 md:right-6 md:w-96 md:max-w-md
+      animate-in slide-in-from-bottom-full duration-300 md:slide-in-from-bottom-4
+    ">
+      <div className="flex flex-col overflow-hidden bg-white shadow-2xl
+        /* Mobile: Full screen, no border/radius */
+        h-full md:h-[28rem] md:max-h-[calc(100vh-3rem)]
+        /* Desktop: Rounded with border */
+        md:rounded-lg md:border md:border-gray-200
+      ">
         {/* Header */}
-        <div className="flex items-center justify-between bg-primary p-4 text-primary-foreground">
+        <div className="flex items-center justify-between bg-primary p-4 py-6 md:py-4 text-primary-foreground">
           <div className="flex items-center space-x-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white">
-              <MessageCircle className="h-5 w-5 text-primary" />
+            <div className="flex h-10 w-10 md:h-8 md:w-8 items-center justify-center rounded-full bg-white">
+              <MessageCircle className="h-6 w-6 md:h-5 md:w-5 text-primary" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold">LENGOLF Booking</h3>
-              <p className="text-xs opacity-90">Chat with us</p>
+              <h3 className="text-base md:text-sm font-semibold">LENGOLF Booking</h3>
+              <p className="text-sm md:text-xs opacity-90">{getChatHeaderMessage()}</p>
             </div>
           </div>
           <Button
             onClick={onClose}
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 text-primary-foreground hover:bg-primary/80"
+            className="h-10 w-10 p-0 text-primary-foreground hover:bg-primary/80 md:h-8 md:w-8"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5 md:h-4 md:w-4" />
           </Button>
         </div>
 

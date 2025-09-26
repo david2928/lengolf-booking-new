@@ -1,7 +1,7 @@
 /**
- * Chat Mark Messages as Read API Route
- * Marks messages as read and resets unread count
- * Following the pattern established in the VIP API routes
+ * Chat Messages API Route
+ * Fetches messages for a conversation with proper authorization
+ * Works for both authenticated and anonymous users
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,7 +13,7 @@ import type { Database } from '@/types/supabase';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { conversationId } = body;
+    const { conversationId, sessionId } = body;
 
     if (!conversationId || typeof conversationId !== 'string') {
       return NextResponse.json(
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    // Verify conversation ownership before allowing mark as read
+    // Verify conversation ownership before fetching messages
     const { data: conversation, error: convError } = await supabase
       .from('web_chat_conversations')
       .select('id, user_id, session_id, is_active')
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the user has permission to mark this conversation as read
+    // Verify the user has permission to access this conversation
     if (session?.user?.id) {
       // For authenticated users: must own the conversation
       if (conversation.user_id !== session.user.id) {
@@ -60,56 +60,50 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // For anonymous users: verify session ownership through web_chat_sessions
+      if (!sessionId) {
+        return NextResponse.json(
+          { error: 'Session ID required for anonymous users' },
+          { status: 400 }
+        );
+      }
+
       const { data: sessionData } = await supabase
         .from('web_chat_sessions')
         .select('session_id')
         .eq('id', conversation.session_id)
         .single();
 
-      if (!sessionData) {
+      if (!sessionData || sessionData.session_id !== sessionId) {
         return NextResponse.json(
-          { error: 'Session not found' },
+          { error: 'Access denied: session mismatch' },
           { status: 403 }
         );
       }
-
-      // Note: For anonymous users, we can't verify sessionId from request
-      // but since they can only access their own conversation through the UI,
-      // this is acceptable for anonymous read marking
     }
 
-    // Verify conversation is active
-    if (!conversation.is_active) {
-      return NextResponse.json(
-        { error: 'Conversation is not active' },
-        { status: 403 }
-      );
-    }
-
-    // Mark messages as read using service role client
-    await supabase
+    // Fetch messages using service role (bypasses RLS)
+    const { data: messages, error: messagesError } = await supabase
       .from('web_chat_messages')
-      .update({ is_read: true })
+      .select('*')
       .eq('conversation_id', conversationId)
-      .eq('is_read', false);
+      .order('created_at', { ascending: true })
+      .limit(50);
 
-    // Reset unread count
-    await supabase
-      .from('web_chat_conversations')
-      .update({ unread_count: 0 })
-      .eq('id', conversationId);
+    if (messagesError) {
+      throw new Error(`Failed to fetch messages: ${messagesError.message}`);
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Messages marked as read',
+      messages: messages || [],
     });
 
   } catch (error) {
-    console.error('Error marking messages as read:', error);
+    console.error('Error fetching messages:', error);
 
     return NextResponse.json(
       {
-        error: 'Failed to mark messages as read',
+        error: 'Failed to fetch messages',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

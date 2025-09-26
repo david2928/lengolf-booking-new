@@ -15,6 +15,8 @@ export interface ChatMessage {
   conversation_id: string;
   session_id: string;
   message_text: string;
+  message_type?: 'text' | 'image';
+  image_url?: string;
   sender_type: 'customer' | 'bot' | 'staff';
   sender_name?: string;
   is_read: boolean;
@@ -29,7 +31,7 @@ export interface ChatSession {
 }
 
 export function useChatSession() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [chatSession, setChatSession] = useState<ChatSession>({
     sessionId: '',
     isInitialized: false,
@@ -45,19 +47,19 @@ export function useChatSession() {
 
   // Generate or retrieve session ID
   const getSessionId = useCallback(() => {
-    // For logged-in users, use a consistent session ID based on user ID
-    if (session?.user?.id) {
+    // Only for authenticated users with valid session
+    if (session?.user?.id && status === 'authenticated') {
       return `user_${session.user.id}`;
     }
 
     // For anonymous users, use localStorage session ID
     let sessionId = localStorage.getItem('chat_session_id');
     if (!sessionId) {
-      sessionId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      sessionId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       localStorage.setItem('chat_session_id', sessionId);
     }
     return sessionId;
-  }, [session?.user?.id]);
+  }, [session?.user?.id, status]);
 
   // Initialize chat session
   const initializeChat = useCallback(async () => {
@@ -98,26 +100,32 @@ export function useChatSession() {
         isConnected: true,
       });
 
-      // Load existing messages immediately
+      // Load existing messages immediately using API route (works for both auth and anon users)
       if (data.conversation.id) {
-        // Load messages directly here to avoid dependency issues
         try {
-          const { data: messagesData, error: messagesError } = await supabase
-            .from('web_chat_messages')
-            .select('*')
-            .eq('conversation_id', data.conversation.id)
-            .order('created_at', { ascending: true })
-            .limit(50);
+          const messagesResponse = await fetch('/api/chat/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              conversationId: data.conversation.id,
+              sessionId: sessionId,
+            }),
+          });
 
-          if (messagesError) throw messagesError;
+          if (messagesResponse.ok) {
+            const messagesData = await messagesResponse.json();
+            setMessages(messagesData.messages || []);
 
-          setMessages(messagesData || []);
-
-          // Count unread messages from bot/staff
-          const unreadMessages = (messagesData || []).filter(
-            (msg: ChatMessage) => !msg.is_read && msg.sender_type !== 'customer'
-          );
-          setUnreadCount(unreadMessages.length);
+            // Count unread messages from bot/staff
+            const unreadMessages = (messagesData.messages || []).filter(
+              (msg: ChatMessage) => !msg.is_read && msg.sender_type !== 'customer'
+            );
+            setUnreadCount(unreadMessages.length);
+          } else {
+            console.warn('Failed to load initial messages:', messagesResponse.status);
+          }
         } catch (msgErr) {
           console.error('Error loading initial messages:', msgErr);
         }
@@ -131,22 +139,29 @@ export function useChatSession() {
     }
   }, [chatSession.isInitialized, session, getSessionId, supabase]);
 
-  // Load messages for conversation
+  // Load messages for conversation using API route
   const loadMessages = useCallback(async (conversationId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('web_chat_messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true })
-        .limit(50);
+      const response = await fetch('/api/chat/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversationId,
+          sessionId: chatSession.sessionId,
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to load messages');
+      }
 
-      setMessages(data || []);
+      const data = await response.json();
+      setMessages(data.messages || []);
 
       // Count unread messages from bot/staff
-      const unreadMessages = (data || []).filter(
+      const unreadMessages = (data.messages || []).filter(
         (msg: ChatMessage) => !msg.is_read && msg.sender_type !== 'customer'
       );
       setUnreadCount(unreadMessages.length);
@@ -154,7 +169,7 @@ export function useChatSession() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages');
     }
-  }, [supabase]);
+  }, [chatSession.sessionId]);
 
   // Send message
   const sendMessage = useCallback(async (messageText: string) => {
@@ -231,24 +246,34 @@ export function useChatSession() {
           filter: `conversation_id=eq.${chatSession.conversationId}`,
         },
         (payload: any) => {
-          const newMessage = payload.new as ChatMessage;
+          try {
+            const newMessage = payload.new as ChatMessage;
 
-          setMessages(prev => {
-            // Avoid duplicates
-            if (prev.find(msg => msg.id === newMessage.id)) {
-              return prev;
+            // Validate message data before processing
+            if (!newMessage || !newMessage.id) {
+              console.warn('Invalid message received:', payload);
+              return;
             }
-            return [...prev, newMessage];
-          });
 
-          // Update unread count for non-customer messages
-          if (newMessage.sender_type !== 'customer') {
-            setUnreadCount(prev => prev + 1);
-          }
+            setMessages(prev => {
+              // Avoid duplicates
+              if (prev.find(msg => msg.id === newMessage.id)) {
+                return prev;
+              }
+              return [...prev, newMessage];
+            });
 
-          // Clear typing indicator when bot responds
-          if (newMessage.sender_type === 'bot') {
-            setIsTyping(false);
+            // Update unread count for non-customer messages
+            if (newMessage.sender_type !== 'customer') {
+              setUnreadCount(prev => prev + 1);
+            }
+
+            // Clear typing indicator when bot responds
+            if (newMessage.sender_type === 'bot') {
+              setIsTyping(false);
+            }
+          } catch (error) {
+            console.error('Error processing real-time message:', error, payload);
           }
         }
       )
@@ -265,6 +290,11 @@ export function useChatSession() {
 
     // If session ID changed (user logged in/out), reset chat session
     if (chatSession.isInitialized && chatSession.sessionId !== currentSessionId) {
+      // Clear localStorage chat session when logging out
+      if (status === 'unauthenticated') {
+        localStorage.removeItem('chat_session_id');
+      }
+
       setChatSession({
         sessionId: '',
         isInitialized: false,
@@ -274,7 +304,7 @@ export function useChatSession() {
       setUnreadCount(0);
       setError(null);
     }
-  }, [session?.user?.id, chatSession.isInitialized, chatSession.sessionId, getSessionId]);
+  }, [session?.user?.id, status, chatSession.isInitialized, chatSession.sessionId, getSessionId]);
 
   // Auto-initialize on mount and when session changes
   useEffect(() => {

@@ -5,10 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ChatService } from '@/lib/chatService';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/options';
-import { createServerClient } from '@/utils/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
+import { getBusinessHoursStatus } from '@/lib/businessHours';
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,7 +71,16 @@ export async function POST(request: NextRequest) {
 
     // Get current session for authentication context
     const session = await getServerSession(authOptions);
-    const supabase = createServerClient();
+    const supabase = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
 
     // Verify conversation ownership before allowing message sending
     const { data: conversation, error: convError } = await supabase
@@ -119,21 +129,99 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send message
-    const result = await ChatService.sendMessage(
-      conversationId,
-      sessionId,
-      message.trim(),
-      senderType,
-      senderName
-    );
+    // Send message directly using service role client
+    const { data: newMessage, error: messageError } = await supabase
+      .from('web_chat_messages')
+      .insert({
+        conversation_id: conversationId,
+        session_id: sessionId,
+        message_text: message.trim(),
+        sender_type: senderType,
+        sender_name: senderName,
+        is_read: false,
+      })
+      .select()
+      .single();
+
+    if (messageError || !newMessage) {
+      throw new Error(`Failed to send message: ${messageError?.message}`);
+    }
+
+    // Update conversation - increment unread count for customer messages
+    if (senderType === 'customer') {
+      // Use RPC with proper error handling
+      const { error: rpcError } = await supabase
+        .rpc('increment_unread_count', { conversation_id: conversationId });
+
+      // Always update the last message info regardless of RPC success
+      await supabase
+        .from('web_chat_conversations')
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_message_text: message.trim(),
+        })
+        .eq('id', conversationId);
+
+      if (rpcError) {
+        console.error('Failed to increment unread count:', rpcError);
+      }
+    } else {
+      // For staff messages, reset unread count
+      await supabase
+        .from('web_chat_conversations')
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_message_text: message.trim(),
+          unread_count: 0,
+        })
+        .eq('id', conversationId);
+    }
 
     // Update last seen timestamp
-    await ChatService.updateLastSeen(sessionId);
+    await supabase
+      .from('web_chat_sessions')
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq('session_id', sessionId);
+
+    // Check if we need to send auto-reply for business hours
+    let autoReplyMessage = null;
+    if (senderType === 'customer') {
+      const businessStatus = getBusinessHoursStatus();
+
+      if (!businessStatus.isOpen) {
+        // Send auto-reply message outside business hours
+        const { data: autoReply, error: autoReplyError } = await supabase
+          .from('web_chat_messages')
+          .insert({
+            conversation_id: conversationId,
+            session_id: sessionId,
+            message_text: businessStatus.responseMessage,
+            sender_type: 'bot',
+            sender_name: 'LENGOLF Bot',
+            is_read: false,
+          })
+          .select()
+          .single();
+
+        if (!autoReplyError && autoReply) {
+          autoReplyMessage = autoReply;
+
+          // Update conversation with auto-reply
+          await supabase
+            .from('web_chat_conversations')
+            .update({
+              last_message_at: new Date().toISOString(),
+              last_message_text: businessStatus.responseMessage,
+            })
+            .eq('id', conversationId);
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: result.message,
+      message: newMessage,
+      autoReply: autoReplyMessage,
     });
 
   } catch (error) {

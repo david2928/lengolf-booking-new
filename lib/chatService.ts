@@ -31,6 +31,8 @@ export interface ChatMessage {
   conversation_id: string;
   session_id: string;
   message_text: string;
+  message_type?: 'text' | 'image';
+  image_url?: string;
   sender_type: 'customer' | 'bot' | 'staff';
   sender_name?: string;
   is_read: boolean;
@@ -49,24 +51,82 @@ export class ChatService {
   }): Promise<{ session: ChatSession; conversation: ChatConversation }> {
     const supabase = createServerClient();
 
-    // Create or update session
-    const { data: session, error: sessionError } = await supabase
-      .from('web_chat_sessions')
-      .upsert({
-        session_id: sessionId,
-        user_id: userInfo?.userId,
-        customer_id: userInfo?.customerId,
-        display_name: userInfo?.displayName,
-        email: userInfo?.email,
-        last_seen_at: new Date().toISOString(),
-      }, {
-        onConflict: 'session_id'
-      })
-      .select()
-      .single();
+    // Create or get session - different logic for authenticated vs anonymous users
+    let session;
 
-    if (sessionError || !session) {
-      throw new Error(`Failed to create session: ${sessionError?.message}`);
+    if (userInfo?.userId) {
+      // For authenticated users: upsert is safe as they own their session
+      const { data: userSession, error: sessionError } = await supabase
+        .from('web_chat_sessions')
+        .upsert({
+          session_id: sessionId,
+          user_id: userInfo.userId,
+          customer_id: userInfo.customerId,
+          display_name: userInfo.displayName,
+          email: userInfo.email,
+          last_seen_at: new Date().toISOString(),
+        }, {
+          onConflict: 'session_id'
+        })
+        .select()
+        .single();
+
+      if (sessionError || !userSession) {
+        throw new Error(`Failed to create session: ${sessionError?.message}`);
+      }
+      session = userSession;
+    } else {
+      // For anonymous users: first try to find existing session
+      const { data: existingSession } = await supabase
+        .from('web_chat_sessions')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('user_id', null) // Only match sessions without a user_id
+        .maybeSingle();
+
+      if (existingSession) {
+        // Update last_seen_at for existing anonymous session
+        const { data: updatedSession, error: updateError } = await supabase
+          .from('web_chat_sessions')
+          .update({
+            last_seen_at: new Date().toISOString(),
+          })
+          .eq('id', existingSession.id)
+          .select()
+          .single();
+
+        if (updateError || !updatedSession) {
+          throw new Error(`Failed to update session: ${updateError?.message}`);
+        }
+        session = updatedSession;
+      } else {
+        // Create new anonymous session - if session_id conflicts with authenticated user, this will fail
+        const { data: newSession, error: createError } = await supabase
+          .from('web_chat_sessions')
+          .insert({
+            session_id: sessionId,
+            user_id: null,
+            customer_id: null, // Anonymous users should never have customer_id
+            display_name: null, // Anonymous users should never have display_name
+            email: null, // Anonymous users should never have email
+            last_seen_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          // If session_id already exists for authenticated user, generate new session ID
+          if (createError.code === '23505') { // unique constraint violation
+            throw new Error(`Session ID conflict: ${sessionId} is already associated with an authenticated user. Please use a different session ID.`);
+          }
+          throw new Error(`Failed to create session: ${createError.message}`);
+        }
+
+        if (!newSession) {
+          throw new Error('Failed to create session: No session returned');
+        }
+        session = newSession;
+      }
     }
 
     // Get or create THE SINGLE conversation for this user
@@ -181,18 +241,22 @@ export class ChatService {
 
     // Update conversation - increment unread count for customer messages
     if (senderType === 'customer') {
+      // Use RPC with proper error handling
+      const { error: rpcError } = await supabase
+        .rpc('increment_unread_count', { conversation_id: conversationId });
+
+      // Always update the last message info regardless of RPC success
       await supabase
-        .rpc('increment_unread_count', { conversation_id: conversationId })
-        .then(async () => {
-          // Update other fields after incrementing
-          await supabase
-            .from('web_chat_conversations')
-            .update({
-              last_message_at: new Date().toISOString(),
-              last_message_text: messageText,
-            })
-            .eq('id', conversationId);
-        });
+        .from('web_chat_conversations')
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_message_text: messageText,
+        })
+        .eq('id', conversationId);
+
+      if (rpcError) {
+        console.error('Failed to increment unread count:', rpcError);
+      }
     } else {
       // For staff messages, reset unread count
       await supabase
