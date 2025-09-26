@@ -4,16 +4,14 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getVipBookings } from '../../lib/vipService';
 import { VipBooking, VipBookingsResponse, VipApiError } from '../../types/vip';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Needs install
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // Needs install
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Needs install
+ // Needs install
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination'; // Needs install
-import { Loader2, Edit, XCircle, Info, AlertTriangle, CalendarOff, CalendarDays, Clock, MapPin, InfoIcon, Users, PlusCircle } from 'lucide-react';
+import { Loader2, Edit, XCircle, Info, AlertTriangle, CalendarOff, Clock, InfoIcon, Users, PlusCircle } from 'lucide-react';
 import { useVipContext } from '../../app/(features)/vip/contexts/VipContext';
 import Link from 'next/link';
 import EmptyState from './EmptyState'; // Import EmptyState
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card imports
-import BookingCancelModal from './BookingCancelModal';
-import BookingModifyModal from './BookingModifyModal';
 import { utcToZonedTime, format } from 'date-fns-tz'; // Import from date-fns-tz
 
 interface BookingsListProps {
@@ -26,7 +24,7 @@ interface BookingsListProps {
 type FilterType = "future" | "past" | "all";
 
 const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBooking, refreshNonce, optimisticUpdates }) => {
-  const { vipStatus, isLoadingVipStatus, refetchVipStatus } = useVipContext();
+  const { vipStatus, isLoadingVipStatus } = useVipContext();
   const [bookings, setBookings] = useState<VipBooking[]>([]);
   const [paginationData, setPaginationData] = useState<VipBookingsResponse['pagination'] | null>(null);
   const [currentFilter, setCurrentFilter] = useState<FilterType>('future');

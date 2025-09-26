@@ -35,17 +35,15 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse request body
     const body: BookingCancellationBody = await request.json();
-    const { 
-      email, 
-      userName, 
-      subjectName,
+    const {
+      email,
+      userName,
       bookingId,
       bookingDate, 
       startTime, 
       endTime,
       duration,
       numberOfPeople,
-      bayName,
       cancellationReason
     } = body;
 
@@ -71,9 +69,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 5. Format time display
-    const timeDisplay = endTime ? `${startTime} - ${endTime}` : startTime;
-    const displayName = subjectName || userName;
+    // 5. Format display name
 
     // 6. Create email content  
     // Align subject line format with booking confirmation email

@@ -4,20 +4,19 @@ import { format } from 'date-fns';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Booking } from '@/types';
-import { 
-  CheckCircleIcon, 
-  CalendarIcon, 
-  ClockIcon, 
-  UserGroupIcon, 
-  UserIcon, 
-  PhoneIcon, 
+import {
+  CheckCircleIcon,
+  CalendarIcon,
+  ClockIcon,
+  UserGroupIcon,
+  UserIcon,
+  PhoneIcon,
   EnvelopeIcon,
   UsersIcon,
-  ComputerDesktopIcon,
-  HandRaisedIcon
+  ComputerDesktopIcon
 } from '@heroicons/react/24/outline';
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
-import { getBayInfo, isAILabBay } from '@/lib/bayConfig';
+import { isAILabBay } from '@/lib/bayConfig';
 
 // Dynamically import PageTransition with loading fallback
 const PageTransition = dynamic(
@@ -47,14 +46,14 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
   // Extract club rental info from customer_notes
   const getClubRentalInfo = () => {
     if (!booking.customer_notes) return null;
-    
+
     const clubRentalMatch = booking.customer_notes.match(/Golf Club Rental: ([^\n]+)/);
     if (clubRentalMatch) {
       const [, setName] = clubRentalMatch;
-      const clubOption = GOLF_CLUB_OPTIONS.find(club => 
+      const clubOption = GOLF_CLUB_OPTIONS.find(club =>
         club.name === setName.trim()
       );
-      return clubOption || { name: setName };
+      return clubOption || { name: setName, id: undefined };
     }
     return null;
   };
@@ -202,7 +201,7 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
                 <p className="font-semibold text-gray-900">
                   {getClubRentalInfo()?.name}
                 </p>
-                {(getClubRentalInfo() as any)?.id?.includes('premium') ? (
+                {getClubRentalInfo()?.id?.includes('premium') ? (
                   <p className="text-sm text-gray-500 mt-1">
                     Club rental charges will be added based on your {booking.duration} hour{booking.duration > 1 ? 's' : ''} booking duration
                   </p>

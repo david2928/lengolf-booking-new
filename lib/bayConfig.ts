@@ -71,13 +71,13 @@ export const BAY_COLORS: Record<string, string> = {
 // Helper functions
 export const getSocialBays = (): string[] => 
   Object.entries(BAY_CONFIGURATION)
-    .filter(([_, info]) => info.type === 'social')
-    .map(([key, _]) => key);
+    .filter(([, info]) => info.type === 'social')
+    .map(([key]) => key);
 
 export const getAILabBays = (): string[] =>
   Object.entries(BAY_CONFIGURATION)
-    .filter(([_, info]) => info.type === 'ai_lab')
-    .map(([key, _]) => key);
+    .filter(([, info]) => info.type === 'ai_lab')
+    .map(([key]) => key);
 
 export const getBayInfo = (bayKey: string): BayInfo | undefined => {
   return BAY_CONFIGURATION[bayKey];

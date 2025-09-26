@@ -5,11 +5,6 @@ import { useRouter } from 'next/navigation';
 import PackagesList from '../../../../components/vip/PackagesList'; // To be created
 import { useVipContext } from '../contexts/VipContext';
 import { Loader2 } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
-import EmptyState from '../../../../components/vip/EmptyState';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 
 const VipPackagesPage = () => {
   const { vipStatus, isLoadingVipStatus, session } = useVipContext();

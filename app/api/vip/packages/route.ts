@@ -8,12 +8,13 @@ import type { VipPackage } from '@/types/vip';
 /**
  * Transform package data to VipPackage format expected by frontend
  */
-function transformToVipPackage(pkg: any): VipPackage {
+function transformToVipPackage(pkg: Record<string, unknown>): VipPackage {
   console.log(`[VIP Packages API] Transforming package:`, JSON.stringify(pkg, null, 2));
-  
+
   const now = new Date();
   // Handle both possible field names for expiration date
-  const expirationDate = new Date(pkg.expiration_date || pkg.expire_date);
+  const expirationDateValue = pkg.expiration_date || pkg.expire_date;
+  const expirationDate = new Date(expirationDateValue as string | number | Date);
   const isExpired = expirationDate <= now;
   
   // Handle both possible field names for remaining hours/count
@@ -28,16 +29,16 @@ function transformToVipPackage(pkg: any): VipPackage {
   }
   
   const transformed = {
-    id: pkg.package_id || pkg.id,
-    packageName: pkg.display_name || pkg.package_type_name || pkg.name || 'Package',
-    package_display_name: pkg.display_name,
-    packageCategory: 'VIP Package',
-    purchaseDate: pkg.purchase_date || pkg.created_at,
-    expiryDate: pkg.expiration_date || pkg.expire_date,
-    totalHours: pkg.total_hours !== undefined ? Number(pkg.total_hours) : 
+    id: String(pkg.package_id || pkg.id || ''),
+    packageName: String(pkg.display_name || pkg.package_type_name || pkg.name || 'Package'),
+    package_display_name: pkg.display_name as string | undefined,
+    packageCategory: 'VIP Package' as const,
+    purchaseDate: (pkg.purchase_date || pkg.created_at) as string | null,
+    expiryDate: (pkg.expiration_date || pkg.expire_date) as string | null,
+    totalHours: pkg.total_hours !== undefined ? Number(pkg.total_hours) :
                 pkg.total_count !== undefined ? Number(pkg.total_count) : null,
     remainingHours: remainingHours,
-    usedHours: pkg.used_hours !== undefined ? Number(pkg.used_hours) : 
+    usedHours: pkg.used_hours !== undefined ? Number(pkg.used_hours) :
                pkg.used_count !== undefined ? Number(pkg.used_count) : null,
     status: status
   };

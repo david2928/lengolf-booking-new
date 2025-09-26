@@ -1,21 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import { 
-  ClockIcon, 
-  SunIcon, 
-  CloudIcon, 
-  MoonIcon, 
-  UsersIcon, 
-  ComputerDesktopIcon,
-  HandRaisedIcon,
-  AcademicCapIcon
+import {
+  ClockIcon,
+  SunIcon,
+  CloudIcon,
+  MoonIcon,
+  UsersIcon,
+  ComputerDesktopIcon
 } from '@heroicons/react/24/outline';
-import { useRouter } from 'next/navigation';
 import { useAvailability } from '../../../hooks/useAvailability';
-import { BAY_CONFIGURATION, BayType, getBayTypeFromKey, getSocialBays, getAILabBays } from '@/lib/bayConfig';
+import { BayType } from '@/lib/bayConfig';
 import { BayInfoModal } from '../../BayInfoModal';
 
 interface TimeSlotsProps {
@@ -37,15 +33,14 @@ interface AvailableSlot {
   totalBayCount?: number;
 }
 
-export function TimeSlots({ selectedDate, onBack, onTimeSelect }: TimeSlotsProps) {
+export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
   const { isLoadingSlots, availableSlots, fetchAvailability } = useAvailability();
-  const router = useRouter();
   const [bayFilter, setBayFilter] = useState<BayFilterType>('all');
   const [showBayInfoModal, setShowBayInfoModal] = useState(false);
 
   useEffect(() => {
     fetchAvailability(selectedDate);
-  }, [selectedDate]);
+  }, [selectedDate, fetchAvailability]);
 
   // Filter slots based on bay type selection
   const filterSlotsByBayType = (slots: AvailableSlot[], filterType: BayFilterType): AvailableSlot[] => {
@@ -67,7 +62,7 @@ export function TimeSlots({ selectedDate, onBack, onTimeSelect }: TimeSlotsProps
   const filteredSlots = filterSlotsByBayType(availableSlots as AvailableSlot[], bayFilter);
 
   // Get the appropriate bay type to pass to onTimeSelect
-  const getBayTypeForSelection = (slot: AvailableSlot): BayType | undefined => {
+  const getBayTypeForSelection = (): BayType | undefined => {
     if (bayFilter === 'social') return 'social';
     if (bayFilter === 'ai_lab') return 'ai_lab';
     
@@ -121,7 +116,7 @@ export function TimeSlots({ selectedDate, onBack, onTimeSelect }: TimeSlotsProps
           onClick={() => setShowBayInfoModal(true)}
           className="text-sm text-gray-600 hover:text-gray-800 underline transition-colors"
         >
-          ❓ What's the difference?
+          ❓ What&apos;s the difference?
         </button>
       </div>
     </div>
@@ -177,9 +172,7 @@ export function TimeSlots({ selectedDate, onBack, onTimeSelect }: TimeSlotsProps
                   {periodSlots
                     .sort((a, b) => a.startTime.localeCompare(b.startTime))
                     .map((slot, index) => {
-                      const bayType = getBayTypeForSelection(slot);
-                      const showSocialBadge = bayFilter === 'all' || bayFilter === 'social';
-                      const showAILabBadge = bayFilter === 'all' || bayFilter === 'ai_lab';
+                      const bayType = getBayTypeForSelection();
                       
                       return (
                         <motion.div

@@ -99,6 +99,7 @@ const VipBookingsPage = () => {
       if (selectedBookingId) {
         setOptimisticUpdates(prev => {
           const { [selectedBookingId]: removed, ...rest } = prev;
+          console.log('Removed booking:', removed);
           return rest;
         });
       }

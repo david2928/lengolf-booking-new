@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     if (!phoneNumber || typeof phoneNumber !== 'string') {
       return NextResponse.json({ error: 'Phone number is required and must be a string.' }, { status: 400 });
     }
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 

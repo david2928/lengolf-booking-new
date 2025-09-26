@@ -11,7 +11,7 @@ const MembershipComingSoonPage = () => {
         Membership Features Coming Soon!
       </h1>
       <p className="text-lg text-muted-foreground mb-8 max-w-md">
-        We're working hard to bring you exciting new membership benefits and features. Please check back later!
+        We&apos;re working hard to bring you exciting new membership benefits and features. Please check back later!
       </p>
       {/* Optional: Add a button to go back to VIP home or another relevant page */}
       <Button asChild variant="outline">

@@ -70,7 +70,7 @@ const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName 
         router.push('/vip');
       }, 1500); // 1.5 second delay to let user see success modal
       
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Link account error:', e);
       let errorMessage = 'An unexpected error occurred.';
       if (e instanceof VipApiError) {

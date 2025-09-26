@@ -30,7 +30,13 @@
       "Bash(vercel:*)",
       "Bash(git commit:*)",
       "Bash(git pull:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "WebSearch",
+      "Read(//c/c/vs_code/lengolf-forms-feature/lengolf-forms/**)",
+      "Read(//c/vs_code/lengolf-forms-feature/lengolf-forms/app/api/line/webhook//**)",
+      "Bash(cat:*)",
+      "Read(//c/vs_code/lengolf-forms-feature/lengolf-forms/app/staff/line-chat//**)",
+      "Read(//c/vs_code/lengolf-forms-feature/lengolf-forms/**)"
     ],
     "deny": []
   },

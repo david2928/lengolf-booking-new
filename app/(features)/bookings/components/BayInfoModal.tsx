@@ -2,6 +2,7 @@
 
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+import Image from 'next/image';
 import { 
   XMarkIcon, 
   UsersIcon, 
@@ -131,9 +132,11 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                         
                         {/* Social Bay Image */}
                         <div className="mt-4">
-                          <img 
-                            src="/images/bays/social-bay.jpg" 
+                          <Image
+                            src="/images/bays/social-bay.jpg"
                             alt="Social Bay Experience"
+                            width={400}
+                            height={160}
                             className="w-full h-40 object-cover rounded-lg"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
@@ -217,9 +220,11 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                         
                         {/* AI Lab Image */}
                         <div className="mt-4">
-                          <img 
-                            src="/images/bays/ai-lab-technology.jpg" 
+                          <Image
+                            src="/images/bays/ai-lab-technology.jpg"
                             alt="AI Lab Technology"
+                            width={400}
+                            height={160}
                             className="w-full h-40 object-cover rounded-lg"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';

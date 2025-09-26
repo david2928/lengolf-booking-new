@@ -5,7 +5,7 @@ import { createServerClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 
 // Simple in-memory cache for profile data
-const profileCache = new Map<string, { data: any; timestamp: number }>();
+const profileCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes cache
 
 function getCachedProfile(profileId: string) {
@@ -17,7 +17,7 @@ function getCachedProfile(profileId: string) {
   return cached.data;
 }
 
-function setCachedProfile(profileId: string, data: any) {
+function setCachedProfile(profileId: string, data: unknown) {
   profileCache.set(profileId, { data, timestamp: Date.now() });
 }
 
@@ -91,7 +91,7 @@ export async function GET() {
     setCachedProfile(profileId, response);
     return NextResponse.json(response);
 
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -128,7 +128,7 @@ export async function PUT(request: Request) {
     }
 
     // Build update payload for customers table
-    const updatePayload: any = {};
+    const updatePayload: Record<string, unknown> = {};
     const updatedFields: string[] = [];
 
     if (display_name !== undefined) {
@@ -174,7 +174,7 @@ export async function PUT(request: Request) {
       updatedFields
     });
 
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -181,7 +181,7 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async signIn({ user, account, profile: oauthProfile }: { 
+    async signIn({ user, account }: { 
       user: ExtendedUser; 
       account: Account | null; 
       profile?: OAuthProfile;
@@ -206,10 +206,19 @@ export const authOptions: NextAuthOptions = {
           const userIdFromSupabase = existingProfile?.id || uuidv4(); // Use existing Supabase ID or generate new
 
           // Prepare data for upsert
-          const profileDataToUpsert: any = {
+          const profileDataToUpsert: {
+            id: string;
+            email: string | null;
+            picture_url: string | null;
+            provider: string | undefined;
+            provider_id: string | undefined;
+            display_name?: string | null;
+            phone_number?: string | null;
+            updated_at: string;
+          } = {
             id: userIdFromSupabase, // This is the Supabase User ID
-            email: user.email, // Email from provider
-            picture_url: user.image, // Picture from provider
+            email: user.email ?? null, // Email from provider
+            picture_url: user.image ?? null, // Picture from provider
             provider: account?.provider,
             provider_id: account?.providerAccountId,
             updated_at: new Date().toISOString()
@@ -278,7 +287,7 @@ export const authOptions: NextAuthOptions = {
       user?: ExtendedUser; 
       account?: Account | null;
       trigger?: "signIn" | "signUp" | "update"; // `trigger` and `session` are for v4+
-      session?: any; // Session data when `trigger` is "update"
+      session?: unknown; // Session data when `trigger` is "update"
     }) {
       if (user) {
       }
@@ -366,9 +375,10 @@ export const authOptions: NextAuthOptions = {
       }
       
       // Handle session updates if `trigger` is "update" (NextAuth v4 feature)
-      if (trigger === "update" && updateSession) {
-        if (updateSession.name) token.name = updateSession.name;
-        if (updateSession.picture) token.picture = updateSession.picture;
+      if (trigger === "update" && updateSession && typeof updateSession === 'object') {
+        const sessionUpdate = updateSession as { name?: string; picture?: string };
+        if (sessionUpdate.name) token.name = sessionUpdate.name;
+        if (sessionUpdate.picture) token.picture = sessionUpdate.picture;
         // Add any other fields from `updateSession` that you want to be reflected in the JWT `token`
       }
 

@@ -45,6 +45,7 @@ const mockVipTiers = [
 interface MembershipTiersProps {
   // Props to pass actual tier data and user's current tier can be added later
   // For now, it uses mock data.
+  className?: string;
 }
 
 const MembershipTiers: React.FC<MembershipTiersProps> = () => {

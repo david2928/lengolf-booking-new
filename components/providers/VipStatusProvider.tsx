@@ -69,7 +69,7 @@ export function VipStatusProvider({ children }: { children: ReactNode }) {
     if (cache.sessionId !== currentSessionId) return false;
     
     return true;
-  }, [session?.user?.id]);
+  }, [session?.user?.id, VIP_PROFILE_CACHE_EXPIRY_MS]);
 
   const fetchVipProfile = useCallback(async (forceRefresh = false) => {
     if (sessionStatus === 'authenticated' && session?.user?.id) {
@@ -94,7 +94,7 @@ export function VipStatusProvider({ children }: { children: ReactNode }) {
           try {
             const errorData = await statusResponse.json();
             errorMsg = errorData.error || errorMsg;
-          } catch (e) {
+          } catch {
             // Ignore if response is not JSON
           }
           throw new Error(errorMsg);
@@ -108,7 +108,7 @@ export function VipStatusProvider({ children }: { children: ReactNode }) {
           try {
             const errorData = await profileResponse.json();
             errorMsg = errorData.error || errorMsg;
-          } catch (e) {
+          } catch {
             // Ignore if response is not JSON
           }
           throw new Error(errorMsg);

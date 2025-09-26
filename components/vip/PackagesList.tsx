@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import Image from 'next/image';
 import { getVipPackages } from '../../lib/vipService';
 import { VipPackage, VipApiError } from '../../types/vip';
 import { useVipContext } from '../../app/(features)/vip/contexts/VipContext';
-import { Loader2, PackageIcon, CalendarDays, CheckCircle, XCircle, Clock, AlertTriangle, Info, Users, Clock3, Star, FlagTriangleRight, ChevronDown, ChevronUp } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Loader2, PackageIcon, CalendarDays, CheckCircle, XCircle, Clock, AlertTriangle, Info, Users, Clock3, ChevronDown, ChevronUp } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EmptyState from './EmptyState'; // Assuming EmptyState component exists
 import { Button } from '@/components/ui/button';
@@ -35,9 +36,11 @@ const FullScreenImageModal: React.FC<{
         >
           <X size={32} />
         </button>
-        <img 
+        <Image
           src={imageSrc}
           alt={imageAlt}
+          width={800}
+          height={600}
           className="max-w-full max-h-full object-contain"
           onClick={(e) => e.stopPropagation()}
         />
@@ -71,9 +74,11 @@ const PromoPackagesView: React.FC = () => {
               className="relative cursor-pointer group"
               onClick={() => setIsImageModalOpen(true)}
             >
-              <img 
-                src="/images/promotion_2.jpg" 
-                alt="Monthly Packages Pricing" 
+              <Image
+                src="/images/promotion_2.jpg"
+                alt="Monthly Packages Pricing"
+                width={600}
+                height={400}
                 className="w-full h-auto rounded-lg shadow-md transition-transform group-hover:scale-[1.02]"
               />
               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded-lg flex items-center justify-center">
@@ -170,7 +175,7 @@ const PackagesList: React.FC = () => {
         activePackages,
         pastPackages
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to fetch packages:', err);
       let errorMessage = 'Could not load packages.';
       if (err instanceof VipApiError) {
@@ -196,7 +201,8 @@ const PackagesList: React.FC = () => {
     try {
         const date = new Date(dateString + (dateString.includes('T') ? '' : 'T00:00:00'));
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    } catch (e) {
+    } catch {
+        console.error('Failed to parse date');
         return dateString; // Return original if parsing fails
     }
   };
@@ -210,7 +216,6 @@ const PackagesList: React.FC = () => {
 
     const isUnlimited = pkg.packageCategory?.toLowerCase().includes('unlimited');
     const isCoaching = pkg.packageCategory?.toLowerCase().includes('coaching');
-    const isPractice = !isCoaching && !isUnlimited;
 
     let packageTypeBadgeText = pkg.packageCategory || 'Package'; // Default
 
@@ -395,8 +400,8 @@ const PackagesList: React.FC = () => {
           Icon={PackageIcon}
           title={`No ${title.toLowerCase()} found`}
           message={title === 'Active Packages' ? 
-            <>You don't have any active packages yet. <br />Contact us to purchase a practice or coaching package!</> :
-            <>You haven't used any packages yet.</>
+            <>You don&apos;t have any active packages yet. <br />Contact us to purchase a practice or coaching package!</> :
+            <>You haven&apos;t used any packages yet.</>
           }
           action={title === 'Active Packages' ? {
             text: "Contact Us",

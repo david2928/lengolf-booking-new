@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { createServerClient } from '@/utils/supabase/server';
-import { parse, addMinutes } from 'date-fns';
-import { zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
-
-const TIMEZONE = 'Asia/Bangkok';
 
 interface ScheduleReviewRequestBody {
   bookingId: string;
@@ -17,7 +13,7 @@ interface ScheduleReviewRequestBody {
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate user
-    const token = await getToken({ req: request as any });
+    const token = await getToken({ req: request });
     if (!token?.sub) {
       return NextResponse.json(
         { error: 'Unauthorized or session expired' },

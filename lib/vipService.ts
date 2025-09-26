@@ -44,7 +44,7 @@ async function fetchVipApi<T>(endpoint: string, options: RequestInit = {}): Prom
       let errorPayload: ApiErrorPayload | undefined;
       try {
         errorPayload = await response.json();
-      } catch (e) {
+      } catch {
         // Ignore if response is not JSON or empty
       }
       

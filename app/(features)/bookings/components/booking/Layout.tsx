@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useVipStatus } from '@/components/providers/VipStatusProvider';
 import { toast } from 'react-hot-toast';
-import { ChevronDownIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, Bars3Icon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, UserCircleIcon as HeroUserCircleIcon, TicketIcon, LinkIcon as LinkIconLucide, HomeIcon as HeroHomeIcon, UserIcon as HeroUserIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, XMarkIcon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, HomeIcon as HeroHomeIcon, UserIcon as HeroUserIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import SharedFooter from '@/components/shared/Footer';
 import Header from '@/components/shared/Header';

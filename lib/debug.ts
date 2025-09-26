@@ -10,7 +10,7 @@ interface DebugLog {
 const isBrowser = typeof window !== 'undefined';
 
 // Force logs to persist in localStorage
-const persistLog = (type: string, ...args: any[]) => {
+const persistLog = (type: string, ...args: unknown[]) => {
   const timestamp = new Date().toISOString();
   const log: DebugLog = {
     timestamp,
@@ -77,17 +77,17 @@ const persistLog = (type: string, ...args: any[]) => {
 };
 
 export const debug = {
-  log: (...args: any[]) => {
+  log: (...args: unknown[]) => {
     if (DEBUG) {
       persistLog('DEBUG', ...args);
     }
   },
-  error: (...args: any[]) => {
+  error: (...args: unknown[]) => {
     if (DEBUG) {
       persistLog('ERROR', ...args);
     }
   },
-  warn: (...args: any[]) => {
+  warn: (...args: unknown[]) => {
     if (DEBUG) {
       persistLog('WARN', ...args);
     }
@@ -97,7 +97,8 @@ export const debug = {
     if (isBrowser) {
       try {
         return JSON.parse(localStorage.getItem('debug_logs') || '[]');
-      } catch (e) {
+      } catch {
+      console.error('Failed to persist log');
         return [];
       }
     }

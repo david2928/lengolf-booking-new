@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import Script from 'next/script';
+import ChatWidget from '@/components/chat/ChatWidget';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -218,6 +219,7 @@ export default function RootLayout({
         </noscript>
         <Providers>
           {children}
+          <ChatWidget />
         </Providers>
       </body>
     </html>

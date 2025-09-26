@@ -6,7 +6,7 @@ import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 
 export function useBookingFlow() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -63,7 +63,7 @@ export function useBookingFlow() {
         }
       }
     }
-  }, [status, searchParams, isAutoSelecting, router]);
+  }, [status, searchParams, isAutoSelecting, router, selectedPackage]);
 
   const handleDateSelect = (date: Date) => {
     if (status === 'unauthenticated') {

@@ -13,6 +13,7 @@ import { getVipProfile, updateVipProfile } from '../../lib/vipService'; // VipAp
 import { VipProfileResponse, UpdateVipProfileRequest, VipApiError } from '../../types/vip'; // VipApiError imported here
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useVipContext } from '../../app/(features)/vip/contexts/VipContext'; // Corrected path
+import { useVipStatus } from '../providers/VipStatusProvider';
 
 const profileFormSchema = z.object({
   display_name: z.string().min(2, { message: "Name must be at least 2 characters." }).max(100).optional(),
@@ -23,13 +24,13 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const ProfileView = () => {
-  const { vipStatus, sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
+  const { sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
+  const { refetchVipProfile } = useVipStatus();
   const [profile, setProfile] = useState<VipProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const { refetchVipStatus, session } = useVipContext();
 
 
   const form = useForm<ProfileFormValues>({
@@ -77,7 +78,7 @@ const ProfileView = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [form, isSharedDataFresh, sharedData.profile, sharedData.lastDataFetch, updateSharedData]);
+  }, [form, isSharedDataFresh, sharedData.profile, updateSharedData]);
 
   useEffect(() => {
     fetchProfile();
@@ -105,7 +106,7 @@ const ProfileView = () => {
       const response = await updateVipProfile(payload);
       setSubmitStatus({ type: 'success', message: response.message || 'Profile updated successfully!' });
       await fetchProfile(true); // Force refresh to show updated data and update shared context
-      if(refetchVipStatus) await refetchVipStatus(); 
+      if(refetchVipProfile) await refetchVipProfile(); 
     } catch (err) {
       const typedError = err as VipApiError; // Use VipApiError type
       setSubmitStatus({ type: 'error', message: typedError.payload?.message || typedError.message || 'Failed to update profile.' });

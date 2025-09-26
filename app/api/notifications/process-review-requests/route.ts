@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
 
           // Mark request as sent
           console.log(`✏️ Marking request ${request.id} as sent`);
-          const { data: updateData, error: updateError } = await supabase
+          const { error: updateError } = await supabase
             .from('scheduled_review_requests')
             .update({ sent: true })
             .eq('id', request.id)

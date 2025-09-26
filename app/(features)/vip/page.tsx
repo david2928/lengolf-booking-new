@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import DashboardView from '@/components/vip/DashboardView';
 import { useVipContext } from './contexts/VipContext';
 import { getVipProfile, getVipBookings, getVipPackages } from '../../../lib/vipService'; // Adjusted path
-import { VipProfileResponse, VipBooking, VipPackage, VipApiError } from '../../../types/vip'; // Adjusted path
+import { VipProfileResponse, VipBooking, VipBookingsResponse, VipPackagesResponse, VipApiError } from '../../../types/vip'; // Adjusted path
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 
@@ -102,7 +102,7 @@ const VipDashboardPage = () => {
 
     try {
       // Fetch all data concurrently instead of sequentially
-      const promises: Promise<any>[] = [getVipProfile()];
+      const promises: Promise<unknown>[] = [getVipProfile()];
       
       if (vipStatus.status === 'linked_matched' || vipStatus.status === 'linked_unmatched') {
         promises.push(getVipBookings({ filter: 'future', limit: 5, page: 1 }));
@@ -116,9 +116,9 @@ const VipDashboardPage = () => {
       
       // Process profile data
       if (results[0].status === 'fulfilled') {
-        const profileData = results[0].value;
+        const profileData = results[0].value as VipProfileResponse;
         setProfile(profileData);
-        
+
         // Update shared data
         updateSharedData({ profile: profileData });
       } else {
@@ -128,7 +128,7 @@ const VipDashboardPage = () => {
       // Process bookings data
       if (promises.length > 1) {
         if (results[1].status === 'fulfilled') {
-          const bookingsData = results[1].value;
+          const bookingsData = results[1].value as VipBookingsResponse;
           const bookings = bookingsData.bookings || [];
           
           // Update shared data with recent bookings
@@ -158,7 +158,7 @@ const VipDashboardPage = () => {
       // Process packages data  
       if (promises.length > 2) {
         if (results[2].status === 'fulfilled') {
-          const packagesData = results[2].value;
+          const packagesData = results[2].value as VipPackagesResponse;
           
           // Update shared data with packages
           updateSharedData({ 

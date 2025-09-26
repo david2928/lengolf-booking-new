@@ -42,7 +42,7 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
       onBookingCancelledAndRedirect();
       router.push('/bookings'); // Redirect to the main booking page to rebook
       onClose(); // Close the modal
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Failed to cancel booking for modification:', e);
       let errorMessage = 'Could not cancel the booking. Please try again.';
       if (e instanceof VipApiError) {
@@ -76,7 +76,7 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
         <DialogHeader>
           <DialogTitle>Modify Booking</DialogTitle>
           <DialogDescription className="mt-2">
-            To modify this booking, you'll first need to cancel it. You will then be redirected to make a new booking with your desired changes.
+            To modify this booking, you&apos;ll first need to cancel it. You will then be redirected to make a new booking with your desired changes.
           </DialogDescription>
         </DialogHeader>
 

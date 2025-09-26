@@ -5,13 +5,10 @@ import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
 
 import { findOrCreateCustomer, getPackageInfoForCustomer } from '@/utils/customer-service';
-import { BAY_DISPLAY_NAMES, BAY_COLORS } from '@/lib/bayConfig';
-import { v4 as uuidv4 } from 'uuid';
-import { nextTick } from 'node:process';
+import { BAY_DISPLAY_NAMES } from '@/lib/bayConfig';
 import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
 
 const supabase = createAdminClient();
-const TIMEZONE = 'Asia/Bangkok';
 
 // Configuration for detailed booking process logging
 const ENABLE_DETAILED_LOGGING = process.env.ENABLE_BOOKING_DETAILED_LOGGING === 'true';
@@ -21,6 +18,25 @@ interface AvailabilityResult {
   available: boolean;
   bay?: string;
   allAvailableBays?: string[];
+}
+
+// Type definitions for customer service results
+interface CustomerResult {
+  customer: {
+    id: string;
+    customer_code: string;
+    customer_name: string;
+  };
+  is_new_customer: boolean;
+  match_method: string;
+  confidence: number;
+}
+
+// Type definition for notification results
+interface NotificationResults {
+  success: boolean;
+  error?: { message: string };
+  results?: unknown[];
 }
 
 
@@ -33,7 +49,7 @@ const generateBookingId = () => {
 
 
 // Helper function to send notifications
-async function sendNotifications(formattedData: any, booking: any, bayDisplayName: string, customerCode?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
+async function sendNotifications(formattedData: Record<string, unknown>, booking: Record<string, unknown>, bayDisplayName: string, customerCode?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   // const internalApiBasePath = ''; // No longer using relative paths for internal calls
   
@@ -96,7 +112,7 @@ async function sendNotifications(formattedData: any, booking: any, bayDisplayNam
         
         const lineData = {
           customerName: lineCustomerName,
-          bookingName: formattedData.lineNotification?.bookingName || booking.name,
+          bookingName: (formattedData as { lineNotification?: { bookingName?: string } }).lineNotification?.bookingName || (booking as { name: string }).name,
           email: booking.email,
           phoneNumber: booking.phone_number,
           bookingDate: formattedData.formattedDate || booking.date,
@@ -182,7 +198,7 @@ async function logBookingProcessStep({
   status: 'success' | 'error' | 'info';
   durationMs: number;
   totalDurationMs: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }) {
   if (!ENABLE_DETAILED_LOGGING) return;
 
@@ -212,7 +228,7 @@ export async function POST(request: NextRequest) {
     let bookingId = 'pending'; // Will be updated once we have a booking ID
     let userId = ''; // Will be updated once we have authenticated
     
-    const logTiming = (step: string, status: 'success' | 'error' | 'info' = 'info', metadata: Record<string, any> = {}) => {
+    const logTiming = (step: string, status: 'success' | 'error' | 'info' = 'info', metadata: Record<string, unknown> = {}) => {
       const now = Date.now();
       const stepDuration = now - lastCheckpoint;
       const totalDuration = now - apiStartTime;
@@ -236,7 +252,7 @@ export async function POST(request: NextRequest) {
     };
 
     // 1. Authenticate user
-    const token = await getToken({ req: request as any });
+    const token = await getToken({ req: request });
     if (!token?.sub) {
       return NextResponse.json(
         { error: 'Unauthorized or session expired' },
@@ -284,9 +300,6 @@ export async function POST(request: NextRequest) {
     // 3. Date validation (native database function handles parsing)
     logTiming('Date validation', 'success');
 
-    // Get base URL for API calls that might be used outside sendNotifications if any
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
     // 5. Run bay availability check and customer identification in parallel
     const [availabilityResult, customerResult] = await Promise.all([
       // Bay availability check
@@ -326,8 +339,8 @@ export async function POST(request: NextRequest) {
 
           // Find available bays
           const availableBays = Object.entries(bayData)
-            .filter(([_, isAvailable]) => isAvailable === true)
-            .map(([bayName, _]) => bayName);
+            .filter(([, isAvailable]) => isAvailable === true)
+            .map(([bayName]) => bayName);
           
           if (availableBays.length === 0) {
             return { available: false };
@@ -400,11 +413,11 @@ export async function POST(request: NextRequest) {
     // Log more detailed info about the results
     logTiming('Parallel operations (availability + customer service)', 'success', {
       bayAvailability: availabilityResult?.available || false,
-      availableBays: (availabilityResult as any)?.allAvailableBays || [],
-      customerFound: !!(customerResult as any)?.customer?.id,
-      isNewCustomer: !!(customerResult as any)?.is_new_customer,
-      matchMethod: (customerResult as any)?.match_method || 'unknown',
-      confidence: (customerResult as any)?.confidence || 0
+      availableBays: (availabilityResult as AvailabilityResult)?.allAvailableBays || [],
+      customerFound: !!(customerResult as CustomerResult | null)?.customer?.id,
+      isNewCustomer: !!(customerResult as CustomerResult | null)?.is_new_customer,
+      matchMethod: (customerResult as CustomerResult | null)?.match_method || 'unknown',
+      confidence: (customerResult as CustomerResult | null)?.confidence || 0
     });
 
     // 6. Handle availability result
@@ -435,12 +448,12 @@ export async function POST(request: NextRequest) {
     let isNewCustomer = true;
 
     if (customerResult) {
-      const customer = (customerResult as any).customer;
+      const customer = (customerResult as CustomerResult).customer;
       if (customer && customer.id) {
         customerId = customer.id;
         customerCode = customer.customer_code;
         customerName = customer.customer_name;
-        isNewCustomer = (customerResult as any).is_new_customer;
+        isNewCustomer = (customerResult as CustomerResult).is_new_customer;
         
         console.log(`[Customer Service] Using customer: ${customerCode} (${customerId}), New: ${isNewCustomer}`);
       }
@@ -532,8 +545,8 @@ export async function POST(request: NextRequest) {
         customerCode,
         matchedName: customerName,
         isNewCustomer,
-        matchMethod: (customerResult as any)?.match_method,
-        confidence: (customerResult as any)?.confidence,
+        matchMethod: (customerResult as CustomerResult)?.match_method,
+        confidence: (customerResult as CustomerResult)?.confidence,
         customerDetails: {
           hasActivePackage: !!packageInfo && packageInfo !== 'Normal Bay Rate',
           packageInfo,
@@ -565,7 +578,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update booking with booking_type, package_name, and package_id
-    const updateData: any = { 
+    const updateData: Record<string, unknown> = {
       booking_type: derivedBookingType,
       package_name: derivedPackageName
     };
@@ -593,7 +606,7 @@ export async function POST(request: NextRequest) {
     // This assumes 'booking' type might need casting or is flexible.
     booking.booking_type = derivedBookingType;
     booking.package_name = derivedPackageName;
-    (booking as any).package_info = packageInfo; // For downstream compatibility (e.g. formatBookingData)
+    (booking as Record<string, unknown>).package_info = packageInfo; // For downstream compatibility (e.g. formatBookingData)
 
     // 9. Format booking data for all services
     const formattedData = formatBookingData({
@@ -648,7 +661,7 @@ export async function POST(request: NextRequest) {
       // Log notification failure
       logTiming('Notifications', 'error', {
         success: false,
-        error: (notificationResults as any).error?.message
+        error: (notificationResults as NotificationResults).error?.message
       });
     }
     

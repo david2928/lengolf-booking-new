@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse request body
     const body: ReviewRequestBody = await request.json();
-    const { email, userName, bookingDate, reviewUrl, voucherImageUrl } = body;
+    const { email, userName, reviewUrl, voucherImageUrl } = body;
 
     // 3. Validate required fields
     if (!email || !userName || !reviewUrl) {

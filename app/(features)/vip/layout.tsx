@@ -10,7 +10,6 @@ import { getVipStatus } from '../../../lib/vipService'; // Adjusted path
 import { VipStatusResponse, VipApiError } from '../../../types/vip'; // Adjusted path
 import SharedFooter from '@/components/shared/Footer'; // Import the SharedFooter
 import Header from '@/components/shared/Header';
-import { useRouter } from 'next/navigation';
 
 interface VipLayoutProps {
   children: ReactNode;
@@ -19,7 +18,6 @@ interface VipLayoutProps {
 const VipLayout = ({ children }: VipLayoutProps) => {
   const { data: session, status: sessionStatus } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const router = useRouter();
 
   const [vipStatus, setVipStatus] = useState<VipStatusResponse | null>(null);
   const [isLoadingVipStatus, setIsLoadingVipStatus] = useState(true);
@@ -62,7 +60,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
     if (cache.sessionId !== currentSessionId) return false;
     
     return true;
-  }, [session?.user?.id]);
+  }, [session?.user?.id, VIP_STATUS_CACHE_EXPIRY_MS]);
 
   const fetchVipStatus = useCallback(async (forceRefresh = false) => {
     if (sessionStatus !== 'authenticated' || !session?.user?.id) return;
@@ -172,7 +170,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
         <h2 className="text-2xl font-semibold text-destructive mb-4">Error Loading VIP Information</h2>
         <p className="text-muted-foreground mb-4">
-          We couldn't retrieve your VIP status at the moment. Please try again later.
+          We couldn&apos;t retrieve your VIP status at the moment. Please try again later.
         </p>
         <p className="text-sm text-muted-foreground mb-6">
           {(vipStatusError as VipApiError)?.payload?.message || vipStatusError.message}

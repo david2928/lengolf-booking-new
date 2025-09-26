@@ -17,7 +17,7 @@ export interface UserProfileData {
  */
 export function GtmUserProfileProvider({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
-  const [profileData, setProfileData] = useState<UserProfileData>({
+  const [, setProfileData] = useState<UserProfileData>({
     profileId: null,
     customerId: null,
     customerCode: null,

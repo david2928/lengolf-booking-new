@@ -1,33 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  CalendarIcon, 
-  ClockIcon, 
-  CheckIcon, 
-  UsersIcon, 
+import {
+  CalendarIcon,
+  ClockIcon,
+  CheckIcon,
+  UsersIcon,
   ComputerDesktopIcon,
-  HandRaisedIcon,
-  InformationCircleIcon 
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
-import { format, addHours } from 'date-fns';
+import { format } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { User, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
-import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
 import type { Session } from 'next-auth';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
-import Image from 'next/image';
-import { GOLF_CLUB_OPTIONS, GOLF_CLUB_PRICING, formatClubRentalInfo } from '@/types/golf-club-rental';
-import { BayType, getBayInfo, isAILabBay } from '@/lib/bayConfig';
+import { GOLF_CLUB_PRICING, formatClubRentalInfo } from '@/types/golf-club-rental';
+import { BayType } from '@/lib/bayConfig';
 import { BayInfoModal } from '../../BayInfoModal';
 
 interface Profile {
@@ -131,8 +127,6 @@ export function BookingDetails({
   maxDuration,
   onBack,
   selectedPackage,
-  fixedPeople,
-  isPackageMode = false,
   selectedClubRental = 'standard',
   onClubRentalChange,
 }: BookingDetailsProps) {
@@ -158,8 +152,6 @@ export function BookingDetails({
     name: '',
   });
   const [showNoAvailabilityModal, setShowNoAvailabilityModal] = useState(false);
-  const [crmCustomerId, setCrmCustomerId] = useState<string | null>(null);
-  const [hasBookingError, setHasBookingError] = useState(false);
   const [showBayInfoModal, setShowBayInfoModal] = useState(false);
   const loadingSteps = [
     "Checking availability",
@@ -233,7 +225,8 @@ export function BookingDetails({
                 vipProfile = parsedCached.data;
                 console.log("[BookingDetails VIP Profile] Using cached VIP profile data (age:", cacheAge, "ms)");
               }
-            } catch (e) {
+            } catch {
+              console.warn('[BookingDetails VIP Profile] Invalid cached data, will fetch fresh');
               console.warn("[BookingDetails VIP Profile] Invalid cached data, will fetch fresh");
             }
           }
@@ -297,7 +290,6 @@ export function BookingDetails({
               console.log("[BookingDetails VIP Profile] Set phone from VIP profile:", formattedPhoneNumber, "(original:", vipProfile.phoneNumber + ")");
             }
             if (vipProfile.crmCustomerId) {
-              setCrmCustomerId(vipProfile.crmCustomerId);
               console.log("[BookingDetails VIP Profile] Set CRM customer ID:", vipProfile.crmCustomerId);
             }
             
@@ -381,7 +373,7 @@ export function BookingDetails({
   }, [selectedPackage]);
 
   const validateForm = () => {
-    let currentErrors = { duration: '', phoneNumber: '', email: '', name: '' };
+    const currentErrors = { duration: '', phoneNumber: '', email: '', name: '' };
     let isValid = true;
 
     if (!name) {
@@ -416,11 +408,6 @@ export function BookingDetails({
     return isValid;
   };
 
-  const generateBookingId = () => {
-    const timestamp = new Date().toISOString().slice(2, 10).replace(/-/g, '');
-    const randomNum = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `BK${timestamp}${randomNum}`;
-  };
 
   // Helper function to ensure minimum animation duration
   const ensureMinimumAnimationDuration = async (startTime: number, minDuration: number = 3000) => {
@@ -480,7 +467,7 @@ export function BookingDetails({
       
       // Update profile if needed
       if (profileNeedsUpdate && session?.user?.id) {
-        const { data, error } = await supabase
+        await supabase
           .from('profiles')
           .update({
             display_name: name,
@@ -522,6 +509,7 @@ export function BookingDetails({
             errorMessage = errorData.error;
           }
         } catch (parseError) {
+          console.error('Parse error:', parseError);
           errorMessage = `API Error: ${createResponse.status} ${createResponse.statusText}`;
         }
         throw new Error(errorMessage);
@@ -534,11 +522,8 @@ export function BookingDetails({
         throw new Error('Invalid response from booking creation');
       }
       
-      const { booking, bayDisplayName, notificationsSuccess } = createData;
+      const { booking, notificationsSuccess } = createData;
       
-      if (createData.crmCustomerId) {
-        setCrmCustomerId(createData.crmCustomerId);
-      }
       
       // If notifications failed, show a warning but continue
       if (notificationsSuccess === false) {
@@ -658,7 +643,7 @@ export function BookingDetails({
                     onClick={() => setShowBayInfoModal(true)}
                     className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors"
                   >
-                    What's the difference?
+                    What&apos;s the difference?
                   </button>
                 </div>
               ) : (
@@ -1301,7 +1286,7 @@ export function BookingDetails({
                     <div className="space-y-3 mb-4">
                       {/* Men's Set */}
                       <div className="border-l-4 border-green-500 pl-3">
-                        <h4 className="font-semibold text-gray-800 text-sm">Men's Set - Callaway Warbird</h4>
+                        <h4 className="font-semibold text-gray-800 text-sm">Men&apos;s Set - Callaway Warbird</h4>
                         <p className="text-xs text-gray-600 mb-1">Full set with Uniflex shafts</p>
                         <ul className="space-y-0.5 text-xs text-gray-600">
                           <li className="flex items-start">
@@ -1317,7 +1302,7 @@ export function BookingDetails({
 
                       {/* Women's Set */}
                       <div className="border-l-4 border-green-500 pl-3">
-                        <h4 className="font-semibold text-gray-800 text-sm">Women's Set - Majesty Shuttle</h4>
+                        <h4 className="font-semibold text-gray-800 text-sm">Women&apos;s Set - Majesty Shuttle</h4>
                         <p className="text-xs text-gray-600 mb-1">Ladies flex with premium design</p>
                         <ul className="space-y-0.5 text-xs text-gray-600">
                           <li className="flex items-start">

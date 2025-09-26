@@ -6,7 +6,7 @@ import { createServerClient } from '@/utils/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate via NextAuth
-    const token = await getToken({ req: request as any });
+    const token = await getToken({ req: request });
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

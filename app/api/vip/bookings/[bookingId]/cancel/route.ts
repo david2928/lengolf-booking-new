@@ -17,6 +17,14 @@ interface VipBookingOpSession extends NextAuthSession {
   user: VipBookingOpSessionUser;
 }
 
+interface BookingWithProfiles {
+  profiles?: {
+    display_name?: string;
+    phone_number?: string;
+    customer_id?: string;
+  };
+}
+
 interface CancelPayload {
   cancellation_reason?: string | null;
 }
@@ -50,7 +58,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     if (requestBody) { // Only parse if there's a body
       payload = JSON.parse(requestBody);
     }
-  } catch (error) {
+  } catch {
     console.warn('[VIP Cancel] Could not parse JSON payload or no payload provided. Proceeding without cancellation_reason from payload.');
     // Do not error out, cancellation_reason is optional for user
   }
@@ -121,7 +129,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     const updatePayload = {
       status: 'cancelled',
       cancelled_by_type: 'user',
-      cancelled_by_identifier: (currentBooking.profiles as any)?.display_name || 'Customer', // Customer's display name
+      cancelled_by_identifier: (currentBooking as BookingWithProfiles).profiles?.display_name || 'Customer', // Customer's display name
       cancellation_reason: cancellationReason || null
     };
 
@@ -142,11 +150,11 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     }
 
     // Get phone number and email with priority: Customer > Profiles
-    let finalPhoneNumber = (cancelledBooking.profiles as any)?.phone_number || null;
+    let finalPhoneNumber = (cancelledBooking as BookingWithProfiles).profiles?.phone_number || null;
     let finalEmail = null;
-    
+
     // Check if user has customer data for enhanced contact info
-    const customerId = (cancelledBooking.profiles as any)?.customer_id;
+    const customerId = (cancelledBooking as BookingWithProfiles).profiles?.customer_id;
     if (customerId) {
       const { data: customerData, error: customerError } = await adminSupabase
         .from('customers')
@@ -179,9 +187,9 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     
     const oldBookingSnapshot = { ...currentBooking };
     // Remove profiles from snapshots as it's a joined prop, not part of bookings table
-    delete (oldBookingSnapshot as any).profiles;
+    delete (oldBookingSnapshot as Record<string, unknown>).profiles;
     const newBookingSnapshotForHistory = { ...cancelledBooking };
-    delete (newBookingSnapshotForHistory as any).profiles;
+    delete (newBookingSnapshotForHistory as Record<string, unknown>).profiles;
 
     let changesSummary = `Booking cancelled by user: ${profileId}.`;
     if (cancellationReason) {
@@ -210,7 +218,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     // Prepare data for LINE notification
     const notificationData: NotificationBookingData = {
       id: cancelledBooking.id,
-      name: (cancelledBooking.profiles as any)?.display_name || 'VIP User',
+      name: (cancelledBooking as BookingWithProfiles).profiles?.display_name || 'VIP User',
       phone_number: finalPhoneNumber,
       date: cancelledBooking.date,
       start_time: cancelledBooking.start_time,
@@ -223,7 +231,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     };
 
     // Prepare async tasks for notifications and calendar operations
-    const asyncTasks: Promise<any>[] = [];
+    const asyncTasks: Promise<unknown>[] = [];
 
     // LINE notification task
     asyncTasks.push(
@@ -234,7 +242,7 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     // Email notification task
     if (finalEmail) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const userName = (cancelledBooking.profiles as any)?.display_name || 'VIP User';
+      const userName = (cancelledBooking as BookingWithProfiles).profiles?.display_name || 'VIP User';
       
       // Calculate end time
       let endTimeCalc = ''; // Renamed to avoid conflict
@@ -302,9 +310,9 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     // Return immediately without waiting for async tasks
     return NextResponse.json({ success: true, message: 'Booking cancelled successfully.', booking: cancelledBooking });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Unexpected error for booking ${bookingId}:`, error);
-    return NextResponse.json({ error: 'An unexpected error occurred during cancellation.', details: error.message || String(error) }, { status: 500 });
+    return NextResponse.json({ error: 'An unexpected error occurred during cancellation.', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 

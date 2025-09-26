@@ -1,6 +1,4 @@
-import { LINE_NOTIFY_TOKEN } from './env';
-import { format, parse, getDate, addMinutes } from 'date-fns';
-import { formatInTimeZone } from 'date-fns-tz';
+import { format, parse, addMinutes } from 'date-fns';
 
 // Helper to get base URL for server-side fetch
 const getBaseUrl = () => {
@@ -61,7 +59,7 @@ interface BookingNotification {
   skipCrmMatch?: boolean;
   packageInfo?: string;
   bookingName?: string;
-  crmCustomerData?: any;
+  crmCustomerData?: unknown;
   bookingId?: string;
   channel?: string;
 }
@@ -127,15 +125,6 @@ export async function sendVipModificationNotification(
   }
 }
 
-const TIMEZONE = 'Asia/Bangkok';
-
-function getOrdinalSuffix(day: number): string {
-  const j = day % 10, k = day % 100;
-  if (j == 1 && k != 11) { return "st"; }
-  if (j == 2 && k != 12) { return "nd"; }
-  if (j == 3 && k != 13) { return "rd"; }
-  return "th";
-}
 
 function getDisplayBayName(simpleBayName: string | null): string {
     if (simpleBayName === 'Bay 1') return 'Bay 1 (Bar)';

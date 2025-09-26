@@ -84,7 +84,7 @@ function formatDateWithOrdinal(dateString: string): string {
         });
         // Replace the day number with the day + suffix, and ensure weekday has comma
         return formatted.replace(/\b\d+\b/, dayWithSuffix).replace(/^(\w+)/, '$1,');
-    } catch (e) {
+    } catch {
         console.warn('Error formatting date, using raw:', dateString);
         return dateString; // fallback
     }
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     } else if (notificationType === 'booking_created' || (!payload.notificationType && (payload as BookingCreationPayload).bookingDate)) {
       // This condition handles both explicit 'booking_created' and implicit booking creation if notificationType is missing but booking fields are present
       const data = payload as BookingCreationPayload; // Cast to BookingCreationPayload
-      let sanitizedBooking: any;
+      let sanitizedBooking: Record<string, unknown>;
 
       if (data.standardizedData) {
         const std = data.standardizedData;
@@ -183,8 +183,8 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      let formattedDate = sanitizedBooking.bookingDate; 
-      if (!data.standardizedData && sanitizedBooking.bookingDate) {
+      let formattedDate = sanitizedBooking.bookingDate;
+      if (!data.standardizedData && sanitizedBooking.bookingDate && typeof sanitizedBooking.bookingDate === 'string') {
           formattedDate = formatDateWithOrdinal(sanitizedBooking.bookingDate);
       }
 
@@ -256,10 +256,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, notificationTypeSent: notificationType });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in LINE notification handler:', error);
     return NextResponse.json(
-      { error: 'Internal server error in LINE notification handler', details: error.message || 'Unknown error' },
+      { error: 'Internal server error in LINE notification handler', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

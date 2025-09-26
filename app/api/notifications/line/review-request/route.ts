@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/utils/supabase/server';
 
 const LINE_MESSAGING_API = 'https://api.line.me/v2/bot/message/push';
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-
-interface LineErrorDetail {
-  message: string;
-}
-
-interface LineErrorResponse {
-  message?: string;
-  details?: LineErrorDetail[];
-}
 
 interface ReviewRequestBody {
   userId: string;
@@ -35,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse request body
     const body: ReviewRequestBody = await request.json();
-    const { userId, bookingName, customerName, bookingDate, reviewUrl, voucherImageUrl } = body;
+    const { userId, bookingName, customerName, reviewUrl, voucherImageUrl } = body;
 
     // 3. Validate required fields
     if (!userId || !bookingName || !reviewUrl) {
@@ -128,7 +118,7 @@ export async function POST(request: NextRequest) {
         try {
           const errorJson = JSON.parse(errorText);
           errorDetails = JSON.stringify(errorJson, null, 2);
-        } catch (e) {
+        } catch {
           // Keep as text if not JSON
         }
         

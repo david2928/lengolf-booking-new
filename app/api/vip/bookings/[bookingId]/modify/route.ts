@@ -71,7 +71,7 @@ export async function PUT(request: NextRequest, context: ModifyRouteContext) {
     }
 
     // Build update payload with only provided fields
-    const updatePayload: any = {};
+    const updatePayload: Record<string, unknown> = {};
     if (date) updatePayload.date = date;
     if (start_time) updatePayload.start_time = start_time;
     if (duration) updatePayload.duration = duration;

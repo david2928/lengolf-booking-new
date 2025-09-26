@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
-import { GOLF_CLUB_OPTIONS, GOLF_CLUB_PRICING } from '@/types/golf-club-rental';
+import { GOLF_CLUB_PRICING } from '@/types/golf-club-rental';
 import { CheckIcon } from '@heroicons/react/24/outline';
 
 export default function GolfClubRentalPage() {
@@ -153,7 +153,7 @@ export default function GolfClubRentalPage() {
               <div className="space-y-4 mb-6 flex-1">
                 {/* Men's Set */}
                 <div className="border-l-4 border-green-500 pl-4">
-                  <h4 className="font-semibold text-gray-800">Men's Set - Callaway Warbird</h4>
+                  <h4 className="font-semibold text-gray-800">Men&apos;s Set - Callaway Warbird</h4>
                   <p className="text-sm text-gray-600 mb-2">Full set with Uniflex shafts</p>
                   <ul className="space-y-1">
                     <li className="flex items-start text-sm text-gray-600">
@@ -169,7 +169,7 @@ export default function GolfClubRentalPage() {
 
                 {/* Women's Set */}
                 <div className="border-l-4 border-green-500 pl-4">
-                  <h4 className="font-semibold text-gray-800">Women's Set - Majesty Shuttle</h4>
+                  <h4 className="font-semibold text-gray-800">Women&apos;s Set - Majesty Shuttle</h4>
                   <p className="text-sm text-gray-600 mb-2">Ladies flex with premium design</p>
                   <ul className="space-y-1">
                     <li className="flex items-start text-sm text-gray-600">
@@ -211,7 +211,7 @@ export default function GolfClubRentalPage() {
               <h3 className="font-semibold text-gray-900 mb-2">Use Anywhere</h3>
               <p className="text-gray-700">
                 Rent our clubs for LENGOLF sessions or take them to play at any golf course in Bangkok! 
-                Perfect for tourists who don't want to travel with clubs.
+                Perfect for tourists who don&apos;t want to travel with clubs.
               </p>
             </div>
             <div>

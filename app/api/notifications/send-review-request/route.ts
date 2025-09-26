@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/utils/supabase/server';
 
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CXwvpW56UsBgEAE/review';
 const VOUCHER_IMAGE_URL = process.env.REVIEW_VOUCHER_IMAGE_URL || 'https://www.len.golf/wp-content/uploads/2024/06/Logo.png';
@@ -34,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse request body
     const body: SendReviewRequestBody = await request.json();
-    const { bookingId, userId, provider, contactInfo } = body;
+    const { bookingId, provider, contactInfo } = body;
 
     // For testing, we'll skip booking validation
     // and use hardcoded values instead

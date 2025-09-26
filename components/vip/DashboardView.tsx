@@ -2,14 +2,13 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Calendar, Package, User, Award, ExternalLink, CalendarIcon as CalendarLucideIcon, Megaphone, Edit, Link as LinkIconLucide, Clock } from 'lucide-react';
+import { Calendar, Award, ExternalLink, Edit, Clock } from 'lucide-react';
 // TODO: Resolve Booking type import when vipService is migrated (VIP-FE-001)
 // import { Booking } from '@/services/vipService'; 
 import { Button } from '@/components/ui/button';
-import LinkAccountPrompt from './LinkAccountPrompt'; // Assuming LinkAccountPrompt is in the same directory
-import { Session } from "next-auth";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowRight, CalendarDays, Package as PackageLucideIcon, UserCircle } from "lucide-react";
+ // Assuming LinkAccountPrompt is in the same directory
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CalendarDays, Package as PackageLucideIcon, UserCircle } from "lucide-react";
 
 // Temporary local Booking type
 interface Booking {

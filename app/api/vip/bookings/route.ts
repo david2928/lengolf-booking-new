@@ -14,17 +14,6 @@ interface VipBookingsSession extends NextAuthSession {
   user: VipBookingsSessionUser;
 }
 
-// Helper function to safely execute Supabase queries
-async function safeSupabaseQuery(query: any) {
-  const { data, error } = await query;
-  if (error) {
-    console.error('Supabase query error:', error);
-    // Decide if you want to throw or return null/error object
-    // For this context, returning null might be simpler to handle in the main logic
-    return null; 
-  }
-  return data;
-}
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions) as VipBookingsSession | null;
@@ -55,13 +44,16 @@ export async function GET(request: NextRequest) {
     // console.log(`[VIP Bookings API GET] Current server datetime in ${serverTimeZone}: ${todayDate} ${currentTime}`);
 
     // Get customer ID from profile
-    const profileData = await safeSupabaseQuery(
-      supabase
-        .from('profiles')
-        .select('customer_id')
-        .eq('id', profileId)
-        .single()
-    );
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('customer_id')
+      .eq('id', profileId)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
+    }
 
     let userCustomerId: string | null = null;
     if (profileData && profileData.customer_id) {
@@ -214,7 +206,7 @@ export async function GET(request: NextRequest) {
       totalCount = count || 0;
     }
 
-    let processedBookingsData = allBookingsData;
+    const processedBookingsData = allBookingsData;
     
     const bookings = processedBookingsData.map(b => ({
         id: b.id,

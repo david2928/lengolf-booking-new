@@ -11,9 +11,9 @@ import {
   DialogClose
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { cancelVipBooking, getVipBookings } from '../../lib/vipService';
+import { cancelVipBooking } from '../../lib/vipService';
 import { VipApiError, VipBooking } from '../../types/vip';
-import { Loader2, AlertTriangle, ShieldAlert, CheckCircle, Calendar, Clock, MapPin, Users } from 'lucide-react';
+import { Loader2, AlertTriangle, ShieldAlert, CheckCircle, Calendar, Clock, Users } from 'lucide-react';
 
 interface BookingCancelModalProps {
   bookingId: string;
@@ -44,7 +44,7 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
       
       // Immediately notify parent that cancellation succeeded (for optimistic updates and refresh)
       onBookingCancelled();
-    } catch (e: any) {
+    } catch (e: unknown) {
       let errorMessage = 'Could not cancel the booking. Please try again.';
       if (e instanceof VipApiError) {
         errorMessage = e.payload?.message || e.message || errorMessage;

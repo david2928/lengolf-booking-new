@@ -6,7 +6,7 @@ import { createServerClient } from '@/utils/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate via NextAuth
-    const token = await getToken({ req: request as any });
+    const token = await getToken({ req: request });
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -51,8 +51,8 @@ export async function POST(request: NextRequest) {
 
     // Find available bays
     const availableBays = Object.entries(bayAvailability)
-      .filter(([_, isAvailable]) => isAvailable === true)
-      .map(([bayName, _]) => bayName);
+      .filter(([, isAvailable]) => isAvailable === true)
+      .map(([bayName]) => bayName);
     
     if (availableBays.length === 0) {
       return NextResponse.json({ 
