@@ -23,12 +23,13 @@ export function useAvailability() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastRequestDateRef = useRef<string>('');
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingRef = useRef<boolean>(false);
 
   const fetchAvailability = useCallback(async (selectedDate: Date) => {
     const dateString = format(selectedDate, 'yyyy-MM-dd');
 
     // Prevent duplicate requests for the same date
-    if (lastRequestDateRef.current === dateString && isLoadingSlots) {
+    if (lastRequestDateRef.current === dateString && isLoadingRef.current) {
       return;
     }
 
@@ -50,6 +51,7 @@ export function useAvailability() {
         abortControllerRef.current = abortController;
         lastRequestDateRef.current = dateString;
 
+        isLoadingRef.current = true;
         setIsLoadingSlots(true);
 
         try {
@@ -101,11 +103,12 @@ export function useAvailability() {
           console.error('Error fetching availability:', error);
           resolve();
         } finally {
+          isLoadingRef.current = false;
           setIsLoadingSlots(false);
         }
       }, 100);
     });
-  }, [session, router, isLoadingSlots]);
+  }, [session, router]);
 
   // Cleanup: Cancel any pending requests and timeouts when component unmounts
   useEffect(() => {
