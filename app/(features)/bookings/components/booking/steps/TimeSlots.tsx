@@ -40,7 +40,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
 
   useEffect(() => {
     fetchAvailability(selectedDate);
-  }, [selectedDate, fetchAvailability]);
+  }, [selectedDate]); // Remove fetchAvailability dependency to prevent racing
 
   // Filter slots based on bay type selection
   const filterSlotsByBayType = (slots: AvailableSlot[], filterType: BayFilterType): AvailableSlot[] => {

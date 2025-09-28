@@ -24,9 +24,13 @@ export function useAvailability() {
   const lastRequestDateRef = useRef<string>('');
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isLoadingRef = useRef<boolean>(false);
+  const requestCounterRef = useRef<number>(0);
 
   const fetchAvailability = useCallback(async (selectedDate: Date) => {
     const dateString = format(selectedDate, 'yyyy-MM-dd');
+
+    // Increment request counter for this specific request
+    const currentRequestId = ++requestCounterRef.current;
 
     // Prevent duplicate requests for the same date
     if (lastRequestDateRef.current === dateString && isLoadingRef.current) {
@@ -61,6 +65,12 @@ export function useAvailability() {
             return;
           }
 
+          // Check if this request is still the latest one
+          if (currentRequestId !== requestCounterRef.current) {
+            resolve();
+            return;
+          }
+
           // Get current time in Bangkok timezone
           const currentTimeInBangkok = getCurrentBangkokTime();
 
@@ -68,7 +78,6 @@ export function useAvailability() {
             date: dateString,
             currentTimeInBangkok: currentTimeInBangkok.toISOString()
           };
-
 
           const response = await fetch('/api/availability', {
             method: 'POST',
@@ -78,6 +87,12 @@ export function useAvailability() {
             body: JSON.stringify(requestBody),
             signal: abortController.signal,
           });
+
+          // Check again if this request is still the latest one before processing response
+          if (currentRequestId !== requestCounterRef.current) {
+            resolve();
+            return;
+          }
 
           if (response.status === 401) {
             router.push('/auth/login');
@@ -90,7 +105,11 @@ export function useAvailability() {
           }
 
           const data = await response.json();
-          setAvailableSlots(data.slots);
+
+          // Final check before setting state
+          if (currentRequestId === requestCounterRef.current) {
+            setAvailableSlots(data.slots);
+          }
           resolve();
         } catch (error: unknown) {
           // Don't update state if request was aborted
