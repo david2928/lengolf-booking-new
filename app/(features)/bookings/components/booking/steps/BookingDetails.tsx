@@ -167,26 +167,16 @@ export function BookingDetails({
   }, [status, router]);
 
   useEffect(() => {
-    // Enhanced logging for session and accessToken
-    console.log("[BookingDetails SupabaseSetupEffect] Status:", status);
-    if (session) {
-      console.log("[BookingDetails SupabaseSetupEffect] Session object:", JSON.stringify(session, null, 2));
-      console.log("[BookingDetails SupabaseSetupEffect] Session Access Token for Supabase:", session.accessToken);
-    } else {
-      console.log("[BookingDetails SupabaseSetupEffect] No session object.");
-    }
 
     const client = createClient(); // Get the singleton instance from '@/utils/supabase/client'
 
     const setupSupabaseAuth = async () => {
       if (session?.accessToken) {
-        console.log("[BookingDetails SupabaseSetupEffect] Setting Supabase client auth WITH session.accessToken:", session.accessToken);
-        await client.auth.setSession({ 
+        await client.auth.setSession({
           access_token: session.accessToken,
           refresh_token: '' // Provide an empty string for the required refresh_token field
         });
       } else {
-        console.log("[BookingDetails SupabaseSetupEffect] No session.accessToken. Signing out Supabase client to ensure anon state.");
         // Use signOut() to clear the session on the client instance and revert to anon.
         await client.auth.signOut();
       }
@@ -195,8 +185,6 @@ export function BookingDetails({
 
     if (status !== 'loading') { // Only run if session status is determined
       setupSupabaseAuth();
-    } else {
-      console.log("[BookingDetails SupabaseSetupEffect] Supabase client setup deferred as session status is loading.");
     }
   }, [session, status]);
 
@@ -204,7 +192,6 @@ export function BookingDetails({
   useEffect(() => {
     const fetchVipProfile = async () => {
       if (status === 'authenticated' && session?.user?.id && !vipDataPrepopulated) {
-        console.log("[BookingDetails VIP Profile] Fetching VIP profile data for user:", session.user.id);
         
         try {
           // Try to get cached VIP profile data first from context
@@ -223,17 +210,14 @@ export function BookingDetails({
               
               if (cacheAge < CACHE_EXPIRY_MS) {
                 vipProfile = parsedCached.data;
-                console.log("[BookingDetails VIP Profile] Using cached VIP profile data (age:", cacheAge, "ms)");
               }
             } catch {
-              console.warn('[BookingDetails VIP Profile] Invalid cached data, will fetch fresh');
-              console.warn("[BookingDetails VIP Profile] Invalid cached data, will fetch fresh");
+              // Invalid cached data, will fetch fresh
             }
           }
           
           // If no valid cached data, fetch from API
           if (!vipProfile) {
-            console.log("[BookingDetails VIP Profile] Fetching fresh VIP profile data from API");
             const response = await fetch('/api/vip/profile', {
               method: 'GET',
               headers: {
@@ -249,27 +233,21 @@ export function BookingDetails({
                 data: vipProfile,
                 timestamp: Date.now()
               }));
-              console.log("[BookingDetails VIP Profile] Cached fresh VIP profile data");
             } else if (response.status === 401) {
-              console.log("[BookingDetails VIP Profile] User not authorized for VIP profile - will fall back to session data");
               return;
             } else {
-              console.warn("[BookingDetails VIP Profile] Failed to fetch VIP profile:", response.status, response.statusText);
               return;
             }
           }
           
           if (vipProfile) {
-            console.log("[BookingDetails VIP Profile] VIP profile data received:", vipProfile);
             
             // Prepopulate form with VIP data if available and valid
             if (vipProfile.name) {
               setName(vipProfile.name);
-              console.log("[BookingDetails VIP Profile] Set name from VIP profile:", vipProfile.name);
             }
             if (vipProfile.email) {
               setEmail(vipProfile.email);
-              console.log("[BookingDetails VIP Profile] Set email from VIP profile:", vipProfile.email);
             }
             if (vipProfile.phoneNumber) {
               // Format phone number to E.164 if needed
@@ -287,17 +265,12 @@ export function BookingDetails({
               }
               
               setPhoneNumber(formattedPhoneNumber);
-              console.log("[BookingDetails VIP Profile] Set phone from VIP profile:", formattedPhoneNumber, "(original:", vipProfile.phoneNumber + ")");
-            }
-            if (vipProfile.crmCustomerId) {
-              console.log("[BookingDetails VIP Profile] Set CRM customer ID:", vipProfile.crmCustomerId);
             }
             
             setVipDataPrepopulated(true);
-            console.log("[BookingDetails VIP Profile] VIP data prepopulation completed successfully");
           }
-        } catch (error) {
-          console.error("[BookingDetails VIP Profile] Error fetching VIP profile:", error);
+        } catch {
+          // Error fetching VIP profile
         }
       }
     };
@@ -307,7 +280,6 @@ export function BookingDetails({
 
   useEffect(() => {
     const fetchProfile = async () => {
-      console.log("[BookingDetails Profile] fetchProfile called. Supabase client defined?", !!supabase, "Session user ID:", session?.user?.id);
       if (supabase && session?.user?.id && !vipDataPrepopulated) {
         try {
           const userId = session.user.id;
@@ -318,9 +290,8 @@ export function BookingDetails({
             .single();
 
           if (profileError) {
-            console.error('[BookingDetails Profile] Error fetching profile:', profileError);
+            // Error fetching profile
           } else if (profileData) {
-            console.log("[BookingDetails Profile] Setting fallback profile data from profiles");
             setProfile({
               name: profileData.display_name || '',
               email: profileData.email || '',
@@ -328,8 +299,8 @@ export function BookingDetails({
               display_name: profileData.display_name || ''
             });
           }
-        } catch (err) {
-          console.error('Failed to fetch profile:', err);
+        } catch {
+          // Failed to fetch profile
         }
       }
     };
@@ -422,7 +393,6 @@ export function BookingDetails({
 
     if (!supabase) {
       toast.error('Booking system is not ready. Please try again in a moment.');
-      console.error('Attempted to submit booking but Supabase client is not initialized.');
       return;
     }
 
@@ -508,8 +478,7 @@ export function BookingDetails({
           if (errorData.error) {
             errorMessage = errorData.error;
           }
-        } catch (parseError) {
-          console.error('Parse error:', parseError);
+        } catch {
           errorMessage = `API Error: ${createResponse.status} ${createResponse.statusText}`;
         }
         throw new Error(errorMessage);
@@ -544,7 +513,6 @@ export function BookingDetails({
       router.push(url);
       
     } catch (error) {
-      console.error('Error in booking process:', error);
       toast.error(error instanceof Error ? error.message : 'An error occurred during booking');
       setIsSubmitting(false);
       setShowLoadingOverlay(false);

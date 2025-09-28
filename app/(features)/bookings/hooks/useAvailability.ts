@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -20,48 +20,104 @@ export function useAvailability() {
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const router = useRouter();
   const { data: session } = useSession();
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastRequestDateRef = useRef<string>('');
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchAvailability = async (selectedDate: Date) => {
-    setIsLoadingSlots(true);
+  const fetchAvailability = useCallback(async (selectedDate: Date) => {
+    const dateString = format(selectedDate, 'yyyy-MM-dd');
 
-    try {
-      if (!session) {
-        router.push('/auth/login');
-        return;
-      }
-
-      // Get current time in Bangkok timezone
-      const currentTimeInBangkok = getCurrentBangkokTime();
-      
-      const response = await fetch('/api/availability', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          date: format(selectedDate, 'yyyy-MM-dd'),
-          currentTimeInBangkok: currentTimeInBangkok.toISOString()
-        }),
-      });
-
-      if (response.status === 401) {
-        router.push('/auth/login');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch availability');
-      }
-
-      const data = await response.json();
-      setAvailableSlots(data.slots);
-    } catch (error) {
-      setAvailableSlots([]);
-      console.error('Error fetching availability:', error);
-    } finally {
-      setIsLoadingSlots(false);
+    // Prevent duplicate requests for the same date
+    if (lastRequestDateRef.current === dateString && isLoadingSlots) {
+      return;
     }
-  };
+
+    // Clear any pending timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Debounce the request by 100ms to prevent rapid-fire calls
+    return new Promise<void>((resolve) => {
+      timeoutRef.current = setTimeout(async () => {
+        // Create new abort controller for this request
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+        lastRequestDateRef.current = dateString;
+
+        setIsLoadingSlots(true);
+
+        try {
+          if (!session) {
+            router.push('/auth/login');
+            resolve();
+            return;
+          }
+
+          // Get current time in Bangkok timezone
+          const currentTimeInBangkok = getCurrentBangkokTime();
+
+          const requestBody = {
+            date: dateString,
+            currentTimeInBangkok: currentTimeInBangkok.toISOString()
+          };
+
+
+          const response = await fetch('/api/availability', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+            signal: abortController.signal,
+          });
+
+          if (response.status === 401) {
+            router.push('/auth/login');
+            resolve();
+            return;
+          }
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch availability');
+          }
+
+          const data = await response.json();
+          setAvailableSlots(data.slots);
+          resolve();
+        } catch (error: unknown) {
+          // Don't update state if request was aborted
+          if (error instanceof Error && error.name === 'AbortError') {
+            resolve();
+            return;
+          }
+
+          setAvailableSlots([]);
+          console.error('Error fetching availability:', error);
+          resolve();
+        } finally {
+          setIsLoadingSlots(false);
+        }
+      }, 100);
+    });
+  }, [session, router, isLoadingSlots]);
+
+  // Cleanup: Cancel any pending requests and timeouts when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     isLoadingSlots,

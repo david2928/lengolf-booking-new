@@ -65,6 +65,11 @@ export function useChatSession() {
   const initializeChat = useCallback(async () => {
     if (chatSession.isInitialized) return;
 
+    // Don't initialize if session is still loading
+    if (status === 'loading') {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -88,7 +93,13 @@ export function useChatSession() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to initialize chat');
+        const errorText = await response.text();
+        console.error('Chat initialization failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`Failed to initialize chat: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -308,7 +319,7 @@ export function useChatSession() {
 
   // Auto-initialize on mount and when session changes
   useEffect(() => {
-    if (!chatSession.isInitialized) {
+    if (!chatSession.isInitialized && status !== 'loading') {
       // For logged-in users, always initialize (they have persistent session)
       // For anonymous users, only if they have a localStorage session
       const shouldInitialize = session?.user?.id || localStorage.getItem('chat_session_id');
@@ -317,7 +328,7 @@ export function useChatSession() {
         initializeChat();
       }
     }
-  }, [initializeChat, chatSession.isInitialized, session?.user?.id]);
+  }, [initializeChat, chatSession.isInitialized, session?.user?.id, status]);
 
   return {
     // Session state

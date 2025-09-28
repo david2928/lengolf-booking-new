@@ -11,11 +11,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Parse incoming JSON
-    const body = await request.json();
+    // 2. Parse incoming JSON with error handling
+    let body;
+    try {
+      const text = await request.text();
+      if (!text || text.trim() === '') {
+        console.warn('Empty request body received');
+        return NextResponse.json({ error: 'Empty request body' }, { status: 400 });
+      }
+
+      body = JSON.parse(text);
+    } catch (error) {
+      console.error('JSON parsing error:', error);
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+    }
+
     const { date, currentTimeInBangkok } = body;
     if (!date || !currentTimeInBangkok) {
-      return NextResponse.json({ error: 'Invalid request parameters' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing required parameters: date and currentTimeInBangkok' }, { status: 400 });
     }
 
     // 3. Use native database function instead of Google Calendar

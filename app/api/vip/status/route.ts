@@ -14,8 +14,6 @@ export async function GET() {
 
     const profileId = session.user.id;
 
-    console.log(`[VIP Status API V3] Checking status for profile ${profileId}`);
-
     // Check if profile is linked to a customer in the new system
     const supabase = createAdminClient();
     const { data: profile } = await supabase
@@ -33,7 +31,6 @@ export async function GET() {
         .single();
 
       if (customer) {
-        console.log(`[VIP Status API V3] Profile linked to customer: ${customer.customer_code}`);
         return NextResponse.json({
           status: 'linked_matched',
           crmCustomerId: customer.customer_code,
@@ -43,7 +40,6 @@ export async function GET() {
       }
     }
 
-    console.log(`[VIP Status API V3] Profile not linked to any customer`);
     return NextResponse.json({
       status: 'not_linked',
       crmCustomerId: null,
