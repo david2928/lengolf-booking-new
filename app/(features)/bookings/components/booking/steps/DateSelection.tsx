@@ -144,7 +144,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                     <p>• Professional golf clubs (complimentary)</p>
                     <p>• Club storage for regular players</p>
                     <p>• Golf gloves available in shop</p>
-                    <p>• Food & beverages (<a href="/images/food_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">food</a> | <a href="/images/drink_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">drinks</a>)</p>
+                    <p>• Food & beverages (<a href="/images/food_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">food</a> | <a href="/images/food_menu2.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">pizza</a> | <a href="/images/drink_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline font-medium">drinks</a>)</p>
                     <p>• Spacious putting green (free)</p>
                   </div>
                 </div>
@@ -222,7 +222,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                     <li>• Professional golf clubs available complimentary</li>
                     <li>• Dedicated club storage for regular players</li>
                     <li>• Professional golf gloves available in our shop</li>
-                    <li>• Food & beverages service available (<a href="/images/food_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">food menu</a> | <a href="/images/drink_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">drink menu</a>)</li>
+                    <li>• Food & beverages service available (<a href="/images/food_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">food menu</a> | <a href="/images/food_menu2.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">pizza menu</a> | <a href="/images/drink_menu.jpg" target="_blank" className="text-green-600 hover:text-green-700 underline">drink menu</a>)</li>
                     <li>• Spacious putting green free for all visitors</li>
                   </ul>
                 </div>
