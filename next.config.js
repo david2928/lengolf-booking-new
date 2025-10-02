@@ -2,6 +2,8 @@
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
+  // Fix for ngrok/tunnel asset loading
+  assetPrefix: process.env.NEXT_PUBLIC_ASSET_PREFIX || undefined,
   async headers() {
     return [
       {

@@ -36,7 +36,8 @@
       "Read(//c/vs_code/lengolf-forms-feature/lengolf-forms/app/api/line/webhook//**)",
       "Bash(cat:*)",
       "Read(//c/vs_code/lengolf-forms-feature/lengolf-forms/app/staff/line-chat//**)",
-      "Read(//c/vs_code/lengolf-forms-feature/lengolf-forms/**)"
+      "Read(//c/vs_code/lengolf-forms-feature/lengolf-forms/**)",
+      "WebFetch(domain:developers.line.biz)"
     ],
     "deny": []
   },
