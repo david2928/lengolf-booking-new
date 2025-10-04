@@ -473,53 +473,7 @@ export async function POST(request: NextRequest) {
 
     // Profile linking is now handled automatically within findOrCreateCustomer
 
-    // 8. Create the booking record with customer information
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .insert({
-        id: generateBookingId(),
-        user_id: userId,
-        name: name,
-        email: email,
-        phone_number: phone_number,
-        date: date,
-        start_time: start_time,
-        duration: parseFloat(duration),
-        number_of_people: parseInt(number_of_people),
-        bay: availableBay,
-        status: 'confirmed',
-        customer_notes: customer_notes,
-        customer_id: customerId, // NEW: Direct customer reference
-        is_new_customer: isNewCustomer
-        // REMOVED: stable_hash_id (deprecated)
-      })
-      .select()
-      .single();
-
-    if (bookingError) {
-      console.error('Error creating booking:', bookingError);
-      logTiming('Booking creation', 'error', { error: bookingError.message });
-      return NextResponse.json(
-        { error: 'Failed to create booking' },
-        { status: 500 }
-      );
-    }
-
-    // Update bookingId once we have it
-    bookingId = booking.id;
-    console.log('✅ Booking created successfully:', booking);
-    logTiming('Booking creation', 'success', { 
-      bookingId: booking.id, 
-      bay: availableBay,
-      
-    });
-
-    // If we don't have a customer name from the system, use the booking name
-    if (!customerName) {
-      customerName = booking.name;
-    }
-    
-    // Get package info using customer service
+    // 7.5. Get package info using customer service (BEFORE booking creation)
     let packageInfo = 'Normal Bay Rate';
     let packageId: string | undefined;
     let packageTypeName: string | undefined;
@@ -555,14 +509,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Derive booking_type and package_name from packageInfo string
+    // 7.6. Derive booking_type and package_name from packageInfo string (BEFORE booking creation)
     let derivedBookingType: string;
     let derivedPackageName: string | null = null;
+    let derivedPackageId: string | undefined;
 
     // Check for Play & Food packages first (only if they have the specific SET_ format)
     if (playFoodPackageId && playFoodPackageInfo && playFoodPackageId.startsWith('SET_')) {
       derivedBookingType = 'Play_Food_Package';
       derivedPackageName = playFoodPackageId; // Use the package ID (SET_A, SET_B, SET_C)
+      // Don't set derivedPackageId for Play & Food packages
       console.log(`[Play & Food Package] Booking type: ${derivedBookingType}, Package: ${derivedPackageName}`);
     }
     // Then check for simulator/coaching packages (anything other than "Normal Bay Rate")
@@ -570,42 +526,66 @@ export async function POST(request: NextRequest) {
       derivedBookingType = 'Package';
       // Use the full package type name (e.g., "Silver (15H)") from the database
       derivedPackageName = packageTypeName || packageInfo;
-      console.log(`[Simulator Package] Booking type: ${derivedBookingType}, Package: ${derivedPackageName}`);
+      derivedPackageId = packageId; // Set package_id for simulator packages
+      console.log(`[Simulator Package] Booking type: ${derivedBookingType}, Package: ${derivedPackageName}, ID: ${derivedPackageId}`);
     } else {
       derivedBookingType = packageInfo; // "Normal Bay Rate"
-      // derivedPackageName remains null
+      // derivedPackageName and derivedPackageId remain null/undefined
       console.log(`[Normal Booking] Booking type: ${derivedBookingType}`);
     }
 
-    // Update booking with booking_type, package_name, and package_id
-    const updateData: Record<string, unknown> = {
-      booking_type: derivedBookingType,
-      package_name: derivedPackageName
-    };
-    
-    // Add package_id only for simulator packages (not Play & Food packages)
-    if (packageId && derivedBookingType === 'Package') {
-      updateData.package_id = packageId;
-    }
-    
-    const { error: updateBookingTypeError } = await supabase
+    // 8. Create the booking record with customer information AND booking_type
+    const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .update(updateData)
-      .eq('id', booking.id);
+      .insert({
+        id: generateBookingId(),
+        user_id: userId,
+        name: name,
+        email: email,
+        phone_number: phone_number,
+        date: date,
+        start_time: start_time,
+        duration: parseFloat(duration),
+        number_of_people: parseInt(number_of_people),
+        bay: availableBay,
+        status: 'confirmed',
+        customer_notes: customer_notes,
+        customer_id: customerId, // NEW: Direct customer reference
+        is_new_customer: isNewCustomer,
+        booking_type: derivedBookingType, // NEW: Include booking_type from the start
+        package_name: derivedPackageName, // NEW: Include package_name from the start
+        package_id: derivedPackageId // NEW: Include package_id from the start (undefined for non-simulator packages)
+        // REMOVED: stable_hash_id (deprecated)
+      })
+      .select()
+      .single();
 
-    if (updateBookingTypeError) {
-      console.error('Error updating booking with type and package name:', updateBookingTypeError);
-      logTiming('Booking type/package update', 'error', { error: updateBookingTypeError.message });
-      // Decide if this is a critical error to stop the process
-    } else {
-      logTiming('Booking type/package update', 'success', { booking_type: derivedBookingType, package_name: derivedPackageName, package_id: packageId });
+    if (bookingError) {
+      console.error('Error creating booking:', bookingError);
+      logTiming('Booking creation', 'error', { error: bookingError.message });
+      return NextResponse.json(
+        { error: 'Failed to create booking' },
+        { status: 500 }
+      );
     }
-    
-    // Update the local booking object with these details
-    // Also, set package_info on the local object for compatibility with formatBookingData if it expects it.
-    // This assumes 'booking' type might need casting or is flexible.
-    booking.booking_type = derivedBookingType;
-    booking.package_name = derivedPackageName;
+
+    // Update bookingId once we have it
+    bookingId = booking.id;
+    console.log('✅ Booking created successfully:', booking);
+    logTiming('Booking creation', 'success', {
+      bookingId: booking.id,
+      bay: availableBay,
+      booking_type: derivedBookingType,
+      package_name: derivedPackageName,
+      package_id: derivedPackageId
+    });
+
+    // If we don't have a customer name from the system, use the booking name
+    if (!customerName) {
+      customerName = booking.name;
+    }
+
+    // Update the local booking object with package_info for compatibility with formatBookingData
     (booking as Record<string, unknown>).package_info = packageInfo; // For downstream compatibility (e.g. formatBookingData)
 
     // 9. Format booking data for all services
