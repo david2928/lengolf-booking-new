@@ -369,7 +369,7 @@ export function BookingDetails({
         });
       }
     }
-  }, [duration, selectedBay, selectedBayType, slotData]);
+  }, [duration, selectedBay, selectedBayType, slotData, getBayAvailabilityForDuration]);
 
   // Local state for package selector to allow switching
   const [localSelectedPackage, setLocalSelectedPackage] = useState<PlayFoodPackage | null>(selectedPackage || null);
@@ -793,23 +793,20 @@ export function BookingDetails({
               Duration (in hours)
             </label>
             <div className="grid grid-cols-5 gap-2">
-              {Array.from({ length: maxDuration }, (_, i) => i + 1).map((hours) => {
-                const durAvail = getBayAvailabilityForDuration(hours);
-                return (
-                  <button
-                    key={hours}
-                    type="button"
-                    onClick={() => setDuration(hours)}
-                    className={`flex h-12 items-center justify-center rounded-lg border relative ${
-                      duration === hours
-                        ? 'border-green-600 bg-green-50 text-green-600 font-medium'
-                        : 'border-gray-300 text-gray-700 hover:border-green-600'
-                    }`}
-                  >
-                    {hours}
-                  </button>
-                );
-              })}
+              {Array.from({ length: maxDuration }, (_, i) => i + 1).map((hours) => (
+                <button
+                  key={hours}
+                  type="button"
+                  onClick={() => setDuration(hours)}
+                  className={`flex h-12 items-center justify-center rounded-lg border relative ${
+                    duration === hours
+                      ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                      : 'border-gray-300 text-gray-700 hover:border-green-600'
+                  }`}
+                >
+                  {hours}
+                </button>
+              ))}
             </div>
             {errors.duration && (
               <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
