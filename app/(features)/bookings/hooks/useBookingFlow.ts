@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { PLAY_FOOD_PACKAGES, type PlayFoodPackage } from '@/types/play-food-packages';
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
+import type { TimeSlot } from './useAvailability';
 
 export function useBookingFlow() {
   const { status } = useSession();
@@ -18,6 +19,7 @@ export function useBookingFlow() {
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PlayFoodPackage | null>(null);
   const [selectedClubRental, setSelectedClubRental] = useState<string>('standard');
+  const [selectedSlotData, setSelectedSlotData] = useState<TimeSlot | null>(null);
 
   useEffect(() => {
     if (searchParams && !isAutoSelecting) {
@@ -82,10 +84,11 @@ export function useBookingFlow() {
     setCurrentStep(2);
   };
 
-  const handleTimeSelect = (time: string, maxHours: number, bayType?: BayType) => {
+  const handleTimeSelect = (time: string, maxHours: number, bayType?: BayType, slotData?: TimeSlot) => {
     setSelectedTime(time);
     setMaxDuration(maxHours);
     setSelectedBayType(bayType || null);
+    setSelectedSlotData(slotData || null);
     setCurrentStep(3);
   };
 
@@ -123,6 +126,7 @@ export function useBookingFlow() {
     isAutoSelecting,
     selectedPackage,
     selectedClubRental,
+    selectedSlotData,
     setSelectedClubRental,
     handleDateSelect,
     handleTimeSelect,

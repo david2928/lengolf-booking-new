@@ -4,6 +4,13 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { getCurrentBangkokTime } from '@/utils/date';
 
+interface DurationBayAvailability {
+  social: number;
+  ai: number;
+  total: number;
+  bays: string[];
+}
+
 interface TimeSlot {
   startTime: string;
   endTime: string;
@@ -13,7 +20,10 @@ interface TimeSlot {
   socialBayCount?: number;
   aiLabCount?: number;
   totalBayCount?: number;
+  bayAvailabilityByDuration?: Record<string, DurationBayAvailability>;
 }
+
+export type { TimeSlot, DurationBayAvailability };
 
 export function useAvailability() {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);

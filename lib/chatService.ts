@@ -144,11 +144,11 @@ export class ChatService {
 
       if (existingConv) {
         // Found existing conversation - update it to use current session
+        // NOTE: Do NOT update last_message_at here - it should only be updated when messages are sent
         const { data: updatedConv, error: updateError } = await supabase
           .from('web_chat_conversations')
           .update({
             session_id: session.id, // Link to current session
-            last_message_at: new Date().toISOString(),
           })
           .eq('id', existingConv.id)
           .select()

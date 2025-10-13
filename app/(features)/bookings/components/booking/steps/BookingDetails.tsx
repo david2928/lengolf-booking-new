@@ -25,6 +25,7 @@ import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
 import { GOLF_CLUB_PRICING, formatClubRentalInfo } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import { BayInfoModal } from '../../BayInfoModal';
+import type { TimeSlot } from '../../../hooks/useAvailability';
 
 interface Profile {
   name: string;
@@ -54,6 +55,7 @@ interface BookingDetailsProps {
   selectedTime: string;
   selectedBayType?: BayType | null;
   maxDuration: number;
+  slotData?: TimeSlot | null;
   onBack: () => void;
   selectedPackage?: PlayFoodPackage | null;
   fixedPeople?: number | null;
@@ -125,6 +127,7 @@ export function BookingDetails({
   selectedTime,
   selectedBayType,
   maxDuration,
+  slotData,
   onBack,
   selectedPackage,
   selectedClubRental = 'standard',
@@ -159,6 +162,17 @@ export function BookingDetails({
     "Sending notifications",
     "Booking confirmed!"
   ];
+
+  // Helper function to get bay availability for a specific duration
+  const getBayAvailabilityForDuration = (dur: number) => {
+    if (!slotData?.bayAvailabilityByDuration) {
+      return { social: 0, ai: 0, total: 0, bays: [] };
+    }
+    return slotData.bayAvailabilityByDuration[dur.toString()] || { social: 0, ai: 0, total: 0, bays: [] };
+  };
+
+  // Get current duration's bay availability
+  const currentAvailability = getBayAvailabilityForDuration(duration);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -332,6 +346,30 @@ export function BookingDetails({
       // Don't auto-set number of people - let user choose
     }
   }, [selectedPackage]);
+
+  // Auto-adjust bay selection when duration changes and selected bay type becomes unavailable
+  useEffect(() => {
+    if (!selectedBayType && selectedBay && slotData?.bayAvailabilityByDuration) {
+      const availability = getBayAvailabilityForDuration(duration);
+
+      // If currently selected bay type is no longer available for this duration
+      if (selectedBay === 'social' && availability.social === 0 && availability.ai > 0) {
+        // Auto-switch to AI bay
+        setSelectedBay('ai_lab');
+        toast('Duration changed: Switched to AI Bay (Social bays not available for this duration)', {
+          icon: 'ℹ️',
+          duration: 4000,
+        });
+      } else if (selectedBay === 'ai_lab' && availability.ai === 0 && availability.social > 0) {
+        // Auto-switch to Social bay
+        setSelectedBay('social');
+        toast('Duration changed: Switched to Social Bay (AI bay not available for this duration)', {
+          icon: 'ℹ️',
+          duration: 4000,
+        });
+      }
+    }
+  }, [duration, selectedBay, selectedBayType, slotData]);
 
   // Local state for package selector to allow switching
   const [localSelectedPackage, setLocalSelectedPackage] = useState<PlayFoodPackage | null>(selectedPackage || null);
@@ -588,23 +626,29 @@ export function BookingDetails({
                   <div className="flex bg-gray-100 rounded-lg p-0.5">
                     <button
                       onClick={() => setSelectedBay('social')}
+                      disabled={currentAvailability.social === 0}
                       className={`flex-1 px-3 py-1 rounded-md text-xs font-medium transition-all ${
                         selectedBay === 'social'
                           ? 'bg-green-600 text-white shadow-sm'
+                          : currentAvailability.social === 0
+                          ? 'text-gray-400 cursor-not-allowed'
                           : 'text-gray-600 hover:text-gray-800'
                       }`}
                     >
-                      Social
+                      Social {currentAvailability.social === 0 && '(N/A)'}
                     </button>
                     <button
                       onClick={() => setSelectedBay('ai_lab')}
+                      disabled={currentAvailability.ai === 0}
                       className={`flex-1 px-3 py-1 rounded-md text-xs font-medium transition-all ${
                         selectedBay === 'ai_lab'
                           ? 'bg-purple-600 text-white shadow-sm'
+                          : currentAvailability.ai === 0
+                          ? 'text-gray-400 cursor-not-allowed'
                           : 'text-gray-600 hover:text-gray-800'
                       }`}
                     >
-                      AI Lab
+                      AI Lab {currentAvailability.ai === 0 && '(N/A)'}
                     </button>
                   </div>
                   <button
@@ -749,23 +793,53 @@ export function BookingDetails({
               Duration (in hours)
             </label>
             <div className="grid grid-cols-5 gap-2">
-              {Array.from({ length: maxDuration }, (_, i) => i + 1).map((hours) => (
-                <button
-                  key={hours}
-                  type="button"
-                  onClick={() => setDuration(hours)}
-                  className={`flex h-12 items-center justify-center rounded-lg border ${
-                    duration === hours
-                      ? 'border-green-600 bg-green-50 text-green-600 font-medium'
-                      : 'border-gray-300 text-gray-700 hover:border-green-600'
-                  }`}
-                >
-                  {hours}
-                </button>
-              ))}
+              {Array.from({ length: maxDuration }, (_, i) => i + 1).map((hours) => {
+                const durAvail = getBayAvailabilityForDuration(hours);
+                return (
+                  <button
+                    key={hours}
+                    type="button"
+                    onClick={() => setDuration(hours)}
+                    className={`flex h-12 items-center justify-center rounded-lg border relative ${
+                      duration === hours
+                        ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                        : 'border-gray-300 text-gray-700 hover:border-green-600'
+                    }`}
+                  >
+                    {hours}
+                  </button>
+                );
+              })}
             </div>
             {errors.duration && (
               <p className="mt-1 text-sm text-red-600">{errors.duration}</p>
+            )}
+
+            {/* Bay availability indicator for current duration */}
+            {slotData?.bayAvailabilityByDuration && currentAvailability.total > 0 && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <InformationCircleIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <span className="font-medium text-blue-900">Available for {duration} hour{duration > 1 ? 's' : ''}: </span>
+                    {currentAvailability.social > 0 && currentAvailability.ai > 0 && (
+                      <span className="text-blue-700">
+                        {currentAvailability.social} Social Bay{currentAvailability.social > 1 ? 's' : ''} or {currentAvailability.ai} AI Bay
+                      </span>
+                    )}
+                    {currentAvailability.social > 0 && currentAvailability.ai === 0 && (
+                      <span className="text-blue-700">
+                        {currentAvailability.social} Social Bay{currentAvailability.social > 1 ? 's' : ''} only
+                      </span>
+                    )}
+                    {currentAvailability.social === 0 && currentAvailability.ai > 0 && (
+                      <span className="text-blue-700">
+                        AI Bay only
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}

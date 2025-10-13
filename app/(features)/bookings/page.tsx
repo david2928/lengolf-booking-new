@@ -25,6 +25,7 @@ export default function BookingsPage() {
     maxDuration,
     selectedPackage,
     selectedClubRental,
+    selectedSlotData,
     setSelectedClubRental,
     handleDateSelect,
     handleTimeSelect,
@@ -94,6 +95,7 @@ export default function BookingsPage() {
             selectedTime={selectedTime}
             selectedBayType={selectedBayType}
             maxDuration={maxDuration}
+            slotData={selectedSlotData}
             onBack={handleBack}
             selectedPackage={selectedPackage}
             fixedPeople={getFixedPeople()}
