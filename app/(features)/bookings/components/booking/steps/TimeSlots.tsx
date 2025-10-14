@@ -218,16 +218,15 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                         >
                           <div className="space-y-2">
                             {/* Main time and duration */}
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-start gap-3 flex-1 min-w-0">
-                                <div className="flex items-center text-green-800 flex-shrink-0">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center sm:gap-3 gap-2 flex-1 min-w-0">
+                                <div className="flex items-center text-green-800 flex-shrink-0 sm:min-w-0 min-w-[4.5rem]">
                                   <ClockIcon className="h-5 w-5 mr-2" />
                                   <span className="text-lg font-semibold">{slot.startTime}</span>
                                 </div>
                                 <div className="flex flex-col gap-1 min-w-0">
-                                  <span className="text-gray-600 text-sm">
-                                    <span className="hidden sm:inline">Up to {slot.maxHours} hour{slot.maxHours > 1 ? 's' : ''}</span>
-                                    <span className="sm:hidden">{slot.maxHours} hour{slot.maxHours > 1 ? 's' : ''}</span>
+                                  <span className="text-gray-600 text-sm whitespace-nowrap">
+                                    <span className="hidden sm:inline">Up to </span>{slot.maxHours} hour{slot.maxHours > 1 ? 's' : ''}
                                   </span>
                                   {/* Show bay type indicator */}
                                   {(() => {
