@@ -127,7 +127,8 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
           }`}
         >
           <UsersIcon className="h-4 w-4 flex-shrink-0" />
-          <span className="truncate">Social Bays</span>
+          <span className="hidden sm:inline">Social Bays</span>
+          <span className="sm:hidden">Social</span>
         </button>
         <button
           onClick={() => setBayFilter('ai_lab')}
@@ -138,7 +139,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
           }`}
         >
           <ComputerDesktopIcon className="h-4 w-4 flex-shrink-0" />
-          <span className="truncate">AI Bay</span>
+          <span>AI Bay</span>
         </button>
       </div>
       
@@ -230,6 +231,9 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                                   </span>
                                   {/* Show bay type indicator */}
                                   {(() => {
+                                    // Don't show badges when a specific bay type is already filtered
+                                    if (bayFilter !== 'all') return null;
+
                                     const firstDuration = slot.bayAvailabilityByDuration?.['1'];
                                     if (!firstDuration) return null;
 
