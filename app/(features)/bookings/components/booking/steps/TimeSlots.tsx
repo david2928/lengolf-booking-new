@@ -217,15 +217,17 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                         >
                           <div className="space-y-2">
                             {/* Main time and duration */}
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center flex-1">
-                                <div className="flex items-center text-green-800 w-20">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
+                                <div className="flex items-center text-green-800 flex-shrink-0">
                                   <ClockIcon className="h-5 w-5 mr-2" />
                                   <span className="text-lg font-semibold">{slot.startTime}</span>
                                 </div>
-                                <div className="text-gray-600 text-sm ml-6 flex items-center gap-2">
-                                  <span className="hidden sm:inline">Up to {slot.maxHours} hour{slot.maxHours > 1 ? 's' : ''}</span>
-                                  <span className="sm:hidden">{slot.maxHours} hour{slot.maxHours > 1 ? 's' : ''}</span>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <span className="text-gray-600 text-sm">
+                                    <span className="hidden sm:inline">Up to {slot.maxHours} hour{slot.maxHours > 1 ? 's' : ''}</span>
+                                    <span className="sm:hidden">{slot.maxHours} hour{slot.maxHours > 1 ? 's' : ''}</span>
+                                  </span>
                                   {/* Show bay type indicator */}
                                   {(() => {
                                     const firstDuration = slot.bayAvailabilityByDuration?.['1'];
@@ -245,18 +247,18 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
 
                                     if (socialOnly) {
                                       return (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs border border-green-200">
-                                          <UsersIcon className="h-3 w-3" />
-                                          <span>Social only</span>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs border border-green-200 w-fit">
+                                          <UsersIcon className="h-3 w-3 flex-shrink-0" />
+                                          <span className="whitespace-nowrap">Social only</span>
                                         </span>
                                       );
                                     }
 
                                     if (aiOnly) {
                                       return (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs border border-purple-200">
-                                          <ComputerDesktopIcon className="h-3 w-3" />
-                                          <span>AI only</span>
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs border border-purple-200 w-fit">
+                                          <ComputerDesktopIcon className="h-3 w-3 flex-shrink-0" />
+                                          <span className="whitespace-nowrap">AI only</span>
                                         </span>
                                       );
                                     }
@@ -264,12 +266,12 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                                     // If there's a warning about bay types changing
                                     if (warning) {
                                       return (
-                                        <div className="relative group/tooltip">
+                                        <div className="relative group/tooltip w-fit">
                                           <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-xs border border-amber-200 cursor-help">
-                                            <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <svg className="h-3 w-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                                             </svg>
-                                            <span>Bay varies</span>
+                                            <span className="whitespace-nowrap">Bay varies</span>
                                           </div>
                                           {/* Tooltip */}
                                           <div className="invisible group-hover/tooltip:visible absolute left-0 top-full mt-1 z-10 w-64 px-3 py-2 text-xs bg-gray-900 text-white rounded shadow-lg pointer-events-none">
@@ -283,7 +285,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                                   })()}
                                 </div>
                               </div>
-                              <div className="flex items-center text-green-700 font-medium group-hover:text-green-800">
+                              <div className="flex items-center text-green-700 font-medium group-hover:text-green-800 flex-shrink-0">
                                 Select
                                 <svg className="w-5 h-5 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
