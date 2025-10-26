@@ -291,7 +291,7 @@ export default function GolfClubRentalPage() {
                 <h4 className="text-xl font-bold">Try Before You Buy - FREE!</h4>
               </div>
               <p className="text-blue-50">
-                Visit our store and test any club for free at our simulator. Make sure it's the perfect fit before purchasing!
+                Visit our store and test any club for free at our simulator. Make sure it&apos;s the perfect fit before purchasing!
               </p>
             </div>
 
@@ -395,7 +395,7 @@ export default function GolfClubRentalPage() {
               <h3 className="font-semibold text-gray-900 mb-2">Can I try clubs before buying them?</h3>
               <p className="text-gray-700">
                 Absolutely! We encourage you to try any club for FREE at our simulator before purchasing.
-                Visit our store, test the clubs, and make sure they're the perfect fit for your game before making a decision.
+                Visit our store, test the clubs, and make sure they&apos;re the perfect fit for your game before making a decision.
               </p>
             </div>
           </div>
