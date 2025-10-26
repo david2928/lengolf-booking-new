@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useVipStatus } from '@/components/providers/VipStatusProvider';
 import { toast } from 'react-hot-toast';
-import { ChevronDownIcon, XMarkIcon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, HomeIcon as HeroHomeIcon, UserIcon as HeroUserIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, XMarkIcon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, HomeIcon as HeroHomeIcon, UserIcon as HeroUserIcon, ShoppingBagIcon, GiftIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import SharedFooter from '@/components/shared/Footer';
 import Header from '@/components/shared/Header';
@@ -175,6 +175,20 @@ export function Layout({ children }: LayoutProps) {
                 <AcademicCapIcon className="h-4 w-4" />
                 <span>Lessons</span>
               </button>
+              <Link
+                href="/golf-club-rental"
+                className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
+              >
+                <ShoppingBagIcon className="h-4 w-4" />
+                <span>Club Rental</span>
+              </Link>
+              <Link
+                href="/play-and-food"
+                className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
+              >
+                <GiftIcon className="h-4 w-4" />
+                <span>Play & Food</span>
+              </Link>
 
               {/* Vertical separator */}
               <div className="h-6 w-px bg-white/30"></div>
@@ -339,7 +353,15 @@ export function Layout({ children }: LayoutProps) {
                ) : (
                   <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>New Booking</Link></li>
                )}
-              
+
+              <li className="border-t border-primary-foreground/20 pt-2 mt-2">
+                <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">SERVICES</p>
+                <ul className="mt-1 space-y-1">
+                  <li><Link href="/golf-club-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><ShoppingBagIcon className="h-4 w-4" />Club Rental</Link></li>
+                  <li><Link href="/play-and-food" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><GiftIcon className="h-4 w-4" />Play & Food</Link></li>
+                </ul>
+              </li>
+
               <li className="border-t border-primary-foreground/20 pt-2 mt-2">
                 <a 
                   href="https://len.golf"
