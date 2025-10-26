@@ -2,14 +2,17 @@
 
 import React, { ReactNode, useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { ChevronDown, User, Package, Calendar, LogOut, Trophy, LinkIcon, ExternalLink } from 'lucide-react';
+import { XMarkIcon, FireIcon } from '@heroicons/react/24/outline';
 import { VipContextProvider, VipContextType, VipSharedData } from './contexts/VipContext';
 import { getVipStatus } from '../../../lib/vipService'; // Adjusted path
 import { VipStatusResponse, VipApiError } from '../../../types/vip'; // Adjusted path
 import SharedFooter from '@/components/shared/Footer'; // Import the SharedFooter
 import Header from '@/components/shared/Header';
+import PromotionBar from '@/components/shared/PromotionBar';
 
 interface VipLayoutProps {
   children: ReactNode;
@@ -18,6 +21,16 @@ interface VipLayoutProps {
 const VipLayout = ({ children }: VipLayoutProps) => {
   const { data: session, status: sessionStatus } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showPromotions, setShowPromotions] = useState(false);
+  const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
+  const [hasBookings, setHasBookings] = useState<boolean | null>(null);
+
+  const promotionImages = [
+    '/images/new_customer_promo.jpg',
+    '/images/promotion.jpg',
+    '/images/promotion_1.jpg',
+    '/images/promotion_2.jpg',
+  ];
 
   const [vipStatus, setVipStatus] = useState<VipStatusResponse | null>(null);
   const [isLoadingVipStatus, setIsLoadingVipStatus] = useState(true);
@@ -45,6 +58,19 @@ const VipLayout = ({ children }: VipLayoutProps) => {
 
   // Cache expiry time in milliseconds (5 minutes)
   const VIP_STATUS_CACHE_EXPIRY_MS = 5 * 60 * 1000;
+
+  // Lock body scroll when promotions modal is open
+  useEffect(() => {
+    if (showPromotions || mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [showPromotions, mobileMenuOpen]);
 
   const isVipStatusCacheValid = useCallback(() => {
     const cache = vipStatusCache.current;
@@ -100,11 +126,28 @@ const VipLayout = ({ children }: VipLayoutProps) => {
     if (sessionStatus === 'unauthenticated') {
       redirect('/auth/login?callbackUrl=/vip'); // Updated to redirect to /vip instead of /vip/dashboard
     }
-    
+
     if (sessionStatus === 'authenticated') {
       fetchVipStatus();
     }
   }, [sessionStatus, fetchVipStatus]);
+
+  // Check if user has any bookings for promotion bar display
+  useEffect(() => {
+    const checkBookings = async () => {
+      try {
+        const response = await fetch('/api/user/has-bookings');
+        const data = await response.json();
+        setHasBookings(data.hasBookings);
+      } catch (error) {
+        console.error('Error checking bookings:', error);
+        // On error, assume user has bookings to avoid showing promotion incorrectly
+        setHasBookings(true);
+      }
+    };
+
+    checkBookings();
+  }, [sessionStatus]);
 
   const handleSignOut = async () => {
     // Clear cache on sign out
@@ -377,11 +420,102 @@ const VipLayout = ({ children }: VipLayoutProps) => {
           </nav>
         }
       />
-      
+
+      {/* Promotion Bar for New Customers - only show when we've confirmed user has no bookings */}
+      {hasBookings === false && (
+        <PromotionBar
+          onPromotionClick={() => setShowPromotions(true)}
+          userId={session?.user?.id}
+        />
+      )}
+
         <main className="py-8 flex-grow container mx-auto px-4 sm:px-6 lg:px-8">
           {children}
       </main>
-      
+
+      {/* Promotions Modal */}
+      {showPromotions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => setShowPromotions(false)}>
+          <div className="bg-white rounded-xl p-4 max-w-2xl w-full mx-4 md:mx-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
+                <FireIcon className="h-6 w-6 mr-2 text-green-600" />
+                Promotions
+              </h3>
+              <button onClick={() => setShowPromotions(false)} className="text-gray-500 hover:text-gray-700">
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="relative">
+              {promotionImages.length > 0 ? (
+                <div className="relative">
+                  <Image
+                    src={promotionImages[currentPromoIndex]}
+                    alt={`LENGOLF Promotion ${currentPromoIndex + 1}`}
+                    width={800}
+                    height={600}
+                    className="rounded-xl w-full h-auto object-contain"
+                    priority
+                  />
+
+                  {promotionImages.length > 1 && (
+                    <div className="absolute inset-0 flex items-center justify-between pointer-events-none">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentPromoIndex((prevIndex) =>
+                            prevIndex === 0 ? promotionImages.length - 1 : prevIndex - 1
+                          );
+                        }}
+                        className="bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-2 rounded-full ml-2 pointer-events-auto"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentPromoIndex((prevIndex) =>
+                            (prevIndex + 1) % promotionImages.length
+                          );
+                        }}
+                        className="bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-2 rounded-full mr-2 pointer-events-auto"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+
+                  {promotionImages.length > 1 && (
+                    <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
+                      {promotionImages.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentPromoIndex(index);
+                          }}
+                          className={`w-2.5 h-2.5 rounded-full pointer-events-auto ${
+                            currentPromoIndex === index ? 'bg-white' : 'bg-white bg-opacity-50'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-10 bg-gray-50 rounded-xl">
+                  <p className="text-gray-500">No promotions available at the moment.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <SharedFooter />
     </div>
     </VipContextProvider>

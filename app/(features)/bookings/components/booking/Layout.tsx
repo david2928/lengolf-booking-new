@@ -10,6 +10,7 @@ import { ChevronDownIcon, XMarkIcon, CurrencyDollarIcon, AcademicCapIcon, FireIc
 import Image from 'next/image';
 import SharedFooter from '@/components/shared/Footer';
 import Header from '@/components/shared/Header';
+import PromotionBar from '@/components/shared/PromotionBar';
 import { LogOut, Package as PackageIconLucide, Calendar as CalendarIconLucide, Trophy as TrophyIconLucide, Link as LinkIconLucideRadix, User as UserIconLucide } from 'lucide-react';
 
 interface LayoutProps {
@@ -26,8 +27,10 @@ export function Layout({ children }: LayoutProps) {
   const [showLessons, setShowLessons] = useState(false);
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hasBookings, setHasBookings] = useState<boolean | null>(null);
 
   const promotionImages = [
+    '/images/new_customer_promo.jpg',
     '/images/promotion.jpg',
     '/images/promotion_1.jpg',
     '/images/promotion_2.jpg',
@@ -52,6 +55,24 @@ export function Layout({ children }: LayoutProps) {
       refetchVipProfile();
     }
   }, [sessionStatus, vipProfile, vipLoading, vipError, refetchVipProfile]);
+
+  // Check if user has any bookings for promotion bar display
+  useEffect(() => {
+    const checkBookings = async () => {
+      try {
+        const response = await fetch('/api/user/has-bookings');
+        const data = await response.json();
+        console.log('[Booking Layout] Has bookings check result:', data);
+        setHasBookings(data.hasBookings);
+      } catch (error) {
+        console.error('[Booking Layout] Error checking bookings:', error);
+        // On error, assume user has bookings to avoid showing promotion incorrectly
+        setHasBookings(true);
+      }
+    };
+
+    checkBookings();
+  }, [sessionStatus]);
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -343,6 +364,14 @@ export function Layout({ children }: LayoutProps) {
           </nav>
         }
       />
+
+      {/* Promotion Bar for New Customers - only show when we've confirmed user has no bookings */}
+      {hasBookings === false && (
+        <PromotionBar
+          onPromotionClick={() => setShowPromotions(true)}
+          userId={session?.user?.id}
+        />
+      )}
 
       {showBayRates && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => setShowBayRates(false)}>
