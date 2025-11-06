@@ -421,13 +421,14 @@ const VipLayout = ({ children }: VipLayoutProps) => {
         }
       />
 
-      {/* Promotion Bar for New Customers - only show when we've confirmed user has no bookings */}
-      {hasBookings === false && (
-        <PromotionBar
-          onPromotionClick={() => setShowPromotions(true)}
-          userId={session?.user?.id}
-        />
-      )}
+      {/* Promotion Bar for 11/11 Campaign - shown to all users */}
+      <PromotionBar
+        onPromotionClick={() => {
+          setCurrentPromoIndex(2); // Set to promotion_1.jpg
+          setShowPromotions(true);
+        }}
+        userId={session?.user?.id}
+      />
 
         <main className="py-8 flex-grow container mx-auto px-4 sm:px-6 lg:px-8">
           {children}

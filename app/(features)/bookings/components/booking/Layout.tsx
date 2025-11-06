@@ -387,13 +387,14 @@ export function Layout({ children }: LayoutProps) {
         }
       />
 
-      {/* Promotion Bar for New Customers - only show when we've confirmed user has no bookings */}
-      {hasBookings === false && (
-        <PromotionBar
-          onPromotionClick={() => setShowPromotions(true)}
-          userId={session?.user?.id}
-        />
-      )}
+      {/* Promotion Bar for 11/11 Campaign - shown to all users */}
+      <PromotionBar
+        onPromotionClick={() => {
+          setCurrentPromoIndex(2); // Set to promotion_1.jpg
+          setShowPromotions(true);
+        }}
+        userId={session?.user?.id}
+      />
 
       {showBayRates && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => setShowBayRates(false)}>

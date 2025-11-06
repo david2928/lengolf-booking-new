@@ -72,7 +72,7 @@ const PromotionBar: React.FC<PromotionBarProps> = ({ onPromotionClick, userId })
           <div className="flex items-center gap-2">
             <span className="text-xl">🎉</span>
             <span className="font-semibold text-sm sm:text-base">
-              Buy 1 Get 1 Free - New Customers Only!
+              11.11 Deal of the Year - 11% OFF All Packages!
             </span>
             <span className="text-xl">🎉</span>
           </div>
