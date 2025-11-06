@@ -95,7 +95,7 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                             </li>
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Groups of 3-5 players</span>
+                              <span>Groups of 1-5 players</span>
                             </li>
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
@@ -113,11 +113,11 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                           <ul className="space-y-1 text-sm">
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>High-quality golf simulators</span>
+                              <span>Auto tee system</span>
                             </li>
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Play world-famous courses</span>
+                              <span>Several match modes on 100+ courses</span>
                             </li>
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
@@ -209,7 +209,7 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                             </li>
                             <li className="flex items-start">
                               <ComputerDesktopIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>4K course simulation</span>
+                              <span>4K Projector from BenQ for 4K course simulator</span>
                             </li>
                             <li className="flex items-start">
                               <HandRaisedIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
@@ -258,7 +258,7 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                           </li>
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                            <span>Playing with 3+ people</span>
+                            <span>Playing with 1-5 people</span>
                           </li>
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
@@ -299,12 +299,9 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                   {/* Launch Poster Reference */}
                   <div className="bg-gradient-to-r from-green-500 to-purple-500 p-6 rounded-lg text-white text-center mb-6">
                     <h4 className="font-bold text-lg mb-2">🚀 Introducing LENGOLF AI Lab</h4>
-                    <p className="text-sm opacity-90 mb-3">
+                    <p className="text-sm opacity-90">
                       Advanced AI-powered swing analysis • Dual-angle video replay • 4K course simulation
                     </p>
-                    <div className="bg-white/20 rounded p-3">
-                      <p className="text-xs font-medium">UNLIMITED SOFT DRINKS with every booking!</p>
-                    </div>
                   </div>
 
                   {/* Close Button */}

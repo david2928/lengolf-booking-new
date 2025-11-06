@@ -9,9 +9,11 @@ import {
   SunIcon,
   UserGroupIcon,
   ShoppingBagIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
+import { BayInfoModal } from '../../BayInfoModal';
 
 interface DateSelectionProps {
   onDateSelect: (date: Date) => void;
@@ -22,6 +24,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
   const tomorrow = addDays(today, 1);
   const [showCalendar, setShowCalendar] = useState(false);
   const [showFacilityInfo, setShowFacilityInfo] = useState(false);
+  const [showBayInfo, setShowBayInfo] = useState(false);
 
   const formatDateLong = (date: Date) => format(date, 'do MMMM yyyy');
 
@@ -118,16 +121,21 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
               </div>
             </div>
 
-            {/* Bay Capacity */}
+            {/* Bay Information */}
             <div className="bg-white rounded-lg p-3 shadow-sm">
               <div className="flex items-start">
                 <div className="bg-green-50 p-1.5 rounded-full shrink-0">
                   <UserGroupIcon className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="ml-3">
-                  <p className="font-medium text-gray-900 mb-1">Bay Capacity</p>
-                  <p className="text-sm text-gray-600">Up to 5 players per bay</p>
-                  <p className="text-xs text-gray-500">Perfect for groups & coaching available</p>
+                  <p className="font-medium text-gray-900 mb-1">Bay Information</p>
+                  <p className="text-sm text-gray-600">Social Bays (1-5 players) & AI Lab (1-2 players)</p>
+                  <button
+                    onClick={() => setShowBayInfo(true)}
+                    className="text-xs text-green-600 hover:text-green-700 underline mt-1"
+                  >
+                    Learn about our bay types
+                  </button>
                 </div>
               </div>
             </div>
@@ -196,16 +204,21 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
               </div>
             </div>
 
-            {/* Bay Capacity Section */}
+            {/* Bay Information Section */}
             <div className="space-y-2">
               <div className="flex items-start">
                 <div className="bg-green-50 p-1.5 rounded-full shrink-0">
                   <UserGroupIcon className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="ml-3 text-gray-600 leading-normal">
-                  <p><span className="font-medium">Bay Capacity:</span> Up to 5 players per bay</p>
+                  <p><span className="font-medium">Bay Information:</span> Social Bays (1-5 players) & AI Lab (1-2 players)</p>
                   <p className="text-sm text-gray-500">Perfect for groups, friends, and family</p>
-                  <p className="text-sm text-gray-500">Professional coaching available upon request</p>
+                  <button
+                    onClick={() => setShowBayInfo(true)}
+                    className="text-sm text-green-600 hover:text-green-700 underline"
+                  >
+                    Learn about our bay types
+                  </button>
                 </div>
               </div>
             </div>
@@ -382,6 +395,9 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
           </div>
         </div>
       )}
+
+      {/* Bay Info Modal */}
+      <BayInfoModal isOpen={showBayInfo} onClose={() => setShowBayInfo(false)} />
     </div>
   );
 }
