@@ -9,7 +9,6 @@ import {
   SunIcon,
   UserGroupIcon,
   ShoppingBagIcon,
-  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
