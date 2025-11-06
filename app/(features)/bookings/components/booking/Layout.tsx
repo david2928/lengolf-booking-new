@@ -27,7 +27,6 @@ export function Layout({ children }: LayoutProps) {
   const [showLessons, setShowLessons] = useState(false);
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [hasBookings, setHasBookings] = useState<boolean | null>(null);
 
   const promotionImages = [
     '/images/new_customer_promo.jpg',
@@ -56,23 +55,6 @@ export function Layout({ children }: LayoutProps) {
     }
   }, [sessionStatus, vipProfile, vipLoading, vipError, refetchVipProfile]);
 
-  // Check if user has any bookings for promotion bar display
-  useEffect(() => {
-    const checkBookings = async () => {
-      try {
-        const response = await fetch('/api/user/has-bookings');
-        const data = await response.json();
-        console.log('[Booking Layout] Has bookings check result:', data);
-        setHasBookings(data.hasBookings);
-      } catch (error) {
-        console.error('[Booking Layout] Error checking bookings:', error);
-        // On error, assume user has bookings to avoid showing promotion incorrectly
-        setHasBookings(true);
-      }
-    };
-
-    checkBookings();
-  }, [sessionStatus]);
 
   const handleSignOut = async () => {
     setIsLoading(true);

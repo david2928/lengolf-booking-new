@@ -23,7 +23,6 @@ const VipLayout = ({ children }: VipLayoutProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPromotions, setShowPromotions] = useState(false);
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
-  const [hasBookings, setHasBookings] = useState<boolean | null>(null);
 
   const promotionImages = [
     '/images/new_customer_promo.jpg',
@@ -132,22 +131,6 @@ const VipLayout = ({ children }: VipLayoutProps) => {
     }
   }, [sessionStatus, fetchVipStatus]);
 
-  // Check if user has any bookings for promotion bar display
-  useEffect(() => {
-    const checkBookings = async () => {
-      try {
-        const response = await fetch('/api/user/has-bookings');
-        const data = await response.json();
-        setHasBookings(data.hasBookings);
-      } catch (error) {
-        console.error('Error checking bookings:', error);
-        // On error, assume user has bookings to avoid showing promotion incorrectly
-        setHasBookings(true);
-      }
-    };
-
-    checkBookings();
-  }, [sessionStatus]);
 
   const handleSignOut = async () => {
     // Clear cache on sign out
