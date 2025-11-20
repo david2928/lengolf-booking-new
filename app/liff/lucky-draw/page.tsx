@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createBrowserClient } from '@/utils/supabase/client';
+import { createClient } from '@/utils/supabase/client';
 import NotLinkedView from '@/components/liff/NotLinkedView';
 import DrawCounter from '@/components/liff/DrawCounter';
 import PrizeGallery from '@/components/liff/PrizeGallery';
@@ -33,7 +33,6 @@ export default function LuckyDrawPage() {
   const [viewState, setViewState] = useState<ViewState>('loading');
   const [lineUserId, setLineUserId] = useState('');
   const [customerId, setCustomerId] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [drawsAvailable, setDrawsAvailable] = useState(0);
   const [prizes, setPrizes] = useState<Prize[]>([]);
@@ -43,7 +42,7 @@ export default function LuckyDrawPage() {
   const [showRedemptionModal, setShowRedemptionModal] = useState(false);
   const [campaignActive, setCampaignActive] = useState(true);
 
-  const supabase = createBrowserClient();
+  const supabase = createClient();
 
   useEffect(() => {
     initializeLiff();
@@ -59,10 +58,8 @@ export default function LuckyDrawPage() {
       if (devMode && process.env.NODE_ENV === 'development') {
         const testUserId = urlParams.get('userId') || 'U-test-user-123';
         const testCustomerId = urlParams.get('customerId') || '';
-        const testName = urlParams.get('name') || 'Test User';
         console.log('[DEV MODE] Bypassing LIFF initialization');
         setLineUserId(testUserId);
-        setDisplayName(testName);
 
         if (testCustomerId) {
           setCustomerId(testCustomerId);
@@ -106,7 +103,6 @@ export default function LuckyDrawPage() {
 
       const profile = await window.liff.getProfile();
       setLineUserId(profile.userId);
-      setDisplayName(profile.displayName);
 
       await checkUserStatus(profile.userId);
 

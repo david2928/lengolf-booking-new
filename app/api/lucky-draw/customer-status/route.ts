@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch customer's draw balance
-    const { data: drawBalance, error: drawError } = await supabase
+    const { data: drawBalance } = await supabase
       .from('customer_lucky_draws')
       .select('draws_earned, draws_used, draws_available')
       .eq('customer_id', customerId)

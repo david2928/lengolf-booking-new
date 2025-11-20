@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         p_customer_id: customerId,
         p_draws_to_award: draws
       })
-      .single();
+      .single<{ customer_id: string; draws_awarded: number; total_draws: number }>();
 
     if (error) {
       console.error('[admin-award-draws] Error:', error);

@@ -8,7 +8,8 @@ export default function NotLinkedView({ onContactLine }: NotLinkedViewProps) {
   const handleContactLine = () => {
     // Open LINE chat with @lengolf
     if (typeof window !== 'undefined' && window.liff) {
-      window.liff.openWindow({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window.liff as any).openWindow({
         url: 'https://line.me/R/ti/p/@lengolf',
         external: true
       });

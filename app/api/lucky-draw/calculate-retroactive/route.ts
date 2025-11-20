@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     // Count results
     const results = data || [];
     const totalCustomers = results.length;
-    const totalDraws = results.reduce((sum: number, row: any) => sum + (row.draws_awarded || 0), 0);
+    const totalDraws = results.reduce((sum: number, row: { draws_awarded?: number }) => sum + (row.draws_awarded || 0), 0);
 
     console.log('[calculate-retroactive] Completed', {
       customersProcessed: totalCustomers,

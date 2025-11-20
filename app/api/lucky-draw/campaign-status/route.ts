@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -6,12 +6,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get overall campaign status
     const { data: status, error: statusError } = await supabase
       .rpc('get_campaign_status')
-      .single();
+      .single<{ total_prizes: number; prizes_remaining: number; prizes_awarded: number; is_active: boolean; prize_breakdown: unknown }>();
 
     if (statusError) {
       console.error('[campaign-status] Error fetching status:', statusError);

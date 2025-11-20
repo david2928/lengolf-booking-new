@@ -29,13 +29,13 @@ export async function POST(request: NextRequest) {
     }
 
     let customerIdToUse = customerId;
-    let profile: any = null;
+    let profile: { id: string; phone_number: string | null; display_name: string | null; customer_id: string | null; provider_id: string | null } | null = null;
 
     // If customerId not provided, try to get it from lineUserId (V1 compatibility)
     if (!customerIdToUse && lineUserId) {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, phone_number, display_name, customer_id')
+        .select('id, phone_number, display_name, customer_id, provider_id')
         .eq('provider', 'line')
         .eq('provider_id', lineUserId)
         .single();
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate next draw sequence number
-    const { data: existingSpins, error: countError } = await supabase
+    const { data: existingSpins } = await supabase
       .from('lucky_draw_spins')
       .select('draw_sequence')
       .eq('customer_id', customerIdToUse)
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     // Select prize using inventory-based weighted probability
     const { data: selectedPrize, error: prizeError } = await supabase
       .rpc('select_prize_weighted')
-      .single();
+      .single<{ prize_id: string; prize_name: string; prize_description: string; remaining_quantity: number }>();
 
     if (prizeError || !selectedPrize) {
       console.error('[spin] Error selecting prize:', prizeError);
