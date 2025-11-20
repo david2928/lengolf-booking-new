@@ -112,11 +112,11 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
   return (
     <div className="w-full max-w-lg mx-auto p-6">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          LENGOLF Lucky Draw
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          Lucky Draw
         </h1>
-        <p className="text-gray-600">
-          Spin the wheel for exclusive prizes!
+        <p className="text-sm text-gray-600">
+          Spin the wheel to reveal your prize
         </p>
       </div>
 
@@ -205,9 +205,9 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
         <Button
           onClick={handleSpin}
           disabled={isSpinning || isLoading || prizes.length === 0}
-          className="w-full bg-[#005a32] hover:bg-[#004225] text-white font-bold py-6 text-lg shadow-lg rounded-lg transition-all disabled:opacity-70"
+          className="w-full bg-[#005a32] hover:bg-[#004225] text-white font-bold py-5 text-lg shadow-sm rounded-lg transition-all disabled:opacity-70"
         >
-          {isLoading ? 'Loading...' : isSpinning ? 'Spinning...' : 'SPIN NOW!'}
+          {isLoading ? 'Loading...' : isSpinning ? 'Spinning...' : 'Spin'}
         </Button>
 
         {onBack && !isSpinning && (
@@ -216,14 +216,14 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
             variant="outline"
             className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 py-3"
           >
-            ← Back to Dashboard
+            Back
           </Button>
         )}
       </div>
 
-      <div className="mt-6 p-4 bg-[#f5fef9] border border-[#005a32]/20 rounded-lg">
-        <p className="text-xs text-gray-700 text-center">
-          ✨ Earn more draws with transactions over 500 THB • Redeem at LENGOLF
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <p className="text-xs text-gray-600 text-center">
+          Earn draws with transactions over 500 THB
         </p>
       </div>
     </div>

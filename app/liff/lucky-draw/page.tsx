@@ -329,10 +329,10 @@ export default function LuckyDrawPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            🏌️ LENGOLF Lucky Draw
+            LENGOLF Lucky Draw
           </h1>
-          <p className="text-gray-600">
-            Complete transactions over 500 THB to earn draws!
+          <p className="text-sm text-gray-600">
+            Earn draws with every purchase over 500 THB
           </p>
         </div>
 
