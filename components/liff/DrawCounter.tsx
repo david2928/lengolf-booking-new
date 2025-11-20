@@ -13,17 +13,16 @@ export default function DrawCounter({ drawsAvailable, onSpinClick, campaignActiv
   if (!campaignActive) {
     return (
       <div className="w-full max-w-md mx-auto mb-8">
-        <div className="bg-gradient-to-br from-gray-400 to-gray-500 rounded-2xl shadow-lg p-6 text-white text-center">
-          <div className="mb-4">
-            <div className="text-5xl mb-3">🎊</div>
-            <h3 className="text-xl font-bold mb-2">Campaign Completed!</h3>
-            <p className="text-sm opacity-90">
-              All prizes have been claimed.
-            </p>
-            <p className="text-xs opacity-75 mt-2">
-              Thank you for participating!
-            </p>
+        <div className="bg-white border-2 border-gray-300 rounded-xl shadow-sm p-8 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
           </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Campaign Completed</h3>
+          <p className="text-sm text-gray-600">
+            All prizes have been claimed. Thank you for participating!
+          </p>
         </div>
       </div>
     );
@@ -31,44 +30,32 @@ export default function DrawCounter({ drawsAvailable, onSpinClick, campaignActiv
 
   return (
     <div className="w-full max-w-md mx-auto mb-8">
-      <div className={`bg-gradient-to-br ${hasDraws ? 'from-[#005a32] to-[#007a43]' : 'from-gray-400 to-gray-500'} rounded-2xl shadow-lg p-6 text-white text-center`}>
+      <div className={`${hasDraws ? 'bg-[#005a32]' : 'bg-white border-2 border-gray-300'} rounded-xl shadow-sm p-8 text-center`}>
         {/* Draws Count */}
-        <div className="mb-4">
-          <p className="text-sm font-medium opacity-90 mb-2">You have</p>
+        <div className="mb-6">
+          <p className={`text-sm font-medium ${hasDraws ? 'text-white/80' : 'text-gray-600'} mb-3`}>
+            Available Draws
+          </p>
           <div className="relative inline-block">
-            <div className={`text-6xl font-bold ${hasDraws ? 'animate-pulse' : ''}`}>
+            <div className={`text-7xl font-bold ${hasDraws ? 'text-white' : 'text-gray-400'}`}>
               {drawsAvailable}
             </div>
-            {hasDraws && (
-              <div className="absolute -top-2 -right-2">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
-                </span>
-              </div>
-            )}
           </div>
-          <p className="text-lg font-medium mt-2">
-            {drawsAvailable === 1 ? 'draw' : 'draws'} available!
-          </p>
         </div>
 
         {/* Spin Button or Message */}
         {hasDraws ? (
           <button
             onClick={onSpinClick}
-            className="w-full bg-white text-[#005a32] px-6 py-3 rounded-lg font-bold text-lg hover:bg-gray-50 transition-all transform hover:scale-105 shadow-md flex items-center justify-center gap-2"
+            className="w-full bg-white text-[#005a32] px-6 py-4 rounded-lg font-bold text-lg hover:bg-gray-50 transition-all shadow-sm"
           >
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-            </svg>
-            🎰 Spin Now
+            Spin Wheel
           </button>
         ) : (
           <div className="text-center py-2">
-            <p className="text-sm opacity-90">No draws available</p>
-            <p className="text-xs opacity-75 mt-1">
-              Complete transactions over 500 THB to earn draws!
+            <p className="text-sm text-gray-600 mb-1">No draws available</p>
+            <p className="text-xs text-gray-500">
+              Earn draws with transactions over 500 THB
             </p>
           </div>
         )}
@@ -76,8 +63,8 @@ export default function DrawCounter({ drawsAvailable, onSpinClick, campaignActiv
 
       {/* Helper Text */}
       {hasDraws && (
-        <p className="text-center text-sm text-gray-500 mt-3">
-          Each draw gives you one spin to win prizes! 🎁
+        <p className="text-center text-xs text-gray-500 mt-3">
+          Use your draws to spin and win prizes
         </p>
       )}
     </div>
