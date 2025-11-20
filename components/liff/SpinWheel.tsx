@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 interface SpinWheelProps {
+  customerId: string;
   lineUserId: string;
-  onWin: (prize: string, prizeDescription: string, redemptionCode: string) => void;
+  onWin: (prize: string, prizeDescription: string, redemptionCode: string, drawsRemaining?: number) => void;
+  onBack?: () => void;
 }
 
 const PRIZES = [
@@ -17,7 +19,7 @@ const PRIZES = [
   { name: 'Free Golf Lesson', color: '#4caf50', emoji: '⛳' }
 ];
 
-export default function SpinWheel({ lineUserId, onWin }: SpinWheelProps) {
+export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: SpinWheelProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [error, setError] = useState('');
@@ -34,7 +36,10 @@ export default function SpinWheel({ lineUserId, onWin }: SpinWheelProps) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ lineUserId }),
+        body: JSON.stringify({
+          customerId,
+          lineUserId
+        }),
       });
 
       const data = await response.json();
@@ -52,7 +57,7 @@ export default function SpinWheel({ lineUserId, onWin }: SpinWheelProps) {
 
       // Wait for animation to complete
       setTimeout(() => {
-        onWin(data.prize, data.prizeDescription, data.redemptionCode);
+        onWin(data.prize, data.prizeDescription, data.redemptionCode, data.drawsRemaining);
       }, 4000);
 
     } catch (err) {
@@ -146,17 +151,29 @@ export default function SpinWheel({ lineUserId, onWin }: SpinWheelProps) {
         </div>
       )}
 
-      <Button
-        onClick={handleSpin}
-        disabled={isSpinning}
-        className="w-full bg-[#005a32] hover:bg-[#004225] text-white font-bold py-6 text-lg shadow-lg rounded-lg transition-all disabled:opacity-70"
-      >
-        {isSpinning ? 'Spinning...' : 'SPIN NOW!'}
-      </Button>
+      <div className="space-y-3">
+        <Button
+          onClick={handleSpin}
+          disabled={isSpinning}
+          className="w-full bg-[#005a32] hover:bg-[#004225] text-white font-bold py-6 text-lg shadow-lg rounded-lg transition-all disabled:opacity-70"
+        >
+          {isSpinning ? 'Spinning...' : 'SPIN NOW!'}
+        </Button>
+
+        {onBack && !isSpinning && (
+          <Button
+            onClick={onBack}
+            variant="outline"
+            className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 py-3"
+          >
+            ← Back to Dashboard
+          </Button>
+        )}
+      </div>
 
       <div className="mt-6 p-4 bg-[#f5fef9] border border-[#005a32]/20 rounded-lg">
         <p className="text-xs text-gray-700 text-center">
-          ✨ One spin per user • Valid for 30 days • Redeem at LENGOLF
+          ✨ Earn more draws with transactions over 500 THB • Redeem at LENGOLF
         </p>
       </div>
     </div>
