@@ -13,14 +13,14 @@ export default function DrawCounter({ drawsAvailable, onSpinClick, campaignActiv
   if (!campaignActive) {
     return (
       <div className="w-full max-w-md mx-auto mb-8">
-        <div className="bg-white border-2 border-gray-300 rounded-xl shadow-sm p-8 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-2xl p-8 text-center border border-zinc-700 shadow-xl">
+          <div className="w-16 h-16 bg-zinc-950 rounded-full flex items-center justify-center mx-auto mb-4 border border-zinc-800">
+            <svg className="w-8 h-8 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Campaign Completed</h3>
-          <p className="text-sm text-gray-600">
+          <h3 className="text-xl font-bold text-white mb-2">Campaign Completed</h3>
+          <p className="text-sm text-zinc-400">
             All prizes have been claimed. Thank you for participating!
           </p>
         </div>
@@ -30,43 +30,49 @@ export default function DrawCounter({ drawsAvailable, onSpinClick, campaignActiv
 
   return (
     <div className="w-full max-w-md mx-auto mb-8">
-      <div className={`${hasDraws ? 'bg-[#005a32]' : 'bg-white border-2 border-gray-300'} rounded-xl shadow-sm p-8 text-center`}>
-        {/* Draws Count */}
-        <div className="mb-6">
-          <p className={`text-sm font-medium ${hasDraws ? 'text-white/80' : 'text-gray-600'} mb-3`}>
-            Available Draws
-          </p>
-          <div className="relative inline-block">
-            <div className={`text-7xl font-bold ${hasDraws ? 'text-white' : 'text-gray-400'}`}>
-              {drawsAvailable}
+      <div className="relative">
+        {/* Main Card */}
+        <div className="bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-2xl p-6 border border-zinc-700 shadow-xl">
+
+          <div className="flex justify-between items-end mb-6">
+            <div>
+              <h3 className="text-zinc-400 text-xs uppercase tracking-widest font-bold">Available Spins</h3>
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-black text-white tracking-tighter">
+                  {drawsAvailable}
+                </span>
+                <span className="text-sm text-zinc-500 font-medium">Credits</span>
+              </div>
+            </div>
+
+            {/* Decorative Badge */}
+            <div className="w-10 h-10 rounded-full bg-zinc-950 border border-zinc-800 flex items-center justify-center">
+              <span className="text-green-500 text-xl">⛳</span>
             </div>
           </div>
-        </div>
 
-        {/* Spin Button or Message */}
-        {hasDraws ? (
+          {/* The Main Action Button */}
           <button
             onClick={onSpinClick}
-            className="w-full bg-white text-[#005a32] px-6 py-4 rounded-lg font-bold text-lg hover:bg-gray-50 transition-all shadow-sm"
+            disabled={!hasDraws || !campaignActive}
+            className={`
+              w-full py-4 rounded-xl font-black uppercase tracking-widest text-sm transition-all
+              ${hasDraws
+                ? 'bg-gradient-to-r from-green-600 to-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] hover:-translate-y-0.5'
+                : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}
+            `}
           >
-            Spin Wheel
+            {hasDraws ? 'Spin the Wheel' : 'Get More Spins'}
           </button>
-        ) : (
-          <div className="text-center py-2">
-            <p className="text-sm text-gray-600 mb-1">No draws available</p>
-            <p className="text-xs text-gray-500">
-              Earn draws with transactions over 500 THB
+
+          {/* Helper Text */}
+          <div className="mt-4 text-center">
+            <p className="text-[10px] text-zinc-500">
+              1 Spin earned for every 500 THB spent
             </p>
           </div>
-        )}
+        </div>
       </div>
-
-      {/* Helper Text */}
-      {hasDraws && (
-        <p className="text-center text-xs text-gray-500 mt-3">
-          Use your draws to spin and win prizes
-        </p>
-      )}
     </div>
   );
 }

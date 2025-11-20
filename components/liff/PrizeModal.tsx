@@ -1,7 +1,6 @@
 'use client';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
 
 interface PrizeModalProps {
   isOpen: boolean;
@@ -18,7 +17,16 @@ export default function PrizeModal({
   redemptionCode,
   onClose
 }: PrizeModalProps) {
+  const [showConfetti, setShowConfetti] = useState(false);
   const isWinner = prize !== 'Better Luck Next Time';
+
+  useEffect(() => {
+    if (isOpen) {
+      setShowConfetti(true);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const handleShare = () => {
     // Use LIFF share API if available
@@ -35,135 +43,139 @@ export default function PrizeModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-center text-2xl font-bold text-gray-900">
-            {isWinner ? 'Congratulations!' : 'Thank You!'}
-          </DialogTitle>
-        </DialogHeader>
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      {/* Darkened Backdrop with Blur */}
+      <div
+        className="absolute inset-0 bg-black/90 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
 
-        <div className="space-y-6 py-4">
-          {/* Confetti animation for winners */}
-          {isWinner && (
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              <div className="confetti">
-                {[...Array(50)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="confetti-piece"
-                    style={{
-                      left: `${Math.random() * 100}%`,
-                      animationDelay: `${Math.random() * 3}s`,
-                      backgroundColor: ['#005a32', '#2b6f36', '#3d8b4a', '#4caf50'][Math.floor(Math.random() * 4)]
-                    }}
-                  />
-                ))}
-              </div>
+      {/* The Prize Card */}
+      <div className="relative w-full max-w-sm bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-700 shadow-2xl shadow-green-900/20 transform transition-all scale-100">
+
+        {/* Confetti animation for winners */}
+        {isWinner && showConfetti && (
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <div className="confetti">
+              {[...Array(50)].map((_, i) => (
+                <div
+                  key={i}
+                  className="confetti-piece"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    animationDelay: `${Math.random() * 3}s`,
+                    backgroundColor: ['#22c55e', '#16a34a', '#15803d', '#166534'][Math.floor(Math.random() * 4)]
+                  }}
+                />
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          <div className="text-center space-y-3">
-            <div className="w-20 h-20 bg-[#f5fef9] rounded-full flex items-center justify-center mx-auto mb-4">
+        {/* Glowing Top Decoration */}
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-green-600/20 to-transparent pointer-events-none" />
+
+        <div className="relative p-8 text-center">
+
+          {/* Header */}
+          <h2 className="text-3xl font-black text-white italic tracking-tighter mb-1 uppercase drop-shadow-lg">
+            {isWinner ? 'You Won!' : 'Thank You!'}
+          </h2>
+
+          {/* Icon Circle with Glow */}
+          <div className="my-8 relative flex items-center justify-center">
+            <div className="absolute w-24 h-24 bg-green-500 rounded-full blur-xl opacity-40 animate-pulse"></div>
+            <div className="relative w-20 h-20 bg-gradient-to-br from-zinc-800 to-black rounded-full border-2 border-green-500 flex items-center justify-center shadow-lg">
               {isWinner ? (
-                <svg className="w-10 h-10 text-[#005a32]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                </svg>
+                <span className="text-4xl">🎁</span>
               ) : (
-                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <span className="text-4xl">🎯</span>
               )}
             </div>
-
-            <h3 className="text-2xl font-bold text-gray-900">
-              {prize}
-            </h3>
-
-            <p className="text-gray-600">
-              {prizeDescription}
-            </p>
           </div>
 
+          {/* Prize Details */}
+          <h3 className="text-2xl font-bold text-green-400 mb-2 leading-tight">
+            {prize}
+          </h3>
+          <p className="text-zinc-400 text-sm mb-6 leading-relaxed">
+            {prizeDescription}
+          </p>
+
+          {/* Ticket / Code Section for winners only */}
           {isWinner && (
-            <div className="bg-[#f5fef9] border-2 border-[#005a32] rounded-lg p-4 space-y-2">
-              <p className="text-sm font-semibold text-gray-700 text-center">
-                Your Redemption Code
-              </p>
-              <div className="bg-white p-3 rounded-md border border-[#005a32]/30">
-                <p className="text-lg font-mono font-bold text-center text-[#005a32]">
-                  {redemptionCode}
-                </p>
-              </div>
-              <p className="text-xs text-gray-500 text-center">
-                Show this code to our staff at LENGOLF
+            <div className="bg-black/40 rounded-xl p-4 border border-dashed border-zinc-600 mb-6 relative group">
+              <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Redemption Code</p>
+              <p className="text-xl font-mono text-white tracking-widest font-bold select-all">
+                {redemptionCode}
               </p>
             </div>
           )}
 
-          <div className="space-y-2">
+          {/* Actions */}
+          <div className="space-y-3">
             {isWinner && (
-              <Button
+              <button
                 onClick={handleShare}
-                variant="outline"
-                className="w-full border-[#005a32] text-[#005a32] hover:bg-[#f5fef9]"
+                className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-green-900/50 transition-all transform active:scale-95 uppercase tracking-wide text-sm"
               >
                 Share Your Win
-              </Button>
+              </button>
             )}
 
-            <Button
+            <button
               onClick={onClose}
-              className="w-full bg-[#005a32] hover:bg-[#004225] text-white"
+              className="w-full bg-transparent border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 font-semibold py-3.5 px-4 rounded-xl transition-colors text-sm"
             >
-              {isWinner ? 'Close' : 'Close'}
-            </Button>
-          </div>
-
-          <div className="text-center space-y-1">
-            <p className="text-xs text-gray-500">
-              Mercury Ville @ BTS Chidlom, Floor 4
-            </p>
-            {isWinner && (
-              <p className="text-xs text-gray-500">
-                Valid for 30 days • Tel: 096-668-2335
-              </p>
-            )}
+              {isWinner ? 'Close & Spin Again' : 'Close'}
+            </button>
           </div>
         </div>
 
-        <style jsx>{`
-          .confetti {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-          }
-          .confetti-piece {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            top: -10px;
+        {/* Footer Note */}
+        {isWinner && (
+          <div className="bg-zinc-950/50 p-3 text-center border-t border-zinc-800">
+            <p className="text-[10px] text-zinc-600">
+              Present this code at LENGOLF reception to redeem.
+            </p>
+            <p className="text-[10px] text-zinc-600 mt-1">
+              Mercury Ville @ BTS Chidlom, Floor 4 • Tel: 096-668-2335
+            </p>
+          </div>
+        )}
+      </div>
+
+      <style jsx>{`
+        .confetti {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+        }
+        .confetti-piece {
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          top: -10px;
+          opacity: 0;
+          animation: confetti-fall 3s linear forwards;
+        }
+        @keyframes confetti-fall {
+          0% {
             opacity: 0;
-            animation: confetti-fall 3s linear forwards;
+            transform: translateY(0) rotate(0deg);
           }
-          @keyframes confetti-fall {
-            0% {
-              opacity: 0;
-              transform: translateY(0) rotate(0deg);
-            }
-            10% {
-              opacity: 1;
-            }
-            90% {
-              opacity: 1;
-            }
-            100% {
-              opacity: 0;
-              transform: translateY(600px) rotate(360deg);
-            }
+          10% {
+            opacity: 1;
           }
-        `}</style>
-      </DialogContent>
-    </Dialog>
+          90% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(600px) rotate(360deg);
+          }
+        }
+      `}</style>
+    </div>
   );
 }
