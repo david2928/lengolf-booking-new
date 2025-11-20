@@ -42,27 +42,32 @@ API Version: v1 (implicit)
 - **Purpose**: VIP customer portal functionality
 - **Authentication**: Required
 
-### 3. Booking Management APIs
+### 3. Lucky Draw APIs
+- **Endpoint Base**: `/api/lucky-draw` and `/api/liff`
+- **Purpose**: Transaction-based promotional lucky draw system
+- **Authentication**: Required (LINE LIFF authentication)
+
+### 4. Booking Management APIs
 - **Endpoint Base**: `/api/bookings`
 - **Purpose**: Booking creation and management
 - **Authentication**: Optional (guest bookings supported)
 
-### 4. Availability APIs
+### 5. Availability APIs
 - **Endpoint Base**: `/api/availability`
 - **Purpose**: Real-time bay availability checking
 - **Authentication**: Optional
 
-### 5. CRM Integration APIs (Deprecated)
-- **Endpoint Base**: `/api/crm` 
+### 6. CRM Integration APIs (Deprecated)
+- **Endpoint Base**: `/api/crm`
 - **Status**: ⚠️ **DEPRECATED** - Legacy endpoints removed in 2025 modernization
 - **Replacement**: Direct customer data integration via VIP APIs
 
-### 6. Notification APIs
+### 7. Notification APIs
 - **Endpoint Base**: `/api/notifications`
 - **Purpose**: Email and LINE messaging
 - **Authentication**: Required
 
-### 7. Admin APIs
+### 8. Admin APIs
 - **Endpoint Base**: `/api/admin`
 - **Purpose**: Administrative functions
 - **Authentication**: Required (admin role)
@@ -383,6 +388,242 @@ interface Package {
   status: 'active' | 'depleted' | 'expired';
 }
 ```
+
+## 🎰 Lucky Draw APIs
+
+### Overview
+The Lucky Draw system provides transaction-based promotional rewards where customers earn draws based on their purchase amounts (1 draw per 500 THB transaction). The system uses weighted random selection based on prize inventory to distribute prizes fairly across all participants.
+
+### Get Campaign Status
+```http
+GET /api/lucky-draw/campaign-status
+```
+
+**Description**: Get current campaign status including total prizes, remaining inventory, and prize breakdown.
+
+**Authentication**: Optional
+
+**Response**:
+```typescript
+interface CampaignStatusResponse {
+  totalPrizes: number;
+  prizesRemaining: number;
+  prizesAwarded: number;
+  campaignActive: boolean;
+  prizeBreakdown: Array<{
+    prize_name: string;
+    initial_quantity: number;
+    remaining: number;
+    awarded: number;
+  }>;
+}
+```
+
+**Example Response**:
+```json
+{
+  "totalPrizes": 208,
+  "prizesRemaining": 145,
+  "prizesAwarded": 63,
+  "campaignActive": true,
+  "prizeBreakdown": [
+    {
+      "prize_name": "Golf Hat",
+      "initial_quantity": 40,
+      "remaining": 28,
+      "awarded": 12
+    },
+    {
+      "prize_name": "Golf Marker",
+      "initial_quantity": 35,
+      "remaining": 31,
+      "awarded": 4
+    }
+  ]
+}
+```
+
+### Get Customer Status
+```http
+GET /api/lucky-draw/customer-status?customerId={uuid}
+```
+
+**Description**: Get customer's available draws and prize history.
+
+**Authentication**: Required (LINE LIFF)
+
+**Query Parameters**:
+- `customerId`: UUID of the customer
+
+**Response**:
+```typescript
+interface CustomerStatusResponse {
+  draws_available: number;
+  campaignActive: boolean;
+  prizes: Array<{
+    id: string;
+    prize_name: string;
+    prize_description: string;
+    redemption_code: string;
+    spin_timestamp: string;
+    is_redeemed: boolean;
+    redeemed_at: string | null;
+    redeemed_by_staff_name: string | null;
+    draw_sequence: number;
+  }>;
+}
+```
+
+**Example Response**:
+```json
+{
+  "draws_available": 3,
+  "campaignActive": true,
+  "prizes": [
+    {
+      "id": "prize-uuid-123",
+      "prize_name": "Golf Hat",
+      "prize_description": "Premium LENGOLF branded golf hat",
+      "redemption_code": "LG8A4K9X2M",
+      "spin_timestamp": "2025-11-20T10:30:00Z",
+      "is_redeemed": false,
+      "redeemed_at": null,
+      "redeemed_by_staff_name": null,
+      "draw_sequence": 1
+    }
+  ]
+}
+```
+
+### Execute Spin
+```http
+POST /api/liff/spin
+```
+
+**Description**: Execute a lucky draw spin and award a prize using weighted random selection.
+
+**Authentication**: Required (LINE LIFF)
+
+**Request Body**:
+```typescript
+interface SpinRequest {
+  customerId: string;
+  lineUserId: string;
+}
+```
+
+**Example Request**:
+```json
+{
+  "customerId": "07566f42-dfcd-4230-aa8e-ef8e00125739",
+  "lineUserId": "U1234567890abcdef"
+}
+```
+
+**Success Response**:
+```json
+{
+  "success": true,
+  "prize": "Golf Hat",
+  "prizeDescription": "Premium LENGOLF branded golf hat",
+  "redemptionCode": "LG8A4K9X2M",
+  "drawsRemaining": 2
+}
+```
+
+**Error Responses**:
+- `400`: No draws available
+- `403`: Customer not linked
+- `404`: Profile not found
+- `500`: No prizes available or system error
+
+### Redeem Prize
+```http
+POST /api/lucky-draw/redeem
+```
+
+**Description**: Mark a prize as redeemed by staff.
+
+**Authentication**: Required (staff/customer)
+
+**Request Body**:
+```typescript
+interface RedeemRequest {
+  prizeId: string;
+  staffName: string;
+}
+```
+
+**Example Request**:
+```json
+{
+  "prizeId": "prize-uuid-123",
+  "staffName": "Staff"
+}
+```
+
+**Success Response**:
+```json
+{
+  "success": true,
+  "message": "Prize redeemed successfully"
+}
+```
+
+**Error Responses**:
+- `400`: Prize not found or already redeemed
+- `404`: Prize record not found
+- `500`: Database error
+
+### Prize Selection Algorithm
+The system uses a weighted random selection algorithm where each prize's probability is proportional to its remaining inventory quantity:
+
+```typescript
+// Probability calculation
+const totalWeight = SUM(remaining_quantity for all active prizes);
+const prizeProbability = prize.remaining_quantity / totalWeight;
+
+// Example: 40 Golf Hats out of 208 total remaining prizes
+// Probability = 40 / 208 = 19.23%
+```
+
+As prizes are won, their remaining quantity decreases, automatically reducing their probability in future draws. This ensures fair distribution across all prize types.
+
+### Database Functions
+
+#### select_prize_weighted()
+Selects a prize using weighted random selection and automatically decrements inventory.
+
+**Returns**:
+```typescript
+{
+  prize_id: string;
+  prize_name: string;
+  prize_description: string;
+  remaining_quantity: number;
+}
+```
+
+#### get_campaign_status()
+Returns comprehensive campaign statistics and prize breakdown.
+
+#### get_customer_draws(customer_id)
+Calculates available draws by subtracting used spins from earned draws.
+
+**Returns**: `INTEGER` (number of available draws)
+
+### Rate Limiting
+- **Campaign Status**: 100 requests per minute
+- **Customer Status**: 60 requests per minute (user-scoped)
+- **Spin Execution**: 10 requests per minute per customer
+- **Redemption**: 30 requests per minute
+
+### Security & Validation
+- **Customer Verification**: All requests validate customer_id linkage
+- **Draw Validation**: System verifies available draws before allowing spins
+- **Inventory Checking**: Prevents spins when all prizes are claimed
+- **Redemption Codes**: Unique codes generated using cryptographic randomness
+- **Audit Trail**: Complete logging of all spins and redemptions
 
 ## 🏌️ Booking Management APIs
 

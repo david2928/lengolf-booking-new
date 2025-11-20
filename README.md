@@ -18,6 +18,27 @@ The LENGOLF Booking System is a modern Next.js full-stack web application that p
 - **LINE Integration**: Ready for LIFF deployment for in-app LINE experience
 - **Mobile Responsive**: Optimized for all device types and screen sizes
 
+## Lucky Draw Promotion System 🎰
+
+### Transaction-Based Rewards
+- **Automatic Draw Awards**: Customers earn 1 draw per transaction over 500 THB
+- **Interactive Spin Wheel**: Engaging gamified experience with smooth animations
+- **Prize Distribution**: 208 prizes across 11 different prize types
+- **Real-time Inventory**: Live tracking of available prizes and campaign status
+- **Redemption Management**: Unique redemption codes with staff verification
+
+### Prize Categories
+- Golf accessories (hats, markers, gloves, balls)
+- Bay time vouchers (1-hour and 2-hour)
+- Discount vouchers (20% off)
+- Premium items (tumblers, golf bags)
+- VIP packages (Bronze and Silver)
+
+### Access Methods
+- **LINE LIFF App**: Native in-app experience at `https://liff.line.me/2007027277-0rZoJ1nw/liff/lucky-draw`
+- **Development Testing**: Dev mode available with customer ID parameter
+- **Account Linking Required**: Only available to customers with linked LINE profiles
+
 ## Current Architecture
 
 ### Core Features
@@ -64,14 +85,16 @@ The LENGOLF Booking System is a modern Next.js full-stack web application that p
 ### Database Schema & Security
 - **User Management**: `profiles`, `vip_customer_data`, `vip_tiers` with RLS policies
 - **Booking System**: `bookings`, `booking_history` with comprehensive tracking
-- **CRM Integration**: `customers`, `crm_customer_mapping`, `crm_packages` 
+- **CRM Integration**: `customers`, `crm_customer_mapping`, `crm_packages`
+- **Lucky Draw System**: `prize_inventory`, `lucky_draw_spins`, `lucky_draw_transactions`
 - **Security**: All tables protected by Row Level Security based on authenticated user context
 - **Performance**: Optimized indexes and query patterns for sub-second response times
 
 ## Project Statistics & Metrics
-- **Total API Endpoints**: 25+ routes with comprehensive error handling
-- **Database Tables**: 15+ with full RLS implementation
+- **Total API Endpoints**: 30+ routes with comprehensive error handling
+- **Database Tables**: 18+ with full RLS implementation
 - **Authentication Providers**: 4 (Google, Facebook, LINE, Guest)
+- **Active Promotions**: Lucky Draw with 208 prizes across 11 types
 - **Performance Target**: <500ms API response time (95th percentile)
 - **Security Coverage**: 100% RLS policy coverage on user data
 - **Uptime Target**: >99.9% availability
@@ -193,6 +216,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # LINE Integration
 LINE_CHANNEL_ACCESS_TOKEN=your-line-token
 LINE_GROUP_ID=your-line-group-id
+NEXT_PUBLIC_LIFF_ID=your-liff-app-id
 
 # Email Services
 EMAIL_HOST=27.254.86.99
