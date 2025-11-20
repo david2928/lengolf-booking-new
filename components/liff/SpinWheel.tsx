@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
 interface SpinWheelProps {
@@ -10,19 +10,62 @@ interface SpinWheelProps {
   onBack?: () => void;
 }
 
-const PRIZES = [
-  { name: 'Free Bay Hour', color: '#005a32', emoji: '🏌️' },
-  { name: '10% Discount', color: '#2b6f36', emoji: '💰' },
-  { name: 'Free Drink', color: '#3d8b4a', emoji: '🍹' },
-  { name: 'Better Luck Next Time', color: '#888888', emoji: '🎯' },
-  { name: '500 THB Voucher', color: '#006a3b', emoji: '🎁' },
-  { name: 'Free Golf Lesson', color: '#4caf50', emoji: '⛳' }
+interface Prize {
+  name: string;
+  color: string;
+}
+
+// Color palette for different prize tiers (alternating greens)
+const PRIZE_COLORS = [
+  '#005a32', // Dark green
+  '#2b6f36', // Medium dark green
+  '#3d8b4a', // Medium green
+  '#006a3b', // Forest green
+  '#4caf50', // Light green
+  '#1b5e20', // Very dark green
+  '#2e7d32', // Dark green 2
+  '#388e3c', // Medium green 2
+  '#43a047', // Light green 2
+  '#66bb6a', // Lighter green
+  '#81c784'  // Lightest green
 ];
 
 export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: SpinWheelProps) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [error, setError] = useState('');
+  const [prizes, setPrizes] = useState<Prize[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch available prizes from database
+  useEffect(() => {
+    const fetchPrizes = async () => {
+      try {
+        const response = await fetch('/api/lucky-draw/campaign-status');
+        const data = await response.json();
+
+        if (response.ok && data.prizeBreakdown) {
+          // Map prizes with colors, only show prizes with remaining quantity > 0
+          const availablePrizes = data.prizeBreakdown
+            .filter((p: { remaining: number }) => p.remaining > 0)
+            .map((prize: { prize_name: string }, index: number) => ({
+              name: prize.prize_name,
+              color: PRIZE_COLORS[index % PRIZE_COLORS.length]
+            }));
+
+          setPrizes(availablePrizes);
+        }
+      } catch (err) {
+        console.error('Error fetching prizes:', err);
+        // Fallback to a simple message
+        setPrizes([{ name: 'Loading prizes...', color: '#005a32' }]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPrizes();
+  }, []);
 
   const handleSpin = async () => {
     if (isSpinning) return;
@@ -49,8 +92,8 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
       }
 
       // Find the index of the winning prize
-      const prizeIndex = PRIZES.findIndex(p => p.name === data.prize);
-      const segmentAngle = 360 / PRIZES.length;
+      const prizeIndex = prizes.findIndex(p => p.name === data.prize);
+      const segmentAngle = 360 / prizes.length;
       const targetRotation = 360 * 5 + (360 - (prizeIndex * segmentAngle + segmentAngle / 2));
 
       setRotation(targetRotation);
@@ -87,8 +130,8 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
             transition: isSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none'
           }}
         >
-          {PRIZES.map((prize, index) => {
-            const segmentAngle = 360 / PRIZES.length;
+          {prizes.map((prize, index) => {
+            const segmentAngle = 360 / prizes.length;
             const startAngle = index * segmentAngle - 90;
             const endAngle = startAngle + segmentAngle;
 
@@ -134,9 +177,16 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
             );
           })}
 
-          {/* Center circle */}
-          <circle cx="150" cy="150" r="30" fill="white" stroke="#005a32" strokeWidth="4" />
-          <text x="150" y="150" fontSize="24" textAnchor="middle" dominantBaseline="middle">🏌️</text>
+          {/* Center circle with logo */}
+          <circle cx="150" cy="150" r="35" fill="white" stroke="#005a32" strokeWidth="4" />
+          <image
+            href="/images/lengolf_logo.jpg"
+            x="125"
+            y="125"
+            width="50"
+            height="50"
+            clipPath="circle(25px at 25px 25px)"
+          />
         </svg>
 
         {/* Pointer */}
@@ -154,10 +204,10 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
       <div className="space-y-3">
         <Button
           onClick={handleSpin}
-          disabled={isSpinning}
+          disabled={isSpinning || isLoading || prizes.length === 0}
           className="w-full bg-[#005a32] hover:bg-[#004225] text-white font-bold py-6 text-lg shadow-lg rounded-lg transition-all disabled:opacity-70"
         >
-          {isSpinning ? 'Spinning...' : 'SPIN NOW!'}
+          {isLoading ? 'Loading...' : isSpinning ? 'Spinning...' : 'SPIN NOW!'}
         </Button>
 
         {onBack && !isSpinning && (

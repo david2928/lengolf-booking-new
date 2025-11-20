@@ -147,8 +147,18 @@ export default function PrizeModal({
             animation: confetti-fall 3s linear forwards;
           }
           @keyframes confetti-fall {
-            to {
+            0% {
+              opacity: 0;
+              transform: translateY(0) rotate(0deg);
+            }
+            10% {
               opacity: 1;
+            }
+            90% {
+              opacity: 1;
+            }
+            100% {
+              opacity: 0;
               transform: translateY(600px) rotate(360deg);
             }
           }

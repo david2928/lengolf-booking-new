@@ -7,11 +7,13 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { ChatButton } from './ChatButton';
 import { ChatWindow } from './ChatWindow';
 import { useChatSession } from '@/hooks/useChatSession';
 
 export default function ChatWidget() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const {
     chatSession,
@@ -24,6 +26,13 @@ export default function ChatWidget() {
     sendMessage,
     initializeChat,
   } = useChatSession();
+
+  // Hide chat widget on LIFF pages
+  const isLiffPage = pathname?.startsWith('/liff');
+
+  if (isLiffPage) {
+    return null;
+  }
 
   const handleOpen = () => {
     setIsOpen(true);
