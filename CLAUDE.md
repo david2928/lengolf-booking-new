@@ -125,5 +125,11 @@ EMAIL_TLS_REJECT_UNAUTHORIZED=false  # Set to false to allow self-signed certifi
 1. Maintain RLS compliance for all database operations
 2. Follow established component patterns in VIP/booking systems
 3. Test authentication flows after auth-related changes
-4. Run `npm run typecheck` before committing
+4. **ALWAYS run `npm run typecheck` before every commit** - never skip this step
 5. Validate API changes against frontend implementations
+
+## Commit Workflow (MANDATORY)
+1. Make code changes
+2. Run `npm run typecheck` to verify no TypeScript errors
+3. Fix any errors before proceeding
+4. Only then commit and push
