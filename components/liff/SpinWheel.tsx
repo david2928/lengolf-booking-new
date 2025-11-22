@@ -1,46 +1,16 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import {
-  ShoppingBag,
-  Package,
-  CupSoda,
-  Clock,
-  Percent,
-  GlassWater,
-  Crown,
-  Hand,
-  Circle,
-  MapPin,
-} from 'lucide-react';
-
-interface SpinWheelProps {
-  customerId: string;
-  lineUserId: string;
-  onWin: (prize: string, prizeDescription: string, redemptionCode: string, imageUrl: string | undefined, drawsRemaining?: number) => void;
-  onBack?: () => void;
-}
-
-interface Prize {
-  name: string;
-  color: string;
-  textColor: string;
-  image_url?: string;
-}
-
-// Festive Christmas Palette
+// Green, Gold, and White Palette
 const PRIZE_COLORS = [
-  { bg: '#B91C1C', text: '#FFFFFF' }, // Red-700 & White
   { bg: '#047857', text: '#FFFFFF' }, // Green-700 & White
-  { bg: '#FBBF24', text: '#581C87' }, // Amber-400 & Purple-900
-  { bg: '#DC2626', text: '#FFFFFF' }, // Red-600 & White
+  { bg: '#FBBF24', text: '#FFFFFF' }, // Amber-400 & White
   { bg: '#059669', text: '#FFFFFF' }, // Green-600 & White
-  { bg: '#F59E0B', text: '#581C87' }, // Amber-500 & Purple-900
+  { bg: '#F59E0B', text: '#FFFFFF' }, // Amber-500 & White
+  { bg: '#10B981', text: '#FFFFFF' }, // Green-500 & White
+  { bg: '#D97706', text: '#FFFFFF' }, // Amber-600 & White
 ];
 
 const getPrizeIcon = (prizeName: string, textColor: string) => {
   const iconProps = {
-    className: 'w-5 h-5 mb-1',
+    className: 'w-10 h-10 mb-1',
     strokeWidth: 2,
     color: textColor,
   };
@@ -83,7 +53,6 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
               name: prize.prize_name,
               color: PRIZE_COLORS[index % PRIZE_COLORS.length].bg,
               textColor: PRIZE_COLORS[index % PRIZE_COLORS.length].text,
-              image_url: prize.image_url
             }));
 
           setPrizes(availablePrizes);
@@ -151,12 +120,12 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
         <h1 className="text-3xl font-black italic text-white uppercase tracking-tighter mb-2">
           LENGOLF Lucky Draw
         </h1>
-        <div className="h-1 w-24 bg-red-500 mx-auto rounded-full"></div>
+        <div className="h-1 w-24 bg-green-500 mx-auto rounded-full"></div>
       </div>
 
       <div className="relative w-full aspect-square max-w-[340px] mx-auto mb-10">
         {/* Wheel Glow Background */}
-        <div className="absolute inset-0 bg-amber-400/20 rounded-full blur-3xl scale-110 animate-pulse"></div>
+        <div className="absolute inset-0 bg-green-500/20 rounded-full blur-3xl scale-110 animate-pulse"></div>
 
         {/* Wheel Container */}
         <div className="relative w-full h-full z-10">
@@ -195,22 +164,13 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
                 <g key={index}>
                   <path d={pathData} fill={prize.color} stroke="#09090b" strokeWidth="1" />
                   
-                  {/* Image, Icon or Text Group */}
+                  {/* Icon Group */}
                   <g transform={`translate(${tx}, ${ty}) rotate(${midAngle + 90})`}>
                     <foreignObject x="-40" y="-40" width="80" height="80">
                       <div
                         className="flex flex-col items-center justify-center text-center h-full w-full"
                       >
-                        {prize.image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={prize.image_url}
-                            alt={prize.name}
-                            className="w-14 h-14 object-contain"
-                          />
-                        ) : (
-                          getPrizeIcon(prize.name, prize.textColor)
-                        )}
+                        {getPrizeIcon(prize.name, prize.textColor)}
                       </div>
                     </foreignObject>
                   </g>
@@ -250,20 +210,7 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
         <button
           onClick={handleSpin}
           disabled={isSpinning || isLoading || prizes.length === 0}
-          className="w-full bg-red-600 text-white font-black italic uppercase py-4 text-xl rounded-xl hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          className="w-full bg-green-600 text-white font-black italic uppercase py-4 text-xl rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
         >
           {isLoading ? 'Loading...' : isSpinning ? 'Best of Luck!' : 'SPIN NOW'}
         </button>
-
-        {onBack && !isSpinning && (
-          <button
-            onClick={onBack}
-            className="w-full text-zinc-500 hover:text-white text-sm py-2 transition-colors"
-          >
-            Back to Dashboard
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
