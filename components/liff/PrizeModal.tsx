@@ -32,17 +32,6 @@ export default function PrizeModal({
     }
   }, [isOpen, isWinner]);
 
-  const handleShare = () => {
-    if (typeof window !== 'undefined' && window.liff?.isApiAvailable('shareTargetPicker')) {
-      window.liff.shareTargetPicker([
-        {
-          type: 'text',
-          text: `I just won "${prize}" at LENGOLF! ⛳\nGame on! ${window.location.href}`
-        }
-      ]).catch(console.error);
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -64,7 +53,7 @@ export default function PrizeModal({
               <div
                 className="w-3 h-3 rotate-45"
                 style={{
-                  backgroundColor: ['#22c55e', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899'][Math.floor(Math.random() * 5)],
+                  backgroundColor: ['#22c55e', '#16a34a', '#f59e0b', '#fbbf24', '#d97706'][Math.floor(Math.random() * 5)],
                 }}
               />
             </div>
@@ -127,24 +116,19 @@ export default function PrizeModal({
           </div>
         )}
 
-        <div className="space-y-3">
-          {isWinner && (
-            <button
-              onClick={handleShare}
-              className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium border border-gray-200 transition-colors"
-            >
-              Share with Friends
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            className="w-full py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-lg shadow-lg transition-colors"
-          >
-            {isWinner ? 'Collect & Close' : 'Try Again'}
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="w-full py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-lg shadow-lg transition-colors"
+        >
+          {isWinner ? 'Collect & Close' : 'Try Again'}
+        </button>
 
-        <p className="text-[10px] text-gray-400 mt-4 text-center">
+        {isWinner && (
+          <p className="text-xs text-gray-500 mt-4 text-center">
+            Present this code to LENGOLF staff to redeem your prize
+          </p>
+        )}
+        <p className="text-[10px] text-gray-400 mt-2 text-center">
           Valid for 30 days • Mercury Ville @ Chidlom
         </p>
       </div>
