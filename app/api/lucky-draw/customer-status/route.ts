@@ -48,7 +48,8 @@ export async function GET(request: NextRequest) {
         is_redeemed,
         redeemed_at,
         redeemed_by_staff_name,
-        draw_sequence
+        draw_sequence,
+        image_url
       `)
       .eq('customer_id', customerId)
       .order('spin_timestamp', { ascending: false });

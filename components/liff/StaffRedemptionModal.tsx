@@ -69,24 +69,17 @@ export default function StaffRedemptionModal({
               </svg>
             )}
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-1">
-            Prize Redemption
+          <h3 className="text-xl font-bold text-gray-900">
+            {prize.prize_name}
           </h3>
-          <p className="text-sm text-gray-500">Confirm to redeem this prize</p>
         </div>
 
-        {/* Prize Details */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-          <div className="mb-3">
-            <p className="text-xs text-green-600 uppercase tracking-wide mb-1">Prize</p>
-            <p className="text-lg font-bold text-gray-900">{prize.prize_name}</p>
-          </div>
-          <div>
-            <p className="text-xs text-green-600 uppercase tracking-wide mb-1">Code</p>
-            <p className="text-2xl font-mono font-bold text-amber-600 tracking-wider">
-              {prize.redemption_code}
-            </p>
-          </div>
+        {/* Redemption Code */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-center">
+          <p className="text-xs text-green-600 uppercase tracking-wide mb-1">Redemption Code</p>
+          <p className="text-2xl font-mono font-bold text-amber-600 tracking-wider">
+            {prize.redemption_code}
+          </p>
         </div>
 
         {error && (
