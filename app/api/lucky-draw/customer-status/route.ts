@@ -63,7 +63,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Flatten the prize_inventory relation to get image_url at top level
-    const flattenedPrizes = (prizes || []).map(prize => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const flattenedPrizes = (prizes || []).map((prize: any) => ({
       ...prize,
       image_url: prize.prize_inventory?.image_url || null,
       prize_inventory: undefined
