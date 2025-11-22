@@ -18,6 +18,7 @@ export default function PrizeModal({
   prize,
   prizeDescription,
   redemptionCode,
+  imageUrl,
   onClose
 }: PrizeModalProps) {
   const isWinner = prize !== 'Better Luck Next Time';
