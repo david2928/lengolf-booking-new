@@ -128,6 +128,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get image_url from prize_inventory
+    const { data: prizeDetails } = await supabase
+      .from('prize_inventory')
+      .select('image_url')
+      .eq('id', selectedPrize.prize_id)
+      .single();
+
+    const imageUrl = prizeDetails?.image_url || null;
+
     const redemptionCode = generateRedemptionCode();
 
     // Insert spin record with customer_id and prize_inventory_id
@@ -186,6 +195,7 @@ export async function POST(request: NextRequest) {
       prize: selectedPrize.prize_name,
       prizeDescription: selectedPrize.prize_description,
       redemptionCode: redemptionCode,
+      image_url: imageUrl,
       spinTimestamp: spinRecord.spin_timestamp,
       drawsRemaining: Math.max(0, drawBalance.draws_available - 1)
     });
