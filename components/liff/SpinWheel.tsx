@@ -28,14 +28,14 @@ interface Prize {
   image_url?: string;
 }
 
-// Premium Dark Mode Palette
+// Festive Christmas Palette
 const PRIZE_COLORS = [
-  { bg: '#09090b', text: '#4ade80' }, // Zinc-950 & Green-400
-  { bg: '#14532d', text: '#ffffff' }, // Green-900 & White
-  { bg: '#18181b', text: '#4ade80' }, // Zinc-900 & Green-400
-  { bg: '#15803d', text: '#ffffff' }, // Green-700 & White
-  { bg: '#27272a', text: '#4ade80' }, // Zinc-800 & Green-400
-  { bg: '#166534', text: '#ffffff' }, // Green-800 & White
+  { bg: '#B91C1C', text: '#FFFFFF' }, // Red-700 & White
+  { bg: '#047857', text: '#FFFFFF' }, // Green-700 & White
+  { bg: '#FBBF24', text: '#581C87' }, // Amber-400 & Purple-900
+  { bg: '#DC2626', text: '#FFFFFF' }, // Red-600 & White
+  { bg: '#059669', text: '#FFFFFF' }, // Green-600 & White
+  { bg: '#F59E0B', text: '#581C87' }, // Amber-500 & Purple-900
 ];
 
 const getPrizeIcon = (prizeName: string, textColor: string) => {
@@ -148,21 +148,21 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
     <div className="w-full max-w-lg mx-auto p-6">
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-black italic text-white uppercase tracking-tighter mb-2">
-          Current Prize Pool
+        <h1 className="text-3xl font-black italic text-white uppercase tracking-tighter mb-2">
+          LENGOLF Lucky Draw
         </h1>
-        <div className="h-1 w-16 bg-green-500 mx-auto rounded-full"></div>
+        <div className="h-1 w-24 bg-red-500 mx-auto rounded-full"></div>
       </div>
 
       <div className="relative w-full aspect-square max-w-[340px] mx-auto mb-10">
         {/* Wheel Glow Background */}
-        <div className="absolute inset-0 bg-green-500/20 rounded-full blur-3xl scale-110 animate-pulse"></div>
+        <div className="absolute inset-0 bg-amber-400/20 rounded-full blur-3xl scale-110 animate-pulse"></div>
 
         {/* Wheel Container */}
         <div className="relative w-full h-full z-10">
           <svg
             viewBox="0 0 300 300"
-            className="w-full h-full rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border-4 border-zinc-800"
+            className="w-full h-full rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border-4 border-amber-400"
             style={{
               transform: `rotate(${rotation}deg)`,
               transition: isSpinning ? 'transform 4s cubic-bezier(0.15, 0, 0.15, 1)' : 'none'
@@ -197,7 +197,7 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
                   
                   {/* Image, Icon or Text Group */}
                   <g transform={`translate(${tx}, ${ty}) rotate(${midAngle + 90})`}>
-                    <foreignObject x="-30" y="-30" width="60" height="60">
+                    <foreignObject x="-40" y="-40" width="80" height="80">
                       <div
                         className="flex flex-col items-center justify-center text-center h-full w-full"
                       >
@@ -206,17 +206,11 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
                           <img
                             src={prize.image_url}
                             alt={prize.name}
-                            className="w-10 h-10 object-contain mb-1"
+                            className="w-14 h-14 object-contain"
                           />
                         ) : (
                           getPrizeIcon(prize.name, prize.textColor)
                         )}
-                        <span
-                          style={{ color: prize.textColor, fontSize: '9px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', lineHeight: '1.1' }}
-                          className="mt-1"
-                        >
-                          {prize.name.length > 15 ? prize.name.substring(0, 13) + '..' : prize.name}
-                        </span>
                       </div>
                     </foreignObject>
                   </g>
@@ -225,7 +219,7 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
             })}
 
             {/* Center Hub */}
-            <circle cx="150" cy="150" r="40" fill="#18181b" stroke="#22c55e" strokeWidth="2" />
+            <circle cx="150" cy="150" r="40" fill="#18181b" stroke="#FBBF24" strokeWidth="2" />
             <image
               href="/images/lengolf_logo.jpg"
               x="120"
@@ -239,7 +233,7 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
 
           {/* The Pointer (Static on top) */}
           <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20 filter drop-shadow-lg">
-            <div className="w-8 h-10 bg-gradient-to-b from-red-500 to-red-700" 
+            <div className="w-8 h-10 bg-gradient-to-b from-amber-400 to-amber-600" 
                  style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%)' }}>
             </div>
           </div>
@@ -256,7 +250,7 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
         <button
           onClick={handleSpin}
           disabled={isSpinning || isLoading || prizes.length === 0}
-          className="w-full bg-white text-zinc-950 font-black italic uppercase py-4 text-xl rounded-xl hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-red-600 text-white font-black italic uppercase py-4 text-xl rounded-xl hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
         >
           {isLoading ? 'Loading...' : isSpinning ? 'Best of Luck!' : 'SPIN NOW'}
         </button>

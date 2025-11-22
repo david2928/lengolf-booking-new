@@ -32,12 +32,12 @@ export default function DrawCounter({ drawsAvailable, onSpinClick, campaignActiv
     <div className="w-full max-w-md mx-auto mb-8 relative group">
       {/* Glow effect behind the card */}
       {hasDraws && (
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-green-600 to-green-400 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-red-600 to-amber-400 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
       )}
       
       <div className="relative bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-6 text-center overflow-hidden">
         {/* Background decoration */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-zinc-800 via-green-500 to-zinc-800 opacity-50"></div>
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-zinc-800 via-red-500 to-zinc-800 opacity-50"></div>
 
         {/* Draws Count */}
         <div className="mb-6 relative z-10">
@@ -45,11 +45,11 @@ export default function DrawCounter({ drawsAvailable, onSpinClick, campaignActiv
             Your Balance
           </p>
           <div className="flex items-center justify-center gap-3">
-             <span className={`text-6xl font-black tracking-tighter ${hasDraws ? 'text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-400 drop-shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'text-zinc-700'}`}>
+             <span className={`text-6xl font-black tracking-tighter ${hasDraws ? 'text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'text-zinc-700'}`}>
                {drawsAvailable}
              </span>
              <div className="text-left">
-               <span className={`block text-sm font-bold ${hasDraws ? 'text-green-500' : 'text-zinc-600'}`}>SPINS</span>
+               <span className={`block text-sm font-bold ${hasDraws ? 'text-red-500' : 'text-zinc-600'}`}>SPINS</span>
                <span className="block text-[10px] text-zinc-500">AVAILABLE</span>
              </div>
           </div>
@@ -59,7 +59,7 @@ export default function DrawCounter({ drawsAvailable, onSpinClick, campaignActiv
         {hasDraws ? (
           <button
             onClick={onSpinClick}
-            className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white px-6 py-4 rounded-xl font-bold text-lg uppercase tracking-wider shadow-lg shadow-green-900/40 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white px-6 py-4 rounded-xl font-bold text-lg uppercase tracking-wider shadow-lg shadow-red-900/40 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
           >
             Spin the Wheel
           </button>

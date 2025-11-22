@@ -40,9 +40,9 @@ export default function PrizeModal({
       <DialogContent className="bg-zinc-900 border border-zinc-700 text-white sm:max-w-md shadow-[0_0_50px_rgba(0,0,0,0.8)] p-0 overflow-hidden gap-0">
         
         {/* Decorative Header Background */}
-        <div className={`h-24 w-full ${isWinner ? 'bg-gradient-to-br from-green-600 to-green-900' : 'bg-zinc-800'} relative`}>
+        <div className={`h-24 w-full ${isWinner ? 'bg-gradient-to-br from-red-600 to-red-800' : 'bg-zinc-800'} relative`}>
            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2">
-              <div className={`w-16 h-16 rounded-full border-4 border-zinc-900 flex items-center justify-center shadow-lg ${isWinner ? 'bg-green-500 text-zinc-900' : 'bg-zinc-700 text-zinc-400'}`}>
+              <div className={`w-16 h-16 rounded-full border-4 border-zinc-900 flex items-center justify-center shadow-lg ${isWinner ? 'bg-amber-400 text-zinc-900' : 'bg-zinc-700 text-zinc-400'}`}>
                       {imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={imageUrl} alt={prize} className="w-12 h-12 object-contain" />
@@ -66,7 +66,7 @@ export default function PrizeModal({
           <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2 text-white">
             {isWinner ? 'Congratulations!' : 'So Close!'}
           </h2>
-          <p className={`text-xl font-bold mb-2 ${isWinner ? 'text-green-400' : 'text-zinc-400'}`}>
+          <p className={`text-xl font-bold mb-2 ${isWinner ? 'text-amber-400' : 'text-zinc-400'}`}>
             {prize}
           </p>
           <p className="text-sm text-zinc-500 mb-6">
@@ -88,7 +88,7 @@ export default function PrizeModal({
                 Share with Friends
               </Button>
             )}
-            <Button onClick={onClose} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold">
+            <Button onClick={onClose} className="w-full bg-red-600 hover:bg-red-500 text-white font-bold">
               {isWinner ? 'Collect & Close' : 'Try Again'}
             </Button>
           </div>

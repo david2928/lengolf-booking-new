@@ -66,21 +66,21 @@ export default function PrizeGallery({ prizes, onRedeem }: PrizeGalleryProps) {
   return (
     <div className="space-y-4 pb-safe">
       <h3 className="text-lg font-bold text-white flex items-center gap-2">
-        Your Loot <span className="bg-zinc-800 text-zinc-400 text-xs px-2 py-0.5 rounded-md">{prizes.length}</span>
+        Your Festive Prizes <span className="bg-red-500/20 text-red-300 text-xs px-2 py-0.5 rounded-md">{prizes.length}</span>
       </h3>
 
       <div className="grid grid-cols-1 gap-3">
         {prizes.map((prize) => (
           <div
             key={prize.id}
-            className={`relative bg-zinc-900 border rounded-xl p-4 transition-all overflow-hidden
+            className={`relative bg-zinc-900/50 border rounded-xl p-4 transition-all overflow-hidden
               ${prize.is_redeemed 
                 ? 'border-zinc-800 opacity-60 grayscale-[0.8]' 
-                : 'border-zinc-700 hover:border-green-500/50 shadow-lg'}`}
+                : 'border-red-500/30 hover:border-amber-400/50 shadow-lg'}`}
           >
             {/* Active Indicator Strip */}
             {!prize.is_redeemed && (
-               <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500"></div>
+               <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-400"></div>
             )}
 
             <div className="flex justify-between items-start pl-3">
@@ -118,7 +118,7 @@ export default function PrizeGallery({ prizes, onRedeem }: PrizeGalleryProps) {
                  ) : (
                     <button
                       onClick={() => onRedeem(prize)}
-                      className="bg-white text-black text-xs font-bold px-3 py-2 rounded hover:bg-gray-200 transition-colors"
+                      className="bg-red-600 text-white text-xs font-bold px-3 py-2 rounded hover:bg-red-700 transition-colors"
                     >
                       REDEEM
                     </button>
