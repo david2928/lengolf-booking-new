@@ -14,6 +14,7 @@ interface PrizeModalProps {
 export default function PrizeModal({
   isOpen,
   prize,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   prizeDescription,
   redemptionCode,
   imageUrl,
