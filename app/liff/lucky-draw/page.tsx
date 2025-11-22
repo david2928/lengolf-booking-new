@@ -17,6 +17,7 @@ interface PrizeData {
   prize: string;
   prizeDescription: string;
   redemptionCode: string;
+  imageUrl?: string;
 }
 
 export default function LuckyDrawPage() {
@@ -161,8 +162,8 @@ export default function LuckyDrawPage() {
     setViewState('spin-wheel');
   };
 
-  const handleWin = async (prize: string, prizeDescription: string, redemptionCode: string, drawsRemaining?: number) => {
-    setLatestPrize({ prize, prizeDescription, redemptionCode });
+  const handleWin = async (prize: string, prizeDescription: string, redemptionCode: string, imageUrl: string | undefined, drawsRemaining?: number) => {
+    setLatestPrize({ prize, prizeDescription, redemptionCode, imageUrl });
     setShowPrizeModal(true);
 
     // Update draws count
@@ -305,6 +306,7 @@ export default function LuckyDrawPage() {
             prize={latestPrize.prize}
             prizeDescription={latestPrize.prizeDescription}
             redemptionCode={latestPrize.redemptionCode}
+            imageUrl={latestPrize.imageUrl}
             onClose={handleClosePrizeModal}
           />
         )}
@@ -359,6 +361,7 @@ export default function LuckyDrawPage() {
             prize={latestPrize.prize}
             prizeDescription={latestPrize.prizeDescription}
             redemptionCode={latestPrize.redemptionCode}
+            imageUrl={latestPrize.imageUrl}
             onClose={handleClosePrizeModal}
           />
         )}

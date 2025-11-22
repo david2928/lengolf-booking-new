@@ -85,7 +85,12 @@ export default function PrizeGallery({ prizes, onRedeem }: PrizeGalleryProps) {
 
             <div className="flex justify-between items-start pl-3">
                <div className="flex items-center">
-                {getPrizeIcon(prize.prize_name)}
+                {prize.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={prize.image_url} alt={prize.prize_name} className="w-8 h-8 mr-4 object-contain" />
+                ) : (
+                  getPrizeIcon(prize.prize_name)
+                )}
               <div>
                 <h4 className={`text-base font-bold ${prize.is_redeemed ? 'text-zinc-500' : 'text-white'}`}>
                   {prize.prize_name}

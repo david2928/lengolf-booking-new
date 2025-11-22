@@ -17,6 +17,7 @@ export interface Prize {
   redeemed_at: string | null;
   redeemed_by_staff_name: string | null;
   draw_sequence: number;
+  image_url?: string;
 }
 
 export interface LiffMethods {

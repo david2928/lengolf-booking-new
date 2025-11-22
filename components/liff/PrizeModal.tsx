@@ -9,6 +9,7 @@ interface PrizeModalProps {
   prize: string;
   prizeDescription: string;
   redemptionCode: string;
+  imageUrl?: string;
   onClose: () => void;
 }
 
@@ -41,7 +42,10 @@ export default function PrizeModal({
         <div className={`h-24 w-full ${isWinner ? 'bg-gradient-to-br from-green-600 to-green-900' : 'bg-zinc-800'} relative`}>
            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2">
               <div className={`w-16 h-16 rounded-full border-4 border-zinc-900 flex items-center justify-center shadow-lg ${isWinner ? 'bg-green-500 text-zinc-900' : 'bg-zinc-700 text-zinc-400'}`}>
-                {isWinner ? (
+                      {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imageUrl} alt={prize} className="w-12 h-12 object-contain" />
+                ) : isWinner ? (
                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" /></svg>
                 ) : (
                    <span className="text-2xl">😢</span>

@@ -17,7 +17,7 @@ import {
 interface SpinWheelProps {
   customerId: string;
   lineUserId: string;
-  onWin: (prize: string, prizeDescription: string, redemptionCode: string, drawsRemaining?: number) => void;
+  onWin: (prize: string, prizeDescription: string, redemptionCode: string, imageUrl: string | undefined, drawsRemaining?: number) => void;
   onBack?: () => void;
 }
 
@@ -25,6 +25,7 @@ interface Prize {
   name: string;
   color: string;
   textColor: string;
+  image_url?: string;
 }
 
 // Premium Dark Mode Palette
@@ -78,10 +79,11 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
         if (response.ok && data.prizeBreakdown) {
           const availablePrizes = data.prizeBreakdown
             .filter((p: { remaining: number }) => p.remaining > 0)
-            .map((prize: { prize_name: string }, index: number) => ({
+            .map((prize: { prize_name: string; image_url: string }, index: number) => ({
               name: prize.prize_name,
               color: PRIZE_COLORS[index % PRIZE_COLORS.length].bg,
-              textColor: PRIZE_COLORS[index % PRIZE_COLORS.length].text
+              textColor: PRIZE_COLORS[index % PRIZE_COLORS.length].text,
+              image_url: prize.image_url
             }));
 
           setPrizes(availablePrizes);
@@ -133,7 +135,7 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
       setRotation(targetRotation);
 
       setTimeout(() => {
-        onWin(data.prize, data.prizeDescription, data.redemptionCode, data.drawsRemaining);
+        onWin(data.prize, data.prizeDescription, data.redemptionCode, data.image_url, data.drawsRemaining);
       }, 4000);
 
     } catch (err) {
@@ -193,15 +195,25 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
                 <g key={index}>
                   <path d={pathData} fill={prize.color} stroke="#09090b" strokeWidth="1" />
                   
-                  {/* Icon and Text Group */}
+                  {/* Image, Icon or Text Group */}
                   <g transform={`translate(${tx}, ${ty}) rotate(${midAngle + 90})`}>
-                    <foreignObject x="-25" y="-25" width="50" height="50">
+                    <foreignObject x="-30" y="-30" width="60" height="60">
                       <div
-                        className="flex flex-col items-center justify-center text-center"
+                        className="flex flex-col items-center justify-center text-center h-full w-full"
                       >
-                        {getPrizeIcon(prize.name, prize.textColor)}
+                        {prize.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={prize.image_url}
+                            alt={prize.name}
+                            className="w-10 h-10 object-contain mb-1"
+                          />
+                        ) : (
+                          getPrizeIcon(prize.name, prize.textColor)
+                        )}
                         <span
-                          style={{ color: prize.textColor, fontSize: '10px', fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase' }}
+                          style={{ color: prize.textColor, fontSize: '9px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', lineHeight: '1.1' }}
+                          className="mt-1"
                         >
                           {prize.name.length > 15 ? prize.name.substring(0, 13) + '..' : prize.name}
                         </span>
