@@ -44,40 +44,48 @@ export default function StaffRedemptionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="bg-white border border-gray-200 rounded-xl shadow-xl max-w-md w-full p-6 relative animate-in fade-in zoom-in duration-200 text-gray-900">
-        {/* Close Button */}
-        <button
-          onClick={handleClose}
-          disabled={isSubmitting}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+    <div className="fixed inset-0 z-50 flex flex-col bg-white animate-in fade-in duration-200">
+      {/* Close Button */}
+      <button
+        onClick={handleClose}
+        disabled={isSubmitting}
+        className="absolute top-4 right-4 z-10 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50 shadow-md"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
 
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-200">
-            {prize.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={prize.image_url} alt={prize.prize_name} className="w-12 h-12 object-contain" />
-            ) : (
-              <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-              </svg>
-            )}
+      {/* Large Prize Image - Takes up most of the screen */}
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-amber-50 to-white p-8">
+        {prize.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={prize.image_url}
+            alt={prize.prize_name}
+            className="max-w-full max-h-full object-contain drop-shadow-lg"
+            style={{ maxHeight: '50vh' }}
+          />
+        ) : (
+          <div className="w-48 h-48 bg-amber-100 rounded-full flex items-center justify-center border-4 border-amber-200">
+            <svg className="w-24 h-24 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+            </svg>
           </div>
-          <h3 className="text-xl font-bold text-gray-900">
-            {prize.prize_name}
-          </h3>
-        </div>
+        )}
+      </div>
+
+      {/* Bottom Section with Prize Info and Actions */}
+      <div className="bg-white border-t border-gray-200 p-6 pb-safe">
+        {/* Prize Name */}
+        <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">
+          {prize.prize_name}
+        </h3>
 
         {/* Redemption Code */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-center">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 text-center">
           <p className="text-xs text-green-600 uppercase tracking-wide mb-1">Redemption Code</p>
-          <p className="text-2xl font-mono font-bold text-amber-600 tracking-wider">
+          <p className="text-3xl font-mono font-bold text-amber-600 tracking-wider">
             {prize.redemption_code}
           </p>
         </div>
@@ -88,11 +96,11 @@ export default function StaffRedemptionModal({
           </div>
         )}
 
-        {/* Big Confirm Button */}
+        {/* Confirm Button */}
         <button
           onClick={handleConfirm}
           disabled={isSubmitting}
-          className="w-full py-5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg font-semibold shadow-sm"
+          className="w-full py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg font-bold shadow-lg"
         >
           {isSubmitting ? (
             <>
@@ -112,7 +120,7 @@ export default function StaffRedemptionModal({
           )}
         </button>
 
-        {/* Cancel link below */}
+        {/* Cancel link */}
         <button
           onClick={handleClose}
           disabled={isSubmitting}

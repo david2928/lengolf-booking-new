@@ -41,6 +41,8 @@ const getPrizeIcon = (prizeName: string): React.ReactElement => {
     'Golf Hat': <Crown {...iconProps} />,
     'Golf Gloves': <Hand {...iconProps} />,
     'Golf Balls': <Circle {...iconProps} />,
+    'Box of Golf Balls': <Circle {...iconProps} />,
+    'Golf Ball': <Circle {...iconProps} />,
     'Golf Marker': <MapPin {...iconProps} />,
   };
 
@@ -85,21 +87,13 @@ export default function PrizeGallery({ prizes, onRedeem }: PrizeGalleryProps) {
 
             <div className="flex justify-between items-start pl-3">
                <div className="flex items-center">
-                {prize.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={prize.image_url} alt={prize.prize_name} className="w-8 h-8 mr-4 object-contain" />
-                ) : (
-                  getPrizeIcon(prize.prize_name)
-                )}
+                {getPrizeIcon(prize.prize_name)}
               <div>
                 <h4 className={`text-base font-bold ${prize.is_redeemed ? 'text-gray-400' : 'text-gray-900'}`}>
                   {prize.prize_name}
                 </h4>
-                <p className="text-xs text-gray-500 mt-1 line-clamp-1">
-                  {prize.prize_description}
-                </p>
 
-                <div className="flex items-center gap-3 mt-3">
+                <div className="flex items-center gap-3 mt-2">
                    <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-1 rounded font-mono border border-amber-200">
                      {prize.redemption_code}
                    </span>
