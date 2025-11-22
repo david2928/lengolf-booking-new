@@ -44,13 +44,13 @@ export default function StaffRedemptionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-w-md w-full p-6 relative animate-in fade-in zoom-in duration-200 text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+      <div className="bg-white border border-gray-200 rounded-xl shadow-xl max-w-md w-full p-6 relative animate-in fade-in zoom-in duration-200 text-gray-900">
         {/* Close Button */}
         <button
           onClick={handleClose}
           disabled={isSubmitting}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -59,39 +59,39 @@ export default function StaffRedemptionModal({
 
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-amber-400/10 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-200">
             {prize.image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={prize.image_url} alt={prize.prize_name} className="w-12 h-12 object-contain" />
             ) : (
-              <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
               </svg>
             )}
           </div>
-          <h3 className="text-xl font-bold text-white mb-1">
+          <h3 className="text-xl font-bold text-gray-900 mb-1">
             Prize Redemption
           </h3>
-          <p className="text-sm text-zinc-400">Confirm to redeem this prize</p>
+          <p className="text-sm text-gray-500">Confirm to redeem this prize</p>
         </div>
 
         {/* Prize Details */}
-        <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4 mb-6">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
           <div className="mb-3">
-            <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Prize</p>
-            <p className="text-lg font-bold text-white">{prize.prize_name}</p>
+            <p className="text-xs text-green-600 uppercase tracking-wide mb-1">Prize</p>
+            <p className="text-lg font-bold text-gray-900">{prize.prize_name}</p>
           </div>
           <div>
-            <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Code</p>
-            <p className="text-2xl font-mono font-bold text-amber-400 tracking-wider">
+            <p className="text-xs text-green-600 uppercase tracking-wide mb-1">Code</p>
+            <p className="text-2xl font-mono font-bold text-amber-600 tracking-wider">
               {prize.redemption_code}
             </p>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-md">
-            <p className="text-sm text-red-400">{error}</p>
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-600">{error}</p>
           </div>
         )}
 
@@ -123,7 +123,7 @@ export default function StaffRedemptionModal({
         <button
           onClick={handleClose}
           disabled={isSubmitting}
-          className="w-full mt-3 py-2 text-zinc-400 text-sm hover:text-white transition-colors disabled:opacity-50"
+          className="w-full mt-3 py-2 text-gray-400 text-sm hover:text-gray-600 transition-colors disabled:opacity-50"
         >
           Cancel
         </button>

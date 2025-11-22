@@ -1,3 +1,33 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import {
+  ShoppingBag,
+  Package,
+  CupSoda,
+  Clock,
+  Percent,
+  GlassWater,
+  Crown,
+  Hand,
+  Circle,
+  MapPin,
+} from 'lucide-react';
+
+interface SpinWheelProps {
+  customerId: string;
+  lineUserId: string;
+  onWin: (prize: string, prizeDescription: string, redemptionCode: string, imageUrl: string | undefined, drawsRemaining?: number) => void;
+  onBack?: () => void;
+}
+
+interface Prize {
+  name: string;
+  color: string;
+  textColor: string;
+  image_url?: string;
+}
+
 // Green, Gold, and White Palette
 const PRIZE_COLORS = [
   { bg: '#047857', text: '#FFFFFF' }, // Green-700 & White
@@ -117,15 +147,15 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
     <div className="w-full max-w-lg mx-auto p-6">
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-black italic text-white uppercase tracking-tighter mb-2">
-          LENGOLF Lucky Draw
+        <h1 className="text-3xl font-black italic text-green-800 uppercase tracking-tighter mb-2">
+          Spin to Win!
         </h1>
-        <div className="h-1 w-24 bg-green-500 mx-auto rounded-full"></div>
+        <div className="h-1 w-24 bg-gradient-to-r from-green-500 to-amber-400 mx-auto rounded-full"></div>
       </div>
 
       <div className="relative w-full aspect-square max-w-[340px] mx-auto mb-10">
         {/* Wheel Glow Background */}
-        <div className="absolute inset-0 bg-green-500/20 rounded-full blur-3xl scale-110 animate-pulse"></div>
+        <div className="absolute inset-0 bg-amber-400/20 rounded-full blur-3xl scale-110 animate-pulse"></div>
 
         {/* Wheel Container */}
         <div className="relative w-full h-full z-10">
@@ -201,8 +231,8 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-900/20 border border-red-800 rounded-lg backdrop-blur">
-          <p className="text-sm text-red-400 text-center">{error}</p>
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600 text-center">{error}</p>
         </div>
       )}
 
@@ -210,7 +240,20 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
         <button
           onClick={handleSpin}
           disabled={isSpinning || isLoading || prizes.length === 0}
-          className="w-full bg-green-600 text-white font-black italic uppercase py-4 text-xl rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white font-black italic uppercase py-4 text-xl rounded-xl hover:from-green-500 hover:to-green-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
         >
           {isLoading ? 'Loading...' : isSpinning ? 'Best of Luck!' : 'SPIN NOW'}
         </button>
+
+        {onBack && !isSpinning && (
+          <button
+            onClick={onBack}
+            className="w-full text-gray-500 hover:text-green-700 text-sm py-2 transition-colors"
+          >
+            Back to Dashboard
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

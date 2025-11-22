@@ -248,10 +248,10 @@ export default function LuckyDrawPage() {
   // Loading State
   if (viewState === 'loading') {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-600 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-zinc-400">Loading...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     );
@@ -260,19 +260,19 @@ export default function LuckyDrawPage() {
   // Error State
   if (viewState === 'error') {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg shadow-lg p-6 max-w-md w-full">
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-4">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-6 max-w-md w-full">
           <div className="text-center">
-            <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-800">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200">
               <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Error</h2>
-            <p className="text-zinc-400 mb-4">{error}</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-2 rounded-md hover:from-green-500 hover:to-green-400 transition-all shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-all"
             >
               Try Again
             </button>
@@ -290,7 +290,7 @@ export default function LuckyDrawPage() {
   // Spin Wheel State
   if (viewState === 'spin-wheel') {
     return (
-      <div className="min-h-screen bg-zinc-950">
+      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
         <div className="container mx-auto px-4 py-8">
           <SpinWheel
             customerId={customerId}
@@ -316,14 +316,14 @@ export default function LuckyDrawPage() {
 
   // Landing/Dashboard State
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-black text-white mb-2 italic tracking-tighter uppercase">
+          <h1 className="text-3xl font-black text-green-800 mb-2 italic tracking-tighter uppercase">
             LENGOLF Lucky Draw
           </h1>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-gray-600">
             Earn draws with every purchase over 500 THB
           </p>
         </div>

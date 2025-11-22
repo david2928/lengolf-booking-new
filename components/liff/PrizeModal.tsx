@@ -36,13 +36,13 @@ export default function PrizeModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      {/* Customizing the Content Class to be fully dark */}
-      <DialogContent className="bg-zinc-900 border border-zinc-700 text-white sm:max-w-md shadow-[0_0_50px_rgba(0,0,0,0.8)] p-0 overflow-hidden gap-0">
-        
+      {/* Customizing the Content Class to be light themed */}
+      <DialogContent className="bg-white border border-gray-200 text-gray-900 sm:max-w-md shadow-xl p-0 overflow-hidden gap-0">
+
         {/* Decorative Header Background */}
-        <div className={`h-24 w-full ${isWinner ? 'bg-gradient-to-br from-green-600 to-green-800' : 'bg-zinc-800'} relative`}>
+        <div className={`h-24 w-full ${isWinner ? 'bg-gradient-to-br from-green-500 to-green-700' : 'bg-gray-100'} relative`}>
            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2">
-              <div className={`w-16 h-16 rounded-full border-4 border-zinc-900 flex items-center justify-center shadow-lg ${isWinner ? 'bg-amber-400 text-zinc-900' : 'bg-zinc-700 text-zinc-400'}`}>
+              <div className={`w-16 h-16 rounded-full border-4 border-white flex items-center justify-center shadow-lg ${isWinner ? 'bg-amber-400 text-white' : 'bg-gray-200 text-gray-400'}`}>
                       {imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={imageUrl} alt={prize} className="w-12 h-12 object-contain" />
@@ -53,7 +53,7 @@ export default function PrizeModal({
                 )}
               </div>
            </div>
-           
+
            {/* Confetti if winner */}
            {isWinner && (
              <div className="absolute inset-0 opacity-50">
@@ -63,20 +63,20 @@ export default function PrizeModal({
         </div>
 
         <div className="pt-12 pb-8 px-6 text-center">
-          <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2 text-white">
+          <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2 text-gray-900">
             {isWinner ? 'Congratulations!' : 'So Close!'}
           </h2>
-          <p className={`text-xl font-bold mb-2 ${isWinner ? 'text-amber-400' : 'text-zinc-400'}`}>
+          <p className={`text-xl font-bold mb-2 ${isWinner ? 'text-green-600' : 'text-gray-400'}`}>
             {prize}
           </p>
-          <p className="text-sm text-zinc-500 mb-6">
+          <p className="text-sm text-gray-500 mb-6">
             {prizeDescription}
           </p>
 
           {isWinner && (
-            <div className="bg-black/40 rounded-xl p-4 border border-dashed border-zinc-700 mb-6 relative">
-               <p className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Staff Code</p>
-               <p className="text-2xl font-mono font-bold text-white tracking-widest select-all">
+            <div className="bg-amber-50 rounded-xl p-4 border border-dashed border-amber-300 mb-6 relative">
+               <p className="text-[10px] uppercase tracking-widest text-amber-600 mb-1">Staff Code</p>
+               <p className="text-2xl font-mono font-bold text-amber-700 tracking-widest select-all">
                  {redemptionCode}
                </p>
             </div>
@@ -84,16 +84,16 @@ export default function PrizeModal({
 
           <div className="space-y-3">
             {isWinner && (
-              <Button onClick={handleShare} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700">
+              <Button onClick={handleShare} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200">
                 Share with Friends
               </Button>
             )}
-            <Button onClick={onClose} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold">
+            <Button onClick={onClose} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold">
               {isWinner ? 'Collect & Close' : 'Try Again'}
             </Button>
           </div>
-          
-          <p className="text-[10px] text-zinc-600 mt-4">
+
+          <p className="text-[10px] text-gray-400 mt-4">
             Valid for 30 days • Mercury Ville @ Chidlom
           </p>
         </div>
