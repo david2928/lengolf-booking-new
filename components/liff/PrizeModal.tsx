@@ -14,7 +14,6 @@ interface PrizeModalProps {
 export default function PrizeModal({
   isOpen,
   prize,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   prizeDescription,
   redemptionCode,
   imageUrl,
@@ -65,7 +64,7 @@ export default function PrizeModal({
       <div className={`flex-1 flex flex-col items-center justify-center p-8 ${isWinner ? 'bg-gradient-to-b from-green-50 via-amber-50 to-white' : 'bg-gray-50'}`}>
         {/* Winner Badge */}
         <div className={`mb-6 px-6 py-2 rounded-full text-lg font-black uppercase tracking-wider ${isWinner ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
-          {isWinner ? '🎉 You Won! 🎉' : 'Better Luck Next Time'}
+          {isWinner ? 'You Won!' : 'Better Luck Next Time'}
         </div>
 
         {/* Prize Image */}
@@ -89,10 +88,15 @@ export default function PrizeModal({
           </div>
         )}
 
-        {/* Prize Name */}
+        {/* Prize Name & Description */}
         <h2 className={`mt-6 text-2xl font-bold text-center ${isWinner ? 'text-gray-900' : 'text-gray-500'}`}>
           {prize}
         </h2>
+        {prizeDescription && (
+          <p className="mt-2 text-sm text-gray-500 text-center">
+            {prizeDescription}
+          </p>
+        )}
       </div>
 
       {/* Bottom Section */}

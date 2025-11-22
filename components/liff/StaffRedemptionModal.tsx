@@ -77,10 +77,15 @@ export default function StaffRedemptionModal({
 
       {/* Bottom Section with Prize Info and Actions */}
       <div className="bg-white border-t border-gray-200 p-6 pb-safe">
-        {/* Prize Name */}
-        <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">
+        {/* Prize Name & Description */}
+        <h3 className="text-2xl font-bold text-gray-900 text-center mb-1">
           {prize.prize_name}
         </h3>
+        {prize.prize_description && (
+          <p className="text-sm text-gray-500 text-center mb-4">
+            {prize.prize_description}
+          </p>
+        )}
 
         {/* Redemption Code */}
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 text-center">

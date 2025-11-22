@@ -173,11 +173,6 @@ export default function LuckyDrawPage() {
 
     // Refresh prizes list
     await refreshPrizes();
-
-    // Return to landing after showing modal
-    setTimeout(() => {
-      setViewState('landing');
-    }, 500);
   };
 
   const refreshPrizes = async () => {

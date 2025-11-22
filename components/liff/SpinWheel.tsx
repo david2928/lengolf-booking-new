@@ -109,6 +109,10 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
     setError('');
     setIsSpinning(true);
 
+    // Start spinning immediately with initial rotation
+    const initialRotation = rotation + 360 * 3;
+    setRotation(initialRotation);
+
     try {
       const response = await fetch('/api/liff/spin', {
         method: 'POST',
@@ -123,16 +127,11 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
       const prizeIndex = prizes.findIndex(p => p.name === data.prize);
       // Default to index 0 if not found to avoid crash
       const safeIndex = prizeIndex === -1 ? 0 : prizeIndex;
-      
+
       const segmentAngle = 360 / prizes.length;
-      // Add extra rotations (5 * 360) + alignment adjustment
-      // The -90 offset in drawing means 0deg is at 12 o'clock? No, standard SVG 0 is 3 o'clock.
-      // We draw segments starting from -90 (12 o'clock).
-      // To land on the specific segment under the pointer (at 12 o'clock), 
-      // we need to rotate the wheel so that the center of the winning segment is at -90deg.
-      
-      const randomOffset = (Math.random() * 0.8 - 0.4) * segmentAngle; // Add slight randomness within slice
-      const targetRotation = 360 * 8 - (safeIndex * segmentAngle + segmentAngle / 2) + randomOffset;
+      const randomOffset = (Math.random() * 0.8 - 0.4) * segmentAngle;
+      // Calculate final rotation from current position
+      const targetRotation = initialRotation + 360 * 5 - (safeIndex * segmentAngle + segmentAngle / 2) + randomOffset;
 
       setRotation(targetRotation);
 
@@ -143,6 +142,8 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setIsSpinning(false);
+      // Reset rotation on error
+      setRotation(rotation);
     }
   };
 
