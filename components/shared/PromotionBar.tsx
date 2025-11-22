@@ -73,8 +73,7 @@ const PromotionBar: React.FC<PromotionBarProps> = ({ onPromotionClick, userId })
             <span className="text-xl">🎉</span>
             {/* Shorter text on mobile, full text on larger screens */}
             <span className="font-semibold text-sm sm:text-base">
-              <span className="hidden sm:inline">11.11 Deal of the Year - 11% OFF All Packages!</span>
-              <span className="sm:hidden">11.11 Sale - 11% OFF All Packages!</span>
+              Buy 1 Get 1 Free - New Customers Only!
             </span>
             <span className="text-xl">🎉</span>
           </div>

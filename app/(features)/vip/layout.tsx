@@ -23,11 +23,11 @@ const VipLayout = ({ children }: VipLayoutProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPromotions, setShowPromotions] = useState(false);
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
+  const [hasBookings, setHasBookings] = useState<boolean | null>(null);
 
   const promotionImages = [
     '/images/new_customer_promo.jpg',
     '/images/promotion.jpg',
-    '/images/promotion_1.jpg',
     '/images/promotion_2.jpg',
   ];
 
@@ -130,6 +130,23 @@ const VipLayout = ({ children }: VipLayoutProps) => {
       fetchVipStatus();
     }
   }, [sessionStatus, fetchVipStatus]);
+
+  // Check if user has any bookings for promotion bar display
+  useEffect(() => {
+    const checkBookings = async () => {
+      try {
+        const response = await fetch('/api/user/has-bookings');
+        const data = await response.json();
+        setHasBookings(data.hasBookings);
+      } catch (error) {
+        console.error('Error checking bookings:', error);
+        // On error, assume user has bookings to avoid showing promotion incorrectly
+        setHasBookings(true);
+      }
+    };
+
+    checkBookings();
+  }, [sessionStatus]);
 
 
   const handleSignOut = async () => {
@@ -404,14 +421,16 @@ const VipLayout = ({ children }: VipLayoutProps) => {
         }
       />
 
-      {/* Promotion Bar for 11/11 Campaign - shown to all users */}
-      <PromotionBar
-        onPromotionClick={() => {
-          setCurrentPromoIndex(2); // Set to promotion_1.jpg
-          setShowPromotions(true);
-        }}
-        userId={session?.user?.id}
-      />
+      {/* Promotion Bar for New Customers - only show when we've confirmed user has no bookings */}
+      {hasBookings === false && (
+        <PromotionBar
+          onPromotionClick={() => {
+            setCurrentPromoIndex(0); // Set to new_customer_promo.jpg
+            setShowPromotions(true);
+          }}
+          userId={session?.user?.id}
+        />
+      )}
 
         <main className="py-8 flex-grow container mx-auto px-4 sm:px-6 lg:px-8">
           {children}
