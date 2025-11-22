@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+
+import { Button } from '@/components/ui/button';
 
 interface PrizeModalProps {
   isOpen: boolean;
@@ -17,165 +19,80 @@ export default function PrizeModal({
   redemptionCode,
   onClose
 }: PrizeModalProps) {
-  const [showConfetti, setShowConfetti] = useState(false);
   const isWinner = prize !== 'Better Luck Next Time';
 
-  useEffect(() => {
-    if (isOpen) {
-      setShowConfetti(true);
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
   const handleShare = () => {
-    // Use LIFF share API if available
-    if (typeof window !== 'undefined' && window.liff && window.liff.isApiAvailable('shareTargetPicker')) {
+    if (typeof window !== 'undefined' && window.liff?.isApiAvailable('shareTargetPicker')) {
       window.liff.shareTargetPicker([
         {
           type: 'text',
-          text: `I just won "${prize}" from LENGOLF Lucky Draw! 🎉\nTry your luck at: ${window.location.href}`
+          text: `I just won "${prize}" at LENGOLF! ⛳\nGame on! ${window.location.href}`
         }
-      ]).catch((err) => {
-        console.error('Failed to share:', err);
-      });
+      ]).catch(console.error);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      {/* Darkened Backdrop with Blur */}
-      <div
-        className="absolute inset-0 bg-black/90 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      {/* Customizing the Content Class to be fully dark */}
+      <DialogContent className="bg-zinc-900 border border-zinc-700 text-white sm:max-w-md shadow-[0_0_50px_rgba(0,0,0,0.8)] p-0 overflow-hidden gap-0">
+        
+        {/* Decorative Header Background */}
+        <div className={`h-24 w-full ${isWinner ? 'bg-gradient-to-br from-green-600 to-green-900' : 'bg-zinc-800'} relative`}>
+           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2">
+              <div className={`w-16 h-16 rounded-full border-4 border-zinc-900 flex items-center justify-center shadow-lg ${isWinner ? 'bg-green-500 text-zinc-900' : 'bg-zinc-700 text-zinc-400'}`}>
+                {isWinner ? (
+                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" /></svg>
+                ) : (
+                   <span className="text-2xl">😢</span>
+                )}
+              </div>
+           </div>
+           
+           {/* Confetti if winner */}
+           {isWinner && (
+             <div className="absolute inset-0 opacity-50">
+                {/* Add your confetti component here or use CSS generic particles */}
+             </div>
+           )}
+        </div>
 
-      {/* The Prize Card */}
-      <div className="relative w-full max-w-sm bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-700 shadow-2xl shadow-green-900/20 transform transition-all scale-100">
-
-        {/* Confetti animation for winners */}
-        {isWinner && showConfetti && (
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <div className="confetti">
-              {[...Array(50)].map((_, i) => (
-                <div
-                  key={i}
-                  className="confetti-piece"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    animationDelay: `${Math.random() * 3}s`,
-                    backgroundColor: ['#22c55e', '#16a34a', '#15803d', '#166534'][Math.floor(Math.random() * 4)]
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Glowing Top Decoration */}
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-green-600/20 to-transparent pointer-events-none" />
-
-        <div className="relative p-8 text-center">
-
-          {/* Header */}
-          <h2 className="text-3xl font-black text-white italic tracking-tighter mb-1 uppercase drop-shadow-lg">
-            {isWinner ? 'You Won!' : 'Thank You!'}
+        <div className="pt-12 pb-8 px-6 text-center">
+          <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2 text-white">
+            {isWinner ? 'Congratulations!' : 'So Close!'}
           </h2>
-
-          {/* Icon Circle with Glow */}
-          <div className="my-8 relative flex items-center justify-center">
-            <div className="absolute w-24 h-24 bg-green-500 rounded-full blur-xl opacity-40 animate-pulse"></div>
-            <div className="relative w-20 h-20 bg-gradient-to-br from-zinc-800 to-black rounded-full border-2 border-green-500 flex items-center justify-center shadow-lg">
-              {isWinner ? (
-                <span className="text-4xl">🎁</span>
-              ) : (
-                <span className="text-4xl">🎯</span>
-              )}
-            </div>
-          </div>
-
-          {/* Prize Details */}
-          <h3 className="text-2xl font-bold text-green-400 mb-2 leading-tight">
+          <p className={`text-xl font-bold mb-2 ${isWinner ? 'text-green-400' : 'text-zinc-400'}`}>
             {prize}
-          </h3>
-          <p className="text-zinc-400 text-sm mb-6 leading-relaxed">
+          </p>
+          <p className="text-sm text-zinc-500 mb-6">
             {prizeDescription}
           </p>
 
-          {/* Ticket / Code Section for winners only */}
           {isWinner && (
-            <div className="bg-black/40 rounded-xl p-4 border border-dashed border-zinc-600 mb-6 relative group">
-              <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Redemption Code</p>
-              <p className="text-xl font-mono text-white tracking-widest font-bold select-all">
-                {redemptionCode}
-              </p>
+            <div className="bg-black/40 rounded-xl p-4 border border-dashed border-zinc-700 mb-6 relative">
+               <p className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1">Staff Code</p>
+               <p className="text-2xl font-mono font-bold text-white tracking-widest select-all">
+                 {redemptionCode}
+               </p>
             </div>
           )}
 
-          {/* Actions */}
           <div className="space-y-3">
             {isWinner && (
-              <button
-                onClick={handleShare}
-                className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-green-900/50 transition-all transform active:scale-95 uppercase tracking-wide text-sm"
-              >
-                Share Your Win
-              </button>
+              <Button onClick={handleShare} className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700">
+                Share with Friends
+              </Button>
             )}
-
-            <button
-              onClick={onClose}
-              className="w-full bg-transparent border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 font-semibold py-3.5 px-4 rounded-xl transition-colors text-sm"
-            >
-              {isWinner ? 'Close & Spin Again' : 'Close'}
-            </button>
+            <Button onClick={onClose} className="w-full bg-green-600 hover:bg-green-500 text-white font-bold">
+              {isWinner ? 'Collect & Close' : 'Try Again'}
+            </Button>
           </div>
+          
+          <p className="text-[10px] text-zinc-600 mt-4">
+            Valid for 30 days • Mercury Ville @ Chidlom
+          </p>
         </div>
-
-        {/* Footer Note */}
-        {isWinner && (
-          <div className="bg-zinc-950/50 p-3 text-center border-t border-zinc-800">
-            <p className="text-[10px] text-zinc-600">
-              Present this code at LENGOLF reception to redeem.
-            </p>
-            <p className="text-[10px] text-zinc-600 mt-1">
-              Mercury Ville @ BTS Chidlom, Floor 4 • Tel: 096-668-2335
-            </p>
-          </div>
-        )}
-      </div>
-
-      <style jsx>{`
-        .confetti {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-        }
-        .confetti-piece {
-          position: absolute;
-          width: 10px;
-          height: 10px;
-          top: -10px;
-          opacity: 0;
-          animation: confetti-fall 3s linear forwards;
-        }
-        @keyframes confetti-fall {
-          0% {
-            opacity: 0;
-            transform: translateY(0) rotate(0deg);
-          }
-          10% {
-            opacity: 1;
-          }
-          90% {
-            opacity: 1;
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(600px) rotate(360deg);
-          }
-        }
-      `}</style>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

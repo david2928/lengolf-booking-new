@@ -2,12 +2,7 @@
 
 import { useState } from 'react';
 
-interface Prize {
-  id: string;
-  prize_name: string;
-  prize_description: string;
-  redemption_code: string;
-}
+import { Prize } from '@/types/liff';
 
 interface StaffRedemptionModalProps {
   isOpen: boolean;

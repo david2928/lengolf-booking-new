@@ -1,7 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import {
+  ShoppingBag,
+  Package,
+  CupSoda,
+  Clock,
+  Percent,
+  GlassWater,
+  Crown,
+  Hand,
+  Circle,
+  MapPin,
+} from 'lucide-react';
 
 interface SpinWheelProps {
   customerId: string;
@@ -13,19 +24,42 @@ interface SpinWheelProps {
 interface Prize {
   name: string;
   color: string;
+  textColor: string;
 }
 
-// Dark/Neon color palette (alternating dark green and black)
+// Premium Dark Mode Palette
 const PRIZE_COLORS = [
-  '#15803d', // Dark green
-  '#18181b', // Near black (zinc-900)
-  '#166534', // Forest green
-  '#27272a', // Dark zinc
-  '#14532d', // Very dark green
-  '#3f3f46', // Zinc-700
-  '#16a34a', // Medium green
-  '#52525b', // Zinc-600
+  { bg: '#09090b', text: '#4ade80' }, // Zinc-950 & Green-400
+  { bg: '#14532d', text: '#ffffff' }, // Green-900 & White
+  { bg: '#18181b', text: '#4ade80' }, // Zinc-900 & Green-400
+  { bg: '#15803d', text: '#ffffff' }, // Green-700 & White
+  { bg: '#27272a', text: '#4ade80' }, // Zinc-800 & Green-400
+  { bg: '#166534', text: '#ffffff' }, // Green-800 & White
 ];
+
+const getPrizeIcon = (prizeName: string, textColor: string) => {
+  const iconProps = {
+    className: 'w-5 h-5 mb-1',
+    strokeWidth: 2,
+    color: textColor,
+  };
+
+  const prizeIconMap: { [key: string]: React.ReactElement } = {
+    'Golf Bag': <ShoppingBag {...iconProps} />,
+    'Bronze Package': <Package {...iconProps} />,
+    'Premium Tumbler': <CupSoda {...iconProps} />,
+    '2-Hour Bay Voucher': <Clock {...iconProps} />,
+    '1-Hour Bay Voucher': <Clock {...iconProps} />,
+    '20% Discount': <Percent {...iconProps} />,
+    'Drink Voucher': <GlassWater {...iconProps} />,
+    'Golf Hat': <Crown {...iconProps} />,
+    'Golf Gloves': <Hand {...iconProps} />,
+    'Golf Balls': <Circle {...iconProps} />,
+    'Golf Marker': <MapPin {...iconProps} />,
+  };
+
+  return prizeIconMap[prizeName] || <Package {...iconProps} />;
+};
 
 export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: SpinWheelProps) {
   const [isSpinning, setIsSpinning] = useState(false);
@@ -34,7 +68,7 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
   const [prizes, setPrizes] = useState<Prize[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch available prizes from database
+  // Fetch available prizes
   useEffect(() => {
     const fetchPrizes = async () => {
       try {
@@ -42,20 +76,19 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
         const data = await response.json();
 
         if (response.ok && data.prizeBreakdown) {
-          // Map prizes with colors, only show prizes with remaining quantity > 0
           const availablePrizes = data.prizeBreakdown
             .filter((p: { remaining: number }) => p.remaining > 0)
             .map((prize: { prize_name: string }, index: number) => ({
               name: prize.prize_name,
-              color: PRIZE_COLORS[index % PRIZE_COLORS.length]
+              color: PRIZE_COLORS[index % PRIZE_COLORS.length].bg,
+              textColor: PRIZE_COLORS[index % PRIZE_COLORS.length].text
             }));
 
           setPrizes(availablePrizes);
         }
       } catch (err) {
         console.error('Error fetching prizes:', err);
-        // Fallback to a simple message
-        setPrizes([{ name: 'Loading prizes...', color: '#15803d' }]);
+        setPrizes([{ name: 'Loading...', color: '#18181b', textColor: '#fff' }]);
       } finally {
         setIsLoading(false);
       }
@@ -66,6 +99,8 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
 
   const handleSpin = async () => {
     if (isSpinning) return;
+    // Optional: Haptic Feedback
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
 
     setError('');
     setIsSpinning(true);
@@ -73,29 +108,30 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
     try {
       const response = await fetch('/api/liff/spin', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          customerId,
-          lineUserId
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId, lineUserId }),
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to spin');
-      }
+      if (!response.ok) throw new Error(data.error || 'Failed to spin');
 
-      // Find the index of the winning prize
       const prizeIndex = prizes.findIndex(p => p.name === data.prize);
+      // Default to index 0 if not found to avoid crash
+      const safeIndex = prizeIndex === -1 ? 0 : prizeIndex;
+      
       const segmentAngle = 360 / prizes.length;
-      const targetRotation = 360 * 5 + (360 - (prizeIndex * segmentAngle + segmentAngle / 2));
+      // Add extra rotations (5 * 360) + alignment adjustment
+      // The -90 offset in drawing means 0deg is at 12 o'clock? No, standard SVG 0 is 3 o'clock.
+      // We draw segments starting from -90 (12 o'clock).
+      // To land on the specific segment under the pointer (at 12 o'clock), 
+      // we need to rotate the wheel so that the center of the winning segment is at -90deg.
+      
+      const randomOffset = (Math.random() * 0.8 - 0.4) * segmentAngle; // Add slight randomness within slice
+      const targetRotation = 360 * 8 - (safeIndex * segmentAngle + segmentAngle / 2) + randomOffset;
 
       setRotation(targetRotation);
 
-      // Wait for animation to complete
       setTimeout(() => {
         onWin(data.prize, data.prizeDescription, data.redemptionCode, data.drawsRemaining);
       }, 4000);
@@ -108,128 +144,119 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
 
   return (
     <div className="w-full max-w-lg mx-auto p-6">
+      {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-white mb-2">
-          Lucky Draw
+        <h1 className="text-2xl font-black italic text-white uppercase tracking-tighter mb-2">
+          Current Prize Pool
         </h1>
-        <p className="text-sm text-zinc-400">
-          Spin the wheel to reveal your prize
-        </p>
+        <div className="h-1 w-16 bg-green-500 mx-auto rounded-full"></div>
       </div>
 
-      <div className="relative w-full aspect-square max-w-sm mx-auto mb-8">
-        {/* Wheel container */}
-        <svg
-          viewBox="0 0 300 300"
-          className="w-full h-full rounded-full border-4 border-zinc-700 shadow-2xl shadow-black/50"
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            transition: isSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none'
-          }}
-        >
-          {prizes.map((prize, index) => {
-            const segmentAngle = 360 / prizes.length;
-            const startAngle = index * segmentAngle - 90;
-            const endAngle = startAngle + segmentAngle;
+      <div className="relative w-full aspect-square max-w-[340px] mx-auto mb-10">
+        {/* Wheel Glow Background */}
+        <div className="absolute inset-0 bg-green-500/20 rounded-full blur-3xl scale-110 animate-pulse"></div>
 
-            const startRad = (startAngle * Math.PI) / 180;
-            const endRad = (endAngle * Math.PI) / 180;
+        {/* Wheel Container */}
+        <div className="relative w-full h-full z-10">
+          <svg
+            viewBox="0 0 300 300"
+            className="w-full h-full rounded-full shadow-[0_0_30px_rgba(0,0,0,0.5)] border-4 border-zinc-800"
+            style={{
+              transform: `rotate(${rotation}deg)`,
+              transition: isSpinning ? 'transform 4s cubic-bezier(0.15, 0, 0.15, 1)' : 'none'
+            }}
+          >
+            {prizes.map((prize, index) => {
+              const segmentAngle = 360 / prizes.length;
+              const startAngle = index * segmentAngle - 90;
+              const endAngle = startAngle + segmentAngle;
 
-            const x1 = 150 + 150 * Math.cos(startRad);
-            const y1 = 150 + 150 * Math.sin(startRad);
-            const x2 = 150 + 150 * Math.cos(endRad);
-            const y2 = 150 + 150 * Math.sin(endRad);
+              // Calculate path
+              const startRad = (startAngle * Math.PI) / 180;
+              const endRad = (endAngle * Math.PI) / 180;
+              const x1 = 150 + 150 * Math.cos(startRad);
+              const y1 = 150 + 150 * Math.sin(startRad);
+              const x2 = 150 + 150 * Math.cos(endRad);
+              const y2 = 150 + 150 * Math.sin(endRad);
+              const largeArc = segmentAngle > 180 ? 1 : 0;
+              const pathData = `M 150,150 L ${x1},${y1} A 150,150 0 ${largeArc},1 ${x2},${y2} Z`;
 
-            const largeArc = segmentAngle > 180 ? 1 : 0;
-            const pathData = `M 150,150 L ${x1},${y1} A 150,150 0 ${largeArc},1 ${x2},${y2} Z`;
+              const midAngle = startAngle + segmentAngle / 2;
+              
+              // Push text out towards the rim (110px from center)
+              const textRad = (midAngle * Math.PI) / 180;
+              const textDist = 90; 
+              const tx = 150 + textDist * Math.cos(textRad);
+              const ty = 150 + textDist * Math.sin(textRad);
 
-            // Calculate text position (radial alignment)
-            const textAngle = startAngle + segmentAngle / 2;
-            const textRad = (textAngle * Math.PI) / 180;
-            const textRadius = 95; // Distance from center
-            const textX = 150 + textRadius * Math.cos(textRad);
-            const textY = 150 + textRadius * Math.sin(textRad);
+              return (
+                <g key={index}>
+                  <path d={pathData} fill={prize.color} stroke="#09090b" strokeWidth="1" />
+                  
+                  {/* Icon and Text Group */}
+                  <g transform={`translate(${tx}, ${ty}) rotate(${midAngle + 90})`}>
+                    <foreignObject x="-25" y="-25" width="50" height="50">
+                      <div
+                        className="flex flex-col items-center justify-center text-center"
+                      >
+                        {getPrizeIcon(prize.name, prize.textColor)}
+                        <span
+                          style={{ color: prize.textColor, fontSize: '10px', fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase' }}
+                        >
+                          {prize.name.length > 15 ? prize.name.substring(0, 13) + '..' : prize.name}
+                        </span>
+                      </div>
+                    </foreignObject>
+                  </g>
+                </g>
+              );
+            })}
 
-            // Truncate long prize names for better display
-            const displayName = prize.name.length > 12 ? prize.name.substring(0, 10) + '..' : prize.name;
+            {/* Center Hub */}
+            <circle cx="150" cy="150" r="40" fill="#18181b" stroke="#22c55e" strokeWidth="2" />
+            <image
+              href="/images/lengolf_logo.jpg"
+              x="120"
+              y="120"
+              width="60"
+              height="60"
+              clipPath="circle(30px at 30px 30px)"
+              className="opacity-90"
+            />
+          </svg>
 
-            return (
-              <g key={index}>
-                <path d={pathData} fill={prize.color} stroke="#27272a" strokeWidth="1" />
-                <text
-                  x={textX}
-                  y={textY}
-                  fill="white"
-                  fontSize="10"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  transform={`rotate(${textAngle + 90}, ${textX}, ${textY})`}
-                  className="uppercase tracking-wider"
-                >
-                  {displayName}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Center circle with glowing logo */}
-          <defs>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
-          <circle cx="150" cy="150" r="35" fill="#18181b" stroke="#22c55e" strokeWidth="3" filter="url(#glow)" />
-          <image
-            href="/images/lengolf_logo.jpg"
-            x="125"
-            y="125"
-            width="50"
-            height="50"
-            clipPath="circle(25px at 25px 25px)"
-          />
-        </svg>
-
-        {/* Neon Green Needle Pointer */}
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-3 z-10">
-          <div className="w-0 h-0 border-l-[20px] border-r-[20px] border-t-[30px] border-l-transparent border-r-transparent border-t-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
+          {/* The Pointer (Static on top) */}
+          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20 filter drop-shadow-lg">
+            <div className="w-8 h-10 bg-gradient-to-b from-red-500 to-red-700" 
+                 style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%)' }}>
+            </div>
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-900/20 border border-red-800 rounded-xl">
-          <p className="text-sm text-red-400 text-center font-medium">{error}</p>
+        <div className="mb-4 p-4 bg-red-900/20 border border-red-800 rounded-lg backdrop-blur">
+          <p className="text-sm text-red-400 text-center">{error}</p>
         </div>
       )}
 
       <div className="space-y-3">
-        <Button
+        <button
           onClick={handleSpin}
           disabled={isSpinning || isLoading || prizes.length === 0}
-          className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-bold py-5 text-lg shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] rounded-xl transition-all disabled:opacity-50 uppercase tracking-widest"
+          className="w-full bg-white text-zinc-950 font-black italic uppercase py-4 text-xl rounded-xl hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isLoading ? 'Loading...' : isSpinning ? 'Spinning...' : 'Spin'}
-        </Button>
+          {isLoading ? 'Loading...' : isSpinning ? 'Best of Luck!' : 'SPIN NOW'}
+        </button>
 
         {onBack && !isSpinning && (
-          <Button
+          <button
             onClick={onBack}
-            variant="outline"
-            className="w-full border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-600 py-3 rounded-xl"
+            className="w-full text-zinc-500 hover:text-white text-sm py-2 transition-colors"
           >
-            Back
-          </Button>
+            Back to Dashboard
+          </button>
         )}
-      </div>
-
-      <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
-        <p className="text-xs text-zinc-500 text-center">
-          1 Spin earned for every 500 THB spent
-        </p>
       </div>
     </div>
   );

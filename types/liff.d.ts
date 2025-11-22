@@ -7,6 +7,18 @@ export interface LiffProfile {
   statusMessage?: string;
 }
 
+export interface Prize {
+  id: string;
+  prize_name: string;
+  prize_description: string;
+  redemption_code: string;
+  spin_timestamp: string;
+  is_redeemed: boolean;
+  redeemed_at: string | null;
+  redeemed_by_staff_name: string | null;
+  draw_sequence: number;
+}
+
 export interface LiffMethods {
   init: (config: { liffId: string }) => Promise<void>;
   isLoggedIn: () => boolean;

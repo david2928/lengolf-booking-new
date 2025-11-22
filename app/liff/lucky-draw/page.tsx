@@ -9,19 +9,9 @@ import SpinWheel from '@/components/liff/SpinWheel';
 import PrizeModal from '@/components/liff/PrizeModal';
 import StaffRedemptionModal from '@/components/liff/StaffRedemptionModal';
 
-type ViewState = 'loading' | 'error' | 'not-linked' | 'landing' | 'spin-wheel';
+import { Prize } from '@/types/liff';
 
-interface Prize {
-  id: string;
-  prize_name: string;
-  prize_description: string;
-  redemption_code: string;
-  spin_timestamp: string;
-  is_redeemed: boolean;
-  redeemed_at: string | null;
-  redeemed_by_staff_name: string | null;
-  draw_sequence: number;
-}
+type ViewState = 'loading' | 'error' | 'not-linked' | 'landing' | 'spin-wheel';
 
 interface PrizeData {
   prize: string;

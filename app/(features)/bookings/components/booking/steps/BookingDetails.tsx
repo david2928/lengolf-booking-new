@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   CalendarIcon,
   ClockIcon,
@@ -164,12 +164,12 @@ export function BookingDetails({
   ];
 
   // Helper function to get bay availability for a specific duration
-  const getBayAvailabilityForDuration = (dur: number) => {
+  const getBayAvailabilityForDuration = useCallback((dur: number) => {
     if (!slotData?.bayAvailabilityByDuration) {
       return { social: 0, ai: 0, total: 0, bays: [] };
     }
     return slotData.bayAvailabilityByDuration[dur.toString()] || { social: 0, ai: 0, total: 0, bays: [] };
-  };
+  }, [slotData]);
 
   // Get current duration's bay availability
   const currentAvailability = getBayAvailabilityForDuration(duration);

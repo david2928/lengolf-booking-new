@@ -1,0 +1,1 @@
+Please refer to `claude.md` first for general guidelines and information.

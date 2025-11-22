@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 
 interface PromotionBarProps {
@@ -13,11 +13,11 @@ const PromotionBar: React.FC<PromotionBarProps> = ({ onPromotionClick, userId })
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Create user-specific or guest-specific dismissal key
-  const getDismissalKey = () => {
+  const getDismissalKey = useCallback(() => {
     return userId
       ? `lengolf-promo-bar-dismissed-${userId}`
       : 'lengolf-promo-bar-dismissed-guest';
-  };
+  }, [userId]);
 
   useEffect(() => {
     const dismissalKey = getDismissalKey();
@@ -32,7 +32,7 @@ const PromotionBar: React.FC<PromotionBarProps> = ({ onPromotionClick, userId })
         setIsAnimating(true);
       }, 300); // Small delay for smoother entrance
     }
-  }, [userId]);
+  }, [userId, getDismissalKey]);
 
   const handleDismiss = (e: React.MouseEvent) => {
     e.stopPropagation();
