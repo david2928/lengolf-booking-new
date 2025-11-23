@@ -2,7 +2,7 @@
 
 export default function NotLinkedView() {
   const handleContactLine = () => {
-    window.location.href = 'https://line.me/R/ti/p/ @lengolf';
+    window.location.href = 'https://lin.ee/Msff8Ap';
   };
 
   return (
