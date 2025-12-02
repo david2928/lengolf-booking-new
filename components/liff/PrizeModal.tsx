@@ -143,7 +143,7 @@ export default function PrizeModal({
         </button>
 
         <p className="text-[10px] text-gray-400 mt-3 text-center">
-          Valid for 30 days • Mercury Ville @ Chidlom
+          Valid Dec 7-31, 2025 • Mercury Ville @ Chidlom
         </p>
       </div>
 

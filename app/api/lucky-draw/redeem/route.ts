@@ -46,6 +46,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if redemption is within valid collection period (Dec 7-31, 2025)
+    const now = new Date();
+    const startDate = new Date('2025-12-07T00:00:00+07:00'); // Dec 7, 2025 00:00 Bangkok time
+    const endDate = new Date('2025-12-31T23:59:59+07:00');   // Dec 31, 2025 23:59 Bangkok time
+
+    if (now < startDate) {
+      return NextResponse.json(
+        { error: 'Prize collection starts on December 7, 2025' },
+        { status: 400 }
+      );
+    }
+
+    if (now > endDate) {
+      return NextResponse.json(
+        { error: 'Prize collection period ended on December 31, 2025' },
+        { status: 400 }
+      );
+    }
+
     // Update prize as redeemed (no authentication required, trust-based)
     const redeemedAt = new Date().toISOString();
     const { error: updateError } = await supabase
