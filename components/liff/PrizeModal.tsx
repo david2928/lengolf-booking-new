@@ -102,12 +102,27 @@ export default function PrizeModal({
       {/* Bottom Section */}
       <div className="bg-white border-t border-gray-200 p-6 pb-safe">
         {isWinner && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-center">
-            <p className="text-xs text-amber-600 uppercase tracking-wide mb-1">Redemption Code</p>
-            <p className="text-3xl font-mono font-bold text-amber-700 tracking-wider select-all">
-              {redemptionCode}
-            </p>
-          </div>
+          <>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-center">
+              <p className="text-xs text-amber-600 uppercase tracking-wide mb-1">Redemption Code</p>
+              <p className="text-3xl font-mono font-bold text-amber-700 tracking-wider select-all">
+                {redemptionCode}
+              </p>
+            </div>
+
+            {/* Clear Redemption Instructions */}
+            <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 mb-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm font-bold text-green-800 uppercase">How to Redeem</p>
+              </div>
+              <p className="text-sm text-green-700 font-medium">
+                Show this screen to LENGOLF staff at the counter to collect your prize
+              </p>
+            </div>
+          </>
         )}
 
         <button
@@ -117,12 +132,7 @@ export default function PrizeModal({
           {isWinner ? 'Collect & Close' : 'Try Again'}
         </button>
 
-        {isWinner && (
-          <p className="text-xs text-gray-500 mt-4 text-center">
-            Present this code to LENGOLF staff to redeem your prize
-          </p>
-        )}
-        <p className="text-[10px] text-gray-400 mt-2 text-center">
+        <p className="text-[10px] text-gray-400 mt-3 text-center">
           Valid for 30 days • Mercury Ville @ Chidlom
         </p>
       </div>

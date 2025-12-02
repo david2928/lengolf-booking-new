@@ -88,10 +88,23 @@ export default function StaffRedemptionModal({
         )}
 
         {/* Redemption Code */}
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 text-center">
-          <p className="text-xs text-green-600 uppercase tracking-wide mb-1">Redemption Code</p>
-          <p className="text-3xl font-mono font-bold text-amber-600 tracking-wider">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-center">
+          <p className="text-xs text-amber-600 uppercase tracking-wide mb-1">Redemption Code</p>
+          <p className="text-3xl font-mono font-bold text-amber-700 tracking-wider">
             {prize.redemption_code}
+          </p>
+        </div>
+
+        {/* Clear Redemption Instructions */}
+        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 mb-4 text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <p className="text-sm font-bold text-green-800 uppercase">For Staff</p>
+          </div>
+          <p className="text-sm text-green-700 font-medium">
+            Show this screen to LENGOLF staff to verify and collect your prize
           </p>
         </div>
 
@@ -120,7 +133,7 @@ export default function StaffRedemptionModal({
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
-              Confirm Redemption
+              Staff: Confirm Redemption
             </>
           )}
         </button>

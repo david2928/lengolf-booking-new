@@ -109,10 +109,6 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
     setError('');
     setIsSpinning(true);
 
-    // Start spinning immediately with initial rotation
-    const initialRotation = rotation + 360 * 3;
-    setRotation(initialRotation);
-
     try {
       const response = await fetch('/api/liff/spin', {
         method: 'POST',
@@ -130,8 +126,8 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
 
       const segmentAngle = 360 / prizes.length;
       const randomOffset = (Math.random() * 0.8 - 0.4) * segmentAngle;
-      // Calculate final rotation from current position
-      const targetRotation = initialRotation + 360 * 5 - (safeIndex * segmentAngle + segmentAngle / 2) + randomOffset;
+      // Calculate final rotation - spin 5 full rotations plus position to winning segment
+      const targetRotation = rotation + 360 * 5 - (safeIndex * segmentAngle + segmentAngle / 2) + randomOffset;
 
       setRotation(targetRotation);
 
@@ -142,8 +138,6 @@ export default function SpinWheel({ customerId, lineUserId, onWin, onBack }: Spi
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setIsSpinning(false);
-      // Reset rotation on error
-      setRotation(rotation);
     }
   };
 
