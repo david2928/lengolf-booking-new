@@ -65,9 +65,9 @@ export default function DrawCounter({ drawsAvailable, onSpinClick, campaignActiv
           </button>
         ) : (
           <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 border-dashed">
-            <p className="text-sm text-gray-600 font-medium mb-1">Insufficient Credits</p>
+            <p className="text-sm text-gray-600 font-medium mb-1">No Spins Available</p>
             <p className="text-xs text-gray-500">
-              Earn 1 spin for every 500 THB spent at LENGOLF
+              Make a purchase of 500 THB or more at LENGOLF to earn a spin
             </p>
           </div>
         )}

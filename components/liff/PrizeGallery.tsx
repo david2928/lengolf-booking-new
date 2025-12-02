@@ -55,8 +55,8 @@ export default function PrizeGallery({ prizes, onRedeem }: PrizeGalleryProps) {
     return (
       <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-2xl bg-white">
         <div className="text-4xl mb-3 opacity-30">🏆</div>
-        <p className="text-gray-500 text-sm font-bold">Trophy Case Empty</p>
-        <p className="text-gray-400 text-xs mt-1">Start spinning to fill this up!</p>
+        <p className="text-gray-500 text-sm font-bold">No Rewards Yet</p>
+        <p className="text-gray-400 text-xs mt-1">Start spinning to win prizes!</p>
       </div>
     );
   }
@@ -68,7 +68,7 @@ export default function PrizeGallery({ prizes, onRedeem }: PrizeGalleryProps) {
   return (
     <div className="space-y-4 pb-safe">
       <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-        Your Prizes <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-md">{prizes.length}</span>
+        Your Rewards <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-md">{prizes.length}</span>
       </h3>
 
       <div className="grid grid-cols-1 gap-3">

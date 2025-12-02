@@ -37,7 +37,10 @@
       "Bash(cat:*)",
       "Read(//c/vs_code/lengolf-forms-feature/lengolf-forms/app/staff/line-chat//**)",
       "Read(//c/vs_code/lengolf-forms-feature/lengolf-forms/**)",
-      "WebFetch(domain:developers.line.biz)"
+      "WebFetch(domain:developers.line.biz)",
+      "mcp__supabase_booking__list_projects",
+      "mcp__supabase_booking__execute_sql",
+      "mcp__supabase_booking__list_tables"
     ],
     "deny": []
   },

@@ -319,7 +319,7 @@ export default function LuckyDrawPage() {
             LENGOLF Lucky Draw
           </h1>
           <p className="text-sm text-gray-600">
-            Earn draws with every purchase over 500 THB
+            Earn 1 spin for every purchase of 500 THB or more
           </p>
         </div>
 
