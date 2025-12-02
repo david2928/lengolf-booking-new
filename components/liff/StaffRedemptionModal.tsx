@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import { Prize } from '@/types/liff';
 
@@ -19,6 +19,16 @@ export default function StaffRedemptionModal({
 }: StaffRedemptionModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }
+  }, [isOpen]);
 
   if (!isOpen || !prize) return null;
 
@@ -64,11 +74,11 @@ export default function StaffRedemptionModal({
             src={prize.image_url}
             alt={prize.prize_name}
             className="max-w-full max-h-full object-contain drop-shadow-lg"
-            style={{ maxHeight: '30vh' }}
+            style={{ maxHeight: '38vh' }}
           />
         ) : (
-          <div className="w-32 h-32 bg-amber-100 rounded-full flex items-center justify-center border-4 border-amber-200">
-            <svg className="w-16 h-16 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-40 h-40 bg-amber-100 rounded-full flex items-center justify-center border-4 border-amber-200">
+            <svg className="w-20 h-20 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
             </svg>
           </div>
@@ -88,16 +98,16 @@ export default function StaffRedemptionModal({
         )}
 
         {/* Redemption Code */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-center">
-          <p className="text-[10px] text-amber-600 uppercase tracking-wide mb-1">Redemption Code</p>
-          <p className="text-2xl font-mono font-bold text-amber-700 tracking-wider">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 mb-2.5 text-center">
+          <p className="text-[10px] text-amber-600 uppercase tracking-wide mb-0.5">Redemption Code</p>
+          <p className="text-xl font-mono font-bold text-amber-700 tracking-wider">
             {prize.redemption_code}
           </p>
         </div>
 
         {/* Clear Redemption Instructions */}
-        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-3 mb-3 text-center">
-          <div className="flex items-center justify-center gap-2 mb-1">
+        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-2.5 mb-2.5 text-center">
+          <div className="flex items-center justify-center gap-2 mb-0.5">
             <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
