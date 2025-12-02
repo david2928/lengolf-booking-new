@@ -92,6 +92,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if spin is within campaign period (Dec 7-31, 2025)
+    const now = new Date();
+    const campaignStart = new Date('2025-12-07T00:00:00+07:00'); // Dec 7, 2025 00:00 Bangkok time
+    const campaignEnd = new Date('2025-12-31T23:59:59+07:00');   // Dec 31, 2025 23:59 Bangkok time
+
+    if (now < campaignStart) {
+      return NextResponse.json(
+        { error: 'Lucky Draw campaign starts on December 7, 2025. Your draws will be waiting!' },
+        { status: 400 }
+      );
+    }
+
+    if (now > campaignEnd) {
+      return NextResponse.json(
+        { error: 'Lucky Draw campaign ended on December 31, 2025. Thank you for participating!' },
+        { status: 400 }
+      );
+    }
+
     // Check if campaign still has prizes available
     const { data: campaignActive } = await supabase
       .rpc('campaign_has_prizes');
