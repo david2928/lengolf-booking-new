@@ -57,18 +57,18 @@ export default function StaffRedemptionModal({
       </button>
 
       {/* Large Prize Image - Takes up most of the screen */}
-      <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-amber-50 to-white p-8">
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-amber-50 to-white p-6">
         {prize.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={prize.image_url}
             alt={prize.prize_name}
             className="max-w-full max-h-full object-contain drop-shadow-lg"
-            style={{ maxHeight: '50vh' }}
+            style={{ maxHeight: '30vh' }}
           />
         ) : (
-          <div className="w-48 h-48 bg-amber-100 rounded-full flex items-center justify-center border-4 border-amber-200">
-            <svg className="w-24 h-24 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-32 h-32 bg-amber-100 rounded-full flex items-center justify-center border-4 border-amber-200">
+            <svg className="w-16 h-16 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
             </svg>
           </div>
@@ -76,41 +76,41 @@ export default function StaffRedemptionModal({
       </div>
 
       {/* Bottom Section with Prize Info and Actions */}
-      <div className="bg-white border-t border-gray-200 p-6 pb-safe">
+      <div className="bg-white border-t border-gray-200 p-4 pb-safe">
         {/* Prize Name & Description */}
-        <h3 className="text-2xl font-bold text-gray-900 text-center mb-1">
+        <h3 className="text-xl font-bold text-gray-900 text-center mb-1">
           {prize.prize_name}
         </h3>
         {prize.prize_description && (
-          <p className="text-sm text-gray-500 text-center mb-4">
+          <p className="text-xs text-gray-500 text-center mb-3">
             {prize.prize_description}
           </p>
         )}
 
         {/* Redemption Code */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-center">
-          <p className="text-xs text-amber-600 uppercase tracking-wide mb-1">Redemption Code</p>
-          <p className="text-3xl font-mono font-bold text-amber-700 tracking-wider">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-center">
+          <p className="text-[10px] text-amber-600 uppercase tracking-wide mb-1">Redemption Code</p>
+          <p className="text-2xl font-mono font-bold text-amber-700 tracking-wider">
             {prize.redemption_code}
           </p>
         </div>
 
         {/* Clear Redemption Instructions */}
-        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 mb-4 text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-3 mb-3 text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            <p className="text-sm font-bold text-green-800 uppercase">For Staff</p>
+            <p className="text-xs font-bold text-green-800 uppercase">For Staff</p>
           </div>
-          <p className="text-sm text-green-700 font-medium">
+          <p className="text-xs text-green-700 font-medium">
             Show this screen to LENGOLF staff to verify and collect your prize
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-xs text-red-600">{error}</p>
           </div>
         )}
 
@@ -118,7 +118,7 @@ export default function StaffRedemptionModal({
         <button
           onClick={handleConfirm}
           disabled={isSubmitting}
-          className="w-full py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg font-bold shadow-lg"
+          className="w-full py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base font-bold shadow-lg"
         >
           {isSubmitting ? (
             <>
