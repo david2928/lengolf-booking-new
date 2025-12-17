@@ -1,0 +1,89 @@
+export type Language = 'en' | 'th';
+
+export interface ContactTranslations {
+  title: string;
+  callUs: string;
+  callNow: string;
+  emailUs: string;
+  sendEmail: string;
+  location: string;
+  address: string;
+  getDirections: string;
+  gettingHere: string;
+  btsTitle: string;
+  btsDirections: string;
+  parkingTitle: string;
+  parkingRate: string;
+  parkingWeekday: string;
+  parkingWeekend: string;
+  parkingTier1: string;
+  parkingTier2: string;
+  parkingTier3: string;
+  parkingNote: string;
+  hours: string;
+  daily: string;
+  currentlyOpen: string;
+  currentlyClosed: string;
+  followUs: string;
+  website: string;
+  visitWebsite: string;
+}
+
+export const translations: Record<Language, ContactTranslations> = {
+  en: {
+    title: 'Contact Us',
+    callUs: 'Call Us',
+    callNow: 'Call Now',
+    emailUs: 'Email Us',
+    sendEmail: 'Send Email',
+    location: 'Our Location',
+    address: 'The Mercury Ville @ BTS Chidlom\nFloor 4, Bangkok 10330',
+    getDirections: 'Get Directions',
+    gettingHere: 'Getting Here',
+    btsTitle: 'BTS Chidlom',
+    btsDirections: 'Exit 4 - Walk via skywalk to Mercury Ville',
+    parkingTitle: 'Parking',
+    parkingRate: 'Free parking with every booking',
+    parkingWeekday: '',
+    parkingWeekend: '',
+    parkingTier1: '',
+    parkingTier2: '',
+    parkingTier3: '',
+    parkingNote: '',
+    hours: 'Opening Hours',
+    daily: 'Daily',
+    currentlyOpen: 'Currently Open',
+    currentlyClosed: 'Currently Closed',
+    followUs: 'Follow Us',
+    website: 'Website',
+    visitWebsite: 'Visit Website',
+  },
+  th: {
+    title: 'ติดต่อเรา',
+    callUs: 'โทรหาเรา',
+    callNow: 'โทรเลย',
+    emailUs: 'อีเมล',
+    sendEmail: 'ส่งอีเมล',
+    location: 'ที่ตั้ง',
+    address: 'The Mercury Ville @ BTS ชิดลม\nชั้น 4, กรุงเทพฯ 10330',
+    getDirections: 'นำทาง',
+    gettingHere: 'การเดินทาง',
+    btsTitle: 'BTS ชิดลม',
+    btsDirections: 'ทางออก 4 - เดินผ่านสกายวอล์คไปยัง Mercury Ville',
+    parkingTitle: 'ที่จอดรถ',
+    parkingRate: 'ฟรีทุกการจอง',
+    parkingWeekday: '',
+    parkingWeekend: '',
+    parkingTier1: '',
+    parkingTier2: '',
+    parkingTier3: '',
+    parkingNote: '',
+    hours: 'เวลาเปิด-ปิด',
+    daily: 'ทุกวัน',
+    currentlyOpen: 'เปิดอยู่',
+    currentlyClosed: 'ปิดแล้ว',
+    followUs: 'ติดตามเรา',
+    website: 'เว็บไซต์',
+    visitWebsite: 'เยี่ยมชมเว็บไซต์',
+  },
+};
