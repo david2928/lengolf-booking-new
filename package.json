@@ -45,7 +45,7 @@
     "lucide-react": "^0.511.0",
     "luxon": "^3.4.4",
     "natural": "^8.0.1",
-    "next": "^15.1.6",
+    "next": "15.1.11",
     "next-auth": "^4.24.11",
     "node-cache": "^5.1.2",
     "nodemailer": "^6.10.0",
