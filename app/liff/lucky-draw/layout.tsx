@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "LENGOLF",
-  description: "LENGOLF LINE Mini App",
+  title: "LENGOLF Lucky Draw",
+  description: "Spin the wheel for exclusive prizes at LENGOLF",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -16,7 +16,7 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default function LiffLayout({
+export default function LuckyDrawLayout({
   children,
 }: {
   children: React.ReactNode;

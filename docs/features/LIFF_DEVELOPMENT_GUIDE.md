@@ -52,6 +52,7 @@ app/
   liff/
     layout.tsx                    # Shared LIFF layout (viewport, PWA config)
     [feature-name]/
+      layout.tsx                  # Feature-specific metadata (title, description)
       page.tsx                    # Main LIFF page (client component)
 
 components/
@@ -73,7 +74,9 @@ types/
 ### Example: Contact Us Structure
 
 ```
-app/liff/contact/page.tsx
+app/liff/contact/
+  ├── layout.tsx                  # Page metadata (title, description)
+  └── page.tsx                    # Main page component
 components/liff/contact/
   ├── ContactHeader.tsx           # Header with language toggle
   ├── ContactCard.tsx             # Reusable contact method card
@@ -174,7 +177,50 @@ export default function FeaturePage() {
 }
 ```
 
-### 3. Add Bilingual Support
+### 3. Create Page-Specific Layout (Metadata)
+
+**File:** `app/liff/[feature-name]/layout.tsx`
+
+**IMPORTANT:** Each LIFF page needs its own layout file to set the correct page title. The LIFF app name in LINE Developers Console is only for management - the actual browser/header title comes from the HTML `<title>` element, which is controlled by Next.js metadata.
+
+```typescript
+import type { Metadata, Viewport } from "next";
+
+export const metadata: Metadata = {
+  title: "LENGOLF Feature Name",
+  description: "Brief description of the feature",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+export default function FeatureLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return <>{children}</>;
+}
+```
+
+**Why This Matters:**
+- The `title` field controls what appears in the browser tab and LIFF header
+- Without a feature-specific layout, the page will inherit the parent layout's title
+- This is a common source of bugs where the wrong title displays
+
+**Example:**
+- Contact Us: `title: "LENGOLF Contact Us"`
+- Lucky Draw: `title: "LENGOLF Lucky Draw"`
+
+### 4. Add Bilingual Support
 
 **File:** `lib/liff/translations.ts`
 
@@ -201,7 +247,7 @@ export const featureTranslations: Record<Language, FeatureTranslations> = {
 };
 ```
 
-### 4. Create Reusable Components
+### 5. Create Reusable Components
 
 Break down your UI into small, reusable components:
 
@@ -225,7 +271,7 @@ export default function ComponentName({ language }: ComponentProps) {
 }
 ```
 
-### 5. Add Brand Styling
+### 6. Add Brand Styling
 
 Use LENGOLF brand colors consistently:
 
@@ -243,7 +289,7 @@ className="bg-primary hover:opacity-90 active:opacity-80"
 className="bg-white rounded-lg shadow-md border border-gray-100"
 ```
 
-### 6. Implement Language Toggle
+### 7. Implement Language Toggle
 
 ```typescript
 const toggleLanguage = () => {
@@ -628,7 +674,28 @@ if (viewState === 'error') {
 
 ### Common Issues
 
-#### 1. LIFF SDK Not Loading
+#### 1. Wrong Page Title Displayed
+
+**Symptom:** LIFF page shows incorrect title in browser header (e.g., "Lucky Draw" appears on Contact page)
+
+**Cause:** Missing or incorrect page-specific `layout.tsx` file. The LIFF app name in LINE Developers Console does NOT control the page title - it only affects the management console.
+
+**Solution:**
+1. Create `app/liff/[feature]/layout.tsx` for each LIFF page
+2. Set correct metadata:
+   ```typescript
+   export const metadata: Metadata = {
+     title: "LENGOLF Your Feature Name",
+     description: "Feature description",
+     // ...
+   };
+   ```
+3. Verify parent layout (`app/liff/layout.tsx`) has generic title
+4. Rebuild and redeploy
+
+**Reference:** See Step 3 in Implementation Guide
+
+#### 2. LIFF SDK Not Loading
 
 **Symptom:** `window.liff is undefined`
 
@@ -637,7 +704,7 @@ if (viewState === 'error') {
 - Verify CDN URL is correct
 - Ensure script loading completes before init
 
-#### 2. Authentication Loop
+#### 3. Authentication Loop
 
 **Symptom:** Page keeps redirecting to login
 
@@ -646,7 +713,7 @@ if (viewState === 'error') {
 - Verify redirect URI matches current URL
 - Clear LINE app cache
 
-#### 3. Dev Mode Not Working
+#### 4. Dev Mode Not Working
 
 **Symptom:** Dev mode shows production behavior
 
@@ -655,7 +722,7 @@ if (viewState === 'error') {
 - Check `process.env.NODE_ENV === 'development'`
 - Verify conditional logic
 
-#### 4. Translations Missing
+#### 5. Translations Missing
 
 **Symptom:** Some text not translated
 
@@ -664,7 +731,7 @@ if (viewState === 'error') {
 - Verify translation object has all keys
 - Test both languages
 
-#### 5. Build Fails
+#### 6. Build Fails
 
 **Symptom:** Production build errors
 
@@ -744,6 +811,7 @@ npm run build
 | Date | Changes |
 |------|---------|
 | 2025-12-17 | Initial documentation based on Contact Us implementation |
+| 2025-12-17 | Added page title/metadata troubleshooting and page-specific layout guidance |
 
 ---
 
