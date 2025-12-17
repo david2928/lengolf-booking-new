@@ -1,0 +1,182 @@
+'use client';
+
+import { useEffect, useState, useRef } from 'react';
+import { promotions } from '@/lib/liff/promotions-data';
+import StoryProgress from '@/components/liff/promotions/StoryProgress';
+import PromotionStory from '@/components/liff/promotions/PromotionStory';
+import PromotionsHeader from '@/components/liff/promotions/PromotionsHeader';
+
+type ViewState = 'loading' | 'error' | 'ready';
+
+const STORY_DURATION = 5000; // 5 seconds per story
+
+export default function PromotionsPage() {
+  const [viewState, setViewState] = useState<ViewState>('loading');
+  const [error, setError] = useState('');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number>(0);
+  const elapsedTimeRef = useRef<number>(0);
+
+  // Initialize LIFF
+  useEffect(() => {
+    initializePage();
+  }, []);
+
+  const initializePage = async () => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const devMode = urlParams.get('dev') === 'true';
+
+      if (devMode && process.env.NODE_ENV === 'development') {
+        console.log('[DEV MODE] Promotions page loaded without LIFF');
+        setViewState('ready');
+        return;
+      }
+
+      if (!window.liff) {
+        const script = document.createElement('script');
+        script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+        script.async = true;
+        document.body.appendChild(script);
+
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = reject;
+        });
+      }
+
+      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      if (!liffId || liffId === 'your-liff-id-here') {
+        console.warn('LIFF ID not configured. Page will work without LIFF features.');
+        setViewState('ready');
+        return;
+      }
+
+      await window.liff.init({ liffId }).catch((err) => {
+        console.error('LIFF init error:', err);
+        setViewState('ready');
+        return;
+      });
+
+      setViewState('ready');
+    } catch (err) {
+      console.error('Error initializing page:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initialize page');
+      setViewState('ready'); // Continue anyway
+    }
+  };
+
+  // Auto-advance timer
+  useEffect(() => {
+    if (viewState !== 'ready' || isPaused) return;
+
+    startTimeRef.current = Date.now() - elapsedTimeRef.current;
+
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const progressPercent = (elapsed / STORY_DURATION) * 100;
+
+      setProgress(progressPercent);
+      elapsedTimeRef.current = elapsed;
+
+      if (progressPercent >= 100) {
+        handleNext();
+      }
+    }, 50); // Update every 50ms for smooth animation
+
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, [viewState, isPaused, currentIndex]);
+
+  const handleNext = () => {
+    if (currentIndex < promotions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setProgress(0);
+      elapsedTimeRef.current = 0;
+    } else {
+      // End of stories - close or loop
+      if (typeof window !== 'undefined' && window.liff?.closeWindow) {
+        window.liff.closeWindow();
+      }
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+      setProgress(0);
+      elapsedTimeRef.current = 0;
+    }
+  };
+
+  const handleHoldStart = () => {
+    setIsPaused(true);
+  };
+
+  const handleHoldEnd = () => {
+    setIsPaused(false);
+  };
+
+  // Loading State
+  if (viewState === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+          <p className="text-white">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error State (still show content)
+  if (viewState === 'error' && error) {
+    console.error('Page error:', error);
+  }
+
+  // Main Stories View
+  return (
+    <div className="fixed inset-0 bg-black overflow-hidden w-screen h-screen">
+      {/* Story Progress Bars */}
+      <div className="absolute top-0 left-0 right-0 z-20 pt-3 safe-top">
+        <StoryProgress total={promotions.length} current={currentIndex} progress={progress} />
+      </div>
+
+      {/* Header with Close Button */}
+      <PromotionsHeader onClose={() => {
+        if (typeof window !== 'undefined' && window.liff?.closeWindow) {
+          window.liff.closeWindow();
+        }
+      }} />
+
+      {/* Current Story */}
+      <div className="w-full h-full">
+        <PromotionStory
+          promotion={promotions[currentIndex]}
+          onTapLeft={handlePrev}
+          onTapRight={handleNext}
+          onHoldStart={handleHoldStart}
+          onHoldEnd={handleHoldEnd}
+        />
+      </div>
+
+      {/* Pause Indicator */}
+      {isPaused && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30">
+          <div className="bg-black/60 backdrop-blur-sm rounded-full p-4">
+            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+            </svg>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

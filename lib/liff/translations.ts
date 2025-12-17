@@ -87,3 +87,53 @@ export const translations: Record<Language, ContactTranslations> = {
     visitWebsite: 'เยี่ยมชมเว็บไซต์',
   },
 };
+
+// Promotions Page Translations
+export interface PromotionTranslations {
+  title: string;
+  tapToAdvance: string;
+  holdToPause: string;
+  expiresIn: string;
+  days: string;
+  hours: string;
+  minutes: string;
+  bookNow: string;
+  sharePromotion: string;
+  contactUs: string;
+  learnMore: string;
+  of: string;
+  loading: string;
+}
+
+export const promotionTranslations: Record<Language, PromotionTranslations> = {
+  en: {
+    title: 'Promotions',
+    tapToAdvance: 'Tap to advance',
+    holdToPause: 'Hold to pause',
+    expiresIn: 'Expires in',
+    days: 'days',
+    hours: 'hours',
+    minutes: 'minutes',
+    bookNow: 'Book Now',
+    sharePromotion: 'Share',
+    contactUs: 'Contact Us',
+    learnMore: 'Learn More',
+    of: 'of',
+    loading: 'Loading...',
+  },
+  th: {
+    title: 'โปรโมชั่น',
+    tapToAdvance: 'แตะเพื่อดูต่อ',
+    holdToPause: 'กดค้างเพื่อหยุดชั่วคราว',
+    expiresIn: 'หมดเขตใน',
+    days: 'วัน',
+    hours: 'ชั่วโมง',
+    minutes: 'นาที',
+    bookNow: 'จองเลย',
+    sharePromotion: 'แชร์',
+    contactUs: 'ติดต่อเรา',
+    learnMore: 'เรียนรู้เพิ่มเติม',
+    of: 'จาก',
+    loading: 'กำลังโหลด...',
+  },
+};

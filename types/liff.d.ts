@@ -28,6 +28,7 @@ export interface LiffMethods {
   isApiAvailable: (apiName: string) => boolean;
   shareTargetPicker: (messages: unknown[]) => Promise<void>;
   closeWindow?: () => void;
+  openWindow?: (config: { url: string; external: boolean }) => void;
   getOS?: () => string;
   getLanguage?: () => string;
   getVersion?: () => string;

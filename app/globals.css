@@ -209,3 +209,12 @@ body {
     max-height: calc(100vh - 2rem) !important;
   }
 }
+
+/* Safe area support for mobile notches */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pb-safe {
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
