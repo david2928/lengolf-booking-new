@@ -7,10 +7,6 @@ interface GoogleMapsEmbedProps {
 export default function GoogleMapsEmbed({ language }: GoogleMapsEmbedProps) {
   const t = translations[language];
 
-  // LENGOLF location coordinates
-  const lat = 13.7433367;
-  const lng = 100.5439952;
-
   // Use the official LENGOLF Google Maps link for directions
   const directionsUrl = 'https://maps.app.goo.gl/QhcvtyaQUej1a4vL8';
 
