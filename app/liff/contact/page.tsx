@@ -13,7 +13,7 @@ type ViewState = 'loading' | 'error' | 'ready';
 
 export default function ContactPage() {
   const [viewState, setViewState] = useState<ViewState>('loading');
-  const [language, setLanguage] = useState<Language>('th');
+  const [language, setLanguage] = useState<Language>('en');
   const [error, setError] = useState('');
 
   useEffect(() => {
