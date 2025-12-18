@@ -43,7 +43,7 @@ export const promotions: Promotion[] = [
       en: 'Buy 2 Hours Get 2 Hours Free! Limited time offer for the holiday season.',
       th: 'ซื้อ 2 ชั่วโมง แถม 2 ชั่วโมง! ข้อเสนอพิเศษในช่วงวันหยุด'
     },
-    validUntil: new Date('2026-01-15'),  // Shows countdown timer
+    validUntil: new Date('2025-12-31T23:59:59'),  // Shows countdown timer - ends December 31
     ctaType: 'book',
     badge: {
       en: 'LIMITED TIME',
