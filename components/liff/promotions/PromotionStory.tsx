@@ -23,7 +23,7 @@ export default function PromotionStory({
 }: PromotionStoryProps) {
   const [isTouchDevice, setIsTouchDevice] = React.useState(false);
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchStart = () => {
     setIsTouchDevice(true);
     onHoldStart();
   };
@@ -47,7 +47,7 @@ export default function PromotionStory({
     // Center zone just pauses/resumes (handled by touch start/end)
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseDown = () => {
     if (isTouchDevice) return; // Skip if touch event already fired
     onHoldStart();
   };
