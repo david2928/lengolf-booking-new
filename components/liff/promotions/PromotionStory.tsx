@@ -71,61 +71,60 @@ export default function PromotionStory({
 
   return (
     <div
-      className="relative w-full h-full"
+      className="relative w-full h-full flex flex-col"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
     >
-      {/* Background - Solid color for letterboxing */}
-      <div className="absolute inset-0 bg-black" />
+      {/* Image Section - Top 60% */}
+      <div className="relative w-full h-[60%] bg-black">
+        {/* Badge at top (if present) */}
+        {promotion.badge && (
+          <div className="absolute top-16 left-5 z-10">
+            <span className="inline-block px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-full shadow-lg">
+              {promotion.badge.en}
+            </span>
+          </div>
+        )}
 
-      {/* Centered Image */}
-      <div className="absolute inset-0 w-full h-full flex items-center justify-center">
-        <div className="relative w-full h-full max-w-[100vh] mx-auto">
-          <Image
-            src={promotion.image}
-            alt={promotion.title.en}
-            fill
-            className="object-contain"
-            sizes="100vw"
-            priority
-            quality={100}
-          />
+        {/* Centered Image */}
+        <div className="relative w-full h-full flex items-center justify-center">
+          <div className="relative w-full h-full max-w-[100vh] mx-auto">
+            <Image
+              src={promotion.image}
+              alt={promotion.title.en}
+              fill
+              className="object-contain"
+              sizes="100vw"
+              priority
+              quality={100}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Gradient Overlay for Text Readability - stronger gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent pointer-events-none" />
-
-      {/* Badge at top (if present) */}
-      {promotion.badge && (
-        <div className="absolute top-16 left-5 z-10">
-          <span className="inline-block px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-full shadow-lg">
-            {promotion.badge.en}
-          </span>
-        </div>
-      )}
-
-      {/* Content Container - more bottom padding */}
-      <div className="relative h-full flex flex-col justify-end px-5 pt-5 pb-safe">
+      {/* Content Section - Bottom 40% with solid background */}
+      <div className="relative w-full h-[40%] bg-black flex flex-col justify-start px-5 pt-6 pb-safe">
         {/* Title */}
-        <h2 className="text-3xl font-black text-white mb-3 drop-shadow-2xl leading-tight">
+        <h2 className="text-2xl font-black text-white mb-3 leading-tight">
           {promotion.title.en}
         </h2>
 
         {/* Description */}
-        <p className="text-base text-white/95 mb-4 drop-shadow-lg leading-relaxed max-w-lg">
+        <p className="text-sm text-white/90 mb-4 leading-relaxed">
           {promotion.description.en}
         </p>
 
         {/* Countdown Timer */}
-        <div className="mb-5">
+        <div className="mb-4">
           <CountdownTimer validUntil={promotion.validUntil} />
         </div>
 
         {/* Action Buttons */}
-        <StoryActions promotion={promotion} />
+        <div className="mt-auto">
+          <StoryActions promotion={promotion} />
+        </div>
       </div>
 
       {/* Invisible tap zones for debugging (remove in production) */}

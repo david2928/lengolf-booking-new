@@ -81,13 +81,9 @@ export default function PromotionsPage() {
     setCurrentIndex((prev) => {
       if (prev < promotions.length - 1) {
         return prev + 1;
-      } else {
-        // On last story, close
-        if (typeof window !== 'undefined' && window.liff?.closeWindow) {
-          window.liff.closeWindow();
-        }
-        return prev;
       }
+      // Stay on last promotion, don't close
+      return prev;
     });
   }, []);
 
