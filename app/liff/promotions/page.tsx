@@ -196,17 +196,6 @@ export default function PromotionsPage() {
           onHoldEnd={handleHoldEnd}
         />
       </div>
-
-      {/* Pause Indicator */}
-      {isPaused && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30">
-          <div className="bg-black/60 backdrop-blur-sm rounded-full p-4">
-            <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-            </svg>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

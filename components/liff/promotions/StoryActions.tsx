@@ -50,9 +50,24 @@ export default function StoryActions({ promotion }: StoryActionsProps) {
     }
   };
 
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    handleAction();
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+  };
+
   return (
     <button
-      onClick={handleAction}
+      onClick={handleClick}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       className="w-full bg-primary text-primary-foreground px-6 py-3.5 rounded-xl font-bold text-base hover:opacity-90 active:opacity-80 transition-opacity shadow-lg"
     >
       {getButtonText()}
