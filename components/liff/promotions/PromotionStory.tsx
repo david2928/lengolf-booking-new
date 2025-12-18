@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Image from 'next/image';
 import { Promotion } from '@/lib/liff/promotions-data';
 import CountdownTimer from './CountdownTimer';
@@ -20,11 +21,15 @@ export default function PromotionStory({
   onHoldStart,
   onHoldEnd,
 }: PromotionStoryProps) {
-  const handleTouchStart = () => {
+  const [isTouchDevice, setIsTouchDevice] = React.useState(false);
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    setIsTouchDevice(true);
     onHoldStart();
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault(); // Prevent mouse events from firing
     onHoldEnd();
 
     const touch = e.changedTouches[0];
@@ -42,7 +47,13 @@ export default function PromotionStory({
     // Center zone just pauses/resumes (handled by touch start/end)
   };
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isTouchDevice) return; // Skip if touch event already fired
+    onHoldStart();
+  };
+
   const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isTouchDevice) return; // Skip if touch event already fired
     onHoldEnd();
 
     const target = e.currentTarget;
@@ -63,7 +74,7 @@ export default function PromotionStory({
       className="relative w-full h-full"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      onMouseDown={handleTouchStart}
+      onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
     >
       {/* Background - Solid color for letterboxing */}

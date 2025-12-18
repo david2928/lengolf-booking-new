@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { promotions } from '@/lib/liff/promotions-data';
 import StoryProgress from '@/components/liff/promotions/StoryProgress';
 import PromotionStory from '@/components/liff/promotions/PromotionStory';
@@ -70,51 +70,93 @@ export default function PromotionsPage() {
     }
   };
 
-  // Auto-advance timer
-  useEffect(() => {
-    if (viewState !== 'ready' || isPaused) return;
+  const handleNext = useCallback(() => {
+    // Clear interval FIRST to prevent race condition
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
 
+    // Manual navigation forward
+    setCurrentIndex((prev) => {
+      if (prev < promotions.length - 1) {
+        return prev + 1;
+      } else {
+        // On last story, close
+        if (typeof window !== 'undefined' && window.liff?.closeWindow) {
+          window.liff.closeWindow();
+        }
+        return prev;
+      }
+    });
+  }, []);
+
+  const handlePrev = useCallback(() => {
+    // Clear interval FIRST to prevent race condition
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+
+    // Manual navigation backward
+    setCurrentIndex((prev) => {
+      if (prev > 0) {
+        return prev - 1;
+      }
+      return prev;
+    });
+  }, []);
+
+  // Auto-advance timer - resets whenever story changes
+  useEffect(() => {
+    if (viewState !== 'ready') return;
+
+    // Reset progress and time when story changes
+    setProgress(0);
+    elapsedTimeRef.current = 0;
+    startTimeRef.current = Date.now();
+
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, [currentIndex, viewState]);
+
+  // Timer interval - separate effect for pause/resume
+  useEffect(() => {
+    if (viewState !== 'ready' || isPaused) {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Start/resume timer
     startTimeRef.current = Date.now() - elapsedTimeRef.current;
 
     progressIntervalRef.current = setInterval(() => {
       const elapsed = Date.now() - startTimeRef.current;
       const progressPercent = (elapsed / STORY_DURATION) * 100;
 
-      setProgress(progressPercent);
-      elapsedTimeRef.current = elapsed;
-
       if (progressPercent >= 100) {
+        // Time's up - advance to next
         handleNext();
+      } else {
+        setProgress(progressPercent);
+        elapsedTimeRef.current = elapsed;
       }
-    }, 50); // Update every 50ms for smooth animation
+    }, 50);
 
     return () => {
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
       }
     };
-  }, [viewState, isPaused, currentIndex]);
-
-  const handleNext = () => {
-    if (currentIndex < promotions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setProgress(0);
-      elapsedTimeRef.current = 0;
-    } else {
-      // End of stories - close or loop
-      if (typeof window !== 'undefined' && window.liff?.closeWindow) {
-        window.liff.closeWindow();
-      }
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setProgress(0);
-      elapsedTimeRef.current = 0;
-    }
-  };
+  }, [viewState, isPaused, currentIndex, handleNext]);
 
   const handleHoldStart = () => {
     setIsPaused(true);
