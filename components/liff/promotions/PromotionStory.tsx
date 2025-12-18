@@ -95,20 +95,20 @@ export default function PromotionStory({
         </div>
       </div>
 
-      {/* Gradient Overlay for Text Readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
+      {/* Gradient Overlay for Text Readability - stronger gradient */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent pointer-events-none" />
 
       {/* Badge at top (if present) */}
       {promotion.badge && (
-        <div className="absolute top-20 left-5 z-10">
+        <div className="absolute top-16 left-5 z-10">
           <span className="inline-block px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-full shadow-lg">
             {promotion.badge.en}
           </span>
         </div>
       )}
 
-      {/* Content Container */}
-      <div className="relative h-full flex flex-col justify-end p-5 pb-safe">
+      {/* Content Container - more bottom padding */}
+      <div className="relative h-full flex flex-col justify-end px-5 pt-5 pb-safe">
         {/* Title */}
         <h2 className="text-3xl font-black text-white mb-3 drop-shadow-2xl leading-tight">
           {promotion.title.en}
