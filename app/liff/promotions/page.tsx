@@ -4,7 +4,6 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { promotions } from '@/lib/liff/promotions-data';
 import StoryProgress from '@/components/liff/promotions/StoryProgress';
 import PromotionStory from '@/components/liff/promotions/PromotionStory';
-import PromotionsHeader from '@/components/liff/promotions/PromotionsHeader';
 
 type ViewState = 'loading' | 'error' | 'ready';
 
@@ -186,13 +185,6 @@ export default function PromotionsPage() {
       <div className="absolute top-0 left-0 right-0 z-20 pt-3 safe-top">
         <StoryProgress total={promotions.length} current={currentIndex} progress={progress} />
       </div>
-
-      {/* Header with Close Button */}
-      <PromotionsHeader onClose={() => {
-        if (typeof window !== 'undefined' && window.liff?.closeWindow) {
-          window.liff.closeWindow();
-        }
-      }} />
 
       {/* Current Story */}
       <div className="w-full h-full">

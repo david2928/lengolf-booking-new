@@ -79,15 +79,6 @@ export default function PromotionStory({
     >
       {/* Image Section - Top 60% */}
       <div className="relative w-full h-[60%] bg-black">
-        {/* Badge at top (if present) */}
-        {promotion.badge && (
-          <div className="absolute top-16 left-5 z-10">
-            <span className="inline-block px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-full shadow-lg">
-              {promotion.badge.en}
-            </span>
-          </div>
-        )}
-
         {/* Centered Image */}
         <div className="relative w-full h-full flex items-center justify-center">
           <div className="relative w-full h-full max-w-[100vh] mx-auto">
@@ -106,6 +97,15 @@ export default function PromotionStory({
 
       {/* Content Section - Bottom 40% with solid background */}
       <div className="relative w-full h-[40%] bg-black flex flex-col justify-start px-5 pt-6 pb-safe">
+        {/* Badge (if present) */}
+        {promotion.badge && (
+          <div className="mb-3">
+            <span className="inline-block px-3 py-1.5 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-full shadow-lg">
+              {promotion.badge.en}
+            </span>
+          </div>
+        )}
+
         {/* Title */}
         <h2 className="text-2xl font-black text-white mb-3 leading-tight">
           {promotion.title.en}
