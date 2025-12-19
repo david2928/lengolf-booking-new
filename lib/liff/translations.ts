@@ -137,3 +137,77 @@ export const promotionTranslations: Record<Language, PromotionTranslations> = {
     loading: 'กำลังโหลด...',
   },
 };
+
+// Bay Rates Page Translations
+export interface BayRatesTranslations {
+  title: string;
+  time: string;
+  weekday: string;
+  weekend: string;
+  perHour: string;
+  promo: string;
+  operatingHours: string;
+  amenities: string;
+  bookNow: string;
+  currentRate: string;
+  currentlyOpen: string;
+  currentlyClosed: string;
+  free: string;
+  available: string;
+  forPurchase: string;
+  quickLinks: string;
+  premiumClub: string;
+  foodMenu: string;
+  drinkMenu: string;
+  viewPromotions: string;
+  contactUs: string;
+}
+
+export const bayRatesTranslations: Record<Language, BayRatesTranslations> = {
+  en: {
+    title: 'Bay Rates',
+    time: 'Time',
+    weekday: 'Weekday',
+    weekend: 'Weekend',
+    perHour: '/hour',
+    promo: 'PROMO',
+    operatingHours: 'Operating Hours',
+    amenities: 'Amenities',
+    bookNow: 'Book Now',
+    currentRate: 'Current Rate',
+    currentlyOpen: 'Currently Open',
+    currentlyClosed: 'Currently Closed',
+    free: 'Free',
+    available: 'Available',
+    forPurchase: 'For Purchase',
+    quickLinks: 'More Options',
+    premiumClub: 'Premium Club Rental',
+    foodMenu: 'Food Menu',
+    drinkMenu: 'Drink Menu',
+    viewPromotions: 'Promotions',
+    contactUs: 'Contact Us',
+  },
+  th: {
+    title: 'ราคาเบย์',
+    time: 'เวลา',
+    weekday: 'วันธรรมดา',
+    weekend: 'วันหยุด',
+    perHour: '/ชม.',
+    promo: 'โปรโมชั่น',
+    operatingHours: 'เวลาเปิด-ปิด',
+    amenities: 'สิ่งอำนวยความสะดวก',
+    bookNow: 'จองเลย',
+    currentRate: 'ราคาปัจจุบัน',
+    currentlyOpen: 'เปิดอยู่',
+    currentlyClosed: 'ปิดแล้ว',
+    free: 'ฟรี',
+    available: 'มีบริการ',
+    forPurchase: 'มีจำหน่าย',
+    quickLinks: 'ตัวเลือกเพิ่มเติม',
+    premiumClub: 'เช่าไม้พรีเมียม',
+    foodMenu: 'เมนูอาหาร',
+    drinkMenu: 'เมนูเครื่องดื่ม',
+    viewPromotions: 'โปรโมชั่น',
+    contactUs: 'ติดต่อเรา',
+  },
+};
