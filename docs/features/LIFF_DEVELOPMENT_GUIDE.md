@@ -40,6 +40,7 @@ LIFF pages are web applications that run inside the LINE app, providing a native
 
 1. **Lucky Draw** (`/liff/lucky-draw`) - VIP customer spin wheel with prize redemption
 2. **Contact Us** (`/liff/contact`) - Business contact information with bilingual support
+3. **Promotions** (`/liff/promotions`) - Instagram Stories-style promotion showcase with countdown timers
 
 ---
 
@@ -628,6 +629,8 @@ if (viewState === 'error') {
 
 ### Click-to-Action Links
 
+**IMPORTANT:** Use simple `<a>` tags with `href` attributes for navigation in LIFF, NOT `liff.openWindow()`. This is more reliable and works consistently across different LINE app versions.
+
 ```typescript
 // Phone
 <a href="tel:+66966682335">Call Now</a>
@@ -638,15 +641,31 @@ if (viewState === 'error') {
 // Maps
 <a href="https://maps.app.goo.gl/[shortlink]">Get Directions</a>
 
-// External URL (opens in browser)
+// Internal navigation (same app)
+<a href="/bookings">Book Now</a>
+
+// External URL
+<a href="https://lin.ee/uxQpIXn">Contact Us</a>
+
+// With styling to look like a button
 <a
-  href="https://example.com"
-  target="_blank"
-  rel="noopener noreferrer"
+  href="/bookings"
+  className="block w-full bg-primary text-primary-foreground px-6 py-3.5 rounded-xl font-bold text-base text-center hover:opacity-90 active:opacity-80 transition-opacity shadow-lg"
 >
-  Visit Website
+  Book Now
 </a>
 ```
+
+**Why not `liff.openWindow()`?**
+- Simple links work more reliably in LIFF
+- No need for complex initialization checks
+- Better compatibility across LINE versions
+- Works in both LIFF and regular browsers
+
+**When to use `liff.openWindow()`:**
+- Only if you specifically need LIFF SDK features
+- For sharing content via LINE
+- For closing the LIFF window programmatically
 
 ### Interactive Elements
 
@@ -667,6 +686,123 @@ if (viewState === 'error') {
   </div>
 </div>
 ```
+
+### Instagram Stories-Style UI Pattern
+
+For swipeable/tappable full-screen content (like the Promotions page):
+
+**Key Components:**
+1. Progress bars at top showing current position
+2. Tap zones for navigation (left = previous, right = next)
+3. Auto-advance timer with pause on hold
+4. Full-screen layout with image and content sections
+
+**Critical: Touch vs Mouse Event Handling**
+
+Mobile devices fire BOTH touch and mouse events, which can cause double-triggering. Always handle this correctly:
+
+```typescript
+const [isTouchDevice, setIsTouchDevice] = React.useState(false);
+
+const handleTouchStart = () => {
+  setIsTouchDevice(true);
+  onPauseStart();
+};
+
+const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+  e.preventDefault(); // Prevent mouse events from firing
+  onPauseEnd();
+  // Navigation logic here
+};
+
+const handleMouseDown = () => {
+  if (isTouchDevice) return; // Skip if touch already handled
+  onPauseStart();
+};
+
+const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+  if (isTouchDevice) return; // Skip if touch already handled
+  // Navigation logic here
+};
+```
+
+**Event Propagation with Interactive Elements**
+
+Use `stopPropagation()` on buttons/links inside tap zones to prevent parent handlers from firing:
+
+```typescript
+const handleTouchStart = (e: React.TouchEvent<HTMLAnchorElement>) => {
+  e.stopPropagation();
+};
+
+const handleTouchEnd = (e: React.TouchEvent<HTMLAnchorElement>) => {
+  e.stopPropagation();
+};
+
+<a
+  href="/bookings"
+  onTouchStart={handleTouchStart}
+  onTouchEnd={handleTouchEnd}
+  className="..."
+>
+  Book Now
+</a>
+```
+
+**Timer Management**
+
+Clear intervals before navigation to prevent race conditions:
+
+```typescript
+const handleNext = useCallback(() => {
+  // Clear interval FIRST to prevent race condition
+  if (progressIntervalRef.current) {
+    clearInterval(progressIntervalRef.current);
+    progressIntervalRef.current = null;
+  }
+
+  // Then update state
+  setCurrentIndex((prev) => {
+    if (prev < items.length - 1) {
+      return prev + 1;
+    }
+    // Stay on last item, don't auto-close
+    return prev;
+  });
+}, []);
+```
+
+**Layout Pattern for Image-Heavy Content**
+
+Split layout works best - no gradient overlays:
+
+```typescript
+<div className="relative w-full h-full flex flex-col">
+  {/* Image Section - Top 60% */}
+  <div className="relative w-full h-[60%] bg-black">
+    <Image
+      src={imageUrl}
+      alt={title}
+      fill
+      className="object-contain"
+      priority
+    />
+  </div>
+
+  {/* Content Section - Bottom 40% */}
+  <div className="relative w-full h-[40%] bg-black flex flex-col px-5 pt-6 pb-safe">
+    <h2 className="text-2xl font-black text-white mb-3">
+      {title}
+    </h2>
+    <p className="text-sm text-white/90 mb-4">
+      {description}
+    </p>
+    {/* Buttons, etc. */}
+  </div>
+</div>
+```
+
+**Reference Implementation:** See `app/liff/promotions/` for complete example
 
 ---
 
@@ -747,6 +883,42 @@ npm run typecheck
 npm run build
 ```
 
+#### 7. Button Clicks Not Working in LIFF
+
+**Symptom:** Buttons work in browser but do nothing when clicked in LINE app
+
+**Cause:** Using `liff.openWindow()` or complex onClick handlers that don't work reliably in LIFF context
+
+**Solution:**
+1. Replace `<button onClick={...}>` with `<a href="...">`
+2. Use simple `href` navigation instead of LIFF SDK methods
+3. If inside tap zones or other event handlers, add `stopPropagation()` to link events:
+   ```typescript
+   <a
+     href="/bookings"
+     onTouchStart={(e) => e.stopPropagation()}
+     onTouchEnd={(e) => e.stopPropagation()}
+   >
+     Book Now
+   </a>
+   ```
+
+**Reference:** See Contact Us page (`components/liff/contact/ContactCard.tsx`) for working example
+
+#### 8. Double-Tap/Double-Click Issues
+
+**Symptom:** Tapping once causes two actions (skips items, triggers twice)
+
+**Cause:** Mobile browsers fire both touch AND mouse events for the same interaction
+
+**Solution:**
+1. Add touch device detection state
+2. Use `preventDefault()` in touch handlers
+3. Skip mouse handlers if touch was detected
+4. See "Instagram Stories-Style UI Pattern" section for complete pattern
+
+**Reference:** See Promotions page (`components/liff/promotions/PromotionStory.tsx`)
+
 ---
 
 ## Resources
@@ -761,8 +933,10 @@ npm run build
 
 - Lucky Draw LIFF: `app/liff/lucky-draw/page.tsx`
 - Contact Us LIFF: `app/liff/contact/page.tsx`
+- Promotions LIFF: `app/liff/promotions/page.tsx` (Instagram Stories pattern)
 - LIFF Types: `types/liff.d.ts`
 - Brand Colors: `app/globals.css` (`:root` variables)
+- Promotions Data: `lib/liff/promotions-data.ts`
 
 ### Tools
 
@@ -812,8 +986,9 @@ npm run build
 |------|---------|
 | 2025-12-17 | Initial documentation based on Contact Us implementation |
 | 2025-12-17 | Added page title/metadata troubleshooting and page-specific layout guidance |
+| 2025-12-19 | Added Promotions LIFF page learnings: Instagram Stories UI pattern, touch/mouse event handling, navigation best practices (use anchor tags not liff.openWindow), timer management, split layout for image-heavy content |
 
 ---
 
 **Maintainer:** Development Team
-**Last Review:** December 17, 2025
+**Last Review:** December 19, 2025
