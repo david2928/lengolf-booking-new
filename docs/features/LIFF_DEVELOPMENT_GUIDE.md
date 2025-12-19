@@ -41,6 +41,7 @@ LIFF pages are web applications that run inside the LINE app, providing a native
 1. **Lucky Draw** (`/liff/lucky-draw`) - VIP customer spin wheel with prize redemption
 2. **Contact Us** (`/liff/contact`) - Business contact information with bilingual support
 3. **Promotions** (`/liff/promotions`) - Instagram Stories-style promotion showcase with countdown timers
+4. **Bay Rates** (`/liff/bay-rates`) - Interactive pricing table with current rate display and quick links to menus
 
 ---
 
@@ -806,6 +807,123 @@ Split layout works best - no gradient overlays:
 
 ---
 
+### Data-Driven LIFF Pages Pattern
+
+For pages with structured data like pricing, schedules, or menus, use separate data files with helper functions.
+
+**Example: Bay Rates Implementation**
+
+**Data File Structure** (`lib/liff/bay-rates-data.ts`):
+```typescript
+// Type definitions
+export interface TimeSlot {
+  id: string;
+  startHour: number;
+  endHour: number;
+  label: { en: string; th: string };
+  isPromo?: boolean;
+}
+
+export interface Rate {
+  timeSlotId: string;
+  weekdayPrice: number;
+  weekendPrice: number;
+  originalWeekdayPrice?: number;  // For strikethrough display
+  originalWeekendPrice?: number;
+}
+
+// Data arrays
+export const timeSlots: TimeSlot[] = [...];
+export const rates: Rate[] = [...];
+
+// Helper functions
+export function getCurrentTimeSlot(): { slot: TimeSlot | null; isWeekend: boolean } {
+  const now = new Date();
+  const bangkokTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+  const currentHour = bangkokTime.getHours();
+  // Logic to find current slot...
+  return { slot, isWeekend };
+}
+```
+
+**Benefits:**
+- **Maintainability**: Update data in one place
+- **Type Safety**: TypeScript interfaces ensure data consistency
+- **Reusability**: Helper functions shared across components
+- **Testability**: Functions can be unit tested independently
+
+**Real-time Updates Pattern:**
+```typescript
+const [currentSlotId, setCurrentSlotId] = useState<string | null>(null);
+
+useEffect(() => {
+  const updateCurrentSlot = () => {
+    const { slot } = getCurrentTimeSlot();
+    setCurrentSlotId(slot?.id || null);
+  };
+
+  updateCurrentSlot();
+  const interval = setInterval(updateCurrentSlot, 60000); // Update every minute
+
+  return () => clearInterval(interval);
+}, []);
+```
+
+**Modal Image Viewer Pattern:**
+
+For displaying menu images or detailed graphics:
+
+```typescript
+const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+// Button to open modal
+<button onClick={() => setSelectedImage('/images/menu.jpg')}>
+  View Menu
+</button>
+
+// Modal overlay
+{selectedImage && (
+  <div
+    className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+    onClick={() => setSelectedImage(null)}
+  >
+    <div className="relative max-w-4xl max-h-[90vh] w-full h-full">
+      <Image src={selectedImage} alt="Menu" fill className="object-contain" />
+      <button onClick={() => setSelectedImage(null)} className="absolute top-4 right-4 ...">
+        Close
+      </button>
+    </div>
+  </div>
+)}
+```
+
+**Quick Links Grid Pattern:**
+
+For navigation to related pages/features:
+
+```typescript
+<div className="grid grid-cols-3 gap-2">
+  {links.map(link => (
+    <a href={link.url} className="flex flex-col items-center gap-2 p-3 rounded-lg ...">
+      <div className="w-10 h-10 bg-blue-500 rounded-full ...">
+        {link.icon}
+      </div>
+      <span className="text-xs font-medium">{link.label}</span>
+    </a>
+  ))}
+</div>
+```
+
+**Operating Hours Simplification:**
+
+When operating hours are the same every day, show simplified format:
+- Before: "Weekday (Mon-Thu): 10:00-23:00, Weekend (Fri-Sun): 10:00-23:00"
+- After: "Mon-Sun: 10:00-23:00"
+
+**Reference Implementation:** See `app/liff/bay-rates/` for complete example
+
+---
+
 ## Troubleshooting
 
 ### Common Issues
@@ -987,6 +1105,7 @@ npm run build
 | 2025-12-17 | Initial documentation based on Contact Us implementation |
 | 2025-12-17 | Added page title/metadata troubleshooting and page-specific layout guidance |
 | 2025-12-19 | Added Promotions LIFF page learnings: Instagram Stories UI pattern, touch/mouse event handling, navigation best practices (use anchor tags not liff.openWindow), timer management, split layout for image-heavy content |
+| 2025-12-19 | Added Bay Rates LIFF page: Data-driven pricing tables, real-time highlighting, modal image viewers, quick links pattern, operating hours simplification (Mon-Sun) |
 
 ---
 
