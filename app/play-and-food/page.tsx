@@ -117,11 +117,11 @@ export default function PlayAndFoodPage() {
                     <div className="space-y-1 text-sm text-gray-600">
                       <div>• Golf simulator usage ({pkg.duration} hour{pkg.duration > 1 ? 's' : ''})</div>
                       {pkg.foodItems.map((food, index) => (
-                        <div key={index}>• {food.name}</div>
+                        <div key={index}>• {food.quantity} Serving{food.quantity > 1 ? 's' : ''} of {food.name}</div>
                       ))}
                       {pkg.drinks.map((drink, index) => (
                         <div key={index}>
-                          • {drink.type === 'unlimited' ? 'Unlimited' : drink.type === 'per_person' ? `${drink.quantity}x ${drink.name} per person` : `${drink.quantity}x ${drink.name}`}
+                          • {drink.type === 'unlimited' ? `Unlimited ${drink.name}` : drink.type === 'per_person' ? `${drink.quantity}x ${drink.name} per person` : `${drink.quantity}x ${drink.name}`}
                         </div>
                       ))}
                     </div>
