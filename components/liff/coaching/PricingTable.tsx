@@ -18,41 +18,43 @@ export default function PricingTable({ language }: PricingTableProps) {
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                  {t.lessonPackages}
+                <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase whitespace-nowrap">
+                  {language === 'en' ? 'Hours' : 'ชั่วโมง'}
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
-                  1 {t.golfer}
+                <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase">
+                  1G
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
-                  2 {t.golfers}
+                <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase">
+                  2G
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
-                  {t.golfers3to5}
+                <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase">
+                  3-5G
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {lessonPackages.map((pkg) => (
                 <tr key={pkg.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{pkg.label[language]}</div>
+                  <td className="px-2 sm:px-4 py-2">
+                    <div className="font-semibold text-gray-900 whitespace-nowrap">
+                      {pkg.hours} {language === 'en' ? 'hr' : 'ชม.'}
+                    </div>
                     {pkg.validity && (
-                      <div className="text-xs text-gray-500">
-                        {t.validity}: {pkg.validity[language]}
+                      <div className="text-[10px] text-gray-500 mt-0.5">
+                        {pkg.validity[language]}
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-center text-gray-900">
+                  <td className="px-2 sm:px-3 py-2 text-center text-gray-900 whitespace-nowrap text-xs sm:text-sm">
                     {formatPrice(pkg.prices.golfers1)}
                   </td>
-                  <td className="px-4 py-3 text-center text-gray-900">
+                  <td className="px-2 sm:px-3 py-2 text-center text-gray-900 whitespace-nowrap text-xs sm:text-sm">
                     {formatPrice(pkg.prices.golfers2)}
                   </td>
-                  <td className="px-4 py-3 text-center text-gray-900">
+                  <td className="px-2 sm:px-3 py-2 text-center text-gray-900 whitespace-nowrap text-xs sm:text-sm">
                     {formatPrice(pkg.prices.golfers3to5)}
                   </td>
                 </tr>
