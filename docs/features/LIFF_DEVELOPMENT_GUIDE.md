@@ -992,10 +992,100 @@ Remember to add padding to page content to prevent overlap: `pb-24`
 
 **Pricing Table Best Practices:**
 
-- Use responsive tables with horizontal scroll on mobile
-- Highlight popular/recommended packages
-- Show validity periods clearly
-- Include "What's Included" section for transparency
+Mobile-first table optimization is critical:
+- Use abbreviated headers to save space (1G, 2G, 3-5G instead of "1 Golfer", "2 Golfers")
+- Reduce padding on mobile: `px-2 sm:px-4` (2px mobile → 4px desktop)
+- Smaller font sizes: `text-xs sm:text-sm` for responsive sizing
+- Compact validity text: use `text-[10px]` for secondary info
+- Add `whitespace-nowrap` to prevent text wrapping
+- First column should be concise (e.g., "Hours" not "Lesson Packages")
+- Include "What's Included" section for transparency below table
+
+**Full-Screen Image Modal:**
+
+For viewing coach photos or promotional images:
+```typescript
+const [showFullImage, setShowFullImage] = useState(false);
+
+// Trigger
+<div onClick={() => setShowFullImage(true)} className="cursor-pointer">
+  <Image src={imageUrl} />
+</div>
+
+// Modal
+{showFullImage && (
+  <div className="fixed inset-0 z-[100] bg-black/95" onClick={() => setShowFullImage(false)}>
+    <button className="absolute top-4 right-4">X</button>
+    <div className="relative w-full h-full max-w-4xl max-h-[90vh]">
+      <Image src={imageUrl} fill className="object-contain" />
+    </div>
+  </div>
+)}
+```
+
+**Booking Time Buffers:**
+
+Implement advance booking requirements:
+```typescript
+const now = new Date();
+const bangkokTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+const currentHour = bangkokTime.getHours();
+const minHour = currentHour + 5; // 5 hour buffer
+
+// Filter today's slots
+if (day.date === today) {
+  const filteredSlots = day.slots.filter((slot) => {
+    const slotHour = parseInt(slot.split(':')[0]);
+    return slotHour >= minHour; // Only show slots 5+ hours away
+  });
+}
+```
+
+This prevents last-minute bookings and gives staff preparation time.
+
+**Smart Data Filtering:**
+
+Only show meaningful data:
+- Filter out days with no available slots: `.filter((day) => day.slots.length > 0)`
+- Remove empty states from lists to reduce clutter
+- Show "No availability" message only when truly no data exists
+
+**Date Format Consistency:**
+
+Use DD/MM format for international audiences:
+```typescript
+const day = String(date.getDate()).padStart(2, '0');
+const month = String(date.getMonth() + 1).padStart(2, '0');
+return `${dayName} ${day}/${month}`; // e.g., "Mon 20/12"
+```
+
+**Data Matching Between Sources:**
+
+When combining static and dynamic data:
+- Use `displayName` or consistent identifiers for matching
+- Static data (profiles, bios) + Dynamic data (availability, bookings)
+- Match by stable fields, not database UUIDs that may differ
+```typescript
+const match = availability.find(a =>
+  a.displayName === coach.displayName || a.name === coach.displayName
+);
+```
+
+**LINE Booking Integration:**
+
+For services requiring LINE contact:
+```typescript
+<a
+  href="https://lin.ee/uxQpIXn"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="flex items-center gap-2"
+>
+  <LineIcon />
+  {t.bookViaLine}
+</a>
+```
+Use external LINE link instead of internal `/bookings` when service requires direct communication.
 
 **Reference Implementation:** See `app/liff/coaching/` and `app/api/coaching/availability/` for complete example
 
