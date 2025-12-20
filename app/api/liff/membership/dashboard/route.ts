@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { formatInTimeZone } from 'date-fns-tz';
+import { appCache } from '@/lib/cache';
 
 interface PackageFromRPC {
   package_id: string;
@@ -38,6 +39,19 @@ export async function GET(request: NextRequest) {
         { error: 'lineUserId is required' },
         { status: 400 }
       );
+    }
+
+    // Check cache first
+    const cacheKey = `membership_dashboard_${lineUserId}`;
+    const cachedData = appCache.get(cacheKey);
+    if (cachedData) {
+      console.log('[LIFF Dashboard] Cache hit for', lineUserId);
+      return NextResponse.json(cachedData, {
+        headers: {
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+          'X-Cache': 'HIT'
+        }
+      });
     }
 
     const supabase = createAdminClient();
@@ -170,31 +184,35 @@ export async function GET(request: NextRequest) {
       notes: booking.customer_notes
     }));
 
-    return NextResponse.json(
-      {
-        profile: {
-          id: profile.id,
-          name: profile.display_name,
-          email: profile.email || customer.email,
-          phone: profile.phone_number || customer.contact_number,
-          pictureUrl: profile.picture_url,
-          customerCode: customer.customer_code
-        },
-        packages: {
-          active: activePackages,
-          past: pastPackages
-        },
-        bookings: {
-          upcoming: upcomingBookings,
-          total: totalUpcoming || 0
-        }
+    const responseData = {
+      profile: {
+        id: profile.id,
+        name: profile.display_name,
+        email: profile.email || customer.email,
+        phone: profile.phone_number || customer.contact_number,
+        pictureUrl: profile.picture_url,
+        customerCode: customer.customer_code
       },
-      {
-        headers: {
-          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60'
-        }
+      packages: {
+        active: activePackages,
+        past: pastPackages
+      },
+      bookings: {
+        upcoming: upcomingBookings,
+        total: totalUpcoming || 0
       }
-    );
+    };
+
+    // Cache for 30 seconds (appCache has 5min TTL, we override it)
+    appCache.set(cacheKey, responseData, 30);
+    console.log('[LIFF Dashboard] Cache miss - data cached for', lineUserId);
+
+    return NextResponse.json(responseData, {
+      headers: {
+        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        'X-Cache': 'MISS'
+      }
+    });
 
   } catch (error) {
     console.error('[LIFF Dashboard] Unexpected error:', error);
