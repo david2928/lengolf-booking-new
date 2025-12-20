@@ -104,9 +104,9 @@ export default function MembershipPage() {
         });
       }
 
-      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      const liffId = process.env.NEXT_PUBLIC_LIFF_MEMBERSHIP_ID;
       if (!liffId || liffId === 'your-liff-id-here') {
-        console.warn('LIFF ID not configured');
+        console.warn('LIFF Membership ID not configured');
         setViewState('not_linked');
         setLineDisplayName('Guest User');
         return;
