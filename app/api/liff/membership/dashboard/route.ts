@@ -65,12 +65,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get customer data
-    const { data: customer, error: customerError } = await supabase
-      .from('customers')
-      .select('id, customer_code, customer_name, email, contact_number')
-      .eq('id', profile.customer_id)
-      .single();
+    // Fetch customer data and packages in parallel for better performance
+    const [
+      { data: customer, error: customerError },
+      { data: activePackagesData, error: activePackagesError },
+      { data: allPackagesData, error: allPackagesError }
+    ] = await Promise.all([
+      supabase
+        .from('customers')
+        .select('id, customer_code, customer_name, email, contact_number')
+        .eq('id', profile.customer_id)
+        .single(),
+      supabase.rpc('get_customer_packages', { customer_id_param: profile.customer_id }),
+      supabase.rpc('get_all_customer_packages', { customer_id_param: profile.customer_id })
+    ]);
 
     if (customerError || !customer) {
       console.error('[LIFF Dashboard] Customer query error:', customerError);
@@ -80,17 +88,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get active packages
-    const { data: activePackagesData, error: activePackagesError } = await supabase
-      .rpc('get_customer_packages', { customer_id_param: profile.customer_id });
-
     if (activePackagesError) {
       console.error('[LIFF Dashboard] Active packages error:', activePackagesError);
     }
-
-    // Get all packages (including past)
-    const { data: allPackagesData, error: allPackagesError } = await supabase
-      .rpc('get_all_customer_packages', { customer_id_param: profile.customer_id });
 
     if (allPackagesError) {
       console.error('[LIFF Dashboard] All packages error:', allPackagesError);
@@ -132,18 +132,28 @@ export async function GET(request: NextRequest) {
         status: pkg.package_status
       }));
 
-    // Get upcoming bookings
+    // Get upcoming bookings and count in parallel
     const serverTimeZone = 'Asia/Bangkok';
     const todayDate = formatInTimeZone(new Date(), serverTimeZone, 'yyyy-MM-dd');
 
-    const { data: bookingsData, error: bookingsError } = await supabase
-      .from('bookings')
-      .select('id, date, start_time, duration, bay, status, number_of_people, customer_notes, package_id, booking_type')
-      .eq('customer_id', profile.customer_id)
-      .gte('date', todayDate)
-      .order('date', { ascending: true })
-      .order('start_time', { ascending: true })
-      .limit(5);
+    const [
+      { data: bookingsData, error: bookingsError },
+      { count: totalUpcoming }
+    ] = await Promise.all([
+      supabase
+        .from('bookings')
+        .select('id, date, start_time, duration, bay, status, number_of_people, customer_notes, package_id, booking_type')
+        .eq('customer_id', profile.customer_id)
+        .gte('date', todayDate)
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .limit(5),
+      supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('customer_id', profile.customer_id)
+        .gte('date', todayDate)
+    ]);
 
     if (bookingsError) {
       console.error('[LIFF Dashboard] Bookings query error:', bookingsError);
@@ -159,13 +169,6 @@ export async function GET(request: NextRequest) {
       numberOfPeople: booking.number_of_people,
       notes: booking.customer_notes
     }));
-
-    // Get total upcoming bookings count
-    const { count: totalUpcoming } = await supabase
-      .from('bookings')
-      .select('*', { count: 'exact', head: true })
-      .eq('customer_id', profile.customer_id)
-      .gte('date', todayDate);
 
     return NextResponse.json({
       profile: {
