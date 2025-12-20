@@ -42,6 +42,7 @@ LIFF pages are web applications that run inside the LINE app, providing a native
 2. **Contact Us** (`/liff/contact`) - Business contact information with bilingual support
 3. **Promotions** (`/liff/promotions`) - Instagram Stories-style promotion showcase with countdown timers
 4. **Bay Rates** (`/liff/bay-rates`) - Interactive pricing table with current rate display and quick links to menus
+5. **Coaching** (`/liff/coaching`) - Coach profiles, lesson pricing, and availability preview with LINE booking integration
 
 ---
 
@@ -921,6 +922,82 @@ When operating hours are the same every day, show simplified format:
 - After: "Mon-Sun: 10:00-23:00"
 
 **Reference Implementation:** See `app/liff/bay-rates/` for complete example
+
+### Coaching Page Pattern
+
+**Use Case:** Display coach profiles, lesson pricing, and availability with booking via LINE
+
+**Key Learnings:**
+
+**API Integration for Dynamic Data:**
+
+The Coaching page demonstrates integration with a backend API for real-time availability:
+- Public API endpoint: `/api/coaching/availability`
+- RPC function in Supabase: `get_coaching_availability()`
+- Fetch availability on page load without blocking render
+- Gracefully handle API errors (continue without availability data)
+
+**Data Architecture:**
+
+Separate static data from dynamic data:
+- Static: Coach profiles, pricing, packages (`lib/liff/coaching-data.ts`)
+- Dynamic: Availability fetched from API
+- Benefits: Fast initial render, SEO-friendly static content
+
+**Component Organization:**
+
+Break complex pages into focused components:
+- `CoachCard` - Individual coach profile with color coding
+- `PricingTable` - Tabular pricing display
+- `SpecialPackages` - Highlighted special offers
+- `AvailabilityPreview` - Tabbed availability by coach
+- `BookingCTA` - Sticky bottom action button
+
+**Coach Color Coding:**
+
+Use consistent colors for coach identity:
+```typescript
+<div style={{ backgroundColor: coach.color }}>...</div>
+```
+Helps users quickly identify coaches across different sections.
+
+**Tabbed Content Pattern:**
+
+For multi-entity content (4 coaches):
+```typescript
+const [activeCoachId, setActiveCoachId] = useState(coaches[0].id);
+
+// Tabs
+{coaches.map(coach => (
+  <button
+    onClick={() => setActiveCoachId(coach.id)}
+    style={activeCoachId === coach.id ? { backgroundColor: coach.color } : undefined}
+  />
+))}
+
+// Content
+{activeAvailability?.availability.map(day => ...)}
+```
+
+**Sticky CTA:**
+
+Fixed bottom button with multiple actions:
+```typescript
+<div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-50">
+  <button onClick={handleBookNow}>Book via LINE</button>
+  <button onClick={handleCallUs}>Call</button>
+</div>
+```
+Remember to add padding to page content to prevent overlap: `pb-24`
+
+**Pricing Table Best Practices:**
+
+- Use responsive tables with horizontal scroll on mobile
+- Highlight popular/recommended packages
+- Show validity periods clearly
+- Include "What's Included" section for transparency
+
+**Reference Implementation:** See `app/liff/coaching/` and `app/api/coaching/availability/` for complete example
 
 ---
 

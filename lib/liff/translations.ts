@@ -211,3 +211,104 @@ export const bayRatesTranslations: Record<Language, BayRatesTranslations> = {
     contactUs: 'ติดต่อเรา',
   },
 };
+
+// Coaching Page Translations
+export interface CoachingTranslations {
+  title: string;
+  subtitle: string;
+  ourCoaches: string;
+  specialties: string;
+  career: string;
+  education: string;
+  certifications: string;
+  viewAvailability: string;
+  pricing: string;
+  lessonPackages: string;
+  specialPackages: string;
+  availability: string;
+  noAvailability: string;
+  perHour: string;
+  golfer: string;
+  golfers: string;
+  golfers3to5: string;
+  validity: string;
+  bookViaLine: string;
+  bookNow: string;
+  packageIncludes: string;
+  today: string;
+  monday: string;
+  tuesday: string;
+  wednesday: string;
+  thursday: string;
+  friday: string;
+  saturday: string;
+  sunday: string;
+  loadingAvailability: string;
+}
+
+export const coachingTranslations: Record<Language, CoachingTranslations> = {
+  en: {
+    title: 'LENGOLF Coaching',
+    subtitle: 'Expert golf coaching with certified PGA professionals',
+    ourCoaches: 'Our Coaches',
+    specialties: 'Specialties',
+    career: 'Career Highlights',
+    education: 'Education',
+    certifications: 'Certifications',
+    viewAvailability: 'View Availability',
+    pricing: 'Lesson Pricing',
+    lessonPackages: 'Lesson Packages',
+    specialPackages: 'Special Packages',
+    availability: 'Coach Availability',
+    noAvailability: 'No available slots',
+    perHour: '/hour',
+    golfer: 'Golfer',
+    golfers: 'Golfers',
+    golfers3to5: '3-5 Golfers',
+    validity: 'Validity',
+    bookViaLine: 'Book Now via LINE',
+    bookNow: 'Book Now',
+    packageIncludes: "What's Included",
+    today: 'Today',
+    monday: 'Mon',
+    tuesday: 'Tue',
+    wednesday: 'Wed',
+    thursday: 'Thu',
+    friday: 'Fri',
+    saturday: 'Sat',
+    sunday: 'Sun',
+    loadingAvailability: 'Loading availability...',
+  },
+  th: {
+    title: 'LENGOLF โค้ชชิ่ง',
+    subtitle: 'โค้ชกอล์ฟมืออาชีพรับรองโดย PGA',
+    ourCoaches: 'ทีมโค้ช',
+    specialties: 'ความเชี่ยวชาญ',
+    career: 'ผลงาน',
+    education: 'การศึกษา',
+    certifications: 'ใบรับรอง',
+    viewAvailability: 'ดูตารางว่าง',
+    pricing: 'ราคาบทเรียน',
+    lessonPackages: 'แพ็คเกจบทเรียน',
+    specialPackages: 'แพ็คเกจพิเศษ',
+    availability: 'ตารางว่างโค้ช',
+    noAvailability: 'ไม่มีช่วงว่าง',
+    perHour: '/ชม.',
+    golfer: 'นักกอล์ฟ',
+    golfers: 'นักกอล์ฟ',
+    golfers3to5: '3-5 คน',
+    validity: 'ระยะเวลา',
+    bookViaLine: 'จองผ่าน LINE',
+    bookNow: 'จองเลย',
+    packageIncludes: 'รวมในแพ็คเกจ',
+    today: 'วันนี้',
+    monday: 'จ.',
+    tuesday: 'อ.',
+    wednesday: 'พ.',
+    thursday: 'พฤ.',
+    friday: 'ศ.',
+    saturday: 'ส.',
+    sunday: 'อา.',
+    loadingAvailability: 'กำลังโหลดตารางว่าง...',
+  },
+};
