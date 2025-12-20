@@ -15,6 +15,10 @@ import { useChatSession } from '@/hooks/useChatSession';
 export default function ChatWidget() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Hide chat widget on LIFF pages - skip initialization to prevent API calls
+  const isLiffPage = pathname?.startsWith('/liff');
+
   const {
     chatSession,
     messages,
@@ -25,10 +29,7 @@ export default function ChatWidget() {
     markAsRead,
     sendMessage,
     initializeChat,
-  } = useChatSession();
-
-  // Hide chat widget on LIFF pages
-  const isLiffPage = pathname?.startsWith('/liff');
+  } = useChatSession({ skip: isLiffPage });
 
   if (isLiffPage) {
     return null;

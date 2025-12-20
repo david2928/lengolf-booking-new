@@ -30,7 +30,8 @@ export interface ChatSession {
   isConnected: boolean;
 }
 
-export function useChatSession() {
+export function useChatSession(options?: { skip?: boolean }) {
+  const { skip = false } = options || {};
   const { data: session, status } = useSession();
   const [chatSession, setChatSession] = useState<ChatSession>({
     sessionId: '',
@@ -244,6 +245,7 @@ export function useChatSession() {
 
   // Set up real-time subscription
   useEffect(() => {
+    if (skip) return; // Skip on LIFF pages
     if (!chatSession.conversationId) return;
 
     const channel = supabase
@@ -297,6 +299,7 @@ export function useChatSession() {
 
   // Reset chat session when user session changes (login/logout)
   useEffect(() => {
+    if (skip) return; // Skip on LIFF pages
     const currentSessionId = getSessionId();
 
     // If session ID changed (user logged in/out), reset chat session
@@ -319,6 +322,7 @@ export function useChatSession() {
 
   // Auto-initialize on mount and when session changes
   useEffect(() => {
+    if (skip) return; // Skip on LIFF pages
     if (!chatSession.isInitialized && status !== 'loading') {
       // For logged-in users, always initialize (they have persistent session)
       // For anonymous users, only if they have a localStorage session
