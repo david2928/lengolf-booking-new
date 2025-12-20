@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 import Script from 'next/script';
 import ChatWidget from '@/components/chat/ChatWidget';
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -221,6 +222,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <ChatWidget />
+          <SpeedInsights />
           <Analytics />
         </Providers>
       </body>
