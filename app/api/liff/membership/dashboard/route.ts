@@ -170,24 +170,31 @@ export async function GET(request: NextRequest) {
       notes: booking.customer_notes
     }));
 
-    return NextResponse.json({
-      profile: {
-        id: profile.id,
-        name: profile.display_name,
-        email: profile.email || customer.email,
-        phone: profile.phone_number || customer.contact_number,
-        pictureUrl: profile.picture_url,
-        customerCode: customer.customer_code
+    return NextResponse.json(
+      {
+        profile: {
+          id: profile.id,
+          name: profile.display_name,
+          email: profile.email || customer.email,
+          phone: profile.phone_number || customer.contact_number,
+          pictureUrl: profile.picture_url,
+          customerCode: customer.customer_code
+        },
+        packages: {
+          active: activePackages,
+          past: pastPackages
+        },
+        bookings: {
+          upcoming: upcomingBookings,
+          total: totalUpcoming || 0
+        }
       },
-      packages: {
-        active: activePackages,
-        past: pastPackages
-      },
-      bookings: {
-        upcoming: upcomingBookings,
-        total: totalUpcoming || 0
+      {
+        headers: {
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60'
+        }
       }
-    });
+    );
 
   } catch (error) {
     console.error('[LIFF Dashboard] Unexpected error:', error);
