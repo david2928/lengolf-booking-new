@@ -48,15 +48,15 @@ export default function PromotionsPage() {
         });
       }
 
-      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      const liffId = process.env.NEXT_PUBLIC_LIFF_PROMOTIONS_ID;
       if (!liffId || liffId === 'your-liff-id-here') {
-        console.warn('LIFF ID not configured. Page will work without LIFF features.');
+        console.log('[Promotions] LIFF ID not configured - running without LIFF features');
         setViewState('ready');
         return;
       }
 
       await window.liff.init({ liffId }).catch((err) => {
-        console.error('LIFF init error:', err);
+        console.warn('[Promotions] LIFF init failed - continuing without LIFF features:', err);
         setViewState('ready');
         return;
       });

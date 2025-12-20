@@ -69,16 +69,17 @@ export default function CoachingPage() {
         });
       }
 
-      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      const liffId = process.env.NEXT_PUBLIC_LIFF_COACHING_ID;
       if (!liffId || liffId === 'your-liff-id-here') {
-        console.warn('LIFF ID not configured. Page will work without LIFF features.');
+        console.log('[Coaching] LIFF ID not configured - running without LIFF features');
         await fetchAvailability();
         setViewState('ready');
         return;
       }
 
-      await window.liff.init({ liffId }).catch((err) => {
-        console.error('LIFF init error:', err);
+      await window.liff.init({ liffId }).catch(async (err) => {
+        console.warn('[Coaching] LIFF init failed - continuing without LIFF features:', err);
+        await fetchAvailability();
         setViewState('ready');
         return;
       });

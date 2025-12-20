@@ -52,15 +52,15 @@ export default function ContactPage() {
         });
       }
 
-      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      const liffId = process.env.NEXT_PUBLIC_LIFF_CONTACT_ID;
       if (!liffId || liffId === 'your-liff-id-here') {
-        console.warn('LIFF ID not configured. Page will work without LIFF features.');
+        console.log('[Contact] LIFF ID not configured - running without LIFF features');
         setViewState('ready');
         return;
       }
 
       await window.liff.init({ liffId }).catch((err) => {
-        console.error('LIFF init error:', err);
+        console.warn('[Contact] LIFF init failed - continuing without LIFF features:', err);
         setViewState('ready');
         return;
       });
