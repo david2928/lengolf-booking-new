@@ -75,14 +75,14 @@ export default function AvailabilityPreview({ language, availability }: Availabi
       t.saturday,
     ];
 
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
 
     if (isToday) {
       return `${t.today} (${dayNames[date.getDay()]})`;
     }
 
-    return `${dayNames[date.getDay()]} ${month}/${day}`;
+    return `${dayNames[date.getDay()]} ${day}/${month}`;
   };
 
   return (
