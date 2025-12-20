@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { coaches, getCoachById } from '@/lib/liff/coaching-data';
+import { coaches } from '@/lib/liff/coaching-data';
 import { Language, coachingTranslations } from '@/lib/liff/translations';
 
 interface CoachAvailability {
