@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 
 export interface VipTier {
   id: number;
@@ -37,9 +38,13 @@ const VipStatusContext = createContext<VipStatusContextType | undefined>(undefin
 
 export function VipStatusProvider({ children }: { children: ReactNode }) {
   const { data: session, status: sessionStatus } = useSession();
+  const pathname = usePathname();
   const [vipProfile, setVipProfile] = useState<VipProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+
+  // Skip VIP status fetching on LIFF pages for better performance
+  const isLiffPage = pathname?.startsWith('/liff');
 
   // Cache for VIP profile to prevent unnecessary API calls
   const vipProfileCache = useRef<{
@@ -163,8 +168,9 @@ export function VipStatusProvider({ children }: { children: ReactNode }) {
   }, [sessionStatus, session?.user?.id, isVipProfileCacheValid]);
 
   useEffect(() => {
+    if (isLiffPage) return; // Skip on LIFF pages
     fetchVipProfile();
-  }, [fetchVipProfile]);
+  }, [fetchVipProfile, isLiffPage]);
 
   return (
     <VipStatusContext.Provider value={{ 
