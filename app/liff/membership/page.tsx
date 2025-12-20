@@ -14,6 +14,28 @@ import QuickActions from '@/components/liff/membership/QuickActions';
 
 type ViewState = 'loading' | 'error' | 'not_linked' | 'dashboard';
 
+interface Package {
+  id: string;
+  packageName: string;
+  packageCategory?: string;
+  totalHours?: number | null;
+  remainingHours?: number | null;
+  usedHours?: number | null;
+  expiryDate?: string | null;
+  status: string;
+}
+
+interface Booking {
+  id: string;
+  date: string;
+  startTime: string;
+  duration: number;
+  bay: string | null;
+  status: string;
+  numberOfPeople: number;
+  notes?: string | null;
+}
+
 interface DashboardData {
   profile: {
     id: string;
@@ -24,11 +46,11 @@ interface DashboardData {
     customerCode?: string;
   };
   packages: {
-    active: any[];
-    past: any[];
+    active: Package[];
+    past: Package[];
   };
   bookings: {
-    upcoming: any[];
+    upcoming: Booking[];
     total: number;
   };
 }
@@ -157,7 +179,7 @@ export default function MembershipPage() {
     }
   };
 
-  const handleLinkSuccess = async (isNewCustomer: boolean) => {
+  const handleLinkSuccess = async () => {
     // Refresh dashboard
     await fetchDashboard(lineUserId);
   };

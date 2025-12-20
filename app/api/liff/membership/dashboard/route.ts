@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { formatInTimeZone } from 'date-fns-tz';
 
+interface PackageFromRPC {
+  package_id: string;
+  display_name?: string;
+  package_type_name?: string;
+  package_category?: string;
+  purchase_date?: string;
+  expiration_date: string;
+  total_hours?: number | null;
+  remaining_hours?: number | null;
+  used_hours?: number | null;
+  package_status: string;
+}
+
+interface BookingFromDB {
+  id: string;
+  date: string;
+  start_time: string;
+  duration: number;
+  bay: string | null;
+  status: string;
+  number_of_people: number;
+  customer_notes?: string | null;
+  package_id?: string | null;
+  booking_type: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -74,7 +100,7 @@ export async function GET(request: NextRequest) {
     const allPackages = allPackagesData || [];
     const now = new Date();
 
-    const activePackages = (activePackagesData || []).map((pkg: any) => ({
+    const activePackages = (activePackagesData || []).map((pkg: PackageFromRPC) => ({
       id: pkg.package_id,
       packageName: pkg.display_name || pkg.package_type_name,
       packageCategory: pkg.package_category,
@@ -88,13 +114,13 @@ export async function GET(request: NextRequest) {
 
     // Past packages are those that are expired or depleted
     const pastPackages = allPackages
-      .filter((pkg: any) => {
+      .filter((pkg: PackageFromRPC) => {
         const expirationDate = new Date(pkg.expiration_date);
         const isExpired = expirationDate <= now;
-        const isDepleted = pkg.remaining_hours !== null && pkg.remaining_hours <= 0;
+        const isDepleted = pkg.remaining_hours !== null && pkg.remaining_hours !== undefined && pkg.remaining_hours <= 0;
         return isExpired || isDepleted;
       })
-      .map((pkg: any) => ({
+      .map((pkg: PackageFromRPC) => ({
         id: pkg.package_id,
         packageName: pkg.display_name || pkg.package_type_name,
         packageCategory: pkg.package_category,
@@ -123,7 +149,7 @@ export async function GET(request: NextRequest) {
       console.error('[LIFF Dashboard] Bookings query error:', bookingsError);
     }
 
-    const upcomingBookings = (bookingsData || []).map((booking: any) => ({
+    const upcomingBookings = (bookingsData || []).map((booking: BookingFromDB) => ({
       id: booking.id,
       date: booking.date,
       startTime: booking.start_time,
@@ -131,8 +157,7 @@ export async function GET(request: NextRequest) {
       bay: booking.bay,
       status: booking.status,
       numberOfPeople: booking.number_of_people,
-      notes: booking.customer_notes,
-      bookingType: booking.booking_type
+      notes: booking.customer_notes
     }));
 
     // Get total upcoming bookings count

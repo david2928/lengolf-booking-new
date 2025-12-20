@@ -11,7 +11,7 @@ interface LinkAccountFormProps {
   displayName: string;
   pictureUrl?: string;
   language: Language;
-  onSuccess: (isNewCustomer: boolean) => void;
+  onSuccess: () => void;
 }
 
 export default function LinkAccountForm({
@@ -74,7 +74,7 @@ export default function LinkAccountForm({
 
       // Wait a bit to show success message
       setTimeout(() => {
-        onSuccess(data.isNewCustomer);
+        onSuccess();
       }, 1000);
 
     } catch (err) {
