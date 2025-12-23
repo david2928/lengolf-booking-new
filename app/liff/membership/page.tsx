@@ -91,17 +91,17 @@ export default function MembershipPage() {
         return;
       }
 
-      // Load LIFF SDK from CDN if not already loaded
+      // Wait for LIFF SDK to be available (loaded via Script in layout)
       if (!window.liff) {
-        const script = document.createElement('script');
-        script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-        script.async = true;
-        document.body.appendChild(script);
-
-        await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = reject;
-        });
+        // Poll for LIFF SDK to be ready (max 5 seconds)
+        const maxWait = 5000;
+        const startTime = Date.now();
+        while (!window.liff && (Date.now() - startTime) < maxWait) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (!window.liff) {
+          throw new Error('LIFF SDK failed to load');
+        }
       }
 
       const liffId = process.env.NEXT_PUBLIC_LIFF_MEMBERSHIP_ID;
