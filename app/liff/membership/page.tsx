@@ -55,6 +55,26 @@ interface DashboardData {
   };
 }
 
+interface MembershipDataResponse {
+  status: 'linked' | 'not_linked';
+  profile?: {
+    id: string;
+    name: string | null;
+    email?: string | null;
+    phone?: string | null;
+    pictureUrl?: string | null;
+    customerCode?: string;
+  };
+  packages?: {
+    active: Package[];
+    past: Package[];
+  };
+  bookings?: {
+    upcoming: Booking[];
+    total: number;
+  };
+}
+
 export default function MembershipPage() {
   const [viewState, setViewState] = useState<ViewState>('loading');
   const [lineUserId, setLineUserId] = useState('');
@@ -63,7 +83,7 @@ export default function MembershipPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [language, setLanguage] = useState<Language>('en');
   const [error, setError] = useState('');
-  const [prefetchedData, setPrefetchedData] = useState<any>(null);
+  const [prefetchedData, setPrefetchedData] = useState<MembershipDataResponse | null>(null);
 
   useEffect(() => {
     initializeLiff();
@@ -193,13 +213,13 @@ export default function MembershipPage() {
     }
   };
 
-  const handleDataResponse = (data: any) => {
+  const handleDataResponse = (data: MembershipDataResponse) => {
     if (data.status === 'not_linked') {
       setViewState('not_linked');
       return;
     }
 
-    if (data.status === 'linked') {
+    if (data.status === 'linked' && data.profile && data.packages && data.bookings) {
       setDashboardData({
         profile: data.profile,
         packages: data.packages,
