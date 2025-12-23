@@ -63,6 +63,7 @@ export default function MembershipPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [language, setLanguage] = useState<Language>('en');
   const [error, setError] = useState('');
+  const [prefetchedData, setPrefetchedData] = useState<any>(null);
 
   useEffect(() => {
     initializeLiff();
@@ -71,6 +72,21 @@ export default function MembershipPage() {
       const savedLanguage = localStorage.getItem('liff-membership-language') as Language;
       if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'th')) {
         setLanguage(savedLanguage);
+      }
+
+      // Try to prefetch data using cached userId
+      const cachedUserId = sessionStorage.getItem('liff-membership-userId');
+      if (cachedUserId) {
+        console.log('[Membership] Prefetching data with cached userId:', cachedUserId);
+        fetchData(cachedUserId).then(data => {
+          if (data) {
+            setPrefetchedData(data);
+          }
+        }).catch(err => {
+          console.error('[Membership] Prefetch error:', err);
+          // Clear stale cache on error
+          sessionStorage.removeItem('liff-membership-userId');
+        });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,7 +103,7 @@ export default function MembershipPage() {
         console.log('[DEV MODE] Bypassing LIFF initialization');
         setLineUserId(testUserId);
         setLineDisplayName('Test User');
-        await checkStatus(testUserId);
+        await loadMembershipData(testUserId);
         return;
       }
 
@@ -127,7 +143,20 @@ export default function MembershipPage() {
       setLineDisplayName(profile.displayName);
       setLinePictureUrl(profile.pictureUrl || '');
 
-      await checkStatus(profile.userId);
+      // Cache userId for faster subsequent loads
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('liff-membership-userId', profile.userId);
+      }
+
+      // Check if we have prefetched data and it matches this userId
+      if (prefetchedData && prefetchedData.profile?.id) {
+        console.log('[Membership] Using prefetched data');
+        handleDataResponse(prefetchedData);
+        return;
+      }
+
+      // Fetch fresh data
+      await loadMembershipData(profile.userId);
 
     } catch (err) {
       console.error('[Membership] LIFF initialization error:', err);
@@ -136,52 +165,53 @@ export default function MembershipPage() {
     }
   };
 
-  const checkStatus = async (userId: string) => {
+  // Unified data fetching function
+  const fetchData = async (userId: string) => {
     try {
-      const response = await fetch(`/api/liff/membership/status?lineUserId=${userId}`);
+      const response = await fetch(`/api/liff/membership/data?lineUserId=${userId}`);
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to check status');
+        throw new Error(data.error || 'Failed to fetch data');
       }
 
-      if (data.status === 'not_linked') {
-        setViewState('not_linked');
-        return;
-      }
-
-      // User is linked, fetch dashboard data
-      await fetchDashboard(userId);
-
+      return data;
     } catch (err) {
-      console.error('[Membership] Status check error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to check status');
+      console.error('[Membership] Data fetch error:', err);
+      throw err;
+    }
+  };
+
+  const loadMembershipData = async (userId: string) => {
+    try {
+      const data = await fetchData(userId);
+      handleDataResponse(data);
+    } catch (err) {
+      console.error('[Membership] Load error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load data');
       setViewState('error');
     }
   };
 
-  const fetchDashboard = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/liff/membership/dashboard?lineUserId=${userId}`);
-      const data = await response.json();
+  const handleDataResponse = (data: any) => {
+    if (data.status === 'not_linked') {
+      setViewState('not_linked');
+      return;
+    }
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch dashboard');
-      }
-
-      setDashboardData(data);
+    if (data.status === 'linked') {
+      setDashboardData({
+        profile: data.profile,
+        packages: data.packages,
+        bookings: data.bookings
+      });
       setViewState('dashboard');
-
-    } catch (err) {
-      console.error('[Membership] Dashboard fetch error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch dashboard');
-      setViewState('error');
     }
   };
 
   const handleLinkSuccess = async () => {
-    // Refresh dashboard
-    await fetchDashboard(lineUserId);
+    // Refresh dashboard after account linking
+    await loadMembershipData(lineUserId);
   };
 
   const toggleLanguage = () => {
@@ -194,9 +224,10 @@ export default function MembershipPage() {
 
   const t = membershipTranslations[language];
 
-  // Loading state
+  // Loading state - show skeleton if we have cached userId (faster perceived load)
   if (viewState === 'loading') {
-    return <LoadingState message={t.loading} />;
+    const hasCachedUserId = typeof window !== 'undefined' && sessionStorage.getItem('liff-membership-userId');
+    return <LoadingState message={t.loading} skeleton={!!hasCachedUserId} />;
   }
 
   // Error state
