@@ -31,23 +31,27 @@ export const promotions: Promotion[] = [
     }
   },
 
-  // TIME-LIMITED: Holiday Deal
+  // TIME-LIMITED: New Year Golf Resolutions
   {
-    id: 'holiday-deal',
+    id: 'new-year-resolutions',
     image: '/images/promotion_1.jpg',
     title: {
-      en: 'Holiday Deal',
-      th: 'โปรโมชั่นช่วงวันหยุด'
+      en: 'New Year, New You & Better Swing!',
+      th: 'ปีใหม่ คนใหม่ วงสวิงต้องดีกว่าเดิม!'
     },
     description: {
-      en: 'Buy 2 Hours Get 2 Hours Free! Limited time offer for the holiday season.',
-      th: 'ซื้อ 2 ชั่วโมง แถม 2 ชั่วโมง! ข้อเสนอพิเศษในช่วงวันหยุด'
+      en: 'Come practice and have fun at LENGOLF because consistency changes everything. Enjoy 10% OFF All Unlimited Packages: Early Bird+ ฿4,500 (from ฿5,000) • Diamond ฿7,200 (from ฿8,000) • Diamond+ ฿16,200 (from ฿18,000)',
+      th: 'มาซ้อม มาสนุก และพัฒนาฝีมือที่ LENGOLF รับส่วนลด 10% สำหรับ Unlimited Packages ทุกแพ็กเกจ'
     },
-    validUntil: new Date('2025-12-31T23:59:59'),  // Shows countdown timer - ends December 31
+    validUntil: new Date('2026-01-31T23:59:59'),  // Shows countdown timer - ends January 31
     ctaType: 'book',
     badge: {
-      en: 'LIMITED TIME',
-      th: 'เวลาจำกัด'
+      en: 'NEW YEAR SPECIAL',
+      th: 'พิเศษปีใหม่'
+    },
+    terms: {
+      en: 'Promotion valid for January only. Get your Unlimited Package via Line @lengolf or purchase directly in-store.',
+      th: 'โปรโมชั่นเฉพาะเดือนมกราคมเท่านั้น'
     }
   },
 

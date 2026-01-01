@@ -46,10 +46,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if redemption is within valid collection period (Dec 7-31, 2025)
+    // Check if redemption is within valid collection period (Dec 7, 2025 - Jan 31, 2026)
     const now = new Date();
     const startDate = new Date('2025-12-07T00:00:00+07:00'); // Dec 7, 2025 00:00 Bangkok time
-    const endDate = new Date('2025-12-31T23:59:59+07:00');   // Dec 31, 2025 23:59 Bangkok time
+    const endDate = new Date('2026-01-31T23:59:59+07:00');   // Jan 31, 2026 23:59 Bangkok time
 
     if (now < startDate) {
       return NextResponse.json(
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     if (now > endDate) {
       return NextResponse.json(
-        { error: 'Prize collection period ended on December 31, 2025' },
+        { error: 'Prize collection period ended on January 31, 2026' },
         { status: 400 }
       );
     }
