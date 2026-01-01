@@ -40,7 +40,7 @@ export const promotions: Promotion[] = [
       th: 'ปีใหม่ คนใหม่ วงสวิงต้องดีกว่าเดิม!'
     },
     description: {
-      en: 'Come practice and have fun at LENGOLF because consistency changes everything. Enjoy 10% OFF All Unlimited Packages: Early Bird+ ฿4,500 (from ฿5,000) • Diamond ฿7,200 (from ฿8,000) • Diamond+ ฿16,200 (from ฿18,000)',
+      en: 'Practice and improve at LENGOLF. Enjoy 10% OFF all unlimited packages this January!',
       th: 'มาซ้อม มาสนุก และพัฒนาฝีมือที่ LENGOLF รับส่วนลด 10% สำหรับ Unlimited Packages ทุกแพ็กเกจ'
     },
     validUntil: new Date('2026-01-31T23:59:59'),  // Shows countdown timer - ends January 31
