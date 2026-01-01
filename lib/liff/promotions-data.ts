@@ -36,8 +36,8 @@ export const promotions: Promotion[] = [
     id: 'new-year-resolutions',
     image: '/images/promotion_1.jpg',
     title: {
-      en: 'New Year, New You & Better Swing!',
-      th: 'ปีใหม่ คนใหม่ วงสวิงต้องดีกว่าเดิม!'
+      en: '10% OFF Unlimited Packages',
+      th: 'ลด 10% แพ็กเกจไม่จำกัด'
     },
     description: {
       en: 'Practice and improve at LENGOLF. Enjoy 10% OFF all unlimited packages this January!',
