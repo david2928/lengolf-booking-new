@@ -31,6 +31,7 @@ export function Layout({ children }: LayoutProps) {
 
   const promotionImages = [
     '/images/new_customer_promo.jpg',
+    '/images/promotion_1.jpg',
     '/images/promotion.jpg',
     '/images/promotion_2.jpg',
   ];
