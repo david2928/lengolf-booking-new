@@ -137,27 +137,44 @@ export async function findOrCreateCustomer(
  * Get package info for customer using the customer_active_packages view
  * Much simpler lookup with pre-calculated remaining hours and status
  */
-export async function getPackageInfoForCustomer(customerId: string): Promise<{packageInfo: string, packageId?: string, packageTypeName?: string}> {
+export async function getPackageInfoForCustomer(
+  customerId: string,
+  options?: { excludeCategories?: string[] }
+): Promise<{packageInfo: string, packageId?: string, packageTypeName?: string}> {
   try {
     const supabase = createAdminClient();
-    console.log(`[Customer Service] Looking up packages for customer: ${customerId}`);
-    
+    console.log(`[Customer Service] Looking up packages for customer: ${customerId}`, options?.excludeCategories ? `(excluding: ${options.excludeCategories.join(', ')})` : '');
+
     // Query the customer_active_packages view via RPC function
     const { data: packages, error: packageError } = await supabase
       .rpc('get_customer_packages', { customer_id_param: customerId });
-    
+
     if (packageError) {
       console.error(`[Customer Service] Error looking up packages:`, packageError);
       return { packageInfo: 'Normal Bay Rate' };
     }
-    
+
     if (!packages || packages.length === 0) {
       console.log(`[Customer Service] No active packages found for customer ${customerId}`);
       return { packageInfo: 'Normal Bay Rate' };
     }
-    
+
+    // Filter out excluded categories if specified
+    let filteredPackages = packages;
+    if (options?.excludeCategories && options.excludeCategories.length > 0) {
+      filteredPackages = packages.filter((pkg: { package_category: string }) =>
+        !options.excludeCategories!.includes(pkg.package_category)
+      );
+      console.log(`[Customer Service] Filtered ${packages.length} packages to ${filteredPackages.length} (excluded: ${options.excludeCategories.join(', ')})`);
+    }
+
+    if (filteredPackages.length === 0) {
+      console.log(`[Customer Service] No packages remaining after filtering for customer ${customerId}`);
+      return { packageInfo: 'Normal Bay Rate' };
+    }
+
     // Use the first active package
-    const activePackage = packages[0];
+    const activePackage = filteredPackages[0];
     
     let packageInfo: string;
     if (activePackage.package_status === 'unlimited') {

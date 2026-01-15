@@ -479,7 +479,10 @@ export async function POST(request: NextRequest) {
     let packageTypeName: string | undefined;
     if (customerId) {
       try {
-        const packageResult = await getPackageInfoForCustomer(customerId);
+        // Exclude coaching packages from website bookings - they should only be used via LIFF coaching flow
+        const packageResult = await getPackageInfoForCustomer(customerId, {
+          excludeCategories: ['coaching']
+        });
         packageInfo = packageResult.packageInfo;
         packageId = packageResult.packageId;
         packageTypeName = packageResult.packageTypeName;
