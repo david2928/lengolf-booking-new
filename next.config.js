@@ -45,6 +45,8 @@ const nextConfig = {
         hostname: 'bisimqmtxjsptehhqpeg.supabase.co',
       },
     ],
+    // Cache optimized images for 7 days to reduce Edge function requests
+    minimumCacheTTL: 60 * 60 * 24 * 7, // 7 days
   },
 }
 
