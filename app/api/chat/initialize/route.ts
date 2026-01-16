@@ -195,12 +195,12 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (existingConv) {
-        // Update existing conversation
+        // Update existing conversation - only update session_id, NOT last_message_at
+        // last_message_at should only change when a message is actually sent
         const { data: updatedConv, error: updateError } = await serverSupabase
           .from('web_chat_conversations')
           .update({
             session_id: chatSession.id,
-            last_message_at: new Date().toISOString(),
           })
           .eq('id', existingConv.id)
           .select()
