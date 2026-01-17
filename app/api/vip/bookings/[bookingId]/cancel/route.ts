@@ -126,10 +126,36 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       return NextResponse.json({ error: 'Booking must be in the future to be cancelled.' }, { status: 409 });
     }
 
+    // Fetch customer data using booking's customer_id (not profile's customer_id)
+    // This ensures we get the correct customer name for store-created bookings
+    let customerName: string | null = null;
+    let finalPhoneNumber: string | null = (currentBooking as BookingWithProfiles).profiles?.phone_number || null;
+    let finalEmail: string | null = null;
+
+    const bookingCustomerId = currentBooking.customer_id;
+    if (bookingCustomerId) {
+      const { data: customerData, error: customerError } = await adminSupabase
+        .from('customers')
+        .select('customer_name, contact_number, email')
+        .eq('id', bookingCustomerId)
+        .single();
+
+      if (!customerError && customerData) {
+        customerName = customerData.customer_name;
+        if (customerData.contact_number) {
+          finalPhoneNumber = customerData.contact_number;
+        }
+        if (customerData.email) {
+          finalEmail = customerData.email;
+        }
+      }
+    }
+
     const updatePayload = {
       status: 'cancelled',
       cancelled_by_type: 'user',
-      cancelled_by_identifier: (currentBooking as BookingWithProfiles).profiles?.display_name || 'Customer', // Customer's display name
+      // Use customer name from customers table first, then booking snapshot, then profile display name
+      cancelled_by_identifier: customerName || currentBooking.name || (currentBooking as BookingWithProfiles).profiles?.display_name || 'Customer',
       cancellation_reason: cancellationReason || null
     };
 
@@ -149,29 +175,6 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       return NextResponse.json({ error: 'Failed to cancel booking in database', details: updateError?.message }, { status: 500 });
     }
 
-    // Get phone number and email with priority: Customer > Profiles
-    let finalPhoneNumber = (cancelledBooking as BookingWithProfiles).profiles?.phone_number || null;
-    let finalEmail = null;
-
-    // Check if user has customer data for enhanced contact info
-    const customerId = (cancelledBooking as BookingWithProfiles).profiles?.customer_id;
-    if (customerId) {
-      const { data: customerData, error: customerError } = await adminSupabase
-        .from('customers')
-        .select('contact_number, email')
-        .eq('id', customerId)
-        .single();
-
-      if (!customerError && customerData) {
-        if (customerData.contact_number) {
-          finalPhoneNumber = customerData.contact_number;
-        }
-        if (customerData.email) {
-          finalEmail = customerData.email;
-        }
-      }
-    }
-    
     // Fallback to profiles email if no customer email
     if (!finalEmail) {
       const { data: profileData, error: profileError } = await supabase
@@ -218,7 +221,8 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     // Prepare data for LINE notification
     const notificationData: NotificationBookingData = {
       id: cancelledBooking.id,
-      name: (cancelledBooking as BookingWithProfiles).profiles?.display_name || 'VIP User',
+      // Use customer name from customers table first, then booking snapshot, then profile display name
+      name: customerName || cancelledBooking.name || (cancelledBooking as BookingWithProfiles).profiles?.display_name || 'VIP User',
       phone_number: finalPhoneNumber,
       date: cancelledBooking.date,
       start_time: cancelledBooking.start_time,
@@ -242,7 +246,8 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     // Email notification task
     if (finalEmail) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const userName = (cancelledBooking as BookingWithProfiles).profiles?.display_name || 'VIP User';
+      // Use customer name from customers table first, then booking snapshot, then profile display name
+      const userName = customerName || cancelledBooking.name || (cancelledBooking as BookingWithProfiles).profiles?.display_name || 'VIP User';
       
       // Calculate end time
       let endTimeCalc = ''; // Renamed to avoid conflict
