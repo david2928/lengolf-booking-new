@@ -227,14 +227,17 @@ export async function POST(request: NextRequest) {
     let lastCheckpoint = apiStartTime;
     let bookingId = 'pending'; // Will be updated once we have a booking ID
     let userId = ''; // Will be updated once we have authenticated
-    
+    let customerId: string | null = null; // Will be set for LIFF users
+    let customerCode: string | null = null; // Will be set for LIFF users
+    let isLiffContext = false;
+
     const logTiming = (step: string, status: 'success' | 'error' | 'info' = 'info', metadata: Record<string, unknown> = {}) => {
       const now = Date.now();
       const stepDuration = now - lastCheckpoint;
       const totalDuration = now - apiStartTime;
-      
+
       console.log(`[Timing] ${step}: ${stepDuration}ms (total: ${totalDuration}ms)`);
-      
+
       // Log to Supabase if we have a user ID
       if (userId) {
         logBookingProcessStep({
@@ -247,20 +250,50 @@ export async function POST(request: NextRequest) {
           metadata
         });
       }
-      
+
       lastCheckpoint = now;
     };
 
-    // 1. Authenticate user
-    const token = await getToken({ req: request });
-    if (!token?.sub) {
-      return NextResponse.json(
-        { error: 'Unauthorized or session expired' },
-        { status: 401 }
-      );
+    // 1. Authenticate user - support both NextAuth and LIFF context
+    const lineUserId = request.headers.get('x-line-user-id');
+
+    if (lineUserId) {
+      // LIFF context - get profile from profiles table
+      // Customer matching will happen via findOrCreateCustomer() same as website flow
+      isLiffContext = true;
+      console.log('[LIFF Auth] Authenticating with LINE user ID:', lineUserId);
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('provider', 'line')
+        .eq('provider_id', lineUserId)
+        .maybeSingle();
+
+      if (profileError || !profile) {
+        console.error('[LIFF Auth] Profile lookup error:', profileError);
+        return NextResponse.json(
+          { error: 'LINE account not found' },
+          { status: 401 }
+        );
+      }
+
+      userId = profile.id;
+      // Note: customerId will be set by findOrCreateCustomer() later, same as website flow
+
+      logTiming('LIFF Authentication', 'success', { lineUserId, profileId: userId });
+    } else {
+      // Standard NextAuth flow
+      const token = await getToken({ req: request });
+      if (!token?.sub) {
+        return NextResponse.json(
+          { error: 'Unauthorized or session expired' },
+          { status: 401 }
+        );
+      }
+      userId = token.sub;
+      logTiming('Authentication', 'success');
     }
-    userId = token.sub;
-    logTiming('Authentication', 'success');
 
     // 2. Parse request body
     const {
@@ -300,95 +333,95 @@ export async function POST(request: NextRequest) {
     // 3. Date validation (native database function handles parsing)
     logTiming('Date validation', 'success');
 
-    // 5. Run bay availability check and customer identification in parallel
-    const [availabilityResult, customerResult] = await Promise.all([
-      // Bay availability check
-      (async () => {
-        try {
-          // Native database function handles date parsing
+    // 5. Run bay availability check (and customer identification for non-LIFF context) in parallel
+    // For LIFF context, we already have customerId from authentication step
+    const checkBayAvailability = async () => {
+      try {
+        // Native database function handles date parsing
+        // Use native database function instead of Google Calendar
 
-          // Use native database function instead of Google Calendar
-          
-          const { data: bayAvailability, error } = await supabase.rpc('check_all_bays_availability', {
-            p_date: date,
-            p_start_time: start_time,
-            p_duration: parseFloat(duration),
-            p_exclude_booking_id: null
-          });
+        const { data: bayAvailability, error } = await supabase.rpc('check_all_bays_availability', {
+          p_date: date,
+          p_start_time: start_time,
+          p_duration: parseFloat(duration),
+          p_exclude_booking_id: null
+        });
 
-          if (error) {
-            console.error('Database function error:', error);
-            return { available: false };
-          }
-
-          // Transform database response
-          if (!bayAvailability) {
-            return { available: false };
-          }
-
-          // Extract the actual bay availability object from the database response
-          let bayData = bayAvailability;
-          if (Array.isArray(bayAvailability) && bayAvailability.length > 0) {
-            // If it's an array, take the first element
-            bayData = bayAvailability[0];
-          }
-
-          if (typeof bayData !== 'object') {
-            return { available: false };
-          }
-
-          // Find available bays
-          const availableBays = Object.entries(bayData)
-            .filter(([, isAvailable]) => isAvailable === true)
-            .map(([bayName]) => bayName);
-          
-          if (availableBays.length === 0) {
-            return { available: false };
-          }
-
-          // Prefer specific bay type if requested and available
-          let selectedBay = availableBays[0]; // Default to first available
-          
-          if (preferred_bay_type) {
-            let preferredBays: string[] = [];
-            
-            if (preferred_bay_type === 'social') {
-              // Social bays are Bay 1, 2, 3
-              preferredBays = ['Bay 1', 'Bay 2', 'Bay 3'];
-            } else if (preferred_bay_type === 'ai_lab') {
-              // AI Lab is Bay 4
-              preferredBays = ['Bay 4'];
-            }
-            
-            // Find first available bay of preferred type
-            const availablePreferredBay = preferredBays.find(bay => availableBays.includes(bay));
-            if (availablePreferredBay) {
-              selectedBay = availablePreferredBay;
-            }
-            // If preferred type is not available, still fallback to any available bay
-            // selectedBay already set to availableBays[0] above
-          }
-
-          return {
-            available: true,
-            bay: selectedBay,
-            allAvailableBays: availableBays
-          };
-        } catch (error) {
-          console.error('Error checking bay availability:', error);
+        if (error) {
+          console.error('Database function error:', error);
           return { available: false };
         }
-      })(),
-      
-      // Customer identification using new customer service
+
+        // Transform database response
+        if (!bayAvailability) {
+          return { available: false };
+        }
+
+        // Extract the actual bay availability object from the database response
+        let bayData = bayAvailability;
+        if (Array.isArray(bayAvailability) && bayAvailability.length > 0) {
+          // If it's an array, take the first element
+          bayData = bayAvailability[0];
+        }
+
+        if (typeof bayData !== 'object') {
+          return { available: false };
+        }
+
+        // Find available bays
+        const availableBays = Object.entries(bayData)
+          .filter(([, isAvailable]) => isAvailable === true)
+          .map(([bayName]) => bayName);
+
+        if (availableBays.length === 0) {
+          return { available: false };
+        }
+
+        // Prefer specific bay type if requested and available
+        let selectedBay = availableBays[0]; // Default to first available
+
+        if (preferred_bay_type) {
+          let preferredBays: string[] = [];
+
+          if (preferred_bay_type === 'social') {
+            // Social bays are Bay 1, 2, 3
+            preferredBays = ['Bay 1', 'Bay 2', 'Bay 3'];
+          } else if (preferred_bay_type === 'ai_lab') {
+            // AI Lab is Bay 4
+            preferredBays = ['Bay 4'];
+          }
+
+          // Find first available bay of preferred type
+          const availablePreferredBay = preferredBays.find(bay => availableBays.includes(bay));
+          if (availablePreferredBay) {
+            selectedBay = availablePreferredBay;
+          }
+          // If preferred type is not available, still fallback to any available bay
+          // selectedBay already set to availableBays[0] above
+        }
+
+        return {
+          available: true,
+          bay: selectedBay,
+          allAvailableBays: availableBays
+        };
+      } catch (error) {
+        console.error('Error checking bay availability:', error);
+        return { available: false };
+      }
+    };
+
+    // Run bay availability check and customer identification in parallel
+    // Same flow for both LIFF and website - findOrCreateCustomer handles customer matching
+    const [availabilityResult, customerResult] = await Promise.all([
+      checkBayAvailability(),
+      // Customer identification using customer service
       (async () => {
-        if (!token.sub) return null;
-        
         try {
-          console.log(`[Customer Service] Starting customer identification for user ${userId}`);
-          
+          console.log(`[Customer Service] Starting customer identification for user ${userId}${isLiffContext ? ' (LIFF)' : ''}`);
+
           const result = await findOrCreateCustomer(userId, name, phone_number, email);
-          
+
           console.log(`[Customer Service] Customer identification result:`, {
             isNew: result.is_new_customer,
             method: result.match_method,
@@ -396,9 +429,9 @@ export async function POST(request: NextRequest) {
             customerId: result.customer.id,
             customerCode: result.customer.customer_code
           });
-          
+
           return result;
-          
+
         } catch (error) {
           console.error('Error in customer service:', error);
           throw error; // Let the booking fail if customer service fails
@@ -407,17 +440,18 @@ export async function POST(request: NextRequest) {
     ]).catch(error => {
       console.error('Error in parallel operations:', error);
       logTiming('Parallel operations failure', 'error', { error: error.message });
-      return [{ available: false }, null];
+      return [{ available: false, allAvailableBays: [] as string[] } as AvailabilityResult, null as CustomerResult | null] as const;
     });
-    
+
     // Log more detailed info about the results
     logTiming('Parallel operations (availability + customer service)', 'success', {
-      bayAvailability: availabilityResult?.available || false,
+      bayAvailability: (availabilityResult as AvailabilityResult)?.available || false,
       availableBays: (availabilityResult as AvailabilityResult)?.allAvailableBays || [],
       customerFound: !!(customerResult as CustomerResult | null)?.customer?.id,
       isNewCustomer: !!(customerResult as CustomerResult | null)?.is_new_customer,
       matchMethod: (customerResult as CustomerResult | null)?.match_method || 'unknown',
-      confidence: (customerResult as CustomerResult | null)?.confidence || 0
+      confidence: (customerResult as CustomerResult | null)?.confidence || 0,
+      isLiffContext
     });
 
     // 6. Handle availability result
@@ -442,10 +476,9 @@ export async function POST(request: NextRequest) {
     const bayDisplayName = BAY_DISPLAY_NAMES[availableBay] || availableBay;
 
     // 7. Handle customer identification result
-    let customerId = null;
-    let customerCode = null;
-    let customerName = null;
-    let isNewCustomer = true;
+    // Same flow for both LIFF and website - use customerResult from findOrCreateCustomer
+    let customerName: string | null = null;
+    let isNewCustomer = false;
 
     if (customerResult) {
       const customer = (customerResult as CustomerResult).customer;
@@ -454,9 +487,14 @@ export async function POST(request: NextRequest) {
         customerCode = customer.customer_code;
         customerName = customer.customer_name;
         isNewCustomer = (customerResult as CustomerResult).is_new_customer;
-        
-        console.log(`[Customer Service] Using customer: ${customerCode} (${customerId}), New: ${isNewCustomer}`);
+
+        console.log(`[Customer Service] Using customer: ${customerCode} (${customerId}), New: ${isNewCustomer}${isLiffContext ? ' (LIFF)' : ''}`);
       }
+      logTiming('Customer data processing', 'success', {
+        customerIdObtained: !!customerId,
+        customerCodeObtained: !!customerCode,
+        isLiffContext
+      });
     } else {
       // If customer identification failed, fail the booking
       logTiming('Customer identification', 'error', { error: 'Customer identification failed' });
@@ -465,11 +503,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
-    logTiming('Customer data processing', 'success', { 
-      customerIdObtained: !!customerId, 
-      customerCodeObtained: !!customerCode
-    });
 
     // Profile linking is now handled automatically within findOrCreateCustomer
 
@@ -496,7 +529,6 @@ export async function POST(request: NextRequest) {
 
     // Log detailed customer identification information after package info is available
     if (customerResult) {
-      // Log successful customer service result
       logTiming('Customer identification', 'success', {
         customerId,
         customerCode,
@@ -504,6 +536,7 @@ export async function POST(request: NextRequest) {
         isNewCustomer,
         matchMethod: (customerResult as CustomerResult)?.match_method,
         confidence: (customerResult as CustomerResult)?.confidence,
+        isLiffContext,
         customerDetails: {
           hasActivePackage: !!packageInfo && packageInfo !== 'Normal Bay Rate',
           packageInfo,
@@ -594,9 +627,9 @@ export async function POST(request: NextRequest) {
     // 9. Format booking data for all services
     const formattedData = formatBookingData({
       booking,
-      crmData: customerId ? { 
+      crmData: customerId ? {
         id: customerCode || customerId,
-        name: customerName  // Use the customer name from customer service
+        name: customerName || undefined  // Use the customer name from customer service (convert null to undefined)
       } : null,
       bayInfo: {
         id: availableBay,
@@ -651,13 +684,14 @@ export async function POST(request: NextRequest) {
     // Calendar integration has been removed - booking creation is now complete
 
     // After successful booking creation, schedule review request for new customers
-    if (isNewCustomer && token.sub) {
+    // Note: LIFF users are always existing customers, so this only applies to NextAuth users
+    if (isNewCustomer && userId && !isLiffContext) {
       try {
         // Check if a review request has already been successfully sent to this user
         const { data: existingSentRequest, error: sentCheckError } = await supabase
           .from('scheduled_review_requests')
           .select('id')
-          .eq('user_id', token.sub)
+          .eq('user_id', userId)
           .eq('status', 'sent') // Check for successfully sent surveys
           .limit(1)
           .maybeSingle();
@@ -665,53 +699,53 @@ export async function POST(request: NextRequest) {
         if (sentCheckError) {
           console.error('Error checking for existing sent review requests:', sentCheckError);
           // Log timing for this error
-          logTiming('Review request pre-check', 'error', { 
-            userId: token.sub, 
-            error: 'Failed to check for existing sent requests' 
+          logTiming('Review request pre-check', 'error', {
+            userId: userId,
+            error: 'Failed to check for existing sent requests'
           });
           // Depending on policy, you might want to not schedule if this check fails.
           // For now, it will proceed if the check errors out (existingSentRequest would be null).
         }
 
         if (existingSentRequest) {
-          logTiming('Review request skipped', 'info', { 
-            reason: 'User has already received a successfully sent survey', 
-            userId: token.sub,
+          logTiming('Review request skipped', 'info', {
+            reason: 'User has already received a successfully sent survey',
+            userId: userId,
             existingRequestId: existingSentRequest.id
           });
         } else {
           // Proceed with scheduling if no prior 'sent' survey
           // Check if this is a LINE user by examining the profile
-          const { data: profile, error: profileError } = await supabase
+          const { data: reviewProfile, error: reviewProfileError } = await supabase
             .from('profiles')
             .select('display_name, phone_number, email')
-            .eq('id', token.sub)
+            .eq('id', userId)
             .single();
 
-          if (profileError) {
-            console.error('Error fetching user profile for review request:', profileError);
-            logTiming('Review request scheduling', 'error', { 
-              error: 'Failed to fetch user profile', 
-              userId: token.sub 
+          if (reviewProfileError) {
+            console.error('Error fetching user profile for review request:', reviewProfileError);
+            logTiming('Review request scheduling', 'error', {
+              error: 'Failed to fetch user profile',
+              userId: userId
             });
             // throw new Error('Failed to fetch user profile for review request'); // Or handle differently
           } else {
             // Determine the notification provider (LINE or email)
-            const provider = profile?.display_name === 'LINE' ? 'line' : 'email';
-            
+            const provider = reviewProfile?.display_name === 'LINE' ? 'line' : 'email';
+
             // Get the appropriate contact info based on the provider
             // For LINE users, use phone_number (LINE user ID) instead of email
-            const contactInfo = provider === 'line' 
-              ? profile?.phone_number || '' // Use LINE phone_number
+            const contactInfo = provider === 'line'
+              ? reviewProfile?.phone_number || '' // Use LINE phone_number
               : booking.email;             // Use booking email for non-LINE users
-            
+
             // Make sure we have valid contact info
             if (!contactInfo) {
-              console.error('Missing contact info for review request', { provider, profileFromDb: profile }); // Renamed for clarity
-              logTiming('Review request scheduling', 'error', { 
-                error: 'Missing contact info', 
-                userId: token.sub, 
-                provider 
+              console.error('Missing contact info for review request', { provider, profileFromDb: reviewProfile }); // Renamed for clarity
+              logTiming('Review request scheduling', 'error', {
+                error: 'Missing contact info',
+                userId: userId,
+                provider
               });
               // Potentially throw new Error('Missing contact info for review request');
             } else {
@@ -719,15 +753,15 @@ export async function POST(request: NextRequest) {
               // The scheduler will calculate this based on booking details
               const scheduled = await scheduleReviewRequest({
                 bookingId: booking.id,
-                userId: token.sub,
+                userId: userId,
                 provider,
                 contactInfo
                 // No delayMinutes - use booking end time + 30 minutes
               });
-              
+
               if (scheduled) {
-                logTiming('Review request scheduling', 'success', { 
-                  provider, 
+                logTiming('Review request scheduling', 'success', {
+                  provider,
                   bookingId: booking.id,
                   bookingDuration: booking.duration
                 });

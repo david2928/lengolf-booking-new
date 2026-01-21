@@ -5,9 +5,13 @@ import { createServerClient } from '@/utils/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authenticate via NextAuth
+    // 1. Authenticate via NextAuth OR LIFF context
     const token = await getToken({ req: request });
-    if (!token) {
+    const lineUserId = request.headers.get('x-line-user-id');
+
+    // Allow access if either NextAuth token OR LIFF context exists
+    // Availability is read-only and doesn't expose sensitive user data
+    if (!token && !lineUserId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
