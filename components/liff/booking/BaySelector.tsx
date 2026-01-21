@@ -101,7 +101,7 @@ export default function BaySelector({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-900">{t.bayPreference}</h2>
         <a
-          href="/bay-info"
+          href="/liff/bay-rates"
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs text-primary hover:underline flex items-center gap-1"
