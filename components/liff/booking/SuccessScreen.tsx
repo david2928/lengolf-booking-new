@@ -27,6 +27,7 @@ export default function SuccessScreen({
   language,
   booking,
   onBookAnother,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onClose
 }: SuccessScreenProps) {
   const t = bookingTranslations[language];

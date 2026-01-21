@@ -17,9 +17,10 @@ interface BookingsListProps {
   bookings: Booking[];
   total: number;
   language: Language;
+  onCancelBooking?: (booking: Booking) => void;
 }
 
-export default function BookingsList({ bookings, total, language }: BookingsListProps) {
+export default function BookingsList({ bookings, total, language, onCancelBooking }: BookingsListProps) {
   const t = membershipTranslations[language];
 
   return (
@@ -41,7 +42,12 @@ export default function BookingsList({ bookings, total, language }: BookingsList
       <div className="p-4 space-y-3">
         {bookings.length > 0 ? (
           bookings.map((booking) => (
-            <BookingCard key={booking.id} booking={booking} language={language} />
+            <BookingCard
+              key={booking.id}
+              booking={booking}
+              language={language}
+              onCancelClick={onCancelBooking}
+            />
           ))
         ) : (
           <div className="text-center py-8">

@@ -15,9 +15,10 @@ interface Booking {
 interface BookingCardProps {
   booking: Booking;
   language: Language;
+  onCancelClick?: (booking: Booking) => void;
 }
 
-export default function BookingCard({ booking, language }: BookingCardProps) {
+export default function BookingCard({ booking, language, onCancelClick }: BookingCardProps) {
   const t = membershipTranslations[language];
 
   // Format date
@@ -28,6 +29,28 @@ export default function BookingCard({ booking, language }: BookingCardProps) {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  // Convert specific bay name to bay type (Social Bay / AI Bay)
+  const getBayTypeDisplay = (bay: string | null) => {
+    if (!bay) return t.socialBay;
+    const bayLower = bay.toLowerCase();
+    if (bayLower.includes('ai') || bayLower === 'bay 4' || bayLower === 'bay_4') {
+      return t.aiBay;
+    }
+    return t.socialBay;
+  };
+
+  // Check if booking is in the future and can be cancelled
+  const canCancel = () => {
+    if (booking.status !== 'confirmed') return false;
+
+    const [year, month, day] = booking.date.split('-').map(Number);
+    const [hours, minutes] = booking.startTime.split(':').map(Number);
+    const bookingDateTime = new Date(year, month - 1, day, hours, minutes);
+    const now = new Date();
+
+    return bookingDateTime.getTime() > now.getTime();
   };
 
   // Status badge colors
@@ -46,6 +69,8 @@ export default function BookingCard({ booking, language }: BookingCardProps) {
   const statusColor = statusColors[booking.status as keyof typeof statusColors] || statusColors.confirmed;
   const statusLabel = statusText[booking.status as keyof typeof statusText] || booking.status;
 
+  const showCancelButton = canCancel() && onCancelClick;
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100 hover:border-primary/30 transition-colors">
       <div className="flex justify-between items-start mb-2">
@@ -62,16 +87,19 @@ export default function BookingCard({ booking, language }: BookingCardProps) {
         </span>
       </div>
 
-      {booking.bay && (
-        <p className="text-sm text-gray-600">
-          {t.bay}: <span className="font-medium">{booking.bay}</span>
-        </p>
-      )}
+      <p className="text-sm text-gray-600">
+        {t.bay}: <span className="font-medium">{getBayTypeDisplay(booking.bay)}</span>
+      </p>
 
-      {!booking.bay && booking.status === 'confirmed' && (
-        <p className="text-sm text-gray-500 italic">
-          {t.bay}: {t.toBeDetermined}
-        </p>
+      {showCancelButton && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <button
+            onClick={() => onCancelClick(booking)}
+            className="w-full py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+          >
+            {t.cancelBooking}
+          </button>
+        </div>
       )}
     </div>
   );

@@ -60,6 +60,21 @@ export interface MembershipTranslations {
   viewBayRates: string;
   contactUs: string;
 
+  // Booking Actions
+  cancelBooking: string;
+  confirmCancellation: string;
+  cancelConfirmMessage: string;
+  cancellationReason: string;
+  cancellationReasonPlaceholder: string;
+  yesCancelBooking: string;
+  keepBooking: string;
+  cancelling: string;
+  bookingCancelled: string;
+  bookingCancelledDescription: string;
+  done: string;
+  socialBay: string;
+  aiBay: string;
+
   // Common
   loading: string;
   error: string;
@@ -128,6 +143,21 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     viewBayRates: 'Bay Rates',
     contactUs: 'Contact Us',
 
+    // Booking Actions
+    cancelBooking: 'Cancel Booking',
+    confirmCancellation: 'Confirm Cancellation',
+    cancelConfirmMessage: 'Are you sure you want to cancel this booking? This action cannot be undone.',
+    cancellationReason: 'Reason for cancellation (optional)',
+    cancellationReasonPlaceholder: 'Let us know why you\'re cancelling...',
+    yesCancelBooking: 'Yes, Cancel Booking',
+    keepBooking: 'Keep Booking',
+    cancelling: 'Cancelling...',
+    bookingCancelled: 'Booking Cancelled',
+    bookingCancelledDescription: 'Your booking has been cancelled. A confirmation will be sent to your email.',
+    done: 'Done',
+    socialBay: 'Social Bay',
+    aiBay: 'AI Bay',
+
     // Common
     loading: 'Loading...',
     error: 'Error',
@@ -193,6 +223,21 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     viewPromotions: 'ดูโปรโมชั่น',
     viewBayRates: 'ราคาเบย์',
     contactUs: 'ติดต่อเรา',
+
+    // Booking Actions
+    cancelBooking: 'ยกเลิกการจอง',
+    confirmCancellation: 'ยืนยันการยกเลิก',
+    cancelConfirmMessage: 'คุณแน่ใจหรือไม่ที่จะยกเลิกการจองนี้? การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+    cancellationReason: 'เหตุผลในการยกเลิก (ไม่บังคับ)',
+    cancellationReasonPlaceholder: 'บอกเราว่าทำไมคุณถึงยกเลิก...',
+    yesCancelBooking: 'ใช่ ยกเลิกการจอง',
+    keepBooking: 'เก็บการจองไว้',
+    cancelling: 'กำลังยกเลิก...',
+    bookingCancelled: 'ยกเลิกการจองแล้ว',
+    bookingCancelledDescription: 'การจองของคุณถูกยกเลิกแล้ว จะมีการส่งยืนยันไปยังอีเมลของคุณ',
+    done: 'เสร็จสิ้น',
+    socialBay: 'Social Bay',
+    aiBay: 'AI Bay',
 
     // Common
     loading: 'กำลังโหลด...',

@@ -11,6 +11,7 @@ import ProfileCard from '@/components/liff/membership/ProfileCard';
 import PackagesList from '@/components/liff/membership/PackagesList';
 import BookingsList from '@/components/liff/membership/BookingsList';
 import QuickActions from '@/components/liff/membership/QuickActions';
+import BookingCancelModal from '@/components/liff/membership/BookingCancelModal';
 
 type ViewState = 'loading' | 'error' | 'not_linked' | 'dashboard';
 
@@ -84,6 +85,10 @@ export default function MembershipPage() {
   const [language, setLanguage] = useState<Language>('en');
   const [error, setError] = useState('');
   const [prefetchedData, setPrefetchedData] = useState<MembershipDataResponse | null>(null);
+
+  // Cancel modal state
+  const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   useEffect(() => {
     initializeLiff();
@@ -242,6 +247,40 @@ export default function MembershipPage() {
     }
   };
 
+  // Handle cancel booking click
+  const handleCancelBookingClick = (booking: Booking) => {
+    setBookingToCancel(booking);
+    setIsCancelModalOpen(true);
+  };
+
+  // Handle booking cancelled - optimistically update UI and refresh data
+  const handleBookingCancelled = () => {
+    if (bookingToCancel && dashboardData) {
+      // Optimistic update: remove the cancelled booking from the list
+      const updatedBookings = dashboardData.bookings.upcoming.filter(
+        b => b.id !== bookingToCancel.id
+      );
+      setDashboardData({
+        ...dashboardData,
+        bookings: {
+          ...dashboardData.bookings,
+          upcoming: updatedBookings,
+          total: dashboardData.bookings.total - 1
+        }
+      });
+    }
+    // Refresh data in background to ensure consistency
+    if (lineUserId) {
+      loadMembershipData(lineUserId);
+    }
+  };
+
+  // Handle cancel modal close
+  const handleCancelModalClose = () => {
+    setIsCancelModalOpen(false);
+    setBookingToCancel(null);
+  };
+
   const t = membershipTranslations[language];
 
   // Loading state - show skeleton if we have cached userId (faster perceived load)
@@ -300,10 +339,23 @@ export default function MembershipPage() {
             bookings={dashboardData.bookings.upcoming}
             total={dashboardData.bookings.total}
             language={language}
+            onCancelBooking={handleCancelBookingClick}
           />
 
           <QuickActions language={language} />
         </div>
+
+        {/* Booking Cancel Modal */}
+        {bookingToCancel && (
+          <BookingCancelModal
+            booking={bookingToCancel}
+            lineUserId={lineUserId}
+            language={language}
+            isOpen={isCancelModalOpen}
+            onClose={handleCancelModalClose}
+            onBookingCancelled={handleBookingCancelled}
+          />
+        )}
       </div>
     );
   }
