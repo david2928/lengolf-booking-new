@@ -24,14 +24,14 @@ export default function PricingTable({ language }: PricingTableProps) {
                 <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase whitespace-nowrap">
                   {language === 'en' ? 'Hours' : 'ชั่วโมง'}
                 </th>
-                <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase">
-                  1G
+                <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <span className="whitespace-nowrap">{language === 'en' ? '1 Golfer' : '1 นักกอล์ฟ'}</span>
                 </th>
-                <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase">
-                  2G
+                <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <span className="whitespace-nowrap">{language === 'en' ? '2 Golfers' : '2 นักกอล์ฟ'}</span>
                 </th>
-                <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase">
-                  3-5G
+                <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700">
+                  <span className="whitespace-nowrap">{language === 'en' ? '3-5 Golfers' : '3-5 นักกอล์ฟ'}</span>
                 </th>
               </tr>
             </thead>
