@@ -109,12 +109,15 @@ export default function SuccessScreen({
               {t.bookAnother}
             </button>
 
-            <button
-              onClick={onClose}
-              className="w-full bg-gray-100 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors"
+            <a
+              href="/liff/membership"
+              className="w-full bg-gray-100 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors flex items-center justify-center gap-2"
             >
-              {t.close}
-            </button>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              {language === 'en' ? 'Manage My Bookings' : 'จัดการการจอง'}
+            </a>
           </div>
         </div>
       </div>

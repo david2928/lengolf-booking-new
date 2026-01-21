@@ -433,6 +433,15 @@ export default function LiffBookingPage() {
 
   // Success state
   if (viewState === 'success' && bookingResult && selectedDate && selectedSlot) {
+    // Convert specific bay name to bay type (Social Bay / AI Bay)
+    const getBayTypeDisplay = (bay: string) => {
+      const bayLower = bay.toLowerCase();
+      if (bayLower.includes('ai') || bayLower === 'bay 4' || bayLower === 'bay_4') {
+        return language === 'en' ? 'AI Bay' : 'AI Bay';
+      }
+      return language === 'en' ? 'Social Bay' : 'Social Bay';
+    };
+
     return (
       <SuccessScreen
         language={language}
@@ -443,7 +452,7 @@ export default function LiffBookingPage() {
           endTime: getEndTime(),
           duration: formData.duration,
           bay: bookingResult.bay,
-          bayDisplayName: bookingResult.bayDisplayName,
+          bayDisplayName: getBayTypeDisplay(bookingResult.bay),
           numberOfPeople: formData.numberOfPeople
         }}
         onBookAnother={resetBooking}
