@@ -6,8 +6,8 @@
 export interface Coach {
   id: string;
   name: string;
-  displayName: string;
-  fullName: string;
+  displayName: { en: string; th: string };
+  fullName: { en: string; th: string };
   imageUrl: string;
   color: string;
   specialties: { en: string[]; th: string[] };
@@ -40,8 +40,8 @@ export const coaches: Coach[] = [
   {
     id: 'boss',
     name: 'Boss',
-    displayName: 'Boss',
-    fullName: 'Parin Phokan',
+    displayName: { en: 'Boss', th: 'บอส' },
+    fullName: { en: 'Parin Phokan', th: 'ปรินทร์ โพร์กัณฑ์' },
     imageUrl:
       'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/line-messages/curated/b8aaaad8-7a72-4447-9bb7-5676671718cd.jpg',
     color: '#FF6B6B',
@@ -52,7 +52,7 @@ export const coaches: Coach[] = [
         'Advanced Shot Shaping',
         'Junior Golf Development',
       ],
-      th: ['ฝึกไดรฟ์', 'การวางแผนการเล่น', 'ตีลูกโค้งขั้นสูง', 'โปรแกรมกอล์ฟสำหรับเยาวชน'],
+      th: ['ฝึกไดรฟ์', 'การวางแผนการเล่น', 'Advanced Shot Shaping', 'โปรแกรมกอล์ฟสำหรับเยาวชน'],
     },
     career: [
       "Lone Star Men's Championship 2022, USA: T44",
@@ -66,8 +66,8 @@ export const coaches: Coach[] = [
   {
     id: 'ratchavin',
     name: 'Ratchavin',
-    displayName: 'Ratchavin',
-    fullName: 'Ratchavin Tanakasempipat',
+    displayName: { en: 'Ratchavin', th: 'รัชวิน' },
+    fullName: { en: 'Ratchavin Tanakasempipat', th: 'รัชวิน ธนาเกษมพิพัฒน์' },
     imageUrl:
       'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/line-messages/curated/4ff2e288-9785-410a-8bda-3ae2668f7258.jpg',
     color: '#7B68EE',
@@ -91,8 +91,8 @@ export const coaches: Coach[] = [
   {
     id: 'min',
     name: 'Min',
-    displayName: 'Min',
-    fullName: 'Varuth Kjonkittiskul',
+    displayName: { en: 'Min', th: 'มิน' },
+    fullName: { en: 'Varuth Kjonkittiskul', th: 'วรุต ขจรกิตติสกุล' },
     imageUrl:
       'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/line-messages/curated/71c4edfb-95a0-4972-aa05-76a9227702d3.jpg',
     color: '#4ECDC4',
@@ -106,7 +106,7 @@ export const coaches: Coach[] = [
       th: [
         'โปรแกรมกอล์ฟสำหรับผู้เริ่มต้น',
         'การวางแผนการเล่น',
-        'ตีลูกโค้งขั้นสูง',
+        'Advanced Shot Shaping',
         'โปรแกรมพัตกอล์ฟ',
       ],
     },
@@ -121,8 +121,8 @@ export const coaches: Coach[] = [
   {
     id: 'noon',
     name: 'Noon',
-    displayName: 'Noon',
-    fullName: 'Nucharin Kantapasara',
+    displayName: { en: 'Noon', th: 'นุ่น' },
+    fullName: { en: 'Nucharin Kantapasara', th: 'นุชริน คันทาภัสร:' },
     imageUrl:
       'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/line-messages/curated/42c8b7d8-01a7-490b-b5da-2ccee9087153.jpg',
     color: '#FF69B4',
@@ -274,8 +274,8 @@ export function getCoachById(id: string): Coach | undefined {
 }
 
 /**
- * Get coach by display name
+ * Get coach by display name (matches against English name)
  */
 export function getCoachByDisplayName(displayName: string): Coach | undefined {
-  return coaches.find((coach) => coach.displayName === displayName);
+  return coaches.find((coach) => coach.name === displayName || coach.displayName.en === displayName);
 }

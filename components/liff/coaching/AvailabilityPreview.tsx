@@ -25,6 +25,7 @@ export default function AvailabilityPreview({ language, availability }: Availabi
   const t = coachingTranslations[language];
 
   // Filter coaches to only show those with availability
+  // API returns English displayName, so match against coach.name
   const availableCoachNames = new Set(
     availability
       .filter((a) => a.availability.some((day) => day.slots.length > 0))
@@ -32,16 +33,16 @@ export default function AvailabilityPreview({ language, availability }: Availabi
   );
 
   const availableCoaches = coaches.filter((coach) =>
-    availableCoachNames.has(coach.displayName)
+    availableCoachNames.has(coach.name)
   );
 
   const [activeCoachId, setActiveCoachId] = useState<string>(availableCoaches[0]?.id || '');
 
   const activeCoachData = availableCoaches.find((c) => c.id === activeCoachId);
-  // Match by displayName since API returns different UUIDs
+  // Match by name since API returns English displayName
   const activeAvailability = availability.find((a) =>
-    a.displayName === activeCoachData?.displayName ||
-    a.name === activeCoachData?.displayName
+    a.displayName === activeCoachData?.name ||
+    a.name === activeCoachData?.name
   );
 
   // If no coaches have availability, don't render the section
@@ -123,7 +124,7 @@ export default function AvailabilityPreview({ language, availability }: Availabi
                 : undefined
             }
           >
-            PRO {coach.displayName}
+            PRO {coach.displayName[language]}
           </button>
         ))}
       </div>

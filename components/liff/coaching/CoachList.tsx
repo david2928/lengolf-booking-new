@@ -32,6 +32,7 @@ export default function CoachList({ language, availability }: CoachListProps) {
   };
 
   // Filter coaches to only show those with availability
+  // API returns English displayName, so match against coach.name
   const availableCoachNames = new Set(
     availability
       .filter((a) => a.availability.some((day) => day.slots.length > 0))
@@ -39,7 +40,7 @@ export default function CoachList({ language, availability }: CoachListProps) {
   );
 
   const availableCoaches = coaches.filter((coach) =>
-    availableCoachNames.has(coach.displayName)
+    availableCoachNames.has(coach.name)
   );
 
   if (availableCoaches.length === 0) {

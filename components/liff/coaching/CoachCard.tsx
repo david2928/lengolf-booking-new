@@ -28,7 +28,7 @@ export default function CoachCard({ coach, language, onViewAvailability }: Coach
       >
         <Image
           src={coach.imageUrl}
-          alt={coach.fullName}
+          alt={coach.fullName[language]}
           fill
           className="object-cover"
         />
@@ -52,9 +52,9 @@ export default function CoachCard({ coach, language, onViewAvailability }: Coach
       {/* Content */}
       <div className="p-4">
         <h3 className="text-xl font-bold mb-1" style={{ color: coach.color }}>
-          PRO {coach.displayName}
+          PRO {coach.displayName[language]}
         </h3>
-        <p className="text-sm text-gray-600 mb-3">{coach.fullName}</p>
+        <p className="text-sm text-gray-600 mb-3">{coach.fullName[language]}</p>
 
         {/* Specialties */}
         <div className="mb-3">
@@ -105,15 +105,15 @@ export default function CoachCard({ coach, language, onViewAvailability }: Coach
           <div className="relative w-full h-full max-w-4xl max-h-[90vh]">
             <Image
               src={coach.imageUrl}
-              alt={coach.fullName}
+              alt={coach.fullName[language]}
               fill
               className="object-contain"
               onClick={(e) => e.stopPropagation()}
             />
           </div>
           <div className="absolute bottom-4 left-0 right-0 text-center">
-            <p className="text-white text-lg font-bold">PRO {coach.displayName}</p>
-            <p className="text-gray-300 text-sm">{coach.fullName}</p>
+            <p className="text-white text-lg font-bold">PRO {coach.displayName[language]}</p>
+            <p className="text-gray-300 text-sm">{coach.fullName[language]}</p>
           </div>
         </div>
       )}
