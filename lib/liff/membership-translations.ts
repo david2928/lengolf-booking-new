@@ -75,6 +75,12 @@ export interface MembershipTranslations {
   socialBay: string;
   aiBay: string;
 
+  // Modal Labels
+  dateLabel: string;
+  timeLabel: string;
+  durationLabel: string;
+  guestsLabel: string;
+
   // Common
   loading: string;
   error: string;
@@ -158,6 +164,12 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     socialBay: 'Social Bay',
     aiBay: 'AI Bay',
 
+    // Modal Labels
+    dateLabel: 'Date',
+    timeLabel: 'Time',
+    durationLabel: 'Duration',
+    guestsLabel: 'Guests',
+
     // Common
     loading: 'Loading...',
     error: 'Error',
@@ -238,6 +250,12 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     done: 'เสร็จสิ้น',
     socialBay: 'Social Bay',
     aiBay: 'AI Bay',
+
+    // Modal Labels
+    dateLabel: 'วันที่',
+    timeLabel: 'เวลา',
+    durationLabel: 'ระยะเวลา',
+    guestsLabel: 'จำนวนคน',
 
     // Common
     loading: 'กำลังโหลด...',

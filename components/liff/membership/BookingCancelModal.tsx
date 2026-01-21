@@ -64,7 +64,8 @@ export default function BookingCancelModal({
     setError(null);
 
     try {
-      const response = await fetch(`/api/liff/bookings/${booking.id}/cancel`, {
+      // Use the same VIP endpoint with lineUserId for LIFF authentication
+      const response = await fetch(`/api/vip/bookings/${booking.id}/cancel`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,16 +126,16 @@ export default function BookingCancelModal({
             {/* Cancelled booking details */}
             <div className="bg-gray-50 rounded-lg p-3 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">{t.on}</span>
+                <span className="text-gray-500">{t.dateLabel}</span>
                 <span className="font-medium text-gray-900">{formatDate(booking.date)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">{t.at}</span>
+                <span className="text-gray-500">{t.timeLabel}</span>
                 <span className="font-medium text-gray-900">{booking.startTime}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">{t.hours}</span>
-                <span className="font-medium text-gray-900">{booking.duration}</span>
+                <span className="text-gray-500">{t.durationLabel}</span>
+                <span className="font-medium text-gray-900">{booking.duration} {t.hours}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">{t.bay}</span>
@@ -191,19 +192,19 @@ export default function BookingCancelModal({
           {/* Booking details */}
           <div className="bg-gray-50 rounded-lg p-3 space-y-2 mb-4">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{t.on}</span>
+              <span className="text-gray-500">{t.dateLabel}</span>
               <span className="font-medium text-gray-900">{formatDate(booking.date)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{t.at}</span>
+              <span className="text-gray-500">{t.timeLabel}</span>
               <span className="font-medium text-gray-900">{booking.startTime}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{t.hours}</span>
-              <span className="font-medium text-gray-900">{booking.duration}</span>
+              <span className="text-gray-500">{t.durationLabel}</span>
+              <span className="font-medium text-gray-900">{booking.duration} {t.hours}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{t.people}</span>
+              <span className="text-gray-500">{t.guestsLabel}</span>
               <span className="font-medium text-gray-900">{booking.numberOfPeople}</span>
             </div>
             <div className="flex justify-between text-sm">

@@ -27,6 +27,7 @@ interface BookingWithProfiles {
 
 interface CancelPayload {
   cancellation_reason?: string | null;
+  lineUserId?: string; // For LIFF authentication
 }
 
 interface CancelRouteContextParams {
@@ -39,38 +40,38 @@ interface CancelRouteContext {
 
 export async function POST(request: NextRequest, context: CancelRouteContext) {
   const session = await getServerSession(authOptions) as VipBookingOpSession | null;
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const profileId = session.user.id;
   const supabase = createServerClient();
   const adminSupabase = createAdminClient();
-  
+
   const params = await context.params;
   const { bookingId } = params;
   let payload: CancelPayload = {};
 
-  // Try to parse payload, but make it optional for VIP user cancellation
+  // Try to parse payload
   try {
     const requestBody = await request.text();
-    if (requestBody) { // Only parse if there's a body
+    if (requestBody) {
       payload = JSON.parse(requestBody);
     }
   } catch {
     console.warn('[VIP Cancel] Could not parse JSON payload or no payload provided. Proceeding without cancellation_reason from payload.');
-    // Do not error out, cancellation_reason is optional for user
   }
 
   const cancellationReason = payload.cancellation_reason;
   if (cancellationReason !== undefined && cancellationReason !== null && typeof cancellationReason !== 'string') {
     return NextResponse.json({ error: 'cancellation_reason must be a string or null if provided' }, { status: 400 });
   }
-  
 
-  try {
-    // First get user's customer_id to check if they can access this booking
+  // Support both NextAuth session and LINE userId authentication
+  let profileId: string;
+  let userCustomerId: string | null = null;
+  let lineUserDisplayName: string | null = null;
+  let lineUserEmail: string | null = null;
+
+  if (session?.user?.id) {
+    // Website/VIP authentication via NextAuth
+    profileId = session.user.id;
+
     const { data: userProfile, error: profileError } = await supabase
       .from('profiles')
       .select('customer_id')
@@ -79,6 +80,37 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
 
     if (profileError || !userProfile) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
+    userCustomerId = userProfile.customer_id;
+  } else if (payload.lineUserId) {
+    // LIFF authentication via LINE userId
+    const { data: lineProfile, error: lineProfileError } = await adminSupabase
+      .from('profiles')
+      .select('id, display_name, email, customer_id')
+      .eq('provider', 'line')
+      .eq('provider_id', payload.lineUserId)
+      .single();
+
+    if (lineProfileError || !lineProfile) {
+      return NextResponse.json({ error: 'LINE user profile not found' }, { status: 404 });
+    }
+
+    if (!lineProfile.customer_id) {
+      return NextResponse.json({ error: 'User account not linked to customer' }, { status: 403 });
+    }
+
+    profileId = lineProfile.id;
+    userCustomerId = lineProfile.customer_id;
+    lineUserDisplayName = lineProfile.display_name;
+    lineUserEmail = lineProfile.email;
+  } else {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    // userCustomerId is already set above for both auth methods
+    if (!userCustomerId && !session?.user?.id) {
+      // For NextAuth users without customer_id, they can still cancel their own bookings via user_id
     }
 
     // Use admin client to fetch booking by ID, then verify access
@@ -100,8 +132,8 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
 
     // Check if user has access to this booking (either by user_id or customer_id)
     const hasDirectAccess = currentBooking.user_id === profileId;
-    const hasCustomerAccess = userProfile.customer_id && currentBooking.customer_id === userProfile.customer_id;
-    
+    const hasCustomerAccess = userCustomerId && currentBooking.customer_id === userCustomerId;
+
     if (!hasDirectAccess && !hasCustomerAccess) {
       return NextResponse.json({ error: 'Access denied. You do not own this booking.' }, { status: 403 });
     }
@@ -177,14 +209,20 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
 
     // Fallback to profiles email if no customer email
     if (!finalEmail) {
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('id', profileId)
-        .single();
+      // For LIFF users, we already have the email from lineUserEmail
+      if (lineUserEmail) {
+        finalEmail = lineUserEmail;
+      } else {
+        // For NextAuth users, fetch from profiles
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', profileId)
+          .single();
 
-      if (!profileError && profileData) {
-        finalEmail = profileData.email;
+        if (!profileError && profileData) {
+          finalEmail = profileData.email;
+        }
       }
     }
     
@@ -221,8 +259,8 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     // Prepare data for LINE notification
     const notificationData: NotificationBookingData = {
       id: cancelledBooking.id,
-      // Use customer name from customers table first, then booking snapshot, then profile display name
-      name: customerName || cancelledBooking.name || (cancelledBooking as BookingWithProfiles).profiles?.display_name || 'VIP User',
+      // Use customer name from customers table first, then booking snapshot, then profile display name, then LIFF display name
+      name: customerName || cancelledBooking.name || (cancelledBooking as BookingWithProfiles).profiles?.display_name || lineUserDisplayName || 'User',
       phone_number: finalPhoneNumber,
       date: cancelledBooking.date,
       start_time: cancelledBooking.start_time,
@@ -246,8 +284,8 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     // Email notification task
     if (finalEmail) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      // Use customer name from customers table first, then booking snapshot, then profile display name
-      const userName = customerName || cancelledBooking.name || (cancelledBooking as BookingWithProfiles).profiles?.display_name || 'VIP User';
+      // Use customer name from customers table first, then booking snapshot, then profile display name, then LIFF display name
+      const userName = customerName || cancelledBooking.name || (cancelledBooking as BookingWithProfiles).profiles?.display_name || lineUserDisplayName || 'User';
       
       // Calculate end time
       let endTimeCalc = ''; // Renamed to avoid conflict
