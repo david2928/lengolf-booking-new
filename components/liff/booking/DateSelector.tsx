@@ -26,7 +26,7 @@ export default function DateSelector({
   // Generate next 4 days
   const dates = Array.from({ length: 4 }, (_, i) => addDays(today, i));
 
-  const getDayLabel = (date: Date, index: number) => {
+  const getDayLabel = (date: Date) => {
     if (isToday(date)) return t.today;
     if (isTomorrow(date)) return t.tomorrow;
     return format(date, 'EEE', { locale });
@@ -62,7 +62,7 @@ export default function DateSelector({
                 }`}
               >
                 <div className={`text-[10px] font-semibold uppercase ${selected ? 'text-white/80' : isFirstTwo ? 'text-primary/70' : 'text-gray-500'}`}>
-                  {getDayLabel(date, index)}
+                  {getDayLabel(date)}
                 </div>
                 <div className="text-2xl font-bold mt-0.5">
                   {format(date, 'd')}

@@ -58,8 +58,6 @@ export default function LiffBookingPage() {
   const [viewState, setViewState] = useState<ViewState>('loading');
   const [bookingStep, setBookingStep] = useState<BookingStep>('date');
   const [lineUserId, setLineUserId] = useState('');
-  const [lineDisplayName, setLineDisplayName] = useState('');
-  const [linePictureUrl, setLinePictureUrl] = useState('');
   const [language, setLanguage] = useState<Language>('en');
   const [error, setError] = useState('');
 
@@ -103,7 +101,6 @@ export default function LiffBookingPage() {
         const testUserId = urlParams.get('userId') || 'U-test-user-123';
         console.log('[DEV MODE] Bypassing LIFF initialization');
         setLineUserId(testUserId);
-        setLineDisplayName('Test User');
         await loadUserData(testUserId);
         return;
       }
@@ -140,8 +137,6 @@ export default function LiffBookingPage() {
 
       const profile = await window.liff.getProfile();
       setLineUserId(profile.userId);
-      setLineDisplayName(profile.displayName);
-      setLinePictureUrl(profile.pictureUrl || '');
 
       await loadUserData(profile.userId);
 
