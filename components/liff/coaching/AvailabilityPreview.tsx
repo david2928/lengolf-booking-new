@@ -22,15 +22,32 @@ interface AvailabilityPreviewProps {
 }
 
 export default function AvailabilityPreview({ language, availability }: AvailabilityPreviewProps) {
-  const [activeCoachId, setActiveCoachId] = useState<string>(coaches[0]?.id || '');
   const t = coachingTranslations[language];
 
-  const activeCoachData = coaches.find((c) => c.id === activeCoachId);
+  // Filter coaches to only show those with availability
+  const availableCoachNames = new Set(
+    availability
+      .filter((a) => a.availability.some((day) => day.slots.length > 0))
+      .map((a) => a.displayName)
+  );
+
+  const availableCoaches = coaches.filter((coach) =>
+    availableCoachNames.has(coach.displayName)
+  );
+
+  const [activeCoachId, setActiveCoachId] = useState<string>(availableCoaches[0]?.id || '');
+
+  const activeCoachData = availableCoaches.find((c) => c.id === activeCoachId);
   // Match by displayName since API returns different UUIDs
   const activeAvailability = availability.find((a) =>
     a.displayName === activeCoachData?.displayName ||
     a.name === activeCoachData?.displayName
   );
+
+  // If no coaches have availability, don't render the section
+  if (availableCoaches.length === 0) {
+    return null;
+  }
 
   // Filter availability to only show slots 5+ hours from now
   const filterAvailabilitySlots = (avail: CoachAvailability | undefined) => {
@@ -91,7 +108,7 @@ export default function AvailabilityPreview({ language, availability }: Availabi
 
       {/* Coach Tabs */}
       <div className="flex overflow-x-auto gap-2 mb-4 pb-2">
-        {coaches.map((coach) => (
+        {availableCoaches.map((coach) => (
           <button
             key={coach.id}
             onClick={() => setActiveCoachId(coach.id)}

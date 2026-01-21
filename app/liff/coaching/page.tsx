@@ -161,7 +161,7 @@ export default function CoachingPage() {
       <div className="p-4 space-y-6 pb-24">
         <FreeTrialPromo language={language} />
 
-        <CoachList language={language} />
+        <CoachList language={language} availability={coachAvailability} />
 
         <PricingTable language={language} />
 
