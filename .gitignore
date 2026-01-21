@@ -53,3 +53,12 @@ key.json
 # Log files\nscripts/customer-matching.log\nscripts/*.log
 /node_modules/.package-lock.json
 node_modules/.package-lock.json
+
+# AI tools config
+.agents/
+.claude/
+.gemini/
+.github/skills/
+
+# Windows temp files
+nul
