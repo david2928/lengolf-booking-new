@@ -560,17 +560,64 @@ export default function LiffBookingPage() {
         )}
 
         {bookingStep === 'time' && (
-          <TimeSlotList
-            language={language}
-            slots={availableSlots}
-            selectedSlot={selectedSlot}
-            onSlotSelect={handleSlotSelect}
-            isLoading={isLoadingSlots}
-          />
+          <>
+            {/* Selected Date Summary */}
+            {selectedDate && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 mb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-sm">{t.date}</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">
+                    {selectedDate.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </span>
+                </div>
+              </div>
+            )}
+            <TimeSlotList
+              language={language}
+              slots={availableSlots}
+              selectedSlot={selectedSlot}
+              onSlotSelect={handleSlotSelect}
+              isLoading={isLoadingSlots}
+            />
+          </>
         )}
 
         {bookingStep === 'form' && selectedSlot && (
           <>
+            {/* Selected Date & Time Summary */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 mb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-900">
+                      {selectedDate?.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-900">{selectedSlot.time}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
             <BookingForm
               language={language}
               maxDuration={selectedSlot.maxHours}
