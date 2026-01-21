@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Language } from '@/lib/liff/translations';
 import CoachingHeader from '@/components/liff/coaching/CoachingHeader';
+import FreeTrialPromo from '@/components/liff/coaching/FreeTrialPromo';
 import CoachList from '@/components/liff/coaching/CoachList';
 import PricingTable from '@/components/liff/coaching/PricingTable';
 import SpecialPackages from '@/components/liff/coaching/SpecialPackages';
@@ -158,6 +159,8 @@ export default function CoachingPage() {
       <CoachingHeader language={language} onLanguageToggle={toggleLanguage} />
 
       <div className="p-4 space-y-6 pb-24">
+        <FreeTrialPromo language={language} />
+
         <CoachList language={language} />
 
         <PricingTable language={language} />

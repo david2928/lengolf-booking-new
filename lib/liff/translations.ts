@@ -244,6 +244,13 @@ export interface CoachingTranslations {
   saturday: string;
   sunday: string;
   loadingAvailability: string;
+  // Free trial section
+  freeTrialTitle: string;
+  freeTrialSubtitle: string;
+  freeTrialBenefit1: string;
+  freeTrialBenefit2: string;
+  freeTrialBenefit3: string;
+  freeTrialCta: string;
 }
 
 export const coachingTranslations: Record<Language, CoachingTranslations> = {
@@ -278,20 +285,27 @@ export const coachingTranslations: Record<Language, CoachingTranslations> = {
     saturday: 'Sat',
     sunday: 'Sun',
     loadingAvailability: 'Loading availability...',
+    // Free trial section
+    freeTrialTitle: 'Free Trial 1 Hour',
+    freeTrialSubtitle: 'with our Pro',
+    freeTrialBenefit1: 'Easy to understand techniques',
+    freeTrialBenefit2: 'Solid fundamentals',
+    freeTrialBenefit3: 'Ready for the course',
+    freeTrialCta: 'Book Now!!',
   },
   th: {
-    title: 'LENGOLF โค้ชชิ่ง',
+    title: 'ทีมโค้ช',
     subtitle: 'โค้ชกอล์ฟมืออาชีพรับรองโดย PGA',
-    ourCoaches: 'ทีมโค้ช',
+    ourCoaches: 'ทีมโปรผู้ฝึกสอน',
     specialties: 'ความเชี่ยวชาญ',
     career: 'ผลงาน',
     education: 'การศึกษา',
     certifications: 'ใบรับรอง',
-    viewAvailability: 'ดูตารางว่าง',
+    viewAvailability: 'ดูตารางการสอน',
     pricing: 'ราคาบทเรียน',
-    lessonPackages: 'แพ็คเกจบทเรียน',
-    specialPackages: 'แพ็คเกจพิเศษ',
-    availability: 'ตารางว่างโค้ช',
+    lessonPackages: 'โปรแกรมการสอน',
+    specialPackages: 'โปรแกรมการสอนแบบพิเศษ',
+    availability: 'โปรผู้ฝึกสอน',
     noAvailability: 'ไม่มีช่วงว่าง',
     perHour: '/ชม.',
     golfer: 'นักกอล์ฟ',
@@ -300,7 +314,7 @@ export const coachingTranslations: Record<Language, CoachingTranslations> = {
     validity: 'ระยะเวลา',
     bookViaLine: 'จองผ่าน LINE',
     bookNow: 'จองเลย',
-    packageIncludes: 'รวมในแพ็คเกจ',
+    packageIncludes: 'รวมในโปรแกรมการสอน',
     today: 'วันนี้',
     monday: 'จ.',
     tuesday: 'อ.',
@@ -310,5 +324,12 @@ export const coachingTranslations: Record<Language, CoachingTranslations> = {
     saturday: 'ส.',
     sunday: 'อา.',
     loadingAvailability: 'กำลังโหลดตารางว่าง...',
+    // Free trial section
+    freeTrialTitle: 'ทดลองเรียน ฟรี 1 ชั่วโมง',
+    freeTrialSubtitle: 'กับโปรของเรา',
+    freeTrialBenefit1: 'เทคนิคเข้าใจง่าย',
+    freeTrialBenefit2: 'พื้นฐานแน่น',
+    freeTrialBenefit3: 'พร้อมลุยสนาม',
+    freeTrialCta: 'จองเลย!!',
   },
 };

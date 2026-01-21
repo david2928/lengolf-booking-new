@@ -212,7 +212,7 @@ export const lessonPackages: LessonPackage[] = [
 export const specialPackages: SpecialPackage[] = [
   {
     id: 'starter',
-    name: { en: 'Starter Package', th: 'แพ็คเกจเริ่มต้น' },
+    name: { en: 'Starter Package', th: 'โปรแกรมเริ่มต้น' },
     prices: { golfers1: 11000, golfers2: 13500 },
     description: {
       en: '5 Hours Coaching + 5 Hours Practice',
@@ -220,7 +220,7 @@ export const specialPackages: SpecialPackage[] = [
     },
     includes: {
       en: ['5 hours of coaching', '5 hours of practice', 'Free golf glove'],
-      th: ['โค้ชชิ่ง 5 ชั่วโมง', 'ฝึกซ้อม 5 ชั่วโมง', 'ถุงมือกอล์ฟฟรี'],
+      th: ['โค้ชชิ่ง 5 ชั่วโมง', 'ฝึกซ้อม 5 ชั่วโมง', 'ฟรี! ถุงมือกอล์ฟ'],
     },
     validity: { en: '6 months', th: '6 เดือน' },
   },
@@ -260,9 +260,9 @@ export const packageIncludes = {
   ],
   th: [
     'ให้บริการไม้กอล์ฟ',
-    'อุปกรณ์โค้ชชิ่งให้บริการ',
-    'รวมการใช้ซิมมูเลเตอร์',
-    'สำหรับ 3-5 คน รวม 2 เบย์',
+    'อุปกรณ์ในการฝึกสอน',
+    'ให้บริการซิมมูเลเตอร์',
+    'สำหรับ 3-5 คน ให้บริการ 2 เบย์',
   ],
 };
 
