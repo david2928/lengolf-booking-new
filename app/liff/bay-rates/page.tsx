@@ -5,6 +5,7 @@ import { Language } from '@/lib/liff/translations';
 import BayRatesHeader from '@/components/liff/bay-rates/BayRatesHeader';
 import PricingTable from '@/components/liff/bay-rates/PricingTable';
 import CurrentTimeIndicator from '@/components/liff/bay-rates/CurrentTimeIndicator';
+import BayComparison from '@/components/liff/bay-rates/BayComparison';
 import OperatingHours from '@/components/liff/bay-rates/OperatingHours';
 import Amenities from '@/components/liff/bay-rates/Amenities';
 import QuickLinks from '@/components/liff/bay-rates/QuickLinks';
@@ -117,6 +118,8 @@ export default function BayRatesPage() {
         <CurrentTimeIndicator language={language} />
 
         <PricingTable language={language} />
+
+        <BayComparison language={language} />
 
         <OperatingHours language={language} />
 
