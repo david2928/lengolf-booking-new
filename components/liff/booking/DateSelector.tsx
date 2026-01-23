@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
+import { LIFF_URLS } from '@/lib/liff/urls';
 import { format, addDays, isToday, isTomorrow } from 'date-fns';
 import { th, enUS } from 'date-fns/locale';
 
@@ -172,7 +173,7 @@ export default function DateSelector({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <a
-            href="/liff/bay-rates"
+            href={LIFF_URLS.bayRates}
             className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
           >
             <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
@@ -186,7 +187,7 @@ export default function DateSelector({
           </a>
 
           <a
-            href="/liff/promotions"
+            href={LIFF_URLS.promotions}
             className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
           >
             <div className="w-10 h-10 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
@@ -200,7 +201,7 @@ export default function DateSelector({
           </a>
 
           <a
-            href="/liff/membership"
+            href={LIFF_URLS.membership}
             className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
           >
             <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
@@ -214,7 +215,7 @@ export default function DateSelector({
           </a>
 
           <a
-            href="/liff/contact"
+            href={LIFF_URLS.contact}
             className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
           >
             <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">

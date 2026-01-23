@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Language, bayRatesTranslations } from '@/lib/liff/translations';
+import { LIFF_URLS } from '@/lib/liff/urls';
 
 interface QuickLinksProps {
   language: Language;
@@ -97,7 +98,7 @@ export default function QuickLinks({ language }: QuickLinksProps) {
           </button>
 
           <a
-            href="/liff/promotions"
+            href={LIFF_URLS.promotions}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             className="flex flex-col items-center gap-2 p-3 rounded-lg bg-pink-50 hover:bg-pink-100 active:bg-pink-200 transition-colors"
@@ -113,7 +114,7 @@ export default function QuickLinks({ language }: QuickLinksProps) {
           </a>
 
           <a
-            href="/liff/contact"
+            href={LIFF_URLS.contact}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             className="flex flex-col items-center gap-2 p-3 rounded-lg bg-green-50 hover:bg-green-100 active:bg-green-200 transition-colors"

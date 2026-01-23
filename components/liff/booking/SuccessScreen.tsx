@@ -2,6 +2,7 @@
 
 import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
+import { LIFF_URLS } from '@/lib/liff/urls';
 import { format } from 'date-fns';
 import { th, enUS } from 'date-fns/locale';
 
@@ -111,7 +112,7 @@ export default function SuccessScreen({
             </button>
 
             <a
-              href="/liff/membership"
+              href={LIFF_URLS.membership}
               className="w-full bg-gray-100 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors flex items-center justify-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

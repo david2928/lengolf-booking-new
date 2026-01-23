@@ -3,6 +3,7 @@
 import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
 import { BayType } from '@/lib/bayConfig';
+import { LIFF_URLS } from '@/lib/liff/urls';
 
 interface BaySelectorProps {
   language: Language;
@@ -101,7 +102,7 @@ export default function BaySelector({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-900">{t.bayPreference}</h2>
         <a
-          href="/liff/bay-rates"
+          href={LIFF_URLS.bayRates}
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs text-primary hover:underline flex items-center gap-1"

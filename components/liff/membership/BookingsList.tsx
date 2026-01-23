@@ -1,5 +1,6 @@
 import { Language } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
+import { LIFF_URLS } from '@/lib/liff/urls';
 import BookingCard from './BookingCard';
 
 interface Booking {
@@ -30,7 +31,7 @@ export default function BookingsList({ bookings, total, language, onCancelBookin
           <h2 className="text-xl font-bold text-gray-900">{t.upcomingBookings}</h2>
           {total > bookings.length && (
             <a
-              href="/bookings"
+              href={LIFF_URLS.booking}
               className="text-sm text-primary font-medium hover:underline"
             >
               {t.viewAll} ({total})
@@ -58,7 +59,7 @@ export default function BookingsList({ bookings, total, language, onCancelBookin
             </div>
             <p className="text-gray-600 text-sm mb-3">{t.noUpcomingBookings}</p>
             <a
-              href="/bookings"
+              href={LIFF_URLS.booking}
               className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90 active:opacity-80 transition-opacity"
             >
               {t.bookNow}
