@@ -28,7 +28,7 @@ export default function DateSelector({
 
   const getDayLabel = (date: Date) => {
     if (isToday(date)) return t.today;
-    if (isTomorrow(date)) return t.tomorrow;
+    if (isTomorrow(date)) return language === 'en' ? 'TMR' : 'พรุ่งนี้';
     return format(date, 'EEE', { locale });
   };
 
@@ -222,8 +222,8 @@ export default function DateSelector({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <span className="text-sm font-medium text-gray-700">
-              {language === 'en' ? 'Contact Us' : 'ติดต่อเรา'}
+            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+              {language === 'en' ? 'Contact' : 'ติดต่อ'}
             </span>
           </a>
         </div>
