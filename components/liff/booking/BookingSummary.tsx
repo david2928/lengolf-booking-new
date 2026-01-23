@@ -141,8 +141,11 @@ export default function BookingSummary({
         </div>
       </div>
 
-      {/* Sticky Bottom Buttons */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 space-y-2">
+      {/* Sticky Bottom Buttons - iOS Safari fix */}
+      <div
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 space-y-2 z-50"
+        style={{ transform: 'translate3d(0,0,0)', WebkitTransform: 'translate3d(0,0,0)' }}
+      >
         <button
           onClick={onConfirm}
           disabled={isSubmitting}

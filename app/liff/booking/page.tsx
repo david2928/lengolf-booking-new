@@ -553,8 +553,11 @@ export default function LiffBookingPage() {
               selectedBay={selectedBayPreference}
               onBaySelect={handleBaySelect}
             />
-            {/* Next Button for Bay Step */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+            {/* Next Button for Bay Step - iOS Safari fix */}
+            <div
+              className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50"
+              style={{ transform: 'translate3d(0,0,0)', WebkitTransform: 'translate3d(0,0,0)' }}
+            >
               <button
                 onClick={handleBayNext}
                 className="w-full bg-primary text-white font-semibold py-4 rounded-lg hover:opacity-90 active:opacity-80 transition-opacity flex items-center justify-center gap-2"
@@ -637,8 +640,11 @@ export default function LiffBookingPage() {
               errors={formErrors}
             />
 
-            {/* Sticky Next Button */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+            {/* Sticky Next Button - iOS Safari fix with transform and z-index */}
+            <div
+              className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50"
+              style={{ transform: 'translate3d(0,0,0)', WebkitTransform: 'translate3d(0,0,0)' }}
+            >
               <button
                 onClick={handleFormNext}
                 className="w-full bg-primary text-white font-semibold py-4 rounded-lg hover:opacity-90 active:opacity-80 transition-opacity flex items-center justify-center gap-2"
