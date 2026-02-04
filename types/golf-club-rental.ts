@@ -1,3 +1,17 @@
+export interface GearUpItem {
+  id: string;
+  name: string;
+  price: number;
+  description?: string;
+  image: string;
+}
+
+export const GEAR_UP_ITEMS: GearUpItem[] = [
+  { id: 'gloves', name: 'Premium Leather Gloves', price: 600, image: '/images/gear-up/gloves.png' },
+  { id: 'balls', name: 'Golf Balls (6-pack)', price: 400, image: '/images/gear-up/balls.png' },
+  { id: 'delivery', name: 'Delivery Service', price: 500, description: 'pick-up + return (within Bangkok)', image: '/images/gear-up/delivery.png' },
+];
+
 export interface GolfClubOption {
   id: 'premium-mens' | 'premium-ladies' | 'standard' | 'none';
   name: string;

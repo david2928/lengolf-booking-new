@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
-import { GOLF_CLUB_PRICING } from '@/types/golf-club-rental';
+import { GOLF_CLUB_PRICING, GEAR_UP_ITEMS } from '@/types/golf-club-rental';
 import { CheckIcon } from '@heroicons/react/24/outline';
 
 export default function GolfClubRentalPage() {
@@ -94,6 +94,33 @@ export default function GolfClubRentalPage() {
           <p className="text-center text-sm text-gray-600 mt-4">
             *Standard clubs are provided free with any booking
           </p>
+        </div>
+
+        {/* GEAR UP Section */}
+        <div className="mb-12 max-w-4xl mx-auto">
+          <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-xl p-6 text-white">
+            <h2 className="text-2xl font-bold text-center mb-6">GEAR UP</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {GEAR_UP_ITEMS.map((item) => (
+                <div key={item.id} className="bg-white/10 rounded-lg p-4 text-center flex flex-col">
+                  <div className="relative w-16 h-16 mx-auto mb-3">
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      className="object-contain"
+                      sizes="64px"
+                    />
+                  </div>
+                  <div className="font-semibold">{item.name}</div>
+                  {item.description && (
+                    <div className="text-sm opacity-80">{item.description}</div>
+                  )}
+                  <div className="text-2xl font-bold mt-auto pt-2">฿{item.price.toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Available Golf Club Sets */}
@@ -336,9 +363,10 @@ export default function GolfClubRentalPage() {
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Use Anywhere</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">Use Anywhere + Delivery</h3>
               <p className="text-gray-700">
-                Rent our clubs for LENGOLF sessions or take them to play at any golf course in Bangkok! 
+                Rent our clubs for LENGOLF sessions or take them to play at any golf course in Bangkok!
+                We offer delivery service (pick-up + return) within Bangkok for ฿500.
                 Perfect for tourists who don&apos;t want to travel with clubs.
               </p>
             </div>
@@ -373,8 +401,8 @@ export default function GolfClubRentalPage() {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="font-semibold text-gray-900 mb-2">What brands of golf clubs are available for rent?</h3>
               <p className="text-gray-700">
-                We offer premium Callaway Warbird sets for men and Majesty Shuttle sets for ladies. 
-                Standard rental clubs are also available at reduced rates.
+                We offer premium Callaway Warbird sets for men and Majesty Shuttle sets for ladies.
+                Standard rental clubs are also available free with any bay booking.
               </p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6">
@@ -389,6 +417,14 @@ export default function GolfClubRentalPage() {
               <p className="text-gray-700">
                 Yes, we offer flexible rental periods starting from just 1 hour (฿150) up to full day rentals (฿1,200).
                 Choose the duration that matches your needs.
+              </p>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h3 className="font-semibold text-gray-900 mb-2">Do you offer delivery service?</h3>
+              <p className="text-gray-700">
+                Yes! We offer delivery and pick-up service within Bangkok for ฿500.
+                We&apos;ll deliver the clubs to your hotel and collect them when you&apos;re done.
+                Perfect for playing at Thai Country Club, Alpine, Nikanti, or any Bangkok course!
               </p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border-2 border-blue-500">
@@ -406,10 +442,18 @@ export default function GolfClubRentalPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             Ready to Play with Premium Clubs?
           </h3>
-          <p className="text-gray-600 mb-4">
-            Book your session with premium club rental at LENGOLF Bangkok. 
+          <p className="text-gray-600 mb-2">
+            Book your session with premium club rental at LENGOLF Bangkok.
             Use them here or take them to any golf course!
           </p>
+          <a
+            href="https://maps.app.goo.gl/pDyzGarizSvYz11G8"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block text-sm text-gray-500 mb-4 hover:text-green-600 transition-colors"
+          >
+            📍 Mercury Ville, Chidlom (Open in Maps)
+          </a>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
               href="/bookings"
