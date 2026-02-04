@@ -31,27 +31,27 @@ export const promotions: Promotion[] = [
     }
   },
 
-  // TIME-LIMITED: New Year Golf Resolutions
+  // TIME-LIMITED: February Extra Hours Promotion
   {
-    id: 'new-year-resolutions',
+    id: 'february-extra-hours',
     image: '/images/promotion_1.jpg',
     title: {
-      en: '10% OFF Unlimited Packages',
-      th: 'ลด 10% แพ็กเกจไม่จำกัด'
+      en: '20% Extra Hours on Monthly Packages',
+      th: 'รับชั่วโมงเพิ่ม 20% สำหรับแพ็กเกจรายเดือน'
     },
     description: {
-      en: 'Practice and improve at LENGOLF. Enjoy 10% OFF all unlimited packages this January!',
-      th: 'มาซ้อม มาสนุก และพัฒนาฝีมือที่ LENGOLF รับส่วนลด 10% สำหรับ Unlimited Packages ทุกแพ็กเกจ'
+      en: 'Practice consistently and improve your swing! Purchase any Monthly Package and enjoy 20% extra hours FREE.',
+      th: 'ฝึกซ้อมอย่างสม่ำเสมอและพัฒนาวงสวิงของคุณ! ซื้อแพ็กเกจรายเดือนรับชั่วโมงเพิ่มฟรี 20%'
     },
-    validUntil: new Date('2026-01-31T23:59:59'),  // Shows countdown timer - ends January 31
-    ctaType: 'book',
+    validUntil: new Date('2026-03-31T23:59:59'),  // Shows countdown timer - ends March 31
+    ctaType: 'contact',
     badge: {
-      en: 'NEW YEAR SPECIAL',
-      th: 'พิเศษปีใหม่'
+      en: 'FEBRUARY SPECIAL',
+      th: 'พิเศษเดือนกุมภาพันธ์'
     },
     terms: {
-      en: 'Promotion valid for January only. Get your Unlimited Package via Line @lengolf or purchase directly in-store.',
-      th: 'โปรโมชั่นเฉพาะเดือนมกราคมเท่านั้น'
+      en: 'Early Bird +2H, Bronze +1H, Silver +3H, Gold +6H FREE. Purchase via LINE @lengolf.',
+      th: 'Early Bird +2 ชม., Bronze +1 ชม., Silver +3 ชม., Gold +6 ชม. ฟรี! ซื้อผ่าน LINE @lengolf'
     }
   },
 
