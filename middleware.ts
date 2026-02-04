@@ -7,17 +7,6 @@ import type { NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Allow access to public routes immediately
-  if (
-    pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/auth') ||
-    pathname.startsWith('/images/') ||
-    pathname.startsWith('/_next/') ||
-    pathname.includes('/favicon.')
-  ) {
-    return NextResponse.next();
-  }
-
   // Redirect root to bookings
   if (pathname === '/') {
     return NextResponse.redirect(new URL('/bookings', request.url));
@@ -40,9 +29,13 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match only bookings routes and exclude more static files
-     * Removed: API routes, auth routes, static assets, manifest files
+     * Only match routes that actually need middleware processing.
+     * Using explicit positive matching instead of complex negative lookahead.
+     * This eliminates edge function invocations for static assets entirely.
      */
-    '/((?!api|_next|auth|images|favicon|robots.txt|site.webmanifest|apple-touch-icon|web-app-manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|json)$).*)',
+    '/',
+    '/bookings/:path*',
+    '/vip/:path*',
+    '/liff/:path*',
   ],
 }; 
