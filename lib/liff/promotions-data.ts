@@ -50,8 +50,8 @@ export const promotions: Promotion[] = [
       th: 'พิเศษเดือนกุมภาพันธ์'
     },
     terms: {
-      en: 'Early Bird +2H, Bronze +1H, Silver +3H, Gold +6H FREE. Purchase via LINE @lengolf.',
-      th: 'Early Bird +2 ชม., Bronze +1 ชม., Silver +3 ชม., Gold +6 ชม. ฟรี! ซื้อผ่าน LINE @lengolf'
+      en: 'Early Bird +2H, Bronze +1H, Silver +3H, Gold +6H FREE. Valid February to March only.',
+      th: 'Early Bird +2 ชม., Bronze +1 ชม., Silver +3 ชม., Gold +6 ชม. ฟรี! เฉพาะเดือนกุมภาพันธ์ถึงมีนาคมเท่านั้น'
     }
   },
 
