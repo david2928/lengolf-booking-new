@@ -31,27 +31,27 @@ export const promotions: Promotion[] = [
     }
   },
 
-  // TIME-LIMITED: February Extra Hours Promotion
+  // TIME-LIMITED: Extra Hours Promotion (Feb-Mar)
   {
-    id: 'february-extra-hours',
+    id: 'extra-hours-promo',
     image: '/images/promotion_1.jpg',
     title: {
-      en: '20% Extra Hours on Monthly Packages',
-      th: 'รับชั่วโมงเพิ่ม 20% สำหรับแพ็กเกจรายเดือน'
+      en: '20% Extra Hours FREE',
+      th: 'รับชั่วโมงเพิ่มฟรี 20%'
     },
     description: {
-      en: 'Practice consistently and improve your swing! Purchase any Monthly Package and enjoy 20% extra hours FREE.',
-      th: 'ฝึกซ้อมอย่างสม่ำเสมอและพัฒนาวงสวิงของคุณ! ซื้อแพ็กเกจรายเดือนรับชั่วโมงเพิ่มฟรี 20%'
+      en: 'Get bonus hours on any Monthly Package!',
+      th: 'รับชั่วโมงโบนัสเมื่อซื้อแพ็กเกจรายเดือน!'
     },
     validUntil: new Date('2026-03-31T23:59:59'),  // Shows countdown timer - ends March 31
     ctaType: 'contact',
     badge: {
-      en: 'FEBRUARY SPECIAL',
-      th: 'พิเศษเดือนกุมภาพันธ์'
+      en: 'LIMITED TIME',
+      th: 'จำกัดเวลา'
     },
     terms: {
-      en: 'Promotion valid February to March only.',
-      th: 'โปรโมชั่นเฉพาะเดือนกุมภาพันธ์ถึงมีนาคมเท่านั้น'
+      en: 'Valid February to March only.',
+      th: 'เฉพาะเดือนกุมภาพันธ์ถึงมีนาคมเท่านั้น'
     }
   },
 
