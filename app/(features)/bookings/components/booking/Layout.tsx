@@ -129,7 +129,7 @@ export function Layout({ children }: LayoutProps) {
         onToggleMobileMenu={toggleMobileMenu}
         rightContent={
           <>
-            <div className="md:hidden flex gap-1">
+            <div className="header-desktop:hidden flex gap-1">
               <button
                 onClick={() => setShowBayRates(true)}
                 className="p-2 text-white hover:bg-white/10 rounded-md"
@@ -153,7 +153,7 @@ export function Layout({ children }: LayoutProps) {
               </button>
             </div>
 
-            <nav className="hidden md:flex gap-4 items-center">
+            <nav className="hidden header-desktop:flex gap-4 items-center">
               {/* Primary booking-related actions - clean and minimal */}
               <button
                 onClick={() => setShowBayRates(!showBayRates)}
@@ -302,7 +302,7 @@ export function Layout({ children }: LayoutProps) {
           </>
         }
         mobileMenu={
-          <nav className="md:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
+          <nav className="header-desktop:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
             <ul className="space-y-2 px-2">
               {sessionStatus === 'authenticated' && isVipEligible ? (
                   <>

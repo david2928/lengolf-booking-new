@@ -42,8 +42,8 @@ const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2">
             {rightContent}
             
-            <button 
-              className="md:hidden p-2 text-white hover:bg-white/10 rounded-md"
+            <button
+              className="header-desktop:hidden p-2 text-white hover:bg-white/10 rounded-md"
               onClick={onToggleMobileMenu}
               aria-label="Toggle main menu"
             >

@@ -248,13 +248,13 @@ const VipLayout = ({ children }: VipLayoutProps) => {
         onToggleMobileMenu={toggleMobileMenu}
         rightContent={
           <>
-            <div className="md:hidden flex gap-1">
+            <div className="header-desktop:hidden flex gap-1">
               {/* Mobile placeholder buttons to maintain consistent spacing */}
               <div className="w-0 h-0"></div>
             </div>
 
             {isVipEligible ? (
-              <nav className="hidden md:flex gap-4 items-center">
+              <nav className="hidden header-desktop:flex gap-4 items-center">
                 {/* Add New Booking button like in the booking layout */}
                 <Link href="/bookings">
                   <button className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium">
@@ -327,7 +327,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                 </div>
               </nav>
             ) : sessionStatus === 'authenticated' ? (
-              <nav className="hidden md:flex gap-4 items-center">
+              <nav className="hidden header-desktop:flex gap-4 items-center">
                 <Link href="/bookings">
                   <button className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium">
                     <Calendar className="h-4 w-4" />
@@ -347,7 +347,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
           </>
         }
         mobileMenu={
-          <nav className="md:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
+          <nav className="header-desktop:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
             <ul className="space-y-2 px-2">
               {sessionStatus === 'authenticated' && isVipEligible ? (
                 <>

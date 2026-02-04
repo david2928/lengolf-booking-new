@@ -9,6 +9,9 @@ export default {
   ],
   theme: {
   	extend: {
+  		screens: {
+  			'header-desktop': '1300px',
+  		},
   		colors: {
   			primary: {
   				DEFAULT: 'hsl(var(--primary))',
