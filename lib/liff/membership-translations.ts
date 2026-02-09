@@ -89,6 +89,7 @@ export interface MembershipTranslations {
   bookingType: string;
   regular: string;
   package: string;
+  coaching: string;
   notes: string;
   bookedOn: string;
   time: string;
@@ -195,6 +196,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     bookingType: 'Booking Type',
     regular: 'Regular',
     package: 'Package',
+    coaching: 'Coaching',
     notes: 'Notes',
     bookedOn: 'Booked on',
     time: 'Time',
@@ -299,6 +301,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     bookingType: 'ประเภทการจอง',
     regular: 'ทั่วไป',
     package: 'แพ็กเกจ',
+    coaching: 'โค้ชชิ่ง',
     notes: 'หมายเหตุ',
     bookedOn: 'จองเมื่อ',
     time: 'เวลา',

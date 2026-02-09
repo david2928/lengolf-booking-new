@@ -45,7 +45,14 @@ export default function BookingDetailCard({ booking, language }: BookingDetailCa
   };
 
   const bayTypeDisplay = booking.bayType === 'ai' ? t.aiBay : t.socialBay;
-  const bookingTypeDisplay = booking.bookingType === 'package' ? t.package : t.regular;
+
+  const getBookingTypeDisplay = () => {
+    const bt = booking.bookingType.toLowerCase();
+    if (bt.includes('coaching')) return t.coaching;
+    if (bt === 'package' || bt.includes('package')) return t.package;
+    return t.regular;
+  };
+  const bookingTypeDisplay = getBookingTypeDisplay();
 
   const rows: { label: string; value: string }[] = [
     { label: t.dateLabel, value: formatDate(booking.date) },
