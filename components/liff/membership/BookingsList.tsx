@@ -1,6 +1,6 @@
 import { Language } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
-import { LIFF_URLS } from '@/lib/liff/urls';
+import { LIFF_URLS, getLiffBookingDetailUrl } from '@/lib/liff/urls';
 import BookingCard from './BookingCard';
 
 interface Booking {
@@ -48,6 +48,7 @@ export default function BookingsList({ bookings, total, language, onCancelBookin
               booking={booking}
               language={language}
               onCancelClick={onCancelBooking}
+              detailUrl={getLiffBookingDetailUrl(booking.id)}
             />
           ))
         ) : (

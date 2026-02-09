@@ -81,6 +81,23 @@ export interface MembershipTranslations {
   durationLabel: string;
   guestsLabel: string;
 
+  // Booking Detail Page
+  bookingDetails: string;
+  backToBookings: string;
+  bookAgain: string;
+  bookingId: string;
+  bookingType: string;
+  regular: string;
+  package: string;
+  notes: string;
+  bookedOn: string;
+  time: string;
+  cancellationReasonLabel: string;
+  bookingNotFound: string;
+  bookingNotFoundDescription: string;
+  accessDenied: string;
+  accessDeniedDescription: string;
+
   // Common
   loading: string;
   error: string;
@@ -170,6 +187,23 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     durationLabel: 'Duration',
     guestsLabel: 'Guests',
 
+    // Booking Detail Page
+    bookingDetails: 'Booking Details',
+    backToBookings: 'Back to My Bookings',
+    bookAgain: 'Book Again',
+    bookingId: 'Booking ID',
+    bookingType: 'Booking Type',
+    regular: 'Regular',
+    package: 'Package',
+    notes: 'Notes',
+    bookedOn: 'Booked on',
+    time: 'Time',
+    cancellationReasonLabel: 'Cancellation Reason',
+    bookingNotFound: 'Booking Not Found',
+    bookingNotFoundDescription: 'The booking you are looking for does not exist or has been removed.',
+    accessDenied: 'Access Denied',
+    accessDeniedDescription: 'You do not have permission to view this booking.',
+
     // Common
     loading: 'Loading...',
     error: 'Error',
@@ -256,6 +290,23 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     timeLabel: 'เวลา',
     durationLabel: 'ระยะเวลา',
     guestsLabel: 'จำนวนคน',
+
+    // Booking Detail Page
+    bookingDetails: 'รายละเอียดการจอง',
+    backToBookings: 'กลับไปยังการจองของฉัน',
+    bookAgain: 'จองอีกครั้ง',
+    bookingId: 'รหัสการจอง',
+    bookingType: 'ประเภทการจอง',
+    regular: 'ทั่วไป',
+    package: 'แพ็กเกจ',
+    notes: 'หมายเหตุ',
+    bookedOn: 'จองเมื่อ',
+    time: 'เวลา',
+    cancellationReasonLabel: 'เหตุผลในการยกเลิก',
+    bookingNotFound: 'ไม่พบการจอง',
+    bookingNotFoundDescription: 'ไม่พบการจองที่คุณกำลังมองหา หรืออาจถูกลบไปแล้ว',
+    accessDenied: 'ไม่มีสิทธิ์เข้าถึง',
+    accessDeniedDescription: 'คุณไม่มีสิทธิ์ดูการจองนี้',
 
     // Common
     loading: 'กำลังโหลด...',

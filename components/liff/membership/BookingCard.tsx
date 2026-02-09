@@ -16,9 +16,10 @@ interface BookingCardProps {
   booking: Booking;
   language: Language;
   onCancelClick?: (booking: Booking) => void;
+  detailUrl?: string;
 }
 
-export default function BookingCard({ booking, language, onCancelClick }: BookingCardProps) {
+export default function BookingCard({ booking, language, onCancelClick, detailUrl }: BookingCardProps) {
   const t = membershipTranslations[language];
 
   // Format date
@@ -71,8 +72,8 @@ export default function BookingCard({ booking, language, onCancelClick }: Bookin
 
   const showCancelButton = canCancel() && onCancelClick;
 
-  return (
-    <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100 hover:border-primary/30 transition-colors">
+  const cardContent = (
+    <>
       <div className="flex justify-between items-start mb-2">
         <div>
           <p className="font-bold text-gray-900">
@@ -94,13 +95,30 @@ export default function BookingCard({ booking, language, onCancelClick }: Bookin
       {showCancelButton && (
         <div className="mt-3 pt-3 border-t border-gray-100">
           <button
-            onClick={() => onCancelClick(booking)}
+            onClick={(e) => { e.preventDefault(); onCancelClick(booking); }}
             className="w-full py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
           >
             {t.cancelBooking}
           </button>
         </div>
       )}
+    </>
+  );
+
+  if (detailUrl) {
+    return (
+      <a
+        href={detailUrl}
+        className="block bg-white rounded-lg shadow-sm p-4 border border-gray-100 hover:border-primary/30 transition-colors"
+      >
+        {cardContent}
+      </a>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100 hover:border-primary/30 transition-colors">
+      {cardContent}
     </div>
   );
 }
