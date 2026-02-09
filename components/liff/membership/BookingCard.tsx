@@ -10,6 +10,7 @@ interface Booking {
   status: string;
   numberOfPeople: number;
   notes?: string | null;
+  bookingType?: string | null;
 }
 
 interface BookingCardProps {
@@ -42,9 +43,10 @@ export default function BookingCard({ booking, language, onCancelClick, detailUr
     return t.socialBay;
   };
 
-  // Check if booking is in the future and can be cancelled
+  // Check if booking is in the future and can be cancelled (coaching bookings must contact staff)
   const canCancel = () => {
     if (booking.status !== 'confirmed') return false;
+    if ((booking.bookingType || '').toLowerCase().includes('coaching')) return false;
 
     const [year, month, day] = booking.date.split('-').map(Number);
     const [hours, minutes] = booking.startTime.split(':').map(Number);

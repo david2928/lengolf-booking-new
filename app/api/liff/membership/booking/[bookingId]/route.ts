@@ -108,7 +108,8 @@ export async function GET(
     const [year, month, day] = booking.date.split('-').map(Number);
     const [bHours, bMinutes] = booking.start_time.split(':').map(Number);
     const bookingDateTime = new Date(year, month - 1, day, bHours, bMinutes);
-    const canCancel = booking.status === 'confirmed' && bookingDateTime.getTime() > Date.now();
+    const isCoaching = (booking.booking_type || '').toLowerCase().includes('coaching');
+    const canCancel = booking.status === 'confirmed' && bookingDateTime.getTime() > Date.now() && !isCoaching;
 
     const responseData = {
       id: booking.id,

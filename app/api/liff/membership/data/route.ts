@@ -186,7 +186,8 @@ export async function GET(request: NextRequest) {
       bay: booking.bay,
       status: booking.status,
       numberOfPeople: booking.number_of_people,
-      notes: booking.customer_notes
+      notes: booking.customer_notes,
+      bookingType: booking.booking_type
     }));
 
     const responseData = {

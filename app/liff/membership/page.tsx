@@ -35,6 +35,7 @@ interface Booking {
   status: string;
   numberOfPeople: number;
   notes?: string | null;
+  bookingType?: string | null;
 }
 
 interface DashboardData {
