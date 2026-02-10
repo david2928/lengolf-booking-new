@@ -27,7 +27,7 @@ export default function BookingDetailCard({ booking, language }: BookingDetailCa
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', {
+    return date.toLocaleDateString(language === 'th' ? 'th-TH' : language === 'ja' ? 'ja-JP' : language === 'zh' ? 'zh-CN' : 'en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -37,7 +37,7 @@ export default function BookingDetailCard({ booking, language }: BookingDetailCa
 
   const formatCreatedAt = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', {
+    return date.toLocaleDateString(language === 'th' ? 'th-TH' : language === 'ja' ? 'ja-JP' : language === 'zh' ? 'zh-CN' : 'en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

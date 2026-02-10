@@ -1,13 +1,14 @@
 import { Language } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
+import LanguageSelector from '@/components/liff/shared/LanguageSelector';
 
 interface MembershipHeaderProps {
   language: Language;
-  onLanguageToggle: () => void;
+  onLanguageChange: (lang: Language) => void;
   userName?: string;
 }
 
-export default function MembershipHeader({ language, onLanguageToggle, userName }: MembershipHeaderProps) {
+export default function MembershipHeader({ language, onLanguageChange, userName }: MembershipHeaderProps) {
   const t = membershipTranslations[language];
 
   return (
@@ -25,16 +26,7 @@ export default function MembershipHeader({ language, onLanguageToggle, userName 
             )}
           </div>
 
-          <button
-            onClick={onLanguageToggle}
-            className="flex items-center gap-1.5 bg-white text-primary px-3 py-1.5 rounded-md text-sm font-medium hover:bg-white/90 active:bg-white/80 transition-colors"
-            aria-label="Toggle language"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-            </svg>
-            <span className="font-semibold">{language === 'en' ? 'TH' : 'EN'}</span>
-          </button>
+          <LanguageSelector language={language} onLanguageChange={onLanguageChange} />
         </div>
       </div>
     </header>

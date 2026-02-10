@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Language } from '@/lib/liff/translations';
+import { Language, isValidLanguage } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
 import { LIFF_URLS } from '@/lib/liff/urls';
 import BookingDetailHeader from '@/components/liff/membership/booking-detail/BookingDetailHeader';
@@ -48,8 +48,8 @@ export default function BookingDetailPage() {
   useEffect(() => {
     // Load saved language
     if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem('liff-membership-language') as Language;
-      if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'th')) {
+      const savedLanguage = localStorage.getItem('liff-language');
+      if (savedLanguage && isValidLanguage(savedLanguage)) {
         setLanguage(savedLanguage);
       }
     }
@@ -91,6 +91,15 @@ export default function BookingDetailPage() {
         console.error('LIFF init error:', err);
         throw err;
       });
+
+      // Auto-detect language from LINE on first visit
+      if (!localStorage.getItem('liff-language')) {
+        const lineLang = window.liff.getLanguage?.();
+        if (lineLang && isValidLanguage(lineLang)) {
+          setLanguage(lineLang);
+          localStorage.setItem('liff-language', lineLang);
+        }
+      }
 
       if (!window.liff.isLoggedIn()) {
         window.liff.login({ redirectUri: window.location.href });
@@ -139,11 +148,10 @@ export default function BookingDetailPage() {
     }
   };
 
-  const toggleLanguage = () => {
-    const newLanguage = language === 'en' ? 'th' : 'en';
-    setLanguage(newLanguage);
+  const handleLanguageChange = (newLang: Language) => {
+    setLanguage(newLang);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-membership-language', newLanguage);
+      localStorage.setItem('liff-language', newLang);
     }
   };
 
@@ -238,7 +246,7 @@ export default function BookingDetailPage() {
       <div className="min-h-screen bg-gray-50">
         <BookingDetailHeader
           language={language}
-          onLanguageToggle={toggleLanguage}
+          onLanguageChange={handleLanguageChange}
           onBack={navigateToMembership}
         />
 

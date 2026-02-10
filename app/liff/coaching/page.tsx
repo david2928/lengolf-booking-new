@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Language } from '@/lib/liff/translations';
+import { Language, isValidLanguage } from '@/lib/liff/translations';
 import CoachingHeader from '@/components/liff/coaching/CoachingHeader';
 import FreeTrialPromo from '@/components/liff/coaching/FreeTrialPromo';
 import CoachList from '@/components/liff/coaching/CoachList';
@@ -39,8 +39,8 @@ export default function CoachingPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem('liff-coaching-language') as Language;
-      if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'th')) {
+      const savedLanguage = localStorage.getItem('liff-language');
+      if (savedLanguage && isValidLanguage(savedLanguage)) {
         setLanguage(savedLanguage);
       }
     }
@@ -85,6 +85,15 @@ export default function CoachingPage() {
         return;
       });
 
+      // Auto-detect language from LINE on first visit
+      if (!localStorage.getItem('liff-language')) {
+        const lineLang = window.liff?.getLanguage?.();
+        if (lineLang && isValidLanguage(lineLang)) {
+          setLanguage(lineLang);
+          localStorage.setItem('liff-language', lineLang);
+        }
+      }
+
       await fetchAvailability();
       setViewState('ready');
     } catch (err) {
@@ -109,11 +118,10 @@ export default function CoachingPage() {
     }
   };
 
-  const toggleLanguage = () => {
-    const newLanguage = language === 'en' ? 'th' : 'en';
-    setLanguage(newLanguage);
+  const handleLanguageChange = (newLang: Language) => {
+    setLanguage(newLang);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-coaching-language', newLanguage);
+      localStorage.setItem('liff-language', newLang);
     }
   };
 
@@ -156,7 +164,7 @@ export default function CoachingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <CoachingHeader language={language} onLanguageToggle={toggleLanguage} />
+      <CoachingHeader language={language} onLanguageChange={handleLanguageChange} />
 
       <div className="p-4 space-y-6 pb-24">
         <FreeTrialPromo language={language} />

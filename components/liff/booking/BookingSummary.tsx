@@ -5,7 +5,7 @@ import { bookingTranslations } from '@/lib/liff/booking-translations';
 import { BookingFormData, ActivePackage } from './BookingForm';
 import { TimeSlot } from './TimeSlotList';
 import { format } from 'date-fns';
-import { th, enUS } from 'date-fns/locale';
+import { th, enUS, ja, zhCN } from 'date-fns/locale';
 
 interface BookingSummaryProps {
   language: Language;
@@ -29,7 +29,7 @@ export default function BookingSummary({
   onBack
 }: BookingSummaryProps) {
   const t = bookingTranslations[language];
-  const locale = language === 'th' ? th : enUS;
+  const locale = language === 'th' ? th : language === 'ja' ? ja : language === 'zh' ? zhCN : enUS;
 
   // Calculate end time
   const startHour = parseInt(timeSlot.time.split(':')[0], 10);

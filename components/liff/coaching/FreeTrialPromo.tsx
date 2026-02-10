@@ -27,11 +27,7 @@ export default function FreeTrialPromo({ language }: FreeTrialPromoProps) {
           {/* Header */}
           <div className="text-center mb-5">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-1 tracking-tight">
-              {language === 'en' ? (
-                <>Free Trial 1 Hour</>
-              ) : (
-                <>ทดลองเรียน ฟรี 1 ชั่วโมง</>
-              )}
+              {t.freeTrialTitle}
             </h2>
             <p className="text-lg text-green-100 font-medium">
               {t.freeTrialSubtitle}

@@ -350,4 +350,236 @@ export const bookingTranslations: Record<Language, BookingTranslations> = {
     invalidPhone: 'กรุณากรอกเบอร์โทรที่ถูกต้อง',
     selectTimeSlot: 'กรุณาเลือกช่วงเวลา',
   },
+  ja: {
+    // Header
+    title: 'ベイを予約',
+    back: '戻る',
+
+    // Date Selection
+    selectDate: '日付を選択',
+    today: '今日',
+    tomorrow: '明日',
+    otherDate: '他の日',
+
+    // Time Selection
+    selectTime: '時間を選択',
+    morning: '午前',
+    afternoon: '午後',
+    evening: '夕方',
+    noSlotsAvailable: 'この日に空きはありません',
+    maxHours: '最大',
+    hour: '時間',
+    hours: '時間',
+
+    // Booking Form
+    bookingDetails: '予約詳細',
+    contactInfo: '連絡先情報',
+    name: 'お名前',
+    namePlaceholder: 'お名前を入力',
+    phone: '電話番号',
+    phonePlaceholder: '0812345678',
+    email: 'メール',
+    emailPlaceholder: 'your@email.com',
+    duration: '利用時間',
+    selectDuration: '利用時間を選択',
+    numberOfPeople: '人数',
+    person: '名',
+    people: '名',
+    bayPreference: 'ベイの希望',
+    anyBay: '指定なし',
+    socialBay: 'ソーシャルベイ',
+    socialBayDescription: 'グループにおすすめ',
+    aiLab: 'AI Lab',
+    aiLabDescription: '高度なスイング分析',
+    notes: 'ご要望',
+    notesPlaceholder: 'ご要望があればお書きください',
+
+    // Play & Food Packages
+    playFoodPackages: 'プレー＆フードパッケージ',
+    noPackage: 'パッケージなし',
+    perPerson: '/名',
+    includes: '含む',
+    unlimitedSoftDrinks: 'ソフトドリンク飲み放題',
+    popularChoice: '人気',
+
+    // Play & Food Package Details
+    viewDetails: '詳細を見る',
+    bayOnly: 'ベイのみ',
+    normalRates: '通常料金',
+    bayRentalNormalRates: 'ベイ利用料は通常の時間料金が適用されます',
+
+    // Club Rental
+    clubRental: 'クラブレンタル',
+    noRental: 'レンタル不要',
+    ownClubs: '自分のクラブ',
+    standardClubs: 'スタンダードクラブ',
+    premiumClubs: 'プレミアムクラブ',
+    premiumClubsSelected: 'プレミアムクラブ選択済み',
+    free: '無料',
+    fullDay: '終日',
+
+    // Package Info
+    usingPackage: 'パッケージ利用',
+    hoursRemaining: '時間残り',
+    normalRate: '通常料金',
+
+    // Summary
+    bookingSummary: '予約内容',
+    date: '日付',
+    time: '時間',
+    bay: 'ベイ',
+    totalDuration: '利用時間',
+    guests: '人数',
+    package: 'パッケージ',
+    playFoodPackage: 'プレー＆フード',
+    clubs: 'クラブ',
+    confirm: '確認',
+    confirmBooking: '予約を確定',
+    processing: '処理中...',
+
+    // Success
+    bookingConfirmed: '予約完了！',
+    bookingId: '予約ID',
+    thankYou: 'ご予約ありがとうございます',
+    confirmationSent: '確認メールをお送りしました',
+    viewBooking: '予約を確認',
+    bookAnother: '別の予約をする',
+    close: '閉じる',
+
+    // Link Account
+    linkRequired: 'アカウント連携が必要です',
+    linkDescription: '予約を続けるにはアカウントを連携してください。より良いサービスをご提供できます。',
+    linkAccount: 'アカウントを連携',
+
+    // Common
+    loading: '読み込み中...',
+    error: 'エラーが発生しました',
+    retry: '再試行',
+    next: '次へ',
+    cancel: 'キャンセル',
+
+    // Validation
+    nameRequired: 'お名前を入力してください',
+    phoneRequired: '電話番号を入力してください',
+    emailRequired: 'メールアドレスを入力してください',
+    invalidEmail: '正しいメールアドレスを入力してください',
+    invalidPhone: '正しい電話番号を入力してください',
+    selectTimeSlot: '時間帯を選択してください',
+  },
+  zh: {
+    // Header
+    title: '预约球位',
+    back: '返回',
+
+    // Date Selection
+    selectDate: '选择日期',
+    today: '今天',
+    tomorrow: '明天',
+    otherDate: '其他日期',
+
+    // Time Selection
+    selectTime: '选择时间',
+    morning: '上午',
+    afternoon: '下午',
+    evening: '晚间',
+    noSlotsAvailable: '该日期暂无可用时段',
+    maxHours: '最多',
+    hour: '小时',
+    hours: '小时',
+
+    // Booking Form
+    bookingDetails: '预约详情',
+    contactInfo: '联系信息',
+    name: '姓名',
+    namePlaceholder: '请输入您的姓名',
+    phone: '电话',
+    phonePlaceholder: '0812345678',
+    email: '邮箱',
+    emailPlaceholder: 'your@email.com',
+    duration: '时长',
+    selectDuration: '选择时长',
+    numberOfPeople: '人数',
+    person: '人',
+    people: '人',
+    bayPreference: '球位偏好',
+    anyBay: '任意可用',
+    socialBay: 'Social Bay',
+    socialBayDescription: '适合团体',
+    aiLab: 'AI Lab',
+    aiLabDescription: '高级挥杆分析',
+    notes: '特殊要求',
+    notesPlaceholder: '有什么特殊要求吗？',
+
+    // Play & Food Packages
+    playFoodPackages: '畅玩美食套餐',
+    noPackage: '不需要套餐',
+    perPerson: '/人',
+    includes: '包含',
+    unlimitedSoftDrinks: '无限量软饮',
+    popularChoice: '热门',
+
+    // Play & Food Package Details
+    viewDetails: '查看详情',
+    bayOnly: '仅球位',
+    normalRates: '标准价格',
+    bayRentalNormalRates: '球位租赁按标准小时费率计费',
+
+    // Club Rental
+    clubRental: '球杆租赁',
+    noRental: '无需租赁',
+    ownClubs: '自带球杆',
+    standardClubs: '标准球杆',
+    premiumClubs: '高级球杆',
+    premiumClubsSelected: '已选择高级球杆',
+    free: '免费',
+    fullDay: '全天',
+
+    // Package Info
+    usingPackage: '使用套餐',
+    hoursRemaining: '小时剩余',
+    normalRate: '标准球位价格',
+
+    // Summary
+    bookingSummary: '预约摘要',
+    date: '日期',
+    time: '时间',
+    bay: '球位',
+    totalDuration: '时长',
+    guests: '人数',
+    package: '套餐',
+    playFoodPackage: '畅玩美食',
+    clubs: '球杆',
+    confirm: '确认',
+    confirmBooking: '确认预约',
+    processing: '处理中...',
+
+    // Success
+    bookingConfirmed: '预约成功！',
+    bookingId: '预约编号',
+    thankYou: '感谢您的预约',
+    confirmationSent: '确认信息已发送至您的邮箱',
+    viewBooking: '查看预约',
+    bookAnother: '再次预约',
+    close: '关闭',
+
+    // Link Account
+    linkRequired: '需要关联账户',
+    linkDescription: '请关联您的账户以继续预约。这将帮助我们为您提供更好的服务。',
+    linkAccount: '关联账户',
+
+    // Common
+    loading: '加载中...',
+    error: '出现错误',
+    retry: '重试',
+    next: '下一步',
+    cancel: '取消',
+
+    // Validation
+    nameRequired: '请输入姓名',
+    phoneRequired: '请输入电话号码',
+    emailRequired: '请输入邮箱',
+    invalidEmail: '请输入有效的邮箱地址',
+    invalidPhone: '请输入有效的电话号码',
+    selectTimeSlot: '请选择时间段',
+  },
 };

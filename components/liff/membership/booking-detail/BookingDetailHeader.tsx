@@ -1,14 +1,15 @@
 import { Language } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
 import { ArrowLeft } from 'lucide-react';
+import LanguageSelector from '@/components/liff/shared/LanguageSelector';
 
 interface BookingDetailHeaderProps {
   language: Language;
-  onLanguageToggle: () => void;
+  onLanguageChange: (lang: Language) => void;
   onBack: () => void;
 }
 
-export default function BookingDetailHeader({ language, onLanguageToggle, onBack }: BookingDetailHeaderProps) {
+export default function BookingDetailHeader({ language, onLanguageChange, onBack }: BookingDetailHeaderProps) {
   const t = membershipTranslations[language];
 
   return (
@@ -23,12 +24,7 @@ export default function BookingDetailHeader({ language, onLanguageToggle, onBack
           </button>
           <h1 className="text-lg font-bold text-gray-900">{t.bookingDetails}</h1>
         </div>
-        <button
-          onClick={onLanguageToggle}
-          className="px-3 py-1.5 text-sm font-medium bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
-        >
-          {language === 'en' ? 'TH' : 'EN'}
-        </button>
+        <LanguageSelector language={language} onLanguageChange={onLanguageChange} variant="light" />
       </div>
     </div>
   );

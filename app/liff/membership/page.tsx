@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Language } from '@/lib/liff/translations';
+import { Language, isValidLanguage } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
 import LoadingState from '@/components/liff/membership/LoadingState';
 import ErrorState from '@/components/liff/membership/ErrorState';
@@ -95,8 +95,8 @@ export default function MembershipPage() {
     initializeLiff();
     // Load saved language
     if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem('liff-membership-language') as Language;
-      if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'th')) {
+      const savedLanguage = localStorage.getItem('liff-language');
+      if (savedLanguage && isValidLanguage(savedLanguage)) {
         setLanguage(savedLanguage);
       }
 
@@ -158,6 +158,15 @@ export default function MembershipPage() {
         console.error('LIFF init error:', err);
         throw err;
       });
+
+      // Auto-detect language from LINE on first visit
+      if (!localStorage.getItem('liff-language')) {
+        const lineLang = window.liff.getLanguage?.();
+        if (lineLang && isValidLanguage(lineLang)) {
+          setLanguage(lineLang);
+          localStorage.setItem('liff-language', lineLang);
+        }
+      }
 
       if (!window.liff.isLoggedIn()) {
         window.liff.login({ redirectUri: window.location.href });
@@ -240,11 +249,10 @@ export default function MembershipPage() {
     await loadMembershipData(lineUserId);
   };
 
-  const toggleLanguage = () => {
-    const newLanguage = language === 'en' ? 'th' : 'en';
-    setLanguage(newLanguage);
+  const handleLanguageChange = (newLang: Language) => {
+    setLanguage(newLang);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-membership-language', newLanguage);
+      localStorage.setItem('liff-language', newLang);
     }
   };
 
@@ -301,7 +309,7 @@ export default function MembershipPage() {
       <>
         <MembershipHeader
           language={language}
-          onLanguageToggle={toggleLanguage}
+          onLanguageChange={handleLanguageChange}
         />
         <LinkAccountForm
           lineUserId={lineUserId}
@@ -320,7 +328,7 @@ export default function MembershipPage() {
       <div className="min-h-screen bg-gray-50">
         <MembershipHeader
           language={language}
-          onLanguageToggle={toggleLanguage}
+          onLanguageChange={handleLanguageChange}
           userName={dashboardData.profile.name || undefined}
         />
 

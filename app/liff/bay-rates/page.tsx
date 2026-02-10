@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Language } from '@/lib/liff/translations';
+import { Language, isValidLanguage } from '@/lib/liff/translations';
 import BayRatesHeader from '@/components/liff/bay-rates/BayRatesHeader';
 import PricingTable from '@/components/liff/bay-rates/PricingTable';
 import CurrentTimeIndicator from '@/components/liff/bay-rates/CurrentTimeIndicator';
@@ -24,8 +24,8 @@ export default function BayRatesPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem('liff-bay-rates-language') as Language;
-      if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'th')) {
+      const savedLanguage = localStorage.getItem('liff-language');
+      if (savedLanguage && isValidLanguage(savedLanguage)) {
         setLanguage(savedLanguage);
       }
     }
@@ -67,6 +67,15 @@ export default function BayRatesPage() {
         return;
       });
 
+      // Auto-detect language from LINE on first visit
+      if (!localStorage.getItem('liff-language')) {
+        const lineLang = window.liff?.getLanguage?.();
+        if (lineLang && isValidLanguage(lineLang)) {
+          setLanguage(lineLang);
+          localStorage.setItem('liff-language', lineLang);
+        }
+      }
+
       setViewState('ready');
     } catch (err) {
       console.error('Error initializing page:', err);
@@ -75,11 +84,10 @@ export default function BayRatesPage() {
     }
   };
 
-  const toggleLanguage = () => {
-    const newLanguage = language === 'en' ? 'th' : 'en';
-    setLanguage(newLanguage);
+  const handleLanguageChange = (newLang: Language) => {
+    setLanguage(newLang);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-bay-rates-language', newLanguage);
+      localStorage.setItem('liff-language', newLang);
     }
   };
 
@@ -112,7 +120,7 @@ export default function BayRatesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <BayRatesHeader language={language} onLanguageToggle={toggleLanguage} />
+      <BayRatesHeader language={language} onLanguageChange={handleLanguageChange} />
 
       <div className="p-4 space-y-4 pb-8">
         <CurrentTimeIndicator language={language} />

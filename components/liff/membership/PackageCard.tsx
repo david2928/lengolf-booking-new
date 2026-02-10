@@ -34,7 +34,7 @@ export default function PackageCard({ package: pkg, language }: PackageCardProps
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', {
+    return date.toLocaleDateString(language === 'th' ? 'th-TH' : language === 'ja' ? 'ja-JP' : language === 'zh' ? 'zh-CN' : 'en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

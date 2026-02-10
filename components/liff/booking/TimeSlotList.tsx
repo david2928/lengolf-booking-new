@@ -138,7 +138,7 @@ export default function TimeSlotList({
                         {slot.time}
                       </div>
                       <div className={`text-xs mt-0.5 ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
-                        {t.maxHours} {slot.maxHours}{language === 'en' ? 'h' : ' ' + t.hours}
+                        {t.maxHours} {slot.maxHours}{{ en: 'h', th: ' ' + t.hours, ja: '時間', zh: '小时' }[language]}
                       </div>
                     </button>
                   );

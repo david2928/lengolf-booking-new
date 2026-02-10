@@ -22,7 +22,7 @@ export default function BaySelector({
     {
       value: null,
       label: t.anyBay,
-      description: language === 'en' ? "We'll assign the best available bay" : 'เราจะจัดเบย์ที่ว่างที่ดีที่สุดให้',
+      description: { en: "We'll assign the best available bay", th: 'เราจะจัดเบย์ที่ว่างที่ดีที่สุดให้', ja: '最適なベイをお選びします', zh: '我们将为您分配最佳球位' }[language],
       color: 'primary',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -33,7 +33,7 @@ export default function BaySelector({
     {
       value: 'social',
       label: t.socialBay,
-      description: language === 'en' ? 'Great for groups & beginners • 3 bays' : 'เหมาะสำหรับกลุ่มและผู้เริ่มต้น • 3 เบย์',
+      description: { en: 'Great for groups & beginners • 3 bays', th: 'เหมาะสำหรับกลุ่มและผู้เริ่มต้น • 3 เบย์', ja: 'グループ・初心者に最適 • 3ベイ', zh: '适合团体和初学者 • 3个球位' }[language],
       color: 'green',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -44,7 +44,7 @@ export default function BaySelector({
     {
       value: 'ai_lab',
       label: t.aiLab,
-      description: language === 'en' ? 'AI swing analysis • Best for 1-2 players' : 'วิเคราะห์วงสวิงด้วย AI • เหมาะสำหรับ 1-2 คน',
+      description: { en: 'AI swing analysis • Best for 1-2 players', th: 'วิเคราะห์วงสวิงด้วย AI • เหมาะสำหรับ 1-2 คน', ja: 'AIスイング分析 • 1〜2名に最適', zh: 'AI挥杆分析 • 适合1-2人' }[language],
       color: 'purple',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,7 +110,7 @@ export default function BaySelector({
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          {language === 'en' ? "What's the difference?" : 'ความแตกต่าง?'}
+          {{ en: "What's the difference?", th: 'ความแตกต่าง?', ja: '違いは？', zh: '有什么区别？' }[language]}
         </a>
       </div>
 

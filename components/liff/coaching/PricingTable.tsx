@@ -22,16 +22,16 @@ export default function PricingTable({ language }: PricingTableProps) {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase whitespace-nowrap">
-                  {language === 'en' ? 'Hours' : 'ชั่วโมง'}
+                  {{ en: 'Hours', th: 'ชั่วโมง', ja: '時間', zh: '时长' }[language]}
                 </th>
                 <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700">
-                  <span className="whitespace-nowrap">{language === 'en' ? '1 Golfer' : '1 นักกอล์ฟ'}</span>
+                  <span className="whitespace-nowrap">{{ en: '1 Golfer', th: '1 นักกอล์ฟ', ja: '1名', zh: '1人' }[language]}</span>
                 </th>
                 <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700">
-                  <span className="whitespace-nowrap">{language === 'en' ? '2 Golfers' : '2 นักกอล์ฟ'}</span>
+                  <span className="whitespace-nowrap">{{ en: '2 Golfers', th: '2 นักกอล์ฟ', ja: '2名', zh: '2人' }[language]}</span>
                 </th>
                 <th className="px-2 sm:px-3 py-2 text-center text-xs font-semibold text-gray-700">
-                  <span className="whitespace-nowrap">{language === 'en' ? '3-5 Golfers' : '3-5 นักกอล์ฟ'}</span>
+                  <span className="whitespace-nowrap">{{ en: '3-5 Golfers', th: '3-5 นักกอล์ฟ', ja: '3〜5名', zh: '3-5人' }[language]}</span>
                 </th>
               </tr>
             </thead>
@@ -40,7 +40,7 @@ export default function PricingTable({ language }: PricingTableProps) {
                 <tr key={pkg.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-2 sm:px-4 py-2">
                     <div className="font-semibold text-gray-900 whitespace-nowrap">
-                      {pkg.hours} {language === 'en' ? 'hr' : 'ชม.'}
+                      {pkg.hours} {{ en: 'hr', th: 'ชม.', ja: '時間', zh: '小时' }[language]}
                     </div>
                     {pkg.validity && (
                       <div className="text-[10px] text-gray-500 mt-0.5">

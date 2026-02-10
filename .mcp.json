@@ -8,19 +8,8 @@
         "bisimqmtxjsptehhqpeg"
       ],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "sbp_4a7b3363ee6de35786a1fff556286c59c47396e9"
+        "SUPABASE_ACCESS_TOKEN": "sbp_685f9992036db9808b8a97050ce39b6076259af5"
       }
-    },
-    "supabase_booking": {
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "@supabase/mcp-server-supabase@latest",
-        "--access-token",
-        "sbp_4a7b3363ee6de35786a1fff556286c59c47396e9"
-      ]
     }
   }
 }

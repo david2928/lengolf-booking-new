@@ -4,7 +4,7 @@ import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
 import { LIFF_URLS } from '@/lib/liff/urls';
 import { format } from 'date-fns';
-import { th, enUS } from 'date-fns/locale';
+import { th, enUS, ja, zhCN } from 'date-fns/locale';
 
 interface BookingDetails {
   bookingId: string;
@@ -32,7 +32,7 @@ export default function SuccessScreen({
   onClose
 }: SuccessScreenProps) {
   const t = bookingTranslations[language];
-  const locale = language === 'th' ? th : enUS;
+  const locale = language === 'th' ? th : language === 'ja' ? ja : language === 'zh' ? zhCN : enUS;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -118,7 +118,7 @@ export default function SuccessScreen({
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              {language === 'en' ? 'Manage My Bookings' : 'จัดการการจอง'}
+              {{ en: 'Manage My Bookings', th: 'จัดการการจอง', ja: '予約管理', zh: '管理我的预约' }[language]}
             </a>
           </div>
         </div>

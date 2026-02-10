@@ -5,7 +5,7 @@ import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
 import { LIFF_URLS } from '@/lib/liff/urls';
 import { format, addDays, isToday, isTomorrow } from 'date-fns';
-import { th, enUS } from 'date-fns/locale';
+import { th, enUS, ja, zhCN } from 'date-fns/locale';
 
 interface DateSelectorProps {
   language: Language;
@@ -20,7 +20,7 @@ export default function DateSelector({
 }: DateSelectorProps) {
   const t = bookingTranslations[language];
   const [showCalendar, setShowCalendar] = useState(false);
-  const locale = language === 'th' ? th : enUS;
+  const locale = language === 'th' ? th : language === 'ja' ? ja : language === 'zh' ? zhCN : enUS;
 
   const today = new Date();
 
@@ -29,7 +29,7 @@ export default function DateSelector({
 
   const getDayLabel = (date: Date) => {
     if (isToday(date)) return t.today;
-    if (isTomorrow(date)) return language === 'en' ? 'TMR' : 'พรุ่งนี้';
+    if (isTomorrow(date)) return { en: 'TMR', th: 'พรุ่งนี้', ja: '明日', zh: '明天' }[language];
     return format(date, 'EEE', { locale });
   };
 
@@ -121,9 +121,9 @@ export default function DateSelector({
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-sm">{language === 'en' ? 'Opening Hours' : 'เวลาเปิดทำการ'}</span>
+              <span className="text-sm">{{ en: 'Opening Hours', th: 'เวลาเปิดทำการ', ja: '営業時間', zh: '营业时间' }[language]}</span>
             </div>
-            <span className="text-sm font-medium text-gray-900">{language === 'en' ? '10:00 AM - 11:00 PM' : '10:00 - 23:00 น.'}</span>
+            <span className="text-sm font-medium text-gray-900">{{ en: '10:00 AM - 11:00 PM', th: '10:00 - 23:00 น.', ja: '10:00 - 23:00', zh: '10:00 - 23:00' }[language]}</span>
           </div>
 
           {/* Location */}
@@ -133,7 +133,7 @@ export default function DateSelector({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <span className="text-sm">{language === 'en' ? 'Location' : 'สถานที่'}</span>
+              <span className="text-sm">{{ en: 'Location', th: 'สถานที่', ja: '所在地', zh: '位置' }[language]}</span>
             </div>
             <a
               href="https://maps.app.goo.gl/QhcvtyaQUej1a4vL8"
@@ -141,7 +141,7 @@ export default function DateSelector({
               rel="noopener noreferrer"
               className="text-sm text-primary font-medium flex items-center gap-1.5 hover:underline"
             >
-              Mercury Ville, {language === 'en' ? 'FL4' : 'ชั้น 4'}
+              Mercury Ville, {{ en: 'FL4', th: 'ชั้น 4', ja: '4F', zh: '4楼' }[language]}
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
@@ -154,9 +154,9 @@ export default function DateSelector({
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
               </svg>
-              <span className="text-sm">{language === 'en' ? 'Parking' : 'ที่จอดรถ'}</span>
+              <span className="text-sm">{{ en: 'Parking', th: 'ที่จอดรถ', ja: '駐車場', zh: '停车场' }[language]}</span>
             </div>
-            <span className="text-sm text-green-600 font-medium">{language === 'en' ? 'Free with booking' : 'ฟรีทุกการจอง'}</span>
+            <span className="text-sm text-green-600 font-medium">{{ en: 'Free with booking', th: 'ฟรีทุกการจอง', ja: 'ご予約で無料', zh: '预约即免费' }[language]}</span>
           </div>
         </div>
       </div>
@@ -168,7 +168,7 @@ export default function DateSelector({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
           <span className="text-sm font-semibold text-gray-900">
-            {language === 'en' ? 'Quick Links' : 'ลิงก์ด่วน'}
+            {{ en: 'Quick Links', th: 'ลิงก์ด่วน', ja: 'クイックリンク', zh: '快捷链接' }[language]}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -182,7 +182,7 @@ export default function DateSelector({
               </svg>
             </div>
             <span className="text-sm font-medium text-gray-700">
-              {language === 'en' ? 'Bay Rates' : 'ราคาเบย์'}
+              {{ en: 'Bay Rates', th: 'ราคาเบย์', ja: '料金表', zh: '球位价格' }[language]}
             </span>
           </a>
 
@@ -196,7 +196,7 @@ export default function DateSelector({
               </svg>
             </div>
             <span className="text-sm font-medium text-gray-700">
-              {language === 'en' ? 'Promotions' : 'โปรโมชั่น'}
+              {{ en: 'Promotions', th: 'โปรโมชั่น', ja: 'プロモーション', zh: '优惠活动' }[language]}
             </span>
           </a>
 
@@ -210,7 +210,7 @@ export default function DateSelector({
               </svg>
             </div>
             <span className="text-sm font-medium text-gray-700">
-              {language === 'en' ? 'Membership' : 'สมาชิก'}
+              {{ en: 'Membership', th: 'สมาชิก', ja: 'メンバーシップ', zh: '会员' }[language]}
             </span>
           </a>
 
@@ -224,7 +224,7 @@ export default function DateSelector({
               </svg>
             </div>
             <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
-              {language === 'en' ? 'Contact' : 'ติดต่อ'}
+              {{ en: 'Contact', th: 'ติดต่อ', ja: 'お問い合わせ', zh: '联系我们' }[language]}
             </span>
           </a>
         </div>

@@ -26,7 +26,7 @@ export default function BookingCard({ booking, language, onCancelClick, detailUr
   // Format date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', {
+    return date.toLocaleDateString(language === 'th' ? 'th-TH' : language === 'ja' ? 'ja-JP' : language === 'zh' ? 'zh-CN' : 'en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',

@@ -39,7 +39,7 @@ export default function CurrentTimeIndicator({ language }: CurrentTimeIndicatorP
             </div>
           ) : (
             <div className="text-lg text-gray-500">
-              {language === 'en' ? 'Closed' : 'ปิดทำการ'}
+              {{ en: 'Closed', th: 'ปิดทำการ', ja: '営業時間外', zh: '已打烊' }[language]}
             </div>
           )}
         </div>

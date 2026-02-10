@@ -25,7 +25,7 @@ export default function SpecialPackages({ language }: SpecialPackagesProps) {
             <div className="flex items-start justify-between mb-3">
               <h3 className="text-lg font-bold text-green-900">{pkg.name[language]}</h3>
               <span className="bg-green-600 text-white text-xs font-semibold px-2 py-1 rounded-full">
-                {language === 'en' ? 'SPECIAL' : 'พิเศษ'}
+                {{ en: 'SPECIAL', th: 'พิเศษ', ja: '特別', zh: '特惠' }[language]}
               </span>
             </div>
 

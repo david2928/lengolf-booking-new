@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Language } from '@/lib/liff/translations';
+import { Language, isValidLanguage } from '@/lib/liff/translations';
 import ContactHeader from '@/components/liff/contact/ContactHeader';
 import ContactCard from '@/components/liff/contact/ContactCard';
 import GoogleMapsEmbed from '@/components/liff/contact/GoogleMapsEmbed';
@@ -22,8 +22,8 @@ export default function ContactPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem('liff-contact-language') as Language;
-      if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'th')) {
+      const savedLanguage = localStorage.getItem('liff-language');
+      if (savedLanguage && isValidLanguage(savedLanguage)) {
         setLanguage(savedLanguage);
       }
     }
@@ -65,6 +65,15 @@ export default function ContactPage() {
         return;
       });
 
+      // Auto-detect language from LINE on first visit
+      if (!localStorage.getItem('liff-language')) {
+        const lineLang = window.liff?.getLanguage?.();
+        if (lineLang && isValidLanguage(lineLang)) {
+          setLanguage(lineLang);
+          localStorage.setItem('liff-language', lineLang);
+        }
+      }
+
       setViewState('ready');
     } catch (err) {
       console.error('Error initializing page:', err);
@@ -73,11 +82,10 @@ export default function ContactPage() {
     }
   };
 
-  const toggleLanguage = () => {
-    const newLanguage = language === 'en' ? 'th' : 'en';
-    setLanguage(newLanguage);
+  const handleLanguageChange = (newLang: Language) => {
+    setLanguage(newLang);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-contact-language', newLanguage);
+      localStorage.setItem('liff-language', newLang);
     }
   };
 
@@ -110,7 +118,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ContactHeader language={language} onLanguageToggle={toggleLanguage} />
+      <ContactHeader language={language} onLanguageChange={handleLanguageChange} />
 
       <div className="p-4 space-y-4 pb-8">
         <div className="grid grid-cols-1 gap-4">
@@ -120,9 +128,9 @@ export default function ContactPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
               </svg>
             }
-            title={language === 'en' ? 'Call Us' : 'โทรหาเรา'}
+            title={{ en: 'Call Us', th: 'โทรหาเรา', ja: 'お電話', zh: '致电我们' }[language]}
             value="096-668-2335"
-            actionLabel={language === 'en' ? 'Call Now' : 'โทรเลย'}
+            actionLabel={{ en: 'Call Now', th: 'โทรเลย', ja: '電話する', zh: '立即拨打' }[language]}
             actionHref="tel:+66966682335"
           />
 
@@ -132,9 +140,9 @@ export default function ContactPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             }
-            title={language === 'en' ? 'Email Us' : 'อีเมล'}
+            title={{ en: 'Email Us', th: 'อีเมล', ja: 'メール', zh: '发送邮件' }[language]}
             value="info@len.golf"
-            actionLabel={language === 'en' ? 'Send Email' : 'ส่งอีเมล'}
+            actionLabel={{ en: 'Send Email', th: 'ส่งอีเมล', ja: 'メールを送る', zh: '发送邮件' }[language]}
             actionHref="mailto:info@len.golf"
           />
         </div>

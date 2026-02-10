@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Language } from '@/lib/liff/translations';
+import { Language, isValidLanguage } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
 import { format } from 'date-fns';
 import { getCurrentBangkokTime } from '@/utils/date';
@@ -83,8 +83,8 @@ export default function LiffBookingPage() {
     initializeLiff();
     // Load saved language
     if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem('liff-booking-language') as Language;
-      if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'th')) {
+      const savedLanguage = localStorage.getItem('liff-language');
+      if (savedLanguage && isValidLanguage(savedLanguage)) {
         setLanguage(savedLanguage);
       }
     }
@@ -133,6 +133,15 @@ export default function LiffBookingPage() {
       if (!window.liff.isLoggedIn()) {
         window.liff.login({ redirectUri: window.location.href });
         return;
+      }
+
+      // Auto-detect language from LINE on first visit
+      if (!localStorage.getItem('liff-language')) {
+        const lineLang = window.liff.getLanguage?.();
+        if (lineLang && isValidLanguage(lineLang)) {
+          setLanguage(lineLang);
+          localStorage.setItem('liff-language', lineLang);
+        }
       }
 
       const profile = await window.liff.getProfile();
@@ -339,12 +348,11 @@ export default function LiffBookingPage() {
     }
   };
 
-  // Toggle language
-  const toggleLanguage = () => {
-    const newLanguage = language === 'en' ? 'th' : 'en';
-    setLanguage(newLanguage);
+  // Change language
+  const handleLanguageChange = (newLang: Language) => {
+    setLanguage(newLang);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-booking-language', newLanguage);
+      localStorage.setItem('liff-language', newLang);
     }
   };
 
@@ -437,9 +445,9 @@ export default function LiffBookingPage() {
     const getBayTypeDisplay = (bay: string) => {
       const bayLower = bay.toLowerCase();
       if (bayLower.includes('ai') || bayLower === 'bay 4' || bayLower === 'bay_4') {
-        return language === 'en' ? 'AI Bay' : 'AI Bay';
+        return { en: 'AI Bay', th: 'AI Bay', ja: 'AIベイ', zh: 'AI Bay' }[language];
       }
-      return language === 'en' ? 'Social Bay' : 'Social Bay';
+      return { en: 'Social Bay', th: 'Social Bay', ja: 'ソーシャルベイ', zh: 'Social Bay' }[language];
     };
 
     return (
@@ -467,7 +475,7 @@ export default function LiffBookingPage() {
       <>
         <BookingHeader
           language={language}
-          onLanguageToggle={toggleLanguage}
+          onLanguageChange={handleLanguageChange}
           showBack
           onBack={goBackFromSummary}
         />
@@ -495,7 +503,7 @@ export default function LiffBookingPage() {
     <>
       <BookingHeader
         language={language}
-        onLanguageToggle={toggleLanguage}
+        onLanguageChange={handleLanguageChange}
         showBack={bookingStep !== 'date'}
         onBack={() => {
           if (bookingStep === 'form') goToStep('time');
@@ -584,7 +592,7 @@ export default function LiffBookingPage() {
                     <span className="text-sm">{t.date}</span>
                   </div>
                   <span className="text-sm font-medium text-gray-900">
-                    {selectedDate.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', {
+                    {selectedDate.toLocaleDateString(language === 'th' ? 'th-TH' : language === 'ja' ? 'ja-JP' : language === 'zh' ? 'zh-CN' : 'en-US', {
                       weekday: 'short',
                       month: 'short',
                       day: 'numeric'
@@ -614,7 +622,7 @@ export default function LiffBookingPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <span className="text-sm font-medium text-gray-900">
-                      {selectedDate?.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', {
+                      {selectedDate?.toLocaleDateString(language === 'th' ? 'th-TH' : language === 'ja' ? 'ja-JP' : language === 'zh' ? 'zh-CN' : 'en-US', {
                         weekday: 'short',
                         month: 'short',
                         day: 'numeric'

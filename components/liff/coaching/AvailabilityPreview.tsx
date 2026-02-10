@@ -157,7 +157,7 @@ export default function AvailabilityPreview({ language, availability }: Availabi
                     {formatDate(day.date, day.isToday)}
                   </h4>
                   <span className="text-xs text-green-600 font-medium">
-                    {day.slots.length} {language === 'en' ? 'slots' : 'ช่วง'}
+                    {day.slots.length} {{ en: 'slots', th: 'ช่วง', ja: '枠', zh: '个时段' }[language]}
                   </span>
                 </div>
 
@@ -179,9 +179,10 @@ export default function AvailabilityPreview({ language, availability }: Availabi
 
       {/* Note */}
       <p className="text-xs text-gray-500 mt-3 text-center">
-        {language === 'en'
-          ? 'Showing availability for the next 14 days (5+ hours from now). Contact us for same-day bookings.'
-          : 'แสดงตารางว่าง 14 วันข้างหน้า (5 ชม.+ จากตอนนี้) ติดต่อเราสำหรับการจองวันนี้'}
+        {{ en: 'Showing availability for the next 14 days (5+ hours from now). Contact us for same-day bookings.',
+          th: 'แสดงตารางว่าง 14 วันข้างหน้า (5 ชม.+ จากตอนนี้) ติดต่อเราสำหรับการจองวันนี้',
+          ja: '今後14日間の空き状況を表示（5時間以上先）。当日予約はお問い合わせください。',
+          zh: '显示未来14天的空余时段（5小时后起）。当天预约请联系我们。' }[language]}
       </p>
     </section>
   );
