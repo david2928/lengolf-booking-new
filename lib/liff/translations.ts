@@ -10,10 +10,10 @@ export const nextLanguage: Record<Language, Language> = {
 };
 
 export const languageLabel: Record<Language, string> = {
-  en: 'EN',
-  th: 'TH',
-  ja: 'JA',
-  zh: 'ZH',
+  en: '🇬🇧',
+  th: '🇹🇭',
+  ja: '🇯🇵',
+  zh: '🇨🇳',
 };
 
 export const languageNativeName: Record<Language, string> = {
