@@ -49,7 +49,7 @@ const generateBookingId = () => {
 
 
 // Helper function to send notifications
-async function sendNotifications(formattedData: Record<string, unknown>, booking: Record<string, unknown>, bayDisplayName: string, customerCode?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string) {
+async function sendNotifications(formattedData: Record<string, unknown>, booking: Record<string, unknown>, bayDisplayName: string, customerCode?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string, channel: string = 'Website') {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   // const internalApiBasePath = ''; // No longer using relative paths for internal calls
   
@@ -129,9 +129,10 @@ async function sendNotifications(formattedData: Record<string, unknown>, booking
           packageName: booking.package_name, // Add package_name from database
           standardizedData: formattedData,
           customerNotes,
-          bookingId: booking.id
+          bookingId: booking.id,
+          channel
         };
-        
+
         console.log('[CreateBooking LINE Notify Task] Prepared lineData:', JSON.stringify(lineData, null, 2));
         
         const response = await fetch(`${baseUrl}/api/notifications/line`, {
@@ -650,7 +651,8 @@ export async function POST(request: NextRequest) {
       bayDisplayName,
       customerCode || customerId || undefined, // Use customer code/ID
       packageInfo,
-      customer_notes
+      customer_notes,
+      isLiffContext ? 'LINE' : 'Website'
     );
 
     // Log each notification type separately instead of logging them together

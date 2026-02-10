@@ -26,6 +26,7 @@ interface BookingCreationPayload extends BaseNotificationPayload {
   packageName?: string; // Add package name
   customerCode?: string;
   customerNotes?: string;
+  channel?: string;
   standardizedData?: { // This structure is from your provided code
     lineNotification: {
       bookingName: string;
@@ -216,7 +217,7 @@ export async function POST(request: NextRequest) {
       }
       messageToSend += `\nType: ${typeDisplay}`;
       messageToSend += `\nPeople: ${sanitizedBooking.numberOfPeople || '1'}`;
-      messageToSend += `\nChannel: Website`; // Assuming Website, or pass channel in payload if dynamic
+      messageToSend += `\nChannel: ${data.channel || 'Website'}`;
       if (sanitizedBooking.customerNotes) {
         messageToSend += `\nNotes: ${sanitizedBooking.customerNotes}`;
       }

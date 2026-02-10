@@ -205,7 +205,7 @@ export default function BookingForm({
             rel="noopener noreferrer"
             className="text-xs text-primary hover:underline"
           >
-            View Details
+            {t.viewDetails}
           </a>
         </div>
 
@@ -220,8 +220,8 @@ export default function BookingForm({
                 : 'border-gray-300 text-gray-700 hover:border-primary'
             }`}
           >
-            <span className="font-semibold text-[11px]">Bay Only</span>
-            <span className="text-[10px] mt-0.5 opacity-75">Normal rates</span>
+            <span className="font-semibold text-[11px]">{t.bayOnly}</span>
+            <span className="text-[10px] mt-0.5 opacity-75">{t.normalRates}</span>
           </button>
 
           {PLAY_FOOD_PACKAGES.map((pkg) => {
@@ -254,15 +254,15 @@ export default function BookingForm({
         {formData.playFoodPackage ? (
           <div className="mt-3 p-3 bg-primary/5 rounded-lg">
             <div className="text-sm font-medium text-primary mb-1">
-              {formData.playFoodPackage.name} - {formData.playFoodPackage.duration} Hour{formData.playFoodPackage.duration > 1 ? 's' : ''} - ฿{formData.playFoodPackage.price.toLocaleString()} NET
+              {formData.playFoodPackage.name} - {formData.playFoodPackage.duration} {formData.playFoodPackage.duration > 1 ? t.hours : t.hour} - ฿{formData.playFoodPackage.price.toLocaleString()} NET
             </div>
             <div className="text-xs text-gray-600">
-              <span className="font-medium">Includes:</span> Golf simulator, {formData.playFoodPackage.foodItems.map(f => f.name).join(', ')}
+              <span className="font-medium">{t.includes}:</span> Golf simulator, {formData.playFoodPackage.foodItems.map(f => f.name).join(', ')}
             </div>
           </div>
         ) : (
           <div className="mt-3 text-xs text-gray-500 text-center">
-            Bay rental will be charged at normal hourly rates
+            {t.bayRentalNormalRates}
           </div>
         )}
       </div>
@@ -277,11 +277,23 @@ export default function BookingForm({
             rel="noopener noreferrer"
             className="text-xs text-primary hover:underline"
           >
-            View Details
+            {t.viewDetails}
           </a>
         </div>
 
         <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => updateField('clubRental', 'none')}
+            className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+              formData.clubRental === 'none'
+                ? 'border-primary bg-primary/10 text-primary font-medium'
+                : 'border-gray-300 text-gray-700 hover:border-primary'
+            }`}
+          >
+            <span className="font-semibold text-[11px]">{t.noRental}</span>
+            <span className="text-[10px] mt-0.5 opacity-75">{t.ownClubs}</span>
+          </button>
+
           <button
             onClick={() => updateField('clubRental', 'standard')}
             className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
@@ -292,18 +304,6 @@ export default function BookingForm({
           >
             <span className="font-semibold text-[11px]">{t.standardClubs}</span>
             <span className="text-[10px] mt-0.5 text-green-600">{t.free}</span>
-          </button>
-
-          <button
-            onClick={() => updateField('clubRental', 'none')}
-            className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
-              formData.clubRental === 'none'
-                ? 'border-primary bg-primary/10 text-primary font-medium'
-                : 'border-gray-300 text-gray-700 hover:border-primary'
-            }`}
-          >
-            <span className="font-semibold text-[11px]">{t.noRental}</span>
-            <span className="text-[10px] mt-0.5 opacity-75">Own clubs</span>
           </button>
 
           <button
@@ -329,23 +329,23 @@ export default function BookingForm({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <span className="text-sm font-semibold text-primary">Premium Clubs Selected</span>
+              <span className="text-sm font-semibold text-primary">{t.premiumClubsSelected}</span>
             </div>
             <div className="grid grid-cols-4 gap-2">
               <div className="text-center p-2 bg-white rounded-lg">
-                <div className="text-xs text-gray-500">1 hr</div>
+                <div className="text-xs text-gray-500">1 {t.hour}</div>
                 <div className="text-sm font-bold text-gray-900">฿150</div>
               </div>
               <div className="text-center p-2 bg-white rounded-lg">
-                <div className="text-xs text-gray-500">2 hrs</div>
+                <div className="text-xs text-gray-500">2 {t.hours}</div>
                 <div className="text-sm font-bold text-gray-900">฿250</div>
               </div>
               <div className="text-center p-2 bg-white rounded-lg">
-                <div className="text-xs text-gray-500">4 hrs</div>
+                <div className="text-xs text-gray-500">4 {t.hours}</div>
                 <div className="text-sm font-bold text-gray-900">฿400</div>
               </div>
               <div className="text-center p-2 bg-white rounded-lg">
-                <div className="text-xs text-gray-500">Full day</div>
+                <div className="text-xs text-gray-500">{t.fullDay}</div>
                 <div className="text-sm font-bold text-gray-900">฿1,200</div>
               </div>
             </div>

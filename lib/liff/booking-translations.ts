@@ -52,12 +52,21 @@ export interface BookingTranslations {
   unlimitedSoftDrinks: string;
   popularChoice: string;
 
+  // Play & Food Package Details
+  viewDetails: string;
+  bayOnly: string;
+  normalRates: string;
+  bayRentalNormalRates: string;
+
   // Club Rental
   clubRental: string;
   noRental: string;
+  ownClubs: string;
   standardClubs: string;
   premiumClubs: string;
+  premiumClubsSelected: string;
   free: string;
+  fullDay: string;
 
   // Package Info
   usingPackage: string;
@@ -161,12 +170,21 @@ export const bookingTranslations: Record<Language, BookingTranslations> = {
     unlimitedSoftDrinks: 'Unlimited soft drinks',
     popularChoice: 'Popular',
 
+    // Play & Food Package Details
+    viewDetails: 'View Details',
+    bayOnly: 'Bay Only',
+    normalRates: 'Normal rates',
+    bayRentalNormalRates: 'Bay rental will be charged at normal hourly rates',
+
     // Club Rental
     clubRental: 'Club Rental',
     noRental: 'No rental needed',
+    ownClubs: 'Own clubs',
     standardClubs: 'Standard Clubs',
     premiumClubs: 'Premium Clubs',
+    premiumClubsSelected: 'Premium Clubs Selected',
     free: 'Free',
+    fullDay: 'Full day',
 
     // Package Info
     usingPackage: 'Using Package',
@@ -268,12 +286,21 @@ export const bookingTranslations: Record<Language, BookingTranslations> = {
     unlimitedSoftDrinks: 'น้ำอัดลมไม่อั้น',
     popularChoice: 'ยอดนิยม',
 
+    // Play & Food Package Details
+    viewDetails: 'ดูรายละเอียด',
+    bayOnly: 'เบย์อย่างเดียว',
+    normalRates: 'อัตราปกติ',
+    bayRentalNormalRates: 'ค่าเช่าเบย์คิดตามอัตราปกติรายชั่วโมง',
+
     // Club Rental
     clubRental: 'เช่าไม้กอล์ฟ',
     noRental: 'ไม่ต้องการเช่า',
+    ownClubs: 'ใช้ไม้ของตัวเอง',
     standardClubs: 'ไม้มาตรฐาน',
     premiumClubs: 'ไม้พรีเมียม',
+    premiumClubsSelected: 'เลือกไม้พรีเมียมแล้ว',
     free: 'ฟรี',
+    fullDay: 'ทั้งวัน',
 
     // Package Info
     usingPackage: 'ใช้แพ็กเกจ',
