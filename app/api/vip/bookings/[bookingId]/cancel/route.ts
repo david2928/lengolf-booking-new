@@ -343,14 +343,11 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     
     // Calendar integration has been removed
 
-    // Execute all async tasks in parallel (truly non-blocking - fire and forget)
-    setImmediate(() => {
-      Promise.all(asyncTasks)
-        .then(() => console.log(`[VIP Cancel] All async tasks completed for booking ${bookingId}`))
-        .catch(err => console.error(`[VIP Cancel] Error in async tasks for booking ${bookingId}:`, err));
-    });
-    
-    // Return immediately without waiting for async tasks
+    // Execute all notification tasks before returning (required for serverless environments)
+    await Promise.all(asyncTasks)
+      .then(() => console.log(`[VIP Cancel] All async tasks completed for booking ${bookingId}`))
+      .catch(err => console.error(`[VIP Cancel] Error in async tasks for booking ${bookingId}:`, err));
+
     return NextResponse.json({ success: true, message: 'Booking cancelled successfully.', booking: cancelledBooking });
 
   } catch (error: unknown) {
