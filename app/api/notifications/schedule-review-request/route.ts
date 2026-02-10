@@ -13,7 +13,11 @@ interface ScheduleReviewRequestBody {
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate user
-    const token = await getToken({ req: request });
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === 'production',
+    });
     if (!token?.sub) {
       return NextResponse.json(
         { error: 'Unauthorized or session expired' },

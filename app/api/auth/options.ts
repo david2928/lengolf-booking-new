@@ -46,9 +46,9 @@ export const authOptions: NextAuthOptions = {
             : `next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: "none",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         path: "/",
-        secure: true,
+        secure: process.env.NODE_ENV === "production",
         // Domain can be omitted to default to the current host,
         // or set explicitly if needed for subdomains in production
         // domain: process.env.NODE_ENV === "production" ? ".yourdomain.com" : "localhost",

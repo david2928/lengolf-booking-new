@@ -284,7 +284,11 @@ export async function POST(request: NextRequest) {
       logTiming('LIFF Authentication', 'success', { lineUserId, profileId: userId });
     } else {
       // Standard NextAuth flow
-      const token = await getToken({ req: request });
+      const token = await getToken({
+        req: request,
+        secret: process.env.NEXTAUTH_SECRET,
+        secureCookie: process.env.NODE_ENV === 'production',
+      });
       if (!token?.sub) {
         return NextResponse.json(
           { error: 'Unauthorized or session expired' },

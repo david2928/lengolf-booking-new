@@ -347,26 +347,33 @@ export function BookingDetails({
     }
   }, [selectedPackage]);
 
-  // Auto-adjust bay selection when duration changes and selected bay type becomes unavailable
+  // Auto-select bay when only one type is available (e.g., AI Lab is N/A, auto-select Social)
   useEffect(() => {
-    if (!selectedBayType && selectedBay && slotData?.bayAvailabilityByDuration) {
+    if (!selectedBayType && slotData?.bayAvailabilityByDuration) {
       const availability = getBayAvailabilityForDuration(duration);
 
-      // If currently selected bay type is no longer available for this duration
-      if (selectedBay === 'social' && availability.social === 0 && availability.ai > 0) {
-        // Auto-switch to AI bay
-        setSelectedBay('ai_lab');
-        toast('Duration changed: Switched to AI Bay (Social bays not available for this duration)', {
-          icon: 'ℹ️',
-          duration: 4000,
-        });
-      } else if (selectedBay === 'ai_lab' && availability.ai === 0 && availability.social > 0) {
-        // Auto-switch to Social bay
-        setSelectedBay('social');
-        toast('Duration changed: Switched to Social Bay (AI bay not available for this duration)', {
-          icon: 'ℹ️',
-          duration: 4000,
-        });
+      if (!selectedBay) {
+        // Nothing selected yet - auto-select the only available bay type
+        if (availability.social > 0 && availability.ai === 0) {
+          setSelectedBay('social');
+        } else if (availability.ai > 0 && availability.social === 0) {
+          setSelectedBay('ai_lab');
+        }
+      } else {
+        // Bay is selected but became unavailable due to duration change - auto-switch
+        if (selectedBay === 'social' && availability.social === 0 && availability.ai > 0) {
+          setSelectedBay('ai_lab');
+          toast('Duration changed: Switched to AI Bay (Social bays not available for this duration)', {
+            icon: 'ℹ️',
+            duration: 4000,
+          });
+        } else if (selectedBay === 'ai_lab' && availability.ai === 0 && availability.social > 0) {
+          setSelectedBay('social');
+          toast('Duration changed: Switched to Social Bay (AI bay not available for this duration)', {
+            icon: 'ℹ️',
+            duration: 4000,
+          });
+        }
       }
     }
   }, [duration, selectedBay, selectedBayType, slotData, getBayAvailabilityForDuration]);
