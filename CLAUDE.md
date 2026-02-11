@@ -48,6 +48,14 @@ npm run format        # Prettier code formatting
 - Booking components: `app/(features)/bookings/components/`
 - Bay assignment logic: `utils/booking-utils.ts`
 
+#### LIFF (LINE Front-end Framework) Pages
+- Booking page: `app/liff/booking/page.tsx`
+- Membership page: `app/liff/membership/page.tsx`
+- Contact/Bay Rates/Coaching: `app/liff/contact/`, `app/liff/bay-rates/`, `app/liff/coaching/`
+- LIFF API endpoints: `app/api/liff/` (booking/user, membership/data, language, etc.)
+- Language persistence: `lib/liff/language-persistence.ts` (shared utility for all LIFF pages)
+- Translations: `lib/liff/translations.ts`, `lib/liff/booking-translations.ts`, `lib/liff/membership-translations.ts`
+
 #### VIP Portal
 - VIP dashboard: `app/(features)/vip/dashboard/page.tsx`
 - VIP components: `components/vip/`
@@ -109,10 +117,18 @@ EMAIL_TLS_REJECT_UNAUTHORIZED=false  # Set to false to allow self-signed certifi
 - Use proper loading states and error boundaries
 
 ### Booking Flow
-- Multi-step: Date → Time → Details → Confirmation
-- Real-time availability with Google Calendar integration
+- Multi-step: Date → Bay → Time → Details → Confirmation
+- Real-time availability with database-backed bay checking
 - Support for both regular and package-based bookings
 - Automated review request scheduling (30min post-session)
+
+### LIFF Language System
+- Language preference persisted to `customers.preferred_language` column
+- Each booking records `bookings.language` at creation time
+- Shared utility `lib/liff/language-persistence.ts` used by all LIFF pages
+- Resolution priority: localStorage > DB (cross-device sync) > LINE SDK > 'en'
+- `POST /api/liff/language` saves preference with cache invalidation
+- Pages with `lineUserId` sync to DB; pages without (contact, bay-rates, coaching) use localStorage only
 
 ## Key Files to Understand First
 1. `app/layout.tsx` - Root layout and providers
