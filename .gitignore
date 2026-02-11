@@ -59,6 +59,7 @@ node_modules/.package-lock.json
 .claude/
 .gemini/
 .github/skills/
+.mcp.json
 
 # Windows temp files
 nul
