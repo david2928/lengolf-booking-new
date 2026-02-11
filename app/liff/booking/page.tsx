@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Language, isValidLanguage } from '@/lib/liff/translations';
+import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
+import { saveLanguagePreference, resolveLanguage } from '@/lib/liff/language-persistence';
 import { format } from 'date-fns';
 import { getCurrentBangkokTime } from '@/utils/date';
 import BookingHeader from '@/components/liff/booking/BookingHeader';
@@ -33,6 +34,7 @@ interface UserDataResponse {
     phone: string | null;
     customerId: string;
     customerCode: string;
+    preferredLanguage?: string | null;
   };
   activePackage?: {
     id: string;
@@ -81,13 +83,8 @@ export default function LiffBookingPage() {
   // Initialize LIFF
   useEffect(() => {
     initializeLiff();
-    // Load saved language
-    if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem('liff-language');
-      if (savedLanguage && isValidLanguage(savedLanguage)) {
-        setLanguage(savedLanguage);
-      }
-    }
+    // Load saved language from localStorage (DB sync happens after user data loads)
+    setLanguage(resolveLanguage());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -135,15 +132,6 @@ export default function LiffBookingPage() {
         return;
       }
 
-      // Auto-detect language from LINE on first visit
-      if (!localStorage.getItem('liff-language')) {
-        const lineLang = window.liff.getLanguage?.();
-        if (lineLang && isValidLanguage(lineLang)) {
-          setLanguage(lineLang);
-          localStorage.setItem('liff-language', lineLang);
-        }
-      }
-
       const profile = await window.liff.getProfile();
       setLineUserId(profile.userId);
 
@@ -177,6 +165,10 @@ export default function LiffBookingPage() {
         if (data.activePackage) {
           setActivePackage(data.activePackage);
         }
+
+        // Cross-device language sync: resolve from DB if localStorage is empty
+        const resolved = resolveLanguage(data.profile.preferredLanguage);
+        setLanguage(resolved);
       }
 
       // Always proceed to booking - customer matching happens at booking time
@@ -313,7 +305,8 @@ export default function LiffBookingPage() {
         package_id: formData.playFoodPackage?.id || undefined,
         package_info: formData.playFoodPackage
           ? `${formData.playFoodPackage.name} - ${formData.playFoodPackage.price} THB`
-          : undefined
+          : undefined,
+        language
       };
 
       const response = await fetch('/api/bookings/create', {
@@ -351,9 +344,7 @@ export default function LiffBookingPage() {
   // Change language
   const handleLanguageChange = (newLang: Language) => {
     setLanguage(newLang);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-language', newLang);
-    }
+    saveLanguagePreference(newLang, lineUserId || undefined);
   };
 
   // Reset booking flow

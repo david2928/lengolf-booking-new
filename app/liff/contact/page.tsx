@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Language, isValidLanguage } from '@/lib/liff/translations';
+import { saveLanguagePreference } from '@/lib/liff/language-persistence';
 import ContactHeader from '@/components/liff/contact/ContactHeader';
 import ContactCard from '@/components/liff/contact/ContactCard';
 import GoogleMapsEmbed from '@/components/liff/contact/GoogleMapsEmbed';
@@ -84,9 +85,7 @@ export default function ContactPage() {
 
   const handleLanguageChange = (newLang: Language) => {
     setLanguage(newLang);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-language', newLang);
-    }
+    saveLanguagePreference(newLang);
   };
 
   if (viewState === 'loading') {

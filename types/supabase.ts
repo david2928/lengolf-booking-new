@@ -69,6 +69,7 @@ export interface Database {
           booking_type?: string | null
           package_name?: string | null
           stable_hash_id?: string | null
+          language?: string | null
           google_calendar_sync_status?: string | null
           updated_by_type?: string | null
           updated_by_identifier?: string | null
@@ -95,6 +96,7 @@ export interface Database {
           booking_type?: string | null
           package_name?: string | null
           stable_hash_id?: string | null
+          language?: string | null
           google_calendar_sync_status?: string | null
           updated_by_type?: string | null
           updated_by_identifier?: string | null
@@ -121,6 +123,7 @@ export interface Database {
           booking_type?: string | null
           package_name?: string | null
           stable_hash_id?: string | null
+          language?: string | null
           google_calendar_sync_status?: string | null
           updated_by_type?: string | null
           updated_by_identifier?: string | null

@@ -7,6 +7,8 @@ import { executeParallel } from '@/utils/parallel-processing';
 import { findOrCreateCustomer, getPackageInfoForCustomer } from '@/utils/customer-service';
 import { BAY_DISPLAY_NAMES } from '@/lib/bayConfig';
 import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
+import { isValidLanguage } from '@/lib/liff/translations';
+import { appCache } from '@/lib/cache';
 
 const supabase = createAdminClient();
 
@@ -312,7 +314,8 @@ export async function POST(request: NextRequest) {
       customer_notes,
       package_id: playFoodPackageId,
       package_info: playFoodPackageInfo,
-      preferred_bay_type
+      preferred_bay_type,
+      language
     } = await request.json();
 
     // Validate required fields
@@ -595,7 +598,8 @@ export async function POST(request: NextRequest) {
         is_new_customer: isNewCustomer,
         booking_type: derivedBookingType, // NEW: Include booking_type from the start
         package_name: derivedPackageName, // NEW: Include package_name from the start
-        package_id: derivedPackageId // NEW: Include package_id from the start (undefined for non-simulator packages)
+        package_id: derivedPackageId, // NEW: Include package_id from the start (undefined for non-simulator packages)
+        language: (language && isValidLanguage(language)) ? language : null
         // REMOVED: stable_hash_id (deprecated)
       })
       .select()
@@ -608,6 +612,23 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to create booking' },
         { status: 500 }
       );
+    }
+
+    // Fire-and-forget: update customer preferred_language if valid language provided
+    if (language && isValidLanguage(language) && customerId) {
+      supabase
+        .from('customers')
+        .update({ preferred_language: language })
+        .eq('id', customerId)
+        .then(({ error: langError }) => {
+          if (langError) {
+            console.warn('[Booking] Failed to update preferred_language:', langError);
+          } else if (lineUserId) {
+            // Invalidate caches so next read picks up the change
+            appCache.del(`booking_user_${lineUserId}`);
+            appCache.del(`membership_data_${lineUserId}`);
+          }
+        });
     }
 
     // Update bookingId once we have it

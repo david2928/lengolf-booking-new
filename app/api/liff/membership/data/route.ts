@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     ] = await Promise.all([
       supabase
         .from('customers')
-        .select('id, customer_code, customer_name, email, contact_number')
+        .select('id, customer_code, customer_name, email, contact_number, preferred_language')
         .eq('id', profile.customer_id)
         .single(),
       supabase.rpc('get_customer_packages', { customer_id_param: profile.customer_id }),
@@ -198,7 +198,8 @@ export async function GET(request: NextRequest) {
         email: profile.email || customer.email,
         phone: profile.phone_number || customer.contact_number,
         pictureUrl: profile.picture_url,
-        customerCode: customer.customer_code
+        customerCode: customer.customer_code,
+        preferredLanguage: customer.preferred_language
       },
       packages: {
         active: activePackages,

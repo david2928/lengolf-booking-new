@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Language, isValidLanguage } from '@/lib/liff/translations';
+import { saveLanguagePreference } from '@/lib/liff/language-persistence';
 import CoachingHeader from '@/components/liff/coaching/CoachingHeader';
 import FreeTrialPromo from '@/components/liff/coaching/FreeTrialPromo';
 import CoachList from '@/components/liff/coaching/CoachList';
@@ -120,9 +121,7 @@ export default function CoachingPage() {
 
   const handleLanguageChange = (newLang: Language) => {
     setLanguage(newLang);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-language', newLang);
-    }
+    saveLanguagePreference(newLang);
   };
 
   if (viewState === 'loading') {

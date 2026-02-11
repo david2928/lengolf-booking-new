@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Language, isValidLanguage } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
+import { saveLanguagePreference, resolveLanguage } from '@/lib/liff/language-persistence';
 import { LIFF_URLS } from '@/lib/liff/urls';
 import BookingDetailHeader from '@/components/liff/membership/booking-detail/BookingDetailHeader';
 import BookingStatusBanner from '@/components/liff/membership/booking-detail/BookingStatusBanner';
@@ -47,12 +48,7 @@ export default function BookingDetailPage() {
 
   useEffect(() => {
     // Load saved language
-    if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem('liff-language');
-      if (savedLanguage && isValidLanguage(savedLanguage)) {
-        setLanguage(savedLanguage);
-      }
-    }
+    setLanguage(resolveLanguage());
     initializeLiff();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -150,9 +146,7 @@ export default function BookingDetailPage() {
 
   const handleLanguageChange = (newLang: Language) => {
     setLanguage(newLang);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-language', newLang);
-    }
+    saveLanguagePreference(newLang, lineUserId || undefined);
   };
 
   const navigateToMembership = () => {

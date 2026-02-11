@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Language, isValidLanguage } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
+import { saveLanguagePreference, resolveLanguage } from '@/lib/liff/language-persistence';
 import LoadingState from '@/components/liff/membership/LoadingState';
 import ErrorState from '@/components/liff/membership/ErrorState';
 import MembershipHeader from '@/components/liff/membership/MembershipHeader';
@@ -66,6 +67,7 @@ interface MembershipDataResponse {
     phone?: string | null;
     pictureUrl?: string | null;
     customerCode?: string;
+    preferredLanguage?: string | null;
   };
   packages?: {
     active: Package[];
@@ -93,13 +95,10 @@ export default function MembershipPage() {
 
   useEffect(() => {
     initializeLiff();
-    // Load saved language
-    if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem('liff-language');
-      if (savedLanguage && isValidLanguage(savedLanguage)) {
-        setLanguage(savedLanguage);
-      }
+    // Load saved language (DB sync happens after data loads)
+    setLanguage(resolveLanguage());
 
+    if (typeof window !== 'undefined') {
       // Try to prefetch data using cached userId
       const cachedUserId = sessionStorage.getItem('liff-membership-userId');
       if (cachedUserId) {
@@ -235,6 +234,10 @@ export default function MembershipPage() {
     }
 
     if (data.status === 'linked' && data.profile && data.packages && data.bookings) {
+      // Cross-device language sync
+      const resolved = resolveLanguage(data.profile.preferredLanguage);
+      setLanguage(resolved);
+
       setDashboardData({
         profile: data.profile,
         packages: data.packages,
@@ -251,9 +254,7 @@ export default function MembershipPage() {
 
   const handleLanguageChange = (newLang: Language) => {
     setLanguage(newLang);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-language', newLang);
-    }
+    saveLanguagePreference(newLang, lineUserId || undefined);
   };
 
   // Handle cancel booking click

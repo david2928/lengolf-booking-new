@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Language, isValidLanguage } from '@/lib/liff/translations';
+import { saveLanguagePreference } from '@/lib/liff/language-persistence';
 import BayRatesHeader from '@/components/liff/bay-rates/BayRatesHeader';
 import PricingTable from '@/components/liff/bay-rates/PricingTable';
 import CurrentTimeIndicator from '@/components/liff/bay-rates/CurrentTimeIndicator';
@@ -86,9 +87,7 @@ export default function BayRatesPage() {
 
   const handleLanguageChange = (newLang: Language) => {
     setLanguage(newLang);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('liff-language', newLang);
-    }
+    saveLanguagePreference(newLang);
   };
 
   if (viewState === 'loading') {
