@@ -347,7 +347,7 @@ export const bayRatesTranslations: Record<Language, BayRatesTranslations> = {
     contactUs: 'お問い合わせ',
   },
   zh: {
-    title: '球位价格',
+    title: '价目表',
     time: '时段',
     weekday: '工作日',
     weekend: '周末',

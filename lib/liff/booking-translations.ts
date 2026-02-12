@@ -537,7 +537,7 @@ export const bookingTranslations: Record<Language, BookingTranslations> = {
     // Package Info
     usingPackage: '使用套餐',
     hoursRemaining: '小时剩余',
-    normalRate: '标准球位价格',
+    normalRate: '标准价格',
 
     // Summary
     bookingSummary: '预约摘要',

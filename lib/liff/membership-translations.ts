@@ -479,7 +479,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     quickActions: '快捷操作',
     bookNow: '立即预约',
     viewPromotions: '查看优惠',
-    viewBayRates: '球位价格',
+    viewBayRates: '价目表',
     contactUs: '联系我们',
 
     // Booking Actions

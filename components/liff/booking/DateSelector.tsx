@@ -182,7 +182,7 @@ export default function DateSelector({
               </svg>
             </div>
             <span className="text-sm font-medium text-gray-700">
-              {{ en: 'Bay Rates', th: 'ราคาเบย์', ja: '料金表', zh: '球位价格' }[language]}
+              {{ en: 'Bay Rates', th: 'ราคาเบย์', ja: '料金表', zh: '价目表' }[language]}
             </span>
           </a>
 
