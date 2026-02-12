@@ -364,7 +364,7 @@ export const bayRatesTranslations: Record<Language, BayRatesTranslations> = {
     forPurchase: '可购买',
     quickLinks: '更多选项',
     premiumClub: '高级球杆租赁',
-    foodMenu: '餐饮菜单',
+    foodMenu: '餐点菜单',
     drinkMenu: '饮品菜单',
     viewPromotions: '优惠活动',
     contactUs: '联系我们',
