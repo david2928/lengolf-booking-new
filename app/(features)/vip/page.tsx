@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardView from '@/components/vip/DashboardView';
 import { useVipContext } from './contexts/VipContext';
 import { getVipProfile, getVipBookings, getVipPackages } from '../../../lib/vipService'; // Adjusted path
@@ -40,16 +40,28 @@ const VipDashboardPage = () => {
 
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Use refs for values needed inside fetchData to avoid dependency-triggered re-renders
+  const sharedDataRef = useRef(sharedData);
+  const isSharedDataFreshRef = useRef(isSharedDataFresh);
+  const updateSharedDataRef = useRef(updateSharedData);
+  useEffect(() => {
+    sharedDataRef.current = sharedData;
+    isSharedDataFreshRef.current = isSharedDataFresh;
+    updateSharedDataRef.current = updateSharedData;
+  }, [sharedData, isSharedDataFresh, updateSharedData]);
+
   const fetchData = useCallback(async (forceRefresh = false) => {
     if (!session || !vipStatus) return;
 
+    const currentSharedData = sharedDataRef.current;
+
     // Use shared data if fresh and not forced to refresh
-    if (!forceRefresh && isSharedDataFresh()) {
-      setProfile(sharedData.profile);
-      
+    if (!forceRefresh && isSharedDataFreshRef.current()) {
+      setProfile(currentSharedData.profile);
+
       // Process next booking from shared data
-      if (sharedData.recentBookings.length > 0) {
-        const confirmedBooking = sharedData.recentBookings.find((b: VipBooking) => b.status === 'confirmed');
+      if (currentSharedData.recentBookings.length > 0) {
+        const confirmedBooking = currentSharedData.recentBookings.find((b: VipBooking) => b.status === 'confirmed');
         if (confirmedBooking) {
           setNextBooking({
             id: confirmedBooking.id,
@@ -63,10 +75,10 @@ const VipDashboardPage = () => {
       } else {
         setNextBooking(undefined);
       }
-      
+
       // Process primary package from shared data
-      if (sharedData.activePackages.length > 0) {
-        const firstActivePackage = sharedData.activePackages[0];
+      if (currentSharedData.activePackages.length > 0) {
+        const firstActivePackage = currentSharedData.activePackages[0];
         let hrsRemaining: string | number | undefined;
         if (firstActivePackage.remainingHours !== undefined && firstActivePackage.remainingHours !== null) {
           hrsRemaining = firstActivePackage.remainingHours;
@@ -120,7 +132,7 @@ const VipDashboardPage = () => {
         setProfile(profileData);
 
         // Update shared data
-        updateSharedData({ profile: profileData });
+        updateSharedDataRef.current({ profile: profileData });
       } else {
         throw new Error('Failed to fetch profile data');
       }
@@ -132,7 +144,7 @@ const VipDashboardPage = () => {
           const bookings = bookingsData.bookings || [];
           
           // Update shared data with recent bookings
-          updateSharedData({ recentBookings: bookings });
+          updateSharedDataRef.current({ recentBookings: bookings });
           
           let confirmedBooking: VipBooking | undefined = undefined;
           if (bookings.length > 0) {
@@ -161,7 +173,7 @@ const VipDashboardPage = () => {
           const packagesData = results[2].value as VipPackagesResponse;
           
           // Update shared data with packages
-          updateSharedData({ 
+          updateSharedDataRef.current({
             activePackages: packagesData.activePackages || [],
             pastPackages: packagesData.pastPackages || []
           });
@@ -217,7 +229,7 @@ const VipDashboardPage = () => {
         setIsLoadingPackages(false);
       }
     }
-  }, [session, vipStatus, isSharedDataFresh, sharedData, updateSharedData]);
+  }, [session, vipStatus]);
 
   useEffect(() => {
     const handleRetryEvent = () => {

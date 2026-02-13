@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { getVipPackages } from '../../lib/vipService';
 import { VipPackage, VipApiError } from '../../types/vip';
@@ -127,6 +127,16 @@ const PackagesList: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Use refs for values needed inside fetchPackages to avoid dependency-triggered re-renders
+  const sharedDataRef = useRef(sharedData);
+  const isSharedDataFreshRef = useRef(isSharedDataFresh);
+  const updateSharedDataRef = useRef(updateSharedData);
+  useEffect(() => {
+    sharedDataRef.current = sharedData;
+    isSharedDataFreshRef.current = isSharedDataFresh;
+    updateSharedDataRef.current = updateSharedData;
+  }, [sharedData, isSharedDataFresh, updateSharedData]);
+
   const fetchPackages = useCallback(async (forceRefresh = false) => {
     if (!vipStatus) {
       setActivePackages([]);
@@ -152,9 +162,10 @@ const PackagesList: React.FC = () => {
     }
 
     // Use shared data if available and fresh, unless forcing refresh
-    if (!forceRefresh && isSharedDataFresh() && (sharedData.activePackages.length > 0 || sharedData.pastPackages.length > 0)) {
-      setActivePackages(sharedData.activePackages);
-      setPastPackages(sharedData.pastPackages);
+    const currentSharedData = sharedDataRef.current;
+    if (!forceRefresh && isSharedDataFreshRef.current() && (currentSharedData.activePackages.length > 0 || currentSharedData.pastPackages.length > 0)) {
+      setActivePackages(currentSharedData.activePackages);
+      setPastPackages(currentSharedData.pastPackages);
       setIsLoading(false);
       setError(null);
       return;
@@ -166,12 +177,12 @@ const PackagesList: React.FC = () => {
       const data = await getVipPackages();
       const activePackages = data.activePackages || [];
       const pastPackages = data.pastPackages || [];
-      
+
       setActivePackages(activePackages);
       setPastPackages(pastPackages);
-      
+
       // Update shared data context
-      updateSharedData({ 
+      updateSharedDataRef.current({
         activePackages,
         pastPackages
       });
@@ -187,10 +198,10 @@ const PackagesList: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [vipStatus, isSharedDataFresh, sharedData.activePackages, sharedData.pastPackages, updateSharedData]);
+  }, [vipStatus]);
 
   useEffect(() => {
-    // Allow both linked_matched and linked_unmatched users to fetch packages  
+    // Allow both linked_matched and linked_unmatched users to fetch packages
     if (vipStatus?.status === 'linked_matched' || vipStatus?.status === 'linked_unmatched') {
       fetchPackages();
     }

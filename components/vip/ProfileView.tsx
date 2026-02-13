@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useForm, ControllerRenderProps } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -32,6 +32,15 @@ const ProfileView = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Use refs for values needed inside fetchProfile to avoid dependency-triggered re-renders
+  const sharedDataRef = useRef(sharedData);
+  const isSharedDataFreshRef = useRef(isSharedDataFresh);
+  const updateSharedDataRef = useRef(updateSharedData);
+  useEffect(() => {
+    sharedDataRef.current = sharedData;
+    isSharedDataFreshRef.current = isSharedDataFresh;
+    updateSharedDataRef.current = updateSharedData;
+  }, [sharedData, isSharedDataFresh, updateSharedData]);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -41,11 +50,11 @@ const ProfileView = () => {
       marketingPreference: true,
     },
   });
-  
+
   const fetchProfile = useCallback(async (forceRefresh = false) => {
     // Use shared data if available and fresh, unless forcing refresh
-    if (!forceRefresh && isSharedDataFresh() && sharedData.profile) {
-      const data = sharedData.profile;
+    if (!forceRefresh && isSharedDataFreshRef.current() && sharedDataRef.current.profile) {
+      const data = sharedDataRef.current.profile;
       setProfile(data);
       form.reset({
         display_name: data.name || '',
@@ -62,10 +71,10 @@ const ProfileView = () => {
     try {
       const data = await getVipProfile();
       setProfile(data);
-      
+
       // Update shared data context
-      updateSharedData({ profile: data });
-      
+      updateSharedDataRef.current({ profile: data });
+
       form.reset({
         display_name: data.name || '',
         email: data.email || '',
@@ -78,7 +87,7 @@ const ProfileView = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [form, isSharedDataFresh, sharedData.profile, updateSharedData]);
+  }, [form]);
 
   useEffect(() => {
     fetchProfile();
