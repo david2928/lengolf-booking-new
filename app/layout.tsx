@@ -112,16 +112,21 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} font-sans`}>
       <head>
-        {/* Google Tag Manager */}
+        {/* Google tag (gtag.js) - Google Ads */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-16456389020"
+          strategy="afterInteractive"
+        />
+        {/* Google Tag Manager + gtag config */}
         <Script id="google-tag-manager" strategy="afterInteractive">
           {`
             // Safety check for TikTok Pixel
-            window.ttq = window.ttq || { 
-              track: function() {}, 
+            window.ttq = window.ttq || {
+              track: function() {},
               page: function() {},
               batch: function() {}
             };
-            
+
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
             new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
             j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
@@ -132,6 +137,7 @@ export default function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
+            gtag('config', 'AW-16456389020');
             gtag('config', 'GTM-MKCHVJKW', {
               linker: {
                 domains: ['len.golf'],
