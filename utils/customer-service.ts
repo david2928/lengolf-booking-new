@@ -159,13 +159,18 @@ export async function getPackageInfoForCustomer(
       return { packageInfo: 'Normal Bay Rate' };
     }
 
+    // Filter to only active/unlimited packages (exclude expired and depleted)
+    let filteredPackages = packages.filter((pkg: { package_status: string }) =>
+      pkg.package_status === 'active' || pkg.package_status === 'unlimited'
+    );
+    console.log(`[Customer Service] Filtered ${packages.length} packages to ${filteredPackages.length} active/unlimited`);
+
     // Filter out excluded categories if specified
-    let filteredPackages = packages;
     if (options?.excludeCategories && options.excludeCategories.length > 0) {
-      filteredPackages = packages.filter((pkg: { package_category: string }) =>
+      filteredPackages = filteredPackages.filter((pkg: { package_category: string }) =>
         !options.excludeCategories!.includes(pkg.package_category)
       );
-      console.log(`[Customer Service] Filtered ${packages.length} packages to ${filteredPackages.length} (excluded: ${options.excludeCategories.join(', ')})`);
+      console.log(`[Customer Service] After category filter: ${filteredPackages.length} (excluded: ${options.excludeCategories.join(', ')})`);
     }
 
     if (filteredPackages.length === 0) {
