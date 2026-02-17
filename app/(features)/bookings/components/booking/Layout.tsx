@@ -62,7 +62,6 @@ export function Layout({ children }: LayoutProps) {
       try {
         const response = await fetch('/api/user/has-bookings');
         const data = await response.json();
-        console.log('[Booking Layout] Has bookings check result:', data);
         setHasBookings(data.hasBookings);
       } catch (error) {
         console.error('[Booking Layout] Error checking bookings:', error);
