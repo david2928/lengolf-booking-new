@@ -257,7 +257,23 @@ export async function POST(request: NextRequest) {
       lastCheckpoint = now;
     };
 
-    // 1. Authenticate user - support both NextAuth and LIFF context
+    // 1. Parse request body first (needed for profile creation in LIFF first-time users)
+    const {
+      name,
+      email,
+      phone_number,
+      date,
+      start_time,
+      duration,
+      number_of_people,
+      customer_notes,
+      package_id: playFoodPackageId,
+      package_info: playFoodPackageInfo,
+      preferred_bay_type,
+      language
+    } = await request.json();
+
+    // 2. Authenticate user - support both NextAuth and LIFF context
     const lineUserId = request.headers.get('x-line-user-id');
 
     if (lineUserId) {
@@ -266,19 +282,49 @@ export async function POST(request: NextRequest) {
       isLiffContext = true;
       console.log('[LIFF Auth] Authenticating with LINE user ID:', lineUserId);
 
-      const { data: profile, error: profileError } = await supabase
+      const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
         .select('id')
         .eq('provider', 'line')
         .eq('provider_id', lineUserId)
         .maybeSingle();
 
-      if (profileError || !profile) {
+      if (profileError) {
         console.error('[LIFF Auth] Profile lookup error:', profileError);
         return NextResponse.json(
           { error: 'LINE account not found' },
           { status: 401 }
         );
+      }
+
+      let profile = existingProfile;
+
+      // First-time LIFF user: no profile yet — create one on the fly
+      if (!profile) {
+        console.log('[LIFF Auth] No profile found, creating for first-time LIFF user:', lineUserId);
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            provider: 'line',
+            provider_id: lineUserId,
+            display_name: name || null,
+            phone_number: phone_number || null,
+            email: email || null,
+            marketing_preference: false
+          })
+          .select('id')
+          .single();
+
+        if (createError || !newProfile) {
+          console.error('[LIFF Auth] Failed to create profile:', createError);
+          return NextResponse.json(
+            { error: 'Failed to initialize LINE account' },
+            { status: 500 }
+          );
+        }
+
+        profile = newProfile;
+        console.log('[LIFF Auth] Created new profile for first-time LIFF user:', profile.id);
       }
 
       userId = profile.id;
@@ -301,22 +347,6 @@ export async function POST(request: NextRequest) {
       userId = token.sub;
       logTiming('Authentication', 'success');
     }
-
-    // 2. Parse request body
-    const {
-      name,
-      email,
-      phone_number,
-      date,
-      start_time,
-      duration,
-      number_of_people,
-      customer_notes,
-      package_id: playFoodPackageId,
-      package_info: playFoodPackageInfo,
-      preferred_bay_type,
-      language
-    } = await request.json();
 
     // Validate required fields
     if (!name || !email || !phone_number || !date || !start_time || !duration || !number_of_people) {
