@@ -29,7 +29,7 @@ export default function ChatWidget() {
     markAsRead,
     sendMessage,
     initializeChat,
-  } = useChatSession({ skip: isLiffPage });
+  } = useChatSession({ skip: isLiffPage, autoConnect: isOpen });
 
   if (isLiffPage) {
     return null;
@@ -37,6 +37,9 @@ export default function ChatWidget() {
 
   const handleOpen = () => {
     setIsOpen(true);
+    if (!chatSession.isInitialized) {
+      initializeChat();
+    }
     if (unreadCount > 0) {
       void markAsRead();
     }

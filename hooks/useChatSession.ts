@@ -30,8 +30,8 @@ export interface ChatSession {
   isConnected: boolean;
 }
 
-export function useChatSession(options?: { skip?: boolean }) {
-  const { skip = false } = options || {};
+export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean }) {
+  const { skip = false, autoConnect = false } = options || {};
   const { data: session, status } = useSession();
   const [chatSession, setChatSession] = useState<ChatSession>({
     sessionId: '',
@@ -320,9 +320,9 @@ export function useChatSession(options?: { skip?: boolean }) {
     }
   }, [session?.user?.id, status, chatSession.isInitialized, chatSession.sessionId, getSessionId]);
 
-  // Auto-initialize on mount and when session changes
+  // Auto-initialize on mount and when session changes (only if autoConnect is enabled)
   useEffect(() => {
-    if (skip) return; // Skip on LIFF pages
+    if (skip || !autoConnect) return;
     if (!chatSession.isInitialized && status !== 'loading') {
       // For logged-in users, always initialize (they have persistent session)
       // For anonymous users, only if they have a localStorage session
@@ -332,7 +332,7 @@ export function useChatSession(options?: { skip?: boolean }) {
         initializeChat();
       }
     }
-  }, [initializeChat, chatSession.isInitialized, session?.user?.id, status]);
+  }, [initializeChat, chatSession.isInitialized, session?.user?.id, status, autoConnect]);
 
   return {
     // Session state
