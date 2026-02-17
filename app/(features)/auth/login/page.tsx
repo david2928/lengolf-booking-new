@@ -6,6 +6,7 @@ import GuestForm from '../components/GuestForm';
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
+import { FaLine, FaFacebook } from 'react-icons/fa';
 
 export default function LoginPage() {
   const [showGuestForm, setShowGuestForm] = useState(false);
@@ -125,7 +126,7 @@ export default function LoginPage() {
               <LoadingSpinner />
             ) : (
               <>
-                <i className="fab fa-line text-lg mr-3"></i>
+                <FaLine className="text-lg mr-3" />
                 Continue with LINE
               </>
             )}
@@ -141,7 +142,7 @@ export default function LoginPage() {
               <LoadingSpinner />
             ) : (
               <>
-                <i className="fab fa-facebook text-lg mr-3"></i>
+                <FaFacebook className="text-lg mr-3" />
                 Continue with Facebook
               </>
             )}
@@ -190,7 +191,7 @@ export default function LoginPage() {
                 <LoadingSpinner />
               ) : (
                 <>
-                  <i className="fab fa-facebook text-lg mr-3"></i>
+                  <FaFacebook className="text-lg mr-3" />
                   Continue with Facebook
                 </>
               )}
@@ -205,7 +206,7 @@ export default function LoginPage() {
                 <LoadingSpinner />
               ) : (
                 <>
-                  <i className="fab fa-line text-lg mr-3"></i>
+                  <FaLine className="text-lg mr-3" />
                   Continue with LINE
                 </>
               )}

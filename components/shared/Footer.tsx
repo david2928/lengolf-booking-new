@@ -1,7 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { PhoneIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { PhoneIcon, EnvelopeIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { FaFacebookF, FaLine, FaInstagram } from 'react-icons/fa';
 
 const SharedFooter = () => {
   return (
@@ -20,9 +21,9 @@ const SharedFooter = () => {
                 className="w-auto h-auto"
               />
             </a>
-            <a 
-              href="https://maps.app.goo.gl/M7ygv921XyzcQwBE8" 
-              target="_blank" 
+            <a
+              href="https://maps.app.goo.gl/M7ygv921XyzcQwBE8"
+              target="_blank"
               rel="noopener noreferrer"
               className="group inline-flex items-start text-gray-600 hover:text-[#005a32] transition-colors mt-3"
             >
@@ -42,7 +43,7 @@ const SharedFooter = () => {
 
           {/* Opening Hours */}
           <div>
-            <h5 className="text-[#005a32] font-semibold mb-3">Opening Hours</h5>
+            <p className="text-[#005a32] font-semibold mb-3">Opening Hours</p>
             <p className="text-gray-600">
               10am - 11pm<br />
               Monday - Sunday
@@ -51,10 +52,10 @@ const SharedFooter = () => {
 
           {/* Keep in Touch */}
           <div>
-            <h5 className="text-[#005a32] font-semibold mb-3">Keep in Touch</h5>
+            <p className="text-[#005a32] font-semibold mb-3">Keep in Touch</p>
             <div className="text-gray-600 space-y-2">
-              <a 
-                href="https://www.len.golf" 
+              <a
+                href="https://www.len.golf"
                 className="block hover:text-gray-800"
               >
                 www.len.golf
@@ -63,22 +64,20 @@ const SharedFooter = () => {
                 <PhoneIcon className="h-4 w-4 mr-2 text-[#005a32]" />
                 096-668-2335
               </p>
-              <a 
-                href="mailto:info@len.golf" 
+              <a
+                href="mailto:info@len.golf"
                 className="flex items-center hover:text-gray-800"
               >
                 <EnvelopeIcon className="h-4 w-4 mr-2 text-[#005a32]" />
                 info@len.golf
               </a>
-              <a 
-                href="https://www.len.golf/privacy-policy/" 
+              <a
+                href="https://www.len.golf/privacy-policy/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center hover:text-gray-800"
               >
-                <svg className="h-4 w-4 mr-2 text-[#005a32]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <DocumentTextIcon className="h-4 w-4 mr-2 text-[#005a32]" />
                 Privacy Policy
               </a>
             </div>
@@ -86,31 +85,34 @@ const SharedFooter = () => {
 
           {/* Social Media */}
           <div>
-            <h5 className="text-[#005a32] font-semibold mb-3">Follow Us</h5>
+            <p className="text-[#005a32] font-semibold mb-3">Follow Us</p>
             <div className="flex space-x-4">
-              <a 
-                href="https://www.facebook.com/lengolf.bkk" 
+              <a
+                href="https://www.facebook.com/lengolf.bkk"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[#005a32] hover:text-[#007a42] transition-colors"
+                aria-label="Facebook"
               >
-                <i className="fab fa-facebook-f text-xl"></i>
+                <FaFacebookF size={20} />
               </a>
-              <a 
-                href="https://lin.ee/uxQpIXn" 
+              <a
+                href="https://lin.ee/uxQpIXn"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[#005a32] hover:text-[#007a42] transition-colors"
+                aria-label="LINE"
               >
-                <i className="fab fa-line text-xl"></i>
+                <FaLine size={20} />
               </a>
-              <a 
-                href="https://www.instagram.com/lengolf.bkk/" 
+              <a
+                href="https://www.instagram.com/lengolf.bkk/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[#005a32] hover:text-[#007a42] transition-colors"
+                aria-label="Instagram"
               >
-                <i className="fab fa-instagram text-xl"></i>
+                <FaInstagram size={20} />
               </a>
             </div>
           </div>
@@ -131,9 +133,9 @@ const SharedFooter = () => {
 
           {/* Address */}
           <div className="text-center">
-            <a 
-              href="https://maps.app.goo.gl/M7ygv921XyzcQwBE8" 
-              target="_blank" 
+            <a
+              href="https://maps.app.goo.gl/M7ygv921XyzcQwBE8"
+              target="_blank"
               rel="noopener noreferrer"
               className="group inline-flex items-start text-gray-600 hover:text-[#005a32] transition-colors justify-center"
             >
@@ -153,7 +155,7 @@ const SharedFooter = () => {
 
           {/* Opening Hours */}
           <div className="text-center">
-            <h5 className="text-[#005a32] font-semibold mb-2">Opening Hours</h5>
+            <p className="text-[#005a32] font-semibold mb-2">Opening Hours</p>
             <p className="text-gray-600">
               10am - 11pm<br />
               Monday - Sunday
@@ -162,60 +164,63 @@ const SharedFooter = () => {
 
           {/* Contact Info */}
           <div className="text-center space-y-2">
-            <h5 className="text-[#005a32] font-semibold mb-2">Keep in Touch</h5>
-            <a 
-              href="https://www.len.golf" 
+            <p className="text-[#005a32] font-semibold mb-2">Keep in Touch</p>
+            <a
+              href="https://www.len.golf"
               className="block text-gray-600"
             >
               www.len.golf
             </a>
-            <p className="text-gray-600">
-              <i className="fas fa-phone text-[#005a32] mr-2"></i>
+            <p className="text-gray-600 flex items-center justify-center">
+              <PhoneIcon className="h-4 w-4 mr-2 text-[#005a32]" />
               096-668-2335
             </p>
-            <a 
-              href="mailto:info@len.golf" 
-              className="block text-gray-600"
+            <a
+              href="mailto:info@len.golf"
+              className="flex items-center justify-center text-gray-600"
             >
-              <i className="fas fa-envelope text-[#005a32] mr-2"></i>
+              <EnvelopeIcon className="h-4 w-4 mr-2 text-[#005a32]" />
               info@len.golf
             </a>
-            <a 
-              href="https://www.len.golf/privacy-policy/" 
+            <a
+              href="https://www.len.golf/privacy-policy/"
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-gray-600"
+              className="flex items-center justify-center text-gray-600"
             >
-              <i className="fas fa-file-alt text-[#005a32] mr-2"></i>
+              <DocumentTextIcon className="h-4 w-4 mr-2 text-[#005a32]" />
               Privacy Policy
             </a>
           </div>
 
           {/* Social Media Icons */}
           <div className="flex justify-center space-x-6">
-            <a 
-              href="https://www.facebook.com/lengolf.bkk" 
+            <a
+              href="https://www.facebook.com/lengolf.bkk"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#005a32] text-xl"
+              className="text-[#005a32]"
+              aria-label="Facebook"
             >
-              <i className="fab fa-facebook-f"></i>
+              <FaFacebookF size={20} />
             </a>
-            <a 
-              href="https://lin.ee/uxQpIXn" 
+            <a
+              href="https://lin.ee/uxQpIXn"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#005a32] text-xl"
+              className="text-[#005a32]"
+              aria-label="LINE"
             >
-              <i className="fab fa-line"></i>
+              <FaLine size={20} />
             </a>
-            <a 
-              href="https://www.instagram.com/lengolf.bkk/" 
+            <a
+              href="https://www.instagram.com/lengolf.bkk/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#005a32] text-xl"
+              className="text-[#005a32]"
+              aria-label="Instagram"
             >
-              <i className="fab fa-instagram"></i>
+              <FaInstagram size={20} />
             </a>
           </div>
         </div>
@@ -224,4 +229,4 @@ const SharedFooter = () => {
   );
 };
 
-export default SharedFooter; 
+export default SharedFooter;

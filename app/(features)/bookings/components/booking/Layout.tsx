@@ -8,6 +8,7 @@ import { useVipStatus } from '@/components/providers/VipStatusProvider';
 import { toast } from 'react-hot-toast';
 import { ChevronDownIcon, XMarkIcon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, HomeIcon as HeroHomeIcon, UserIcon as HeroUserIcon, ShoppingBagIcon, GiftIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
+import { FaLine } from 'react-icons/fa';
 import SharedFooter from '@/components/shared/Footer';
 import Header from '@/components/shared/Header';
 import PromotionBar from '@/components/shared/PromotionBar';
@@ -540,7 +541,7 @@ export function Layout({ children }: LayoutProps) {
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 bg-[#06C755] text-white px-4 py-2 rounded-lg hover:bg-[#05b04e] transition-colors"
                   >
-                    <i className="fab fa-line text-xl"></i>
+                    <FaLine className="text-xl" />
                     Contact via LINE
                   </a>
                   <a 

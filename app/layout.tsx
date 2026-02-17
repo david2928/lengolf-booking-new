@@ -47,9 +47,6 @@ export const metadata: Metadata = {
     telephone: false,
   },
   metadataBase: new URL('https://booking.len.golf'),
-  alternates: {
-    canonical: '/',
-  },
   openGraph: {
     title: "LENGOLF - Bangkok's Premier Indoor Golf Simulator Experience",
     description: "Experience Bangkok's top-rated indoor golf simulator in the heart of the city! Located at Mercury Ville @ BTS Chidlom, LENGOLF offers state-of-the-art Korean simulators in a fun, relaxed environment. Perfect for all skill levels with great food & drinks. Book your bay now! 🏌️‍♂️✨",
@@ -112,11 +109,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} font-sans`}>
       <head>
-        {/* Google tag (gtag.js) - Google Ads */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=AW-16456389020"
-          strategy="afterInteractive"
-        />
+        {/* Preconnect to third-party origins */}
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="preconnect" href="https://connect.facebook.net" />
         {/* Google Tag Manager + gtag config */}
         <Script id="google-tag-manager" strategy="afterInteractive">
           {`
@@ -206,13 +201,6 @@ export default function RootLayout({
               ]
             })
           }}
-        />
-        <link 
-          rel="stylesheet" 
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" 
-          integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" 
-          crossOrigin="anonymous" 
-          referrerPolicy="no-referrer" 
         />
       </head>
       <body>

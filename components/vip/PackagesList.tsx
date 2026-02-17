@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { getVipPackages } from '../../lib/vipService';
+import { FaLine } from 'react-icons/fa';
 import { VipPackage, VipApiError } from '../../types/vip';
 import { useVipContext } from '../../app/(features)/vip/contexts/VipContext';
 import { Loader2, PackageIcon, CalendarDays, CheckCircle, XCircle, Clock, AlertTriangle, Info, Users, Clock3, ChevronDown, ChevronUp } from 'lucide-react';
@@ -98,7 +99,7 @@ const PromoPackagesView: React.FC = () => {
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 bg-[#06C755] text-white px-6 py-2.5 rounded-lg hover:bg-[#05b04e] transition-colors font-medium shadow-md hover:shadow-lg transform hover:scale-105 transition-all min-w-[160px]"
             >
-              <i className="fab fa-line text-lg"></i>
+              <FaLine className="text-lg" />
               Contact us via LINE
             </a>
             <Button asChild variant="outline" className="border-green-600 text-green-700 hover:bg-green-50 px-6 py-2.5 font-medium shadow-md hover:shadow-lg transform hover:scale-105 transition-all min-w-[160px]">
