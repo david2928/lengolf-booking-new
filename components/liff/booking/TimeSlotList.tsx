@@ -3,10 +3,22 @@
 import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
 
+export interface BayAvailabilityByDuration {
+  [duration: string]: {
+    social: number;
+    ai: number;
+    total: number;
+    bays: string[];
+  };
+}
+
 export interface TimeSlot {
   time: string;
   maxHours: number;
   availableBays?: string[];
+  socialBayCount?: number;
+  aiLabCount?: number;
+  bayAvailabilityByDuration?: BayAvailabilityByDuration;
 }
 
 interface TimeSlotListProps {

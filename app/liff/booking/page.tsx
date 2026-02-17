@@ -9,7 +9,7 @@ import { getCurrentBangkokTime } from '@/utils/date';
 import BookingHeader from '@/components/liff/booking/BookingHeader';
 import DateSelector from '@/components/liff/booking/DateSelector';
 import BaySelector from '@/components/liff/booking/BaySelector';
-import TimeSlotList, { TimeSlot } from '@/components/liff/booking/TimeSlotList';
+import TimeSlotList, { TimeSlot, BayAvailabilityByDuration } from '@/components/liff/booking/TimeSlotList';
 import BookingForm, { BookingFormData, UserProfile, ActivePackage } from '@/components/liff/booking/BookingForm';
 import BookingSummary from '@/components/liff/booking/BookingSummary';
 import SuccessScreen from '@/components/liff/booking/SuccessScreen';
@@ -180,6 +180,37 @@ export default function LiffBookingPage() {
     }
   };
 
+  // Filter slots based on selected bay preference
+  const filterSlotsByBayPreference = (slots: TimeSlot[], bayPref: BayType | null): TimeSlot[] => {
+    if (!bayPref) return slots;
+
+    return slots
+      .map((slot) => {
+        if (!slot.bayAvailabilityByDuration) {
+          // Fallback: use top-level counts
+          if (bayPref === 'ai_lab' && (slot.aiLabCount ?? 0) === 0) return null;
+          if (bayPref === 'social' && (slot.socialBayCount ?? 0) === 0) return null;
+          return slot;
+        }
+
+        // Recalculate maxHours based on bay-specific availability
+        let maxHours = 0;
+        for (const [durationStr, info] of Object.entries(slot.bayAvailabilityByDuration)) {
+          const duration = parseInt(durationStr, 10);
+          const hasPreferredBay = bayPref === 'ai_lab' ? info.ai > 0 : info.social > 0;
+          if (hasPreferredBay) {
+            maxHours = duration;
+          } else {
+            break;
+          }
+        }
+
+        if (maxHours === 0) return null;
+        return { ...slot, maxHours };
+      })
+      .filter((slot): slot is TimeSlot => slot !== null);
+  };
+
   // Fetch available time slots when date is selected
   const fetchAvailableSlots = useCallback(async (date: Date) => {
     setIsLoadingSlots(true);
@@ -207,20 +238,26 @@ export default function LiffBookingPage() {
       }
 
       const data = await response.json();
-      const slots: TimeSlot[] = (data.slots || []).map((slot: { startTime: string; maxHours: number; period: string }) => ({
+      const allSlots: TimeSlot[] = (data.slots || []).map((slot: { startTime: string; maxHours: number; period: string; availableBays?: string[]; socialBayCount?: number; aiLabCount?: number; bayAvailabilityByDuration?: BayAvailabilityByDuration }) => ({
         time: slot.startTime,
         maxHours: slot.maxHours,
-        period: slot.period
+        period: slot.period,
+        availableBays: slot.availableBays,
+        socialBayCount: slot.socialBayCount,
+        aiLabCount: slot.aiLabCount,
+        bayAvailabilityByDuration: slot.bayAvailabilityByDuration,
       }));
 
-      setAvailableSlots(slots);
+      // Filter and adjust slots based on selected bay preference
+      const filteredSlots = filterSlotsByBayPreference(allSlots, selectedBayPreference);
+      setAvailableSlots(filteredSlots);
     } catch (err) {
       console.error('[Booking] Failed to fetch availability:', err);
       setAvailableSlots([]);
     } finally {
       setIsLoadingSlots(false);
     }
-  }, [lineUserId]);
+  }, [lineUserId, selectedBayPreference]);
 
   // Handle date selection
   const handleDateSelect = (date: Date) => {
@@ -572,7 +609,7 @@ export default function LiffBookingPage() {
 
         {bookingStep === 'time' && (
           <>
-            {/* Selected Date Summary */}
+            {/* Selected Date & Bay Summary */}
             {selectedDate && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 mb-3">
                 <div className="flex items-center justify-between">
@@ -580,14 +617,22 @@ export default function LiffBookingPage() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span className="text-sm">{t.date}</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {selectedDate.toLocaleDateString(language === 'th' ? 'th-TH' : language === 'ja' ? 'ja-JP' : language === 'zh' ? 'zh-CN' : 'en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </span>
                   </div>
-                  <span className="text-sm font-medium text-gray-900">
-                    {selectedDate.toLocaleDateString(language === 'th' ? 'th-TH' : language === 'ja' ? 'ja-JP' : language === 'zh' ? 'zh-CN' : 'en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                    selectedBayPreference === 'ai_lab'
+                      ? 'bg-purple-100 text-purple-700'
+                      : selectedBayPreference === 'social'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {selectedBayPreference === 'ai_lab' ? t.aiLab : selectedBayPreference === 'social' ? t.socialBay : t.anyBay}
                   </span>
                 </div>
               </div>
