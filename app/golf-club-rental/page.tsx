@@ -373,8 +373,8 @@ export default function GolfClubRentalPage() {
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">Flexible Rental Duration</h3>
               <p className="text-gray-700">
-                From quick 1-hour sessions to full-day rentals, choose the duration that fits your schedule. 
-                Perfect for indoor simulator sessions or outdoor course play.
+                Hourly rates (1–4 hrs) apply for in-house simulator sessions at LENGOLF.
+                Taking clubs to a golf course? The full-day rate (฿1,200/set) applies, plus a ฿500 delivery fee.
               </p>
             </div>
             <div>
@@ -415,16 +415,16 @@ export default function GolfClubRentalPage() {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="font-semibold text-gray-900 mb-2">Do you offer hourly golf club rental?</h3>
               <p className="text-gray-700">
-                Yes, we offer flexible rental periods starting from just 1 hour (฿150) up to full day rentals (฿1,200).
-                Choose the duration that matches your needs.
+                Hourly rates (฿150/hr, ฿250/2hrs, ฿400/4hrs) are available for in-house use at our simulator only.
+                For taking clubs to a golf course, only the full-day rate (฿1,200 per set) is available.
               </p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="font-semibold text-gray-900 mb-2">Do you offer delivery service?</h3>
               <p className="text-gray-700">
-                Yes! We offer delivery and pick-up service within Bangkok for ฿500.
-                We&apos;ll deliver the clubs to your hotel and collect them when you&apos;re done.
-                Perfect for playing at Thai Country Club, Alpine, Nikanti, or any Bangkok course!
+                Yes! We deliver clubs to any golf course or hotel in Bangkok for ฿500 (pick-up and return included).
+                Delivery bookings require the full-day rate (฿1,200 per set) and pre-payment is required.
+                Contact us on LINE to arrange.
               </p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border-2 border-blue-500">
