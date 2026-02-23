@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { v4 as uuidv4 } from 'uuid';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
@@ -305,6 +306,7 @@ export async function POST(request: NextRequest) {
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
+            id: uuidv4(),
             provider: 'line',
             provider_id: lineUserId,
             display_name: name || null,
