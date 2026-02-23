@@ -119,15 +119,17 @@ export async function GET(request: NextRequest) {
       console.error('[LIFF Booking User] Packages error:', packagesError);
     }
 
-    // Find the first active simulator package (not coaching)
+    // Find the first active, non-expired simulator package (not coaching)
     let activePackage = null;
     if (packagesData && packagesData.length > 0) {
+      const today = new Date().toISOString().split('T')[0];
       const simulatorPackage = packagesData.find(
         (pkg: PackageFromRPC) =>
           pkg.package_category?.toLowerCase() !== 'coaching' &&
           pkg.remaining_hours !== null &&
           pkg.remaining_hours !== undefined &&
-          pkg.remaining_hours > 0
+          pkg.remaining_hours > 0 &&
+          (!pkg.expiration_date || pkg.expiration_date >= today)
       );
 
       if (simulatorPackage) {
