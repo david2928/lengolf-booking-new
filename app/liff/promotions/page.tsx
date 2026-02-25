@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { promotions } from '@/lib/liff/promotions-data';
+import { Promotion, fetchPromotions } from '@/lib/liff/promotions-data';
 import StoryProgress from '@/components/liff/promotions/StoryProgress';
 import PromotionStory from '@/components/liff/promotions/PromotionStory';
 
@@ -12,6 +12,7 @@ const STORY_DURATION = 5000; // 5 seconds per story
 export default function PromotionsPage() {
   const [viewState, setViewState] = useState<ViewState>('loading');
   const [error, setError] = useState('');
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -25,6 +26,12 @@ export default function PromotionsPage() {
     initializePage();
   }, []);
 
+  const loadPromotionsAndReady = async () => {
+    const data = await fetchPromotions();
+    setPromotions(data);
+    setViewState('ready');
+  };
+
   const initializePage = async () => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -32,7 +39,7 @@ export default function PromotionsPage() {
 
       if (devMode && process.env.NODE_ENV === 'development') {
         console.log('[DEV MODE] Promotions page loaded without LIFF');
-        setViewState('ready');
+        await loadPromotionsAndReady();
         return;
       }
 
@@ -51,21 +58,19 @@ export default function PromotionsPage() {
       const liffId = process.env.NEXT_PUBLIC_LIFF_PROMOTIONS_ID;
       if (!liffId || liffId === 'your-liff-id-here') {
         console.log('[Promotions] LIFF ID not configured - running without LIFF features');
-        setViewState('ready');
+        await loadPromotionsAndReady();
         return;
       }
 
       await window.liff.init({ liffId }).catch((err) => {
         console.warn('[Promotions] LIFF init failed - continuing without LIFF features:', err);
-        setViewState('ready');
-        return;
       });
 
-      setViewState('ready');
+      await loadPromotionsAndReady();
     } catch (err) {
       console.error('Error initializing page:', err);
       setError(err instanceof Error ? err.message : 'Failed to initialize page');
-      setViewState('ready'); // Continue anyway
+      await loadPromotionsAndReady(); // Continue anyway
     }
   };
 
@@ -84,7 +89,7 @@ export default function PromotionsPage() {
       // Stay on last promotion, don't close
       return prev;
     });
-  }, []);
+  }, [promotions.length]);
 
   const handlePrev = useCallback(() => {
     // Clear interval FIRST to prevent race condition
@@ -176,6 +181,15 @@ export default function PromotionsPage() {
   // Error State (still show content)
   if (viewState === 'error' && error) {
     console.error('Page error:', error);
+  }
+
+  // No promotions available
+  if (promotions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <p className="text-white/60 text-sm">No promotions available</p>
+      </div>
+    );
   }
 
   // Main Stories View
