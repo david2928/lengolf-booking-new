@@ -13,6 +13,7 @@ import { VipStatusResponse, VipApiError } from '../../../types/vip'; // Adjusted
 import SharedFooter from '@/components/shared/Footer'; // Import the SharedFooter
 import Header from '@/components/shared/Header';
 import PromotionBar from '@/components/shared/PromotionBar';
+import { Promotion, fetchPromotions } from '@/lib/liff/promotions-data';
 
 interface VipLayoutProps {
   children: ReactNode;
@@ -24,12 +25,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
   const [showPromotions, setShowPromotions] = useState(false);
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
   const [hasBookings, setHasBookings] = useState<boolean | null>(null);
-
-  const promotionImages = [
-    '/images/new_customer_promo.jpg',
-    '/images/promotion.jpg',
-    '/images/promotion_2.jpg',
-  ];
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
 
   const [vipStatus, setVipStatus] = useState<VipStatusResponse | null>(null);
   const [isLoadingVipStatus, setIsLoadingVipStatus] = useState(true);
@@ -57,6 +53,11 @@ const VipLayout = ({ children }: VipLayoutProps) => {
 
   // Cache expiry time in milliseconds (5 minutes)
   const VIP_STATUS_CACHE_EXPIRY_MS = 5 * 60 * 1000;
+
+  // Fetch promotions from database
+  useEffect(() => {
+    fetchPromotions().then(setPromotions).catch(console.error);
+  }, []);
 
   // Lock body scroll when promotions modal is open
   useEffect(() => {
@@ -450,24 +451,24 @@ const VipLayout = ({ children }: VipLayoutProps) => {
               </button>
             </div>
             <div className="relative">
-              {promotionImages.length > 0 ? (
+              {promotions.length > 0 ? (
                 <div className="relative">
                   <Image
-                    src={promotionImages[currentPromoIndex]}
-                    alt={`LENGOLF Promotion ${currentPromoIndex + 1}`}
+                    src={promotions[currentPromoIndex]?.image}
+                    alt={promotions[currentPromoIndex]?.title?.en || `LENGOLF Promotion ${currentPromoIndex + 1}`}
                     width={800}
                     height={600}
                     className="rounded-xl w-full h-auto object-contain"
                     priority
                   />
 
-                  {promotionImages.length > 1 && (
+                  {promotions.length > 1 && (
                     <div className="absolute inset-0 flex items-center justify-between pointer-events-none">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setCurrentPromoIndex((prevIndex) =>
-                            prevIndex === 0 ? promotionImages.length - 1 : prevIndex - 1
+                            prevIndex === 0 ? promotions.length - 1 : prevIndex - 1
                           );
                         }}
                         className="bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-2 rounded-full ml-2 pointer-events-auto"
@@ -480,7 +481,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                         onClick={(e) => {
                           e.stopPropagation();
                           setCurrentPromoIndex((prevIndex) =>
-                            (prevIndex + 1) % promotionImages.length
+                            (prevIndex + 1) % promotions.length
                           );
                         }}
                         className="bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-2 rounded-full mr-2 pointer-events-auto"
@@ -492,9 +493,9 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                     </div>
                   )}
 
-                  {promotionImages.length > 1 && (
+                  {promotions.length > 1 && (
                     <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
-                      {promotionImages.map((_, index) => (
+                      {promotions.map((_, index) => (
                         <button
                           key={index}
                           onClick={(e) => {

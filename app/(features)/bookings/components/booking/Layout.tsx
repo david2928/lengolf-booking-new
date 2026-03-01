@@ -12,6 +12,7 @@ import { FaLine } from 'react-icons/fa';
 import SharedFooter from '@/components/shared/Footer';
 import Header from '@/components/shared/Header';
 import PromotionBar from '@/components/shared/PromotionBar';
+import { Promotion, fetchPromotions } from '@/lib/liff/promotions-data';
 import { LogOut, Package as PackageIconLucide, Calendar as CalendarIconLucide, Trophy as TrophyIconLucide, Link as LinkIconLucideRadix, User as UserIconLucide } from 'lucide-react';
 
 interface LayoutProps {
@@ -29,14 +30,13 @@ export function Layout({ children }: LayoutProps) {
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hasBookings, setHasBookings] = useState<boolean | null>(null);
-
-  const promotionImages = [
-    '/images/new_customer_promo.jpg',
-    '/images/promotion_1.jpg',
-    '/images/promotion.jpg',
-    '/images/promotion_2.jpg',
-  ];
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   
+  // Fetch promotions from database
+  useEffect(() => {
+    fetchPromotions().then(setPromotions).catch(console.error);
+  }, []);
+
   useEffect(() => {
     if (showBayRates || showPromotions || showLessons || mobileMenuOpen) {
       document.body.style.overflow = 'hidden';
@@ -438,24 +438,24 @@ export function Layout({ children }: LayoutProps) {
               </button>
             </div>
             <div className="relative">
-              {promotionImages.length > 0 ? (
+              {promotions.length > 0 ? (
                 <div className="relative">
                   <Image
-                    src={promotionImages[currentPromoIndex]}
-                    alt={`LENGOLF Promotion ${currentPromoIndex + 1}`}
+                    src={promotions[currentPromoIndex]?.image}
+                    alt={promotions[currentPromoIndex]?.title?.en || `LENGOLF Promotion ${currentPromoIndex + 1}`}
                     width={800}
                     height={600}
                     className="rounded-xl w-full h-auto object-contain"
                     priority
                   />
                   
-                  {promotionImages.length > 1 && (
+                  {promotions.length > 1 && (
                     <div className="absolute inset-0 flex items-center justify-between pointer-events-none">
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
                           setCurrentPromoIndex((prevIndex) => 
-                            prevIndex === 0 ? promotionImages.length - 1 : prevIndex - 1
+                            prevIndex === 0 ? promotions.length - 1 : prevIndex - 1
                           );
                         }}
                         className="bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-2 rounded-full ml-2 pointer-events-auto"
@@ -468,7 +468,7 @@ export function Layout({ children }: LayoutProps) {
                         onClick={(e) => {
                           e.stopPropagation();
                           setCurrentPromoIndex((prevIndex) => 
-                            (prevIndex + 1) % promotionImages.length
+                            (prevIndex + 1) % promotions.length
                           );
                         }}
                         className="bg-black bg-opacity-40 hover:bg-opacity-60 text-white p-2 rounded-full mr-2 pointer-events-auto"
@@ -480,9 +480,9 @@ export function Layout({ children }: LayoutProps) {
                     </div>
                   )}
                   
-                  {promotionImages.length > 1 && (
+                  {promotions.length > 1 && (
                     <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
-                      {promotionImages.map((_, index) => (
+                      {promotions.map((_, index) => (
                         <button
                           key={index}
                           onClick={(e) => {
