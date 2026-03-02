@@ -53,7 +53,7 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
         <!-- Logo Section -->
         <div style="text-align: center; margin-bottom: 20px;">
-            <img src="https://www.len.golf/wp-content/uploads/2024/06/Logo.png" alt="LENGOLF Logo" style="max-width: 200px;">
+            <img src="https://booking.len.golf/images/logo_v1.png" alt="LENGOLF Logo" style="max-width: 200px;">
         </div>
 
         <!-- Header -->

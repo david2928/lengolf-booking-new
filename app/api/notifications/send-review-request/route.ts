@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CXwvpW56UsBgEAE/review';
-const VOUCHER_IMAGE_URL = process.env.REVIEW_VOUCHER_IMAGE_URL || 'https://www.len.golf/wp-content/uploads/2024/06/Logo.png';
+const VOUCHER_IMAGE_URL = process.env.REVIEW_VOUCHER_IMAGE_URL || 'https://booking.len.golf/images/logo_v1.png';
 
 interface SendReviewRequestBody {
   bookingId: string;

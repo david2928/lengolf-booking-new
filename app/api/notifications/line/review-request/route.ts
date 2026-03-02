@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       // If image URL is still not HTTPS, use a fallback image
       if (!safeVoucherImageUrl.startsWith('https://')) {
         console.warn(`Using fallback image URL for LINE message as original URL wasn't HTTPS`);
-        safeVoucherImageUrl = 'https://www.len.golf/wp-content/uploads/2025/03/google_review_voucher.png';
+        safeVoucherImageUrl = 'https://booking.len.golf/images/google_review_voucher.png';
       }
     }
     
