@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       // If it's a relative URL (starts with / or doesn't have protocol), use a fallback
       else if (safeVoucherImageUrl.startsWith('/') || !safeVoucherImageUrl.includes('://')) {
         console.log(`Using fallback for relative URL: ${safeVoucherImageUrl}`);
-        safeVoucherImageUrl = 'https://www.len.golf/wp-content/uploads/2025/03/google_review_voucher_email.png';
+        safeVoucherImageUrl = 'https://booking.len.golf/images/google_review_voucher_email.png';
       }
     }
     
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #ffffff;">
           <div style="text-align: center; margin-bottom: 20px;">
-            <img src="https://www.len.golf/wp-content/uploads/2024/06/Logo.png" alt="LENGOLF Logo" style="max-width: 200px;">
+            <img src="https://booking.len.golf/images/logo_v1.png" alt="LENGOLF Logo" style="max-width: 200px;">
           </div>
           
           <div style="margin-bottom: 30px;">

@@ -6,8 +6,8 @@ import { subMinutes, addMinutes } from 'date-fns';
 const TIMEZONE = 'Asia/Bangkok';
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CXwvpW56UsBgEAE/review';
 // Use different images for LINE and email (with HTTPS)
-const LINE_VOUCHER_IMAGE_URL = 'https://www.len.golf/wp-content/uploads/2025/03/google_review_voucher.png';
-const EMAIL_VOUCHER_IMAGE_URL = 'https://www.len.golf/wp-content/uploads/2025/03/google_review_voucher_email.png';
+const LINE_VOUCHER_IMAGE_URL = 'https://booking.len.golf/images/google_review_voucher.png';
+const EMAIL_VOUCHER_IMAGE_URL = 'https://booking.len.golf/images/google_review_voucher_email.png';
 
 /**
  * This endpoint processes scheduled review requests that are due to be sent.
