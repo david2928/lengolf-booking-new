@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { format } from 'date-fns';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
@@ -38,6 +39,21 @@ interface ConfirmationContentProps {
 
 export function ConfirmationContent({ booking }: ConfirmationContentProps) {
   const router = useRouter();
+
+  // Push user-provided data to dataLayer for Google Ads Enhanced Conversions for Leads.
+  // GTM reads this to match offline conversion uploads (hashed email/phone) to ad clicks.
+  useEffect(() => {
+    if (booking.email || booking.phone_number) {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: 'booking_confirmed',
+        enhanced_conversions: {
+          email: booking.email?.toLowerCase().trim() || undefined,
+          phone_number: booking.phone_number || undefined,
+        },
+      });
+    }
+  }, [booking.email, booking.phone_number]);
 
   const handleMakeAnotherBooking = () => {
     router.push('/bookings');
