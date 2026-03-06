@@ -13,7 +13,7 @@ export const GEAR_UP_ITEMS: GearUpItem[] = [
 ];
 
 export interface GolfClubOption {
-  id: 'premium-mens' | 'premium-ladies' | 'standard' | 'none';
+  id: 'premium' | 'premium-plus' | 'standard' | 'none';
   name: string;
   displayName: string;
   description: string;
@@ -33,11 +33,11 @@ export interface GolfClubPricing {
 
 export const GOLF_CLUB_OPTIONS: GolfClubOption[] = [
   {
-    id: 'premium-mens',
+    id: 'premium',
     name: "Premium Set",
-    displayName: "Professional Clubs",
+    displayName: "Callaway Warbird / Majesty Shuttle",
     description: "Premium golf clubs with professional specifications",
-    brand: "Premium",
+    brand: "Callaway / Majesty",
     specifications: [
       "Driver",
       "5-wood",
@@ -50,19 +50,20 @@ export const GOLF_CLUB_OPTIONS: GolfClubOption[] = [
     available: true
   },
   {
-    id: 'premium-ladies',
-    name: "Women's Premium Set",
-    displayName: "Majesty Shuttle",
-    description: "2023 Majesty Shuttle with ladies flex shafts",
-    brand: "Majesty",
+    id: 'premium-plus',
+    name: "Premium+ Set",
+    displayName: "Callaway Paradym",
+    description: "Top-tier Callaway Paradym clubs for the ultimate experience",
+    brand: "Callaway",
     specifications: [
-      "12.5° Driver",
-      "Irons 7-9",
+      "Paradym Driver",
+      "Paradym Fairway Wood",
+      "Paradym Irons 5-9",
       "Pitching Wedge (PW)",
-      "56° Puppy's Paw SW",
-      "Premium ladies golf bag"
+      "Sand Wedge (SW)",
+      "Premium Callaway bag"
     ],
-    pricePerHour: 150,
+    pricePerHour: 250,
     available: true
   },
   {
@@ -75,12 +76,12 @@ export const GOLF_CLUB_OPTIONS: GolfClubOption[] = [
       "Standard golf bag",
       "Suitable for beginners to intermediate"
     ],
-    pricePerHour: 100,
+    pricePerHour: 0,
     available: true
   }
 ];
 
-export const GOLF_CLUB_PRICING: GolfClubPricing[] = [
+export const PREMIUM_CLUB_PRICING: GolfClubPricing[] = [
   {
     duration: 1,
     unit: 'hour',
@@ -98,14 +99,38 @@ export const GOLF_CLUB_PRICING: GolfClubPricing[] = [
     unit: 'hours',
     price: 400,
     displayText: '4 hours'
-  },
-  {
-    duration: 24,
-    unit: 'day',
-    price: 1200,
-    displayText: 'Full day (24h)'
   }
 ];
+
+export const PREMIUM_PLUS_CLUB_PRICING: GolfClubPricing[] = [
+  {
+    duration: 1,
+    unit: 'hour',
+    price: 250,
+    displayText: '1 hour'
+  },
+  {
+    duration: 2,
+    unit: 'hours',
+    price: 450,
+    displayText: '2 hours'
+  },
+  {
+    duration: 4,
+    unit: 'hours',
+    price: 800,
+    displayText: '4 hours'
+  }
+];
+
+/** @deprecated Use PREMIUM_CLUB_PRICING instead */
+export const GOLF_CLUB_PRICING = PREMIUM_CLUB_PRICING;
+
+export function getClubPricing(clubId: string): GolfClubPricing[] {
+  if (clubId === 'premium-plus') return PREMIUM_PLUS_CLUB_PRICING;
+  if (clubId === 'premium') return PREMIUM_CLUB_PRICING;
+  return [];
+}
 
 export function getClubById(id: string): GolfClubOption | null {
   return GOLF_CLUB_OPTIONS.find(club => club.id === id) || null;
@@ -114,6 +139,6 @@ export function getClubById(id: string): GolfClubOption | null {
 export function formatClubRentalInfo(clubId: string): string | null {
   const club = getClubById(clubId);
   if (!club || clubId === 'none') return null;
-  
+
   return `Golf Club Rental: ${club.name}`;
 }

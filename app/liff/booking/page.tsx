@@ -12,6 +12,7 @@ import BaySelector from '@/components/liff/booking/BaySelector';
 import TimeSlotList, { TimeSlot, BayAvailabilityByDuration } from '@/components/liff/booking/TimeSlotList';
 import BookingForm, { BookingFormData, UserProfile, ActivePackage } from '@/components/liff/booking/BookingForm';
 import BookingSummary from '@/components/liff/booking/BookingSummary';
+import { formatClubRentalInfo } from '@/types/golf-club-rental';
 import SuccessScreen from '@/components/liff/booking/SuccessScreen';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import { BayType } from '@/lib/bayConfig';
@@ -329,6 +330,15 @@ export default function LiffBookingPage() {
     setIsSubmitting(true);
 
     try {
+      // Append club rental info to customer notes (same pattern as website)
+      let finalCustomerNotes = formData.notes || '';
+      const clubRentalInfo = formatClubRentalInfo(formData.clubRental);
+      if (clubRentalInfo) {
+        finalCustomerNotes = finalCustomerNotes
+          ? `${finalCustomerNotes}\n${clubRentalInfo}`
+          : clubRentalInfo;
+      }
+
       const bookingData = {
         name: formData.name,
         email: formData.email,
@@ -337,7 +347,7 @@ export default function LiffBookingPage() {
         start_time: selectedSlot.time,
         duration: formData.duration,
         number_of_people: formData.numberOfPeople,
-        customer_notes: formData.notes || undefined,
+        customer_notes: finalCustomerNotes || undefined,
         preferred_bay_type: formData.bayPreference || undefined,
         package_id: formData.playFoodPackage?.id || undefined,
         package_info: formData.playFoodPackage

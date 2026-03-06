@@ -65,8 +65,9 @@ export interface BookingTranslations {
   standardClubs: string;
   premiumClubs: string;
   premiumClubsSelected: string;
+  premiumPlusClubs: string;
+  premiumPlusClubsSelected: string;
   free: string;
-  fullDay: string;
 
   // Package Info
   usingPackage: string;
@@ -183,8 +184,9 @@ export const bookingTranslations: Record<Language, BookingTranslations> = {
     standardClubs: 'Standard Clubs',
     premiumClubs: 'Premium Clubs',
     premiumClubsSelected: 'Premium Clubs Selected',
+    premiumPlusClubs: 'Premium+ Clubs',
+    premiumPlusClubsSelected: 'Premium+ Clubs Selected',
     free: 'Free',
-    fullDay: 'Full day',
 
     // Package Info
     usingPackage: 'Using Package',
@@ -299,8 +301,9 @@ export const bookingTranslations: Record<Language, BookingTranslations> = {
     standardClubs: 'ไม้มาตรฐาน',
     premiumClubs: 'ไม้พรีเมียม',
     premiumClubsSelected: 'เลือกไม้พรีเมียมแล้ว',
+    premiumPlusClubs: 'ไม้พรีเมียม+',
+    premiumPlusClubsSelected: 'เลือกไม้พรีเมียม+แล้ว',
     free: 'ฟรี',
-    fullDay: 'ทั้งวัน',
 
     // Package Info
     usingPackage: 'ใช้แพ็กเกจ',
@@ -415,8 +418,9 @@ export const bookingTranslations: Record<Language, BookingTranslations> = {
     standardClubs: 'スタンダードクラブ',
     premiumClubs: 'プレミアムクラブ',
     premiumClubsSelected: 'プレミアムクラブ選択済み',
+    premiumPlusClubs: 'プレミアム+クラブ',
+    premiumPlusClubsSelected: 'プレミアム+クラブ選択済み',
     free: '無料',
-    fullDay: '終日',
 
     // Package Info
     usingPackage: 'パッケージ利用',
@@ -531,8 +535,9 @@ export const bookingTranslations: Record<Language, BookingTranslations> = {
     standardClubs: '标准球杆',
     premiumClubs: '高级球杆',
     premiumClubsSelected: '已选择高级球杆',
+    premiumPlusClubs: '高级+球杆',
+    premiumPlusClubsSelected: '已选择高级+球杆',
     free: '免费',
-    fullDay: '全天',
 
     // Package Info
     usingPackage: '使用套餐',
