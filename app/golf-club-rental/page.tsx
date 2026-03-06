@@ -15,13 +15,13 @@ const HERO_IMAGES = [
   { src: `${STORAGE_BASE}/clubs/premium-plus/15.png`, alt: 'Odyssey putter' },
 ];
 
+const ALL_PARADYM_IMAGES = Array.from({ length: 18 }, (_, i) => ({
+  src: `${STORAGE_BASE}/clubs/premium-plus/${i + 1}.png`,
+  alt: `Callaway Paradym Forged Carbon - Photo ${i + 1}`,
+}));
+
 export default function GolfClubRentalPage() {
   const [carouselIndex, setCarouselIndex] = useState<number | null>(null);
-
-  const ALL_PARADYM_IMAGES = Array.from({ length: 18 }, (_, i) => ({
-    src: `${STORAGE_BASE}/clubs/premium-plus/${i + 1}.png`,
-    alt: `Callaway Paradym Forged Carbon - Photo ${i + 1}`,
-  }));
 
   return (
     <Layout>

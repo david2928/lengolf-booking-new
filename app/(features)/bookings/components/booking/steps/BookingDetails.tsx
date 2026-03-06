@@ -1497,7 +1497,7 @@ export function BookingDetails({
                       </button>
 
                       {/* Thumbnail strip */}
-                      <div className="flex gap-2 pb-4 pt-2" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-2 pb-4 pt-2 overflow-x-auto max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
                         {images.map((img, i) => (
                           <button
                             key={img.alt}
