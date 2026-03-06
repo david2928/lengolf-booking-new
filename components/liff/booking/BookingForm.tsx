@@ -5,6 +5,7 @@ import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
 import { PLAY_FOOD_PACKAGES, PlayFoodPackage } from '@/types/play-food-packages';
 import { BayType } from '@/lib/bayConfig';
+import { PREMIUM_CLUB_PRICING, PREMIUM_PLUS_CLUB_PRICING } from '@/types/golf-club-rental';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
@@ -16,7 +17,7 @@ export interface BookingFormData {
   numberOfPeople: number;
   bayPreference: BayType | null;
   playFoodPackage: PlayFoodPackage | null;
-  clubRental: 'none' | 'standard' | 'premium';
+  clubRental: 'none' | 'standard' | 'premium' | 'premium-plus';
   notes: string;
 }
 
@@ -281,7 +282,7 @@ export default function BookingForm({
           </a>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => updateField('clubRental', 'none')}
             className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
@@ -319,6 +320,20 @@ export default function BookingForm({
             </span>
             <span className="text-[10px] mt-0.5 opacity-75">฿150+</span>
           </button>
+
+          <button
+            onClick={() => updateField('clubRental', 'premium-plus')}
+            className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+              formData.clubRental === 'premium-plus'
+                ? 'border-primary bg-primary/10 text-primary font-medium'
+                : 'border-gray-300 text-gray-700 hover:border-primary'
+            }`}
+          >
+            <span className="font-semibold text-[11px]">
+              <span className="text-primary font-bold">{t.premiumPlusClubs}</span>
+            </span>
+            <span className="text-[10px] mt-0.5 opacity-75">฿250+</span>
+          </button>
         </div>
 
         {formData.clubRental === 'premium' && (
@@ -331,23 +346,34 @@ export default function BookingForm({
               </div>
               <span className="text-sm font-semibold text-primary">{t.premiumClubsSelected}</span>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              <div className="text-center p-2 bg-white rounded-lg">
-                <div className="text-xs text-gray-500">1 {t.hour}</div>
-                <div className="text-sm font-bold text-gray-900">฿150</div>
+            <div className="grid grid-cols-3 gap-2">
+              {PREMIUM_CLUB_PRICING.map((p) => (
+                <div key={p.duration} className="text-center p-2 bg-white rounded-lg">
+                  <div className="text-xs text-gray-500">{p.duration} {p.duration === 1 ? t.hour : t.hours}</div>
+                  <div className="text-sm font-bold text-gray-900">฿{p.price.toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {formData.clubRental === 'premium-plus' && (
+          <div className="mt-3 p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
               </div>
-              <div className="text-center p-2 bg-white rounded-lg">
-                <div className="text-xs text-gray-500">2 {t.hours}</div>
-                <div className="text-sm font-bold text-gray-900">฿250</div>
-              </div>
-              <div className="text-center p-2 bg-white rounded-lg">
-                <div className="text-xs text-gray-500">4 {t.hours}</div>
-                <div className="text-sm font-bold text-gray-900">฿400</div>
-              </div>
-              <div className="text-center p-2 bg-white rounded-lg">
-                <div className="text-xs text-gray-500">{t.fullDay}</div>
-                <div className="text-sm font-bold text-gray-900">฿1,200</div>
-              </div>
+              <span className="text-sm font-semibold text-primary">{t.premiumPlusClubsSelected}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {PREMIUM_PLUS_CLUB_PRICING.map((p) => (
+                <div key={p.duration} className="text-center p-2 bg-white rounded-lg">
+                  <div className="text-xs text-gray-500">{p.duration} {p.duration === 1 ? t.hour : t.hours}</div>
+                  <div className="text-sm font-bold text-gray-900">฿{p.price.toLocaleString()}</div>
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -22,7 +22,7 @@ import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
-import { GOLF_CLUB_PRICING, formatClubRentalInfo } from '@/types/golf-club-rental';
+import { PREMIUM_CLUB_PRICING, PREMIUM_PLUS_CLUB_PRICING, formatClubRentalInfo } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import { BayInfoModal } from '../../BayInfoModal';
 import type { TimeSlot } from '../../../hooks/useAvailability';
@@ -382,6 +382,7 @@ export function BookingDetails({
   const [localSelectedPackage, setLocalSelectedPackage] = useState<PlayFoodPackage | null>(selectedPackage || null);
   const [showPackageModal, setShowPackageModal] = useState(false);
   const [showClubRentalModal, setShowClubRentalModal] = useState(false);
+  const [paradymCarouselIndex, setParadymCarouselIndex] = useState<number | null>(null);
 
   // Update local state when selectedPackage changes
   useEffect(() => {
@@ -885,20 +886,7 @@ export function BookingDetails({
               View Details
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => onClubRentalChange?.('standard')}
-              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
-                selectedClubRental === 'standard'
-                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
-                  : 'border-gray-300 text-gray-700 hover:border-green-600'
-              }`}
-            >
-              <span className="font-semibold text-[11px] sm:text-xs">Standard Set</span>
-              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75 text-gray-500">Free</span>
-            </button>
-
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               type="button"
               onClick={() => onClubRentalChange?.('none')}
@@ -914,25 +902,63 @@ export function BookingDetails({
 
             <button
               type="button"
-              onClick={() => onClubRentalChange?.('premium-mens')}
+              onClick={() => onClubRentalChange?.('standard')}
               className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
-                selectedClubRental === 'premium-mens'
+                selectedClubRental === 'standard'
+                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                  : 'border-gray-300 text-gray-700 hover:border-green-600'
+              }`}
+            >
+              <span className="font-semibold text-[11px] sm:text-xs">Standard Set</span>
+              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75 text-gray-500">Free</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onClubRentalChange?.('premium')}
+              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+                selectedClubRental === 'premium'
                   ? 'border-green-600 bg-green-50 text-green-600 font-medium'
                   : 'border-gray-300 text-gray-700 hover:border-green-600'
               }`}
             >
               <span className="font-semibold text-[11px] sm:text-xs">
-                <span className="text-green-600 font-bold">Premium</span> Clubs
+                <span className="text-green-600 font-bold">Premium</span>
               </span>
               <span className="text-[10px] sm:text-xs mt-0.5 opacity-75">฿150+</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => onClubRentalChange?.('premium-plus')}
+              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs transition-colors ${
+                selectedClubRental === 'premium-plus'
+                  ? 'border-[#c8a96e] text-white font-medium'
+                  : 'border-gray-300 text-gray-700 hover:border-[#c8a96e]'
+              }`}
+              style={selectedClubRental === 'premium-plus' ? { backgroundColor: '#003d1f' } : undefined}
+            >
+              <span className="font-bold text-[11px] sm:text-xs" style={{ color: selectedClubRental === 'premium-plus' ? '#ffffff' : '#003d1f' }}>
+                Premium+
+              </span>
+              <span className={`text-[10px] sm:text-xs mt-0.5 ${selectedClubRental === 'premium-plus' ? 'text-white/80' : 'opacity-75'}`}>฿250+</span>
+            </button>
           </div>
-          
-          {selectedClubRental === 'premium-mens' && (
+
+          {selectedClubRental === 'premium' && (
             <div className="mt-3 p-3 bg-green-50 rounded-lg">
               <div className="text-sm font-medium text-green-800 mb-1">Premium Clubs Selected</div>
               <div className="text-xs text-gray-600">
-                Pricing: 1hr ฿150 • 2hrs ฿250 • 4hrs ฿400 • Full day ฿1,200
+                Pricing: {PREMIUM_CLUB_PRICING.map(p => `${p.duration}hr${p.duration > 1 ? 's' : ''} ฿${p.price.toLocaleString()}`).join(' • ')}
+              </div>
+            </div>
+          )}
+
+          {selectedClubRental === 'premium-plus' && (
+            <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: '#003d1f' }}>
+              <div className="text-sm font-medium text-white mb-1">Premium+ Clubs Selected — Callaway Paradym</div>
+              <div className="text-xs text-white/80">
+                Pricing: {PREMIUM_PLUS_CLUB_PRICING.map(p => `${p.duration}hr${p.duration > 1 ? 's' : ''} ฿${p.price.toLocaleString()}`).join(' • ')}
               </div>
             </div>
           )}
@@ -1270,112 +1296,139 @@ export function BookingDetails({
                     <span className="text-gray-900"> Options</span>
                   </h2>
                   <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
-                    Choose from standard or premium golf clubs for your session
+                    Choose from standard, premium, or premium+ golf clubs for your session
                   </p>
                 </div>
 
-                {/* Pricing Section */}
+                {/* Pricing Comparison Table */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 text-center">Premium Club Pricing</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {GOLF_CLUB_PRICING.map((pricing) => (
-                      <div 
-                        key={pricing.duration}
-                        className="bg-gray-50 rounded-lg p-3 text-center border"
-                      >
-                        <div className="text-sm font-semibold text-gray-900">{pricing.displayText}</div>
-                        <div className="text-lg font-bold text-green-600 mt-1">฿{pricing.price}</div>
-                      </div>
-                    ))}
+                  <div className="overflow-hidden rounded-xl border border-gray-200">
+                    <table className="w-full">
+                      <thead>
+                        <tr>
+                          <th className="py-2.5 px-3 text-left text-xs sm:text-sm font-semibold text-gray-700 bg-gray-50">Duration</th>
+                          <th className="py-2.5 px-3 text-center text-xs sm:text-sm font-semibold text-green-700 bg-gray-50">Premium</th>
+                          <th className="py-2.5 px-3 text-center text-xs sm:text-sm font-semibold text-white" style={{ backgroundColor: '#003d1f' }}>Premium+</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {PREMIUM_CLUB_PRICING.map((premium, i) => {
+                          const premiumPlus = PREMIUM_PLUS_CLUB_PRICING[i];
+                          return (
+                            <tr key={premium.duration}>
+                              <td className="py-2.5 px-3 text-xs sm:text-sm font-medium text-gray-900">{premium.displayText}</td>
+                              <td className="py-2.5 px-3 text-center text-sm sm:text-lg font-bold text-green-600">฿{premium.price.toLocaleString()}</td>
+                              <td className="py-2.5 px-3 text-center text-sm sm:text-lg font-bold" style={{ color: '#003d1f', backgroundColor: 'rgba(0,61,31,0.05)' }}>฿{premiumPlus.price.toLocaleString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
+                  <p className="text-center text-xs text-gray-500 mt-2">Standard clubs are always free with any bay booking</p>
                 </div>
 
-                {/* Club Options */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                {/* Club Options - flex col on mobile, 3-col on desktop, all cards stretch to equal height */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
                   {/* Standard Clubs */}
-                  <div className="bg-gray-50 rounded-lg border p-4 sm:p-6 opacity-75">
-                    <h3 className="text-lg font-bold text-gray-600 mb-2">Standard Set</h3>
-                    <p className="text-sm text-gray-500 mb-3">Quality rental clubs suitable for all skill levels</p>
-                    
-                    <div className="mb-4">
-                      <p className="font-semibold text-gray-600 mb-2 text-sm">Includes:</p>
-                      <ul className="space-y-1 text-sm text-gray-500">
+                  <div className="bg-gray-50 rounded-lg border p-4 sm:p-5 opacity-75 flex flex-col">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-600 mb-1">Standard Set</h3>
+                    <p className="text-xs sm:text-sm text-gray-500 mb-3">House Set &mdash; Men&apos;s &amp; Ladies&apos;</p>
+
+                    <div className="mb-4 flex-1">
+                      <ul className="space-y-1 text-xs sm:text-sm text-gray-500">
                         <li className="flex items-start">
-                          <CheckIcon className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-                          <span>Full set of clubs</span>
+                          <CheckIcon className="h-3.5 w-3.5 text-gray-400 mr-1.5 mt-0.5 flex-shrink-0" />
+                          <span>Driver, Irons (5&ndash;PW), Putter</span>
                         </li>
                         <li className="flex items-start">
-                          <CheckIcon className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                          <CheckIcon className="h-3.5 w-3.5 text-gray-400 mr-1.5 mt-0.5 flex-shrink-0" />
                           <span>Golf bag included</span>
-                        </li>
-                        <li className="flex items-start">
-                          <CheckIcon className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-                          <span>Suitable for beginners to intermediate</span>
                         </li>
                       </ul>
                     </div>
 
-                    <div className="text-center py-2 px-3 rounded bg-gray-200 text-gray-500 font-semibold text-sm">
+                    <div className="text-center py-2 px-3 rounded bg-gray-200 text-gray-500 font-semibold text-sm mt-auto">
                       Free with Booking
                     </div>
                   </div>
 
                   {/* Premium Clubs */}
-                  <div className="bg-white rounded-lg border-2 border-green-500 p-4 sm:p-6 relative">
+                  <div className="bg-white rounded-lg border-2 border-green-500 p-4 sm:p-5 relative flex flex-col">
                     <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-3 py-0.5 rounded-full text-xs font-semibold">
-                      Premium Choice
+                      Premium
                     </div>
-                    
-                    <h3 className="text-lg font-bold text-green-800 mb-2">Premium Sets</h3>
-                    <p className="text-sm text-gray-600 mb-3">Callaway & Majesty Professional Clubs</p>
-                    
-                    <div className="space-y-3 mb-4">
-                      {/* Men's Set */}
-                      <div className="border-l-4 border-green-500 pl-3">
-                        <h4 className="font-semibold text-gray-800 text-sm">Men&apos;s Set - Callaway Warbird</h4>
-                        <p className="text-xs text-gray-600 mb-1">Full set with Uniflex shafts</p>
-                        <ul className="space-y-0.5 text-xs text-gray-600">
-                          <li className="flex items-start">
-                            <CheckIcon className="h-3 w-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
-                            <span>Driver, 5-wood, Irons 5-9, PW, SW</span>
-                          </li>
-                          <li className="flex items-start">
-                            <CheckIcon className="h-3 w-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
-                            <span>Premium Callaway golf bag</span>
-                          </li>
-                        </ul>
-                      </div>
 
-                      {/* Women's Set */}
-                      <div className="border-l-4 border-green-500 pl-3">
-                        <h4 className="font-semibold text-gray-800 text-sm">Women&apos;s Set - Majesty Shuttle</h4>
-                        <p className="text-xs text-gray-600 mb-1">Ladies flex with premium design</p>
-                        <ul className="space-y-0.5 text-xs text-gray-600">
-                          <li className="flex items-start">
-                            <CheckIcon className="h-3 w-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
-                            <span>12.5° Driver, Irons 7-9, PW, 56° SW</span>
-                          </li>
-                          <li className="flex items-start">
-                            <CheckIcon className="h-3 w-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
-                            <span>Premium ladies golf bag</span>
-                          </li>
-                        </ul>
+                    <h3 className="text-base sm:text-lg font-bold text-green-800 mb-1">Premium Sets</h3>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-3">Callaway Warbird &amp; Majesty Shuttle</p>
+
+                    <div className="space-y-2 mb-4 flex-1">
+                      <div className="border-l-3 border-green-500 pl-2.5">
+                        <h4 className="font-semibold text-gray-800 text-xs sm:text-sm">Men&apos;s &mdash; Callaway Warbird</h4>
+                        <p className="text-[11px] sm:text-xs text-gray-600">Driver, 5-wood, Irons 5-9, PW, SW</p>
+                      </div>
+                      <div className="border-l-3 border-green-500 pl-2.5">
+                        <h4 className="font-semibold text-gray-800 text-xs sm:text-sm">Women&apos;s &mdash; Majesty Shuttle</h4>
+                        <p className="text-[11px] sm:text-xs text-gray-600">12.5&deg; Driver, Irons 7-9, PW, 56&deg; SW</p>
                       </div>
                     </div>
 
-                    <div className="text-center py-2 px-3 rounded bg-green-600 text-white font-semibold text-sm">
+                    <div className="text-center py-2 px-3 rounded bg-green-600 text-white font-semibold text-sm mt-auto">
                       Starting from ฿150
+                    </div>
+                  </div>
+
+                  {/* Premium+ Clubs - Standout dark green + white */}
+                  <div className="rounded-lg border-2 border-green-900 p-4 sm:p-5 relative flex flex-col" style={{ backgroundColor: '#003d1f' }}>
+                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-white px-3 py-0.5 rounded-full text-xs font-semibold" style={{ color: '#003d1f' }}>
+                      Premium+
+                    </div>
+
+                    <h3 className="text-base sm:text-lg font-bold text-white mb-1">Premium+ Set</h3>
+                    <p className="text-xs sm:text-sm text-white/80 mb-3">Callaway Paradym Forged Carbon</p>
+
+                    <div className="space-y-1 mb-2 flex-1">
+                      <ul className="space-y-0.5 text-xs sm:text-sm text-white/90">
+                        <li className="flex items-start">
+                          <CheckIcon className="h-3.5 w-3.5 text-white mr-1.5 mt-0.5 flex-shrink-0" />
+                          <span>Driver + 3W + 5W + 4H</span>
+                        </li>
+                        <li className="flex items-start">
+                          <CheckIcon className="h-3.5 w-3.5 text-white mr-1.5 mt-0.5 flex-shrink-0" />
+                          <span>Irons 5&ndash;PW, Jaws Raw Wedges</span>
+                        </li>
+                        <li className="flex items-start">
+                          <CheckIcon className="h-3.5 w-3.5 text-white mr-1.5 mt-0.5 flex-shrink-0" />
+                          <span>Odyssey Putter + Callaway bag</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setParadymCarouselIndex(0)}
+                      className="text-[11px] sm:text-xs text-white/70 hover:text-white underline mb-3 text-left"
+                    >
+                      View photos &rarr;
+                    </button>
+
+                    <div className="text-center py-2 px-3 rounded font-semibold text-sm bg-white mt-auto" style={{ color: '#003d1f' }}>
+                      Starting from ฿250
                     </div>
                   </div>
                 </div>
 
-                {/* Additional Info */}
-                <div className="mt-6 bg-green-50 rounded-lg p-4 text-center">
-                  <h4 className="font-semibold text-gray-900 mb-2 text-sm">Can I use the clubs outside LENGOLF?</h4>
-                  <p className="text-xs sm:text-sm text-gray-700">
-                    Yes! You can take our rental clubs to play at any golf course in Bangkok or Thailand. 
-                    Perfect for tourists or locals who want to play without owning clubs.
-                  </p>
+                {/* On-Course Rental Link */}
+                <div className="mt-4 text-center text-xs sm:text-sm text-gray-500">
+                  Taking clubs to a golf course?{' '}
+                  <a
+                    href="https://len.golf/golf-course-club-rental/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-600 hover:text-green-700 underline font-medium"
+                  >
+                    View daily rates &amp; delivery options
+                  </a>
                 </div>
 
                 {/* Close Button */}
@@ -1387,6 +1440,80 @@ export function BookingDetails({
                     Close
                   </button>
                 </div>
+
+                {/* Paradym Full-Screen Image Carousel */}
+                {paradymCarouselIndex !== null && (() => {
+                  const baseUrl = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets/clubs/premium-plus';
+                  const images = Array.from({ length: 18 }, (_, i) => ({
+                    src: `${baseUrl}/${i + 1}.png`,
+                    alt: `Callaway Paradym Forged Carbon - Photo ${i + 1}`,
+                  }));
+                  const current = images[paradymCarouselIndex];
+                  return (
+                    <div className="fixed inset-0 bg-black/90 z-[60] flex flex-col items-center justify-center" onClick={() => setParadymCarouselIndex(null)}>
+                      {/* Close */}
+                      <button
+                        onClick={() => setParadymCarouselIndex(null)}
+                        className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 z-10"
+                      >
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+
+                      {/* Counter */}
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-xs sm:text-sm font-medium">
+                        {paradymCarouselIndex + 1} / {images.length}
+                      </div>
+
+                      {/* Main image */}
+                      <div className="flex-1 flex items-center justify-center w-full px-12 sm:px-20" onClick={(e) => e.stopPropagation()}>
+                        <img
+                          src={current.src}
+                          alt={current.alt}
+                          className="max-w-full max-h-[70vh] object-contain"
+                        />
+                      </div>
+
+                      {/* Caption */}
+                      <div className="text-white/80 text-xs sm:text-sm mb-2">{current.alt}</div>
+
+                      {/* Prev / Next */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setParadymCarouselIndex((paradymCarouselIndex - 1 + images.length) % images.length); }}
+                        className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 sm:p-3"
+                      >
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setParadymCarouselIndex((paradymCarouselIndex + 1) % images.length); }}
+                        className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 sm:p-3"
+                      >
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+
+                      {/* Thumbnail strip */}
+                      <div className="flex gap-2 pb-4 pt-2" onClick={(e) => e.stopPropagation()}>
+                        {images.map((img, i) => (
+                          <button
+                            key={img.alt}
+                            type="button"
+                            onClick={() => setParadymCarouselIndex(i)}
+                            className={`w-10 h-10 sm:w-12 sm:h-12 rounded overflow-hidden border-2 transition-colors ${
+                              i === paradymCarouselIndex ? 'border-white' : 'border-transparent opacity-50 hover:opacity-80'
+                            }`}
+                          >
+                            <img src={img.src} alt={img.alt} className="w-full h-full object-contain bg-white/10 p-0.5" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

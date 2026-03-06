@@ -45,7 +45,8 @@ export default function BookingSummary({
 
   const getClubRentalLabel = () => {
     if (formData.clubRental === 'standard') return `${t.standardClubs} (${t.free})`;
-    if (formData.clubRental === 'premium') return `${t.premiumClubs} (500 THB)`;
+    if (formData.clubRental === 'premium') return `${t.premiumClubs} (฿150+)`;
+    if (formData.clubRental === 'premium-plus') return `${t.premiumPlusClubs} (฿250+)`;
     return t.noRental;
   };
 
