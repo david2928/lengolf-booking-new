@@ -59,6 +59,8 @@ export default function CourseRentalPage() {
   const [availableSets, setAvailableSets] = useState<RentalClubSetWithAvailability[]>([]);
   const [setsLoading, setSetsLoading] = useState(true);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [lightboxImages, setLightboxImages] = useState<{ src: string; alt: string }[] | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Selections
   const [selectedSet, setSelectedSet] = useState<RentalClubSetWithAvailability | null>(null);
@@ -270,7 +272,14 @@ export default function CourseRentalPage() {
                     >
                       <div className="flex">
                         {/* Square thumbnail on left */}
-                        <div className={`w-28 sm:w-36 flex-shrink-0 bg-gray-50 flex items-center justify-center ${heroImg ? '' : 'bg-gray-100'}`}>
+                        <div
+                          className={`w-28 sm:w-36 flex-shrink-0 bg-gray-50 flex items-center justify-center ${heroImg ? '' : 'bg-gray-100'} ${isSelected && images.length > 1 ? 'cursor-zoom-in' : ''}`}
+                          onClick={isSelected && images.length > 1 ? (e) => {
+                            e.stopPropagation();
+                            setLightboxImages(images);
+                            setLightboxIndex(heroIndex % images.length);
+                          } : undefined}
+                        >
                           {heroImg ? (
                             <img
                               src={activeImg?.src || heroImg.src}
@@ -908,6 +917,73 @@ export default function CourseRentalPage() {
           </div>
         )}
       </div>
+
+      {/* Lightbox */}
+      {lightboxImages && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center"
+          onClick={() => setLightboxImages(null)}
+        >
+          <button
+            onClick={() => setLightboxImages(null)}
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 z-10"
+          >
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-xs sm:text-sm font-medium">
+            {lightboxIndex + 1} / {lightboxImages.length}
+          </div>
+
+          <div className="flex-1 flex items-center justify-center w-full px-12 sm:px-20" onClick={e => e.stopPropagation()}>
+            <img
+              src={lightboxImages[lightboxIndex].src}
+              alt={lightboxImages[lightboxIndex].alt}
+              className="max-w-full max-h-[70vh] object-contain"
+            />
+          </div>
+
+          <div className="text-white/80 text-xs sm:text-sm mb-2">{lightboxImages[lightboxIndex].alt}</div>
+
+          {lightboxImages.length > 1 && (
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); setLightboxIndex((lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length); }}
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 sm:p-3"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); setLightboxIndex((lightboxIndex + 1) % lightboxImages.length); }}
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 sm:p-3"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              <div className="flex gap-1.5 pb-4 pt-2 overflow-x-auto max-w-[90vw]" onClick={e => e.stopPropagation()}>
+                {lightboxImages.map((img, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setLightboxIndex(i)}
+                    className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded overflow-hidden border-2 transition-colors ${
+                      i === lightboxIndex ? 'border-white' : 'border-transparent opacity-50 hover:opacity-80'
+                    }`}
+                  >
+                    <img src={img.src} alt={img.alt} className="w-full h-full object-cover" loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </Layout>
   );
 }
