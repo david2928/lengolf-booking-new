@@ -6,6 +6,8 @@ import { BookingFormData, ActivePackage } from './BookingForm';
 import { TimeSlot } from './TimeSlotList';
 import { format } from 'date-fns';
 import { th, enUS, ja, zhCN } from 'date-fns/locale';
+import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
+import { ProjectedCostBreakdown } from '@/components/booking/ProjectedCostBreakdown';
 
 interface BookingSummaryProps {
   language: Language;
@@ -16,6 +18,8 @@ interface BookingSummaryProps {
   isSubmitting: boolean;
   onConfirm: () => void;
   onBack: () => void;
+  isNewCustomer?: boolean;
+  applicablePromotions?: ApplicablePromotion[];
 }
 
 export default function BookingSummary({
@@ -26,7 +30,9 @@ export default function BookingSummary({
   activePackage,
   isSubmitting,
   onConfirm,
-  onBack
+  onBack,
+  isNewCustomer = false,
+  applicablePromotions = [],
 }: BookingSummaryProps) {
   const t = bookingTranslations[language];
   const locale = language === 'th' ? th : language === 'ja' ? ja : language === 'zh' ? zhCN : enUS;
@@ -49,6 +55,22 @@ export default function BookingSummary({
     if (formData.clubRental === 'premium-plus') return `${t.premiumPlusClubs} (฿250+)`;
     return t.noRental;
   };
+
+  // Compute cost breakdown
+  const costBreakdown = (() => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return calculateCost({
+      date: dateStr,
+      startTime: timeSlot.time,
+      duration: formData.duration,
+      clubRentalId: formData.clubRental,
+      playFoodPackageId: formData.playFoodPackage?.id ?? null,
+      hasActivePackage: !!activePackage,
+      packageDisplayName: activePackage?.displayName,
+      isNewCustomer,
+      applicablePromotions,
+    });
+  })();
 
   return (
     <div className="pb-24">
@@ -140,6 +162,14 @@ export default function BookingSummary({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Estimated Cost Breakdown */}
+      <div className="mb-4">
+        <ProjectedCostBreakdown
+          breakdown={costBreakdown}
+          language={language === 'ja' || language === 'zh' ? 'en' : language}
+        />
       </div>
 
       {/* Sticky Bottom Buttons - iOS Safari fix */}

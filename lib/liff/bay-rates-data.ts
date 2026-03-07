@@ -155,6 +155,26 @@ export function getCurrentTimeSlot(): {
 }
 
 /**
+ * Check if a date string (yyyy-MM-dd) falls on a weekend (Fri/Sat/Sun)
+ */
+export function isWeekendDate(dateString: string): boolean {
+  const date = new Date(dateString + 'T12:00:00'); // noon to avoid timezone edge cases
+  const dayOfWeek = date.getDay(); // 0 = Sunday
+  return dayOfWeek === 0 || dayOfWeek >= 5;
+}
+
+/**
+ * Get the rate for a given hour (0-23)
+ */
+export function getRateForTime(hour: number): Rate | null {
+  const slot = timeSlots.find(
+    (s) => hour >= s.startHour && hour < s.endHour
+  );
+  if (!slot) return null;
+  return rates.find((r) => r.timeSlotId === slot.id) || null;
+}
+
+/**
  * Get the current rate based on current time
  */
 export function getCurrentRate(): {

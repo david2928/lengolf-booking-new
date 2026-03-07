@@ -25,8 +25,10 @@ export default function BookingsPage() {
     maxDuration,
     selectedPackage,
     selectedClubRental,
+    selectedClubSetId,
     selectedSlotData,
     setSelectedClubRental,
+    setSelectedClubSetId,
     handleDateSelect,
     handleTimeSelect,
     handleBack,
@@ -102,6 +104,8 @@ export default function BookingsPage() {
             isPackageMode={isPackageMode()}
             selectedClubRental={selectedClubRental}
             onClubRentalChange={setSelectedClubRental}
+            selectedClubSetId={selectedClubSetId}
+            onClubSetIdChange={setSelectedClubSetId}
           />
         )}
       </div>

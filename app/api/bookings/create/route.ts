@@ -271,7 +271,9 @@ export async function POST(request: NextRequest) {
       package_id: playFoodPackageId,
       package_info: playFoodPackageInfo,
       preferred_bay_type,
-      language
+      language,
+      club_set_id,
+      club_rental_type,
     } = await request.json();
 
     // 2. Authenticate user - support both NextAuth and LIFF context
@@ -674,6 +676,71 @@ export async function POST(request: NextRequest) {
       package_id: derivedPackageId
     });
 
+    // 8.5. Create club rental reservation if a specific club set was selected
+    let clubRentalCode: string | null = null;
+    if (club_set_id && club_rental_type && club_rental_type !== 'none' && club_rental_type !== 'standard') {
+      try {
+        // Generate rental code
+        const { data: rentalCode } = await supabase.rpc('generate_rental_code');
+
+        if (rentalCode) {
+          // Get pricing from the club set
+          const { data: clubSet } = await supabase
+            .from('rental_club_sets')
+            .select('indoor_price_1h, indoor_price_2h, indoor_price_3h, indoor_price_4h, indoor_price_5h, name')
+            .eq('id', club_set_id)
+            .single();
+
+          let rentalPrice = 0;
+          if (clubSet) {
+            const dur = parseFloat(duration);
+            if (dur <= 1) rentalPrice = Number(clubSet.indoor_price_1h);
+            else if (dur <= 2) rentalPrice = Number(clubSet.indoor_price_2h);
+            else if (dur <= 3) rentalPrice = Number(clubSet.indoor_price_3h || clubSet.indoor_price_4h);
+            else if (dur <= 4) rentalPrice = Number(clubSet.indoor_price_4h);
+            else rentalPrice = Number(clubSet.indoor_price_5h || clubSet.indoor_price_4h);
+          }
+
+          const { error: rentalError } = await supabase
+            .from('club_rentals')
+            .insert({
+              rental_code: rentalCode,
+              rental_club_set_id: club_set_id,
+              booking_id: booking.id,
+              customer_id: customerId || null,
+              customer_name: name,
+              customer_email: email,
+              customer_phone: phone_number,
+              user_id: userId,
+              rental_type: 'indoor',
+              status: 'reserved',
+              start_date: date,
+              end_date: date,
+              start_time: start_time,
+              duration_hours: parseFloat(duration),
+              rental_price: rentalPrice,
+              total_price: rentalPrice,
+              source: isLiffContext ? 'liff' : 'booking_app',
+            });
+
+          if (rentalError) {
+            console.error('[ClubRental] Failed to create rental:', rentalError);
+            // Don't fail the booking — club rental is ancillary
+          } else {
+            clubRentalCode = rentalCode;
+            console.log(`[ClubRental] Created rental ${rentalCode} for booking ${booking.id}, set: ${clubSet?.name}, price: ฿${rentalPrice}`);
+          }
+        }
+      } catch (clubError) {
+        console.error('[ClubRental] Error creating club rental:', clubError);
+        // Don't fail the booking
+      }
+      logTiming('Club rental creation', clubRentalCode ? 'success' : 'error', {
+        clubSetId: club_set_id,
+        rentalCode: clubRentalCode,
+      });
+    }
+
     // If we don't have a customer name from the system, use the booking name
     if (!customerName) {
       customerName = booking.name;
@@ -848,6 +915,7 @@ export async function POST(request: NextRequest) {
       customerId: customerId || undefined,
       customerCode: customerCode || undefined,
       notificationsSuccess: notificationResults.success,
+      clubRentalCode: clubRentalCode || undefined,
       processingTime: Date.now() - apiStartTime
     });
   } catch (error) {
