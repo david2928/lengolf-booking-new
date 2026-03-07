@@ -10,13 +10,26 @@ import { pushEventToGtm } from '@/utils/gtm';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
 
-const HERO_IMAGES = [
-  { src: `${STORAGE_BASE}/clubs/premium-plus/2.png`, alt: 'Callaway Paradym full set' },
-  { src: `${STORAGE_BASE}/clubs/premium-plus/4.png`, alt: 'Callaway Paradym driver' },
-  { src: `${STORAGE_BASE}/clubs/premium-plus/11.png`, alt: 'Callaway Paradym irons' },
-  { src: `${STORAGE_BASE}/clubs/premium-plus/15.png`, alt: 'Odyssey putter' },
-  { src: `${STORAGE_BASE}/clubs/premium-plus/7.png`, alt: 'Callaway Paradym woods' },
-];
+// Per-set image galleries keyed by slug or tier+gender
+const SET_IMAGES: Record<string, { src: string; alt: string }[]> = {
+  'premium-plus_mens': [
+    { src: `${STORAGE_BASE}/clubs/premium-plus/2.png`, alt: 'Callaway Paradym full set' },
+    { src: `${STORAGE_BASE}/clubs/premium-plus/4.png`, alt: 'Paradym driver' },
+    { src: `${STORAGE_BASE}/clubs/premium-plus/11.png`, alt: 'Paradym irons' },
+    { src: `${STORAGE_BASE}/clubs/premium-plus/9.png`, alt: 'Paradym fairway wood' },
+    { src: `${STORAGE_BASE}/clubs/premium-plus/13.png`, alt: 'Jaws Raw wedges' },
+    { src: `${STORAGE_BASE}/clubs/premium-plus/15.png`, alt: 'Odyssey putter' },
+    { src: `${STORAGE_BASE}/clubs/premium-plus/12.png`, alt: 'Ventus TR shaft' },
+    { src: `${STORAGE_BASE}/clubs/premium-plus/1.png`, alt: 'Callaway golf bag' },
+  ],
+  'premium_mens': [
+    { src: `${STORAGE_BASE}/clubs/warbird/warbird-full-set.webp`, alt: 'Callaway Warbird full set' },
+  ],
+};
+
+function getSetImageKey(set: { tier: string; gender: string }): string {
+  return `${set.tier}_${set.gender}`;
+}
 
 const DURATION_OPTIONS = [
   { days: 1, label: '1 Day', description: 'Single round' },
@@ -100,14 +113,10 @@ export default function CourseRentalPage() {
     fetchSets();
   }, [fetchSets]);
 
-  // Auto-rotate hero image on set selection step
+  // Reset hero index when selected set changes
   useEffect(() => {
-    if (step !== 'set') return;
-    const timer = setInterval(() => {
-      setHeroIndex(prev => (prev + 1) % HERO_IMAGES.length);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [step]);
+    setHeroIndex(0);
+  }, [selectedSet?.id]);
 
   // Pricing
   const rentalPrice = selectedSet ? getCoursePrice(selectedSet, durationDays) : 0;
@@ -226,33 +235,6 @@ export default function CourseRentalPage() {
         {/* Step 2: Set Selection */}
         {step === 'set' && (
           <div className="space-y-4">
-            {/* Hero image with clickable thumbnails */}
-            <div className="mb-2">
-              <div className="relative aspect-[4/3] sm:aspect-[16/9] max-w-md mx-auto rounded-xl overflow-hidden bg-white border border-gray-100">
-                <img
-                  src={HERO_IMAGES[heroIndex].src}
-                  alt={HERO_IMAGES[heroIndex].alt}
-                  className="w-full h-full object-contain p-4"
-                />
-              </div>
-              <div className="flex justify-center gap-2 mt-3">
-                {HERO_IMAGES.map((img, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setHeroIndex(i)}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                      i === heroIndex
-                        ? 'border-green-600 shadow-sm'
-                        : 'border-gray-200 opacity-60 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={img.src} alt={img.alt} className="w-full h-full object-contain p-0.5 bg-white" loading="lazy" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {setsLoading ? (
               <div className="flex justify-center py-12">
                 <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
@@ -266,22 +248,34 @@ export default function CourseRentalPage() {
               availableSets.map(set => {
                 const isAvailable = set.available_count > 0;
                 const isSelected = selectedSet?.id === set.id;
+                const images = SET_IMAGES[getSetImageKey(set)] || [];
+                const heroImg = images[0];
                 return (
-                  <button
-                    key={set.id}
-                    type="button"
-                    disabled={!isAvailable}
-                    onClick={() => setSelectedSet(set)}
-                    className={`w-full text-left p-4 sm:p-5 rounded-xl border-2 transition-all ${
-                      isSelected
-                        ? 'border-green-600 bg-green-50 shadow-md'
-                        : isAvailable
-                        ? 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
-                        : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
+                  <div key={set.id}>
+                    <button
+                      type="button"
+                      disabled={!isAvailable}
+                      onClick={() => setSelectedSet(set)}
+                      className={`w-full text-left rounded-xl border-2 transition-all overflow-hidden ${
+                        isSelected
+                          ? 'border-green-600 bg-green-50 shadow-md'
+                          : isAvailable
+                          ? 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
+                          : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                      }`}
+                    >
+                      {/* Hero image */}
+                      {heroImg && (
+                        <div className="bg-white flex items-center justify-center p-4">
+                          <img
+                            src={isSelected && images.length > 1 ? images[heroIndex % images.length].src : heroImg.src}
+                            alt={isSelected && images.length > 1 ? images[heroIndex % images.length].alt : heroImg.alt}
+                            className="max-h-48 sm:max-h-56 object-contain"
+                            loading="lazy"
+                          />
+                        </div>
+                      )}
+                      <div className="p-4 sm:p-5">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             set.tier === 'premium-plus'
@@ -313,8 +307,28 @@ export default function CourseRentalPage() {
                           </p>
                         )}
                       </div>
+                    </button>
+
+                    {/* Thumbnail carousel for selected set with multiple images */}
+                    {isSelected && images.length > 1 && (
+                      <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                        {images.map((img, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setHeroIndex(i)}
+                            className={`flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                              heroIndex % images.length === i
+                                ? 'border-green-600 shadow-sm'
+                                : 'border-gray-200 opacity-60 hover:opacity-100'
+                            }`}
+                          >
+                            <img src={img.src} alt={img.alt} className="w-full h-full object-contain p-0.5 bg-white" loading="lazy" />
+                          </button>
+                        ))}
                       </div>
-                  </button>
+                    )}
+                  </div>
                 );
               })
             )}
