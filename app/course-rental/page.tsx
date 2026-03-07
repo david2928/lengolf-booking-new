@@ -322,6 +322,15 @@ export default function CourseRentalPage() {
               </div>
             )}
 
+            <a
+              href="https://www.len.golf/club-rental"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-center text-sm text-green-700 hover:text-green-800 underline underline-offset-2"
+            >
+              View our available club sets on len.golf
+            </a>
+
             <button
               onClick={goNext}
               disabled={!startDate}
