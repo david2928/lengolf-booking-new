@@ -19,6 +19,7 @@ export function useBookingFlow() {
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PlayFoodPackage | null>(null);
   const [selectedClubRental, setSelectedClubRental] = useState<string>('standard');
+  const [selectedClubSetId, setSelectedClubSetId] = useState<string | null>(null);
   const [selectedSlotData, setSelectedSlotData] = useState<TimeSlot | null>(null);
 
   useEffect(() => {
@@ -126,8 +127,10 @@ export function useBookingFlow() {
     isAutoSelecting,
     selectedPackage,
     selectedClubRental,
+    selectedClubSetId,
     selectedSlotData,
     setSelectedClubRental,
+    setSelectedClubSetId,
     handleDateSelect,
     handleTimeSelect,
     handleBack,

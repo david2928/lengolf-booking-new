@@ -62,6 +62,8 @@ interface BookingDetailsProps {
   isPackageMode?: boolean;
   selectedClubRental?: string;
   onClubRentalChange?: (clubId: string) => void;
+  selectedClubSetId?: string | null;
+  onClubSetIdChange?: (id: string | null) => void;
 }
 
 // Add loading animation components
