@@ -687,7 +687,7 @@ export async function POST(request: NextRequest) {
           // Get pricing from the club set
           const { data: clubSet } = await supabase
             .from('rental_club_sets')
-            .select('indoor_price_1h, indoor_price_2h, indoor_price_4h, name')
+            .select('indoor_price_1h, indoor_price_2h, indoor_price_3h, indoor_price_4h, indoor_price_5h, name')
             .eq('id', club_set_id)
             .single();
 
@@ -696,7 +696,9 @@ export async function POST(request: NextRequest) {
             const dur = parseFloat(duration);
             if (dur <= 1) rentalPrice = Number(clubSet.indoor_price_1h);
             else if (dur <= 2) rentalPrice = Number(clubSet.indoor_price_2h);
-            else rentalPrice = Number(clubSet.indoor_price_4h);
+            else if (dur <= 3) rentalPrice = Number(clubSet.indoor_price_3h || clubSet.indoor_price_4h);
+            else if (dur <= 4) rentalPrice = Number(clubSet.indoor_price_4h);
+            else rentalPrice = Number(clubSet.indoor_price_5h || clubSet.indoor_price_4h);
           }
 
           const { error: rentalError } = await supabase
