@@ -22,10 +22,13 @@ import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
-import { PREMIUM_CLUB_PRICING, PREMIUM_PLUS_CLUB_PRICING, formatClubRentalInfo } from '@/types/golf-club-rental';
+import { PREMIUM_CLUB_PRICING, PREMIUM_PLUS_CLUB_PRICING, formatClubRentalInfo, getIndoorPrice } from '@/types/golf-club-rental';
+import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import { BayInfoModal } from '../../BayInfoModal';
 import type { TimeSlot } from '../../../hooks/useAvailability';
+import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
+import { ProjectedCostBreakdown } from '@/components/booking/ProjectedCostBreakdown';
 
 interface Profile {
   name: string;
@@ -134,6 +137,8 @@ export function BookingDetails({
   selectedPackage,
   selectedClubRental = 'standard',
   onClubRentalChange,
+  selectedClubSetId,
+  onClubSetIdChange,
 }: BookingDetailsProps) {
   const router = useRouter();
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
@@ -150,6 +155,10 @@ export function BookingDetails({
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
   const [customerNotes, setCustomerNotes] = useState('');
   const [vipDataPrepopulated, setVipDataPrepopulated] = useState(false);
+
+  // Club rental availability state
+  const [availableClubSets, setAvailableClubSets] = useState<RentalClubSetWithAvailability[]>([]);
+  const [clubSetsLoading, setClubSetsLoading] = useState(false);
   const [errors, setErrors] = useState({
     duration: '',
     phoneNumber: '',
@@ -164,6 +173,53 @@ export function BookingDetails({
     "Sending notifications",
     "Booking confirmed!"
   ];
+
+  // Cost estimation state
+  const [hasActivePackage, setHasActivePackage] = useState(false);
+  const [packageDisplayName, setPackageDisplayName] = useState<string>();
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [applicablePromotions, setApplicablePromotions] = useState<ApplicablePromotion[]>([]);
+  const [costDataLoading, setCostDataLoading] = useState(true);
+
+  // Fetch package + new-customer status for cost estimation
+  useEffect(() => {
+    if (status !== 'authenticated') {
+      setCostDataLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    async function fetchCostData() {
+      try {
+        const [pkgRes, bookingsRes] = await Promise.all([
+          fetch('/api/user/active-packages'),
+          fetch('/api/user/has-bookings'),
+        ]);
+        if (cancelled) return;
+
+        const pkgData = await pkgRes.json();
+        const bookingsData = await bookingsRes.json();
+
+        setHasActivePackage(pkgData.hasPackage ?? false);
+        setPackageDisplayName(pkgData.packageDisplayName);
+
+        const newCust = bookingsData.hasBookings === false;
+        setIsNewCustomer(newCust);
+
+        // Fetch applicable promotions
+        const promoRes = await fetch('/api/promotions/applicable');
+        if (cancelled) return;
+        const promoData = await promoRes.json();
+        setApplicablePromotions(promoData.promotions ?? []);
+      } catch (err) {
+        console.error('[CostEstimate] Failed to fetch cost data:', err);
+      } finally {
+        if (!cancelled) setCostDataLoading(false);
+      }
+    }
+    fetchCostData();
+    return () => { cancelled = true; };
+  }, [status]);
 
   // Helper function to get bay availability for a specific duration
   const getBayAvailabilityForDuration = useCallback((dur: number) => {
@@ -382,6 +438,24 @@ export function BookingDetails({
 
   // Local state for package selector to allow switching
   const [localSelectedPackage, setLocalSelectedPackage] = useState<PlayFoodPackage | null>(selectedPackage || null);
+
+  // Compute cost breakdown reactively (must be after localSelectedPackage declaration)
+  const costBreakdown: CostBreakdown | null = (() => {
+    if (!selectedDate || !selectedTime) return null;
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    return calculateCost({
+      date: dateStr,
+      startTime: selectedTime,
+      duration,
+      clubRentalId: selectedClubRental,
+      playFoodPackageId: localSelectedPackage?.id ?? null,
+      hasActivePackage,
+      packageDisplayName,
+      isNewCustomer,
+      applicablePromotions,
+    });
+  })();
+
   const [showPackageModal, setShowPackageModal] = useState(false);
   const [showClubRentalModal, setShowClubRentalModal] = useState(false);
   const [paradymCarouselIndex, setParadymCarouselIndex] = useState<number | null>(null);
@@ -390,6 +464,33 @@ export function BookingDetails({
   useEffect(() => {
     setLocalSelectedPackage(selectedPackage || null);
   }, [selectedPackage]);
+
+  // Fetch club set availability when date/time are known
+  useEffect(() => {
+    const fetchClubAvailability = async () => {
+      if (!selectedDate || !selectedTime) return;
+      setClubSetsLoading(true);
+      try {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const params = new URLSearchParams({
+          type: 'indoor',
+          date: dateStr,
+          start_time: selectedTime,
+          duration: String(duration),
+        });
+        const res = await fetch(`/api/clubs/availability?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableClubSets(data.sets || []);
+        }
+      } catch (err) {
+        console.error('[BookingDetails] Failed to fetch club availability:', err);
+      } finally {
+        setClubSetsLoading(false);
+      }
+    };
+    fetchClubAvailability();
+  }, [selectedDate, selectedTime, duration]);
 
   const validateForm = () => {
     const currentErrors = { duration: '', phoneNumber: '', email: '', name: '' };
@@ -515,7 +616,9 @@ export function BookingDetails({
           customer_notes: finalCustomerNotes,
           package_id: localSelectedPackage?.id || null,
           package_info: localSelectedPackage ? `${localSelectedPackage.name} - ${localSelectedPackage.displayName}` : null,
-          preferred_bay_type: selectedBayType || selectedBay
+          preferred_bay_type: selectedBayType || selectedBay,
+          club_set_id: selectedClubSetId || null,
+          club_rental_type: selectedClubRental,
         })
       });
       
@@ -880,7 +983,7 @@ export function BookingDetails({
             <label className="block text-sm font-medium text-gray-700">
               Golf Club Rental (Optional)
             </label>
-            <button 
+            <button
               type="button"
               onClick={() => setShowClubRentalModal(true)}
               className="text-xs text-green-600 hover:text-green-700 underline"
@@ -888,10 +991,12 @@ export function BookingDetails({
               View Details
             </button>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+
+          {/* No Rental / Standard row */}
+          <div className="grid grid-cols-2 gap-2 mb-2">
             <button
               type="button"
-              onClick={() => onClubRentalChange?.('none')}
+              onClick={() => { onClubRentalChange?.('none'); onClubSetIdChange?.(null); }}
               className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
                 selectedClubRental === 'none'
                   ? 'border-green-600 bg-green-50 text-green-600 font-medium'
@@ -904,7 +1009,7 @@ export function BookingDetails({
 
             <button
               type="button"
-              onClick={() => onClubRentalChange?.('standard')}
+              onClick={() => { onClubRentalChange?.('standard'); onClubSetIdChange?.(null); }}
               className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
                 selectedClubRental === 'standard'
                   ? 'border-green-600 bg-green-50 text-green-600 font-medium'
@@ -914,40 +1019,130 @@ export function BookingDetails({
               <span className="font-semibold text-[11px] sm:text-xs">Standard Set</span>
               <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75 text-gray-500">Free</span>
             </button>
-
-            <button
-              type="button"
-              onClick={() => onClubRentalChange?.('premium')}
-              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
-                selectedClubRental === 'premium'
-                  ? 'border-green-600 bg-green-50 text-green-600 font-medium'
-                  : 'border-gray-300 text-gray-700 hover:border-green-600'
-              }`}
-            >
-              <span className="font-semibold text-[11px] sm:text-xs">
-                <span className="text-green-600 font-bold">Premium</span>
-              </span>
-              <span className="text-[10px] sm:text-xs mt-0.5 opacity-75">฿150+</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onClubRentalChange?.('premium-plus')}
-              className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs transition-colors ${
-                selectedClubRental === 'premium-plus'
-                  ? 'border-[#c8a96e] text-white font-medium'
-                  : 'border-gray-300 text-gray-700 hover:border-[#c8a96e]'
-              }`}
-              style={selectedClubRental === 'premium-plus' ? { backgroundColor: '#003d1f' } : undefined}
-            >
-              <span className="font-bold text-[11px] sm:text-xs" style={{ color: selectedClubRental === 'premium-plus' ? '#ffffff' : '#003d1f' }}>
-                Premium+
-              </span>
-              <span className={`text-[10px] sm:text-xs mt-0.5 ${selectedClubRental === 'premium-plus' ? 'text-white/80' : 'opacity-75'}`}>฿250+</span>
-            </button>
           </div>
 
-          {selectedClubRental === 'premium' && (
+          {/* Premium club sets from DB with real availability */}
+          {clubSetsLoading ? (
+            <div className="text-xs text-gray-400 text-center py-3">Checking club availability...</div>
+          ) : availableClubSets.length > 0 ? (
+            <div className="space-y-2">
+              {availableClubSets.map((clubSet) => {
+                const isSelected = selectedClubSetId === clubSet.id;
+                const isAvailable = clubSet.available_count > 0;
+                const price = getIndoorPrice(clubSet, duration);
+                const isPremiumPlus = clubSet.tier === 'premium-plus';
+
+                return (
+                  <button
+                    key={clubSet.id}
+                    type="button"
+                    disabled={!isAvailable}
+                    onClick={() => {
+                      if (!isAvailable) return;
+                      onClubRentalChange?.(clubSet.tier);
+                      onClubSetIdChange?.(clubSet.id);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-3 rounded-lg border text-left transition-colors ${
+                      !isAvailable
+                        ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                        : isSelected && isPremiumPlus
+                          ? 'border-[#c8a96e] text-white'
+                          : isSelected
+                            ? 'border-green-600 bg-green-50'
+                            : 'border-gray-300 hover:border-green-600'
+                    }`}
+                    style={isSelected && isPremiumPlus ? { backgroundColor: '#003d1f' } : undefined}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`font-semibold text-xs ${
+                          isSelected && isPremiumPlus ? 'text-white' :
+                          isSelected ? 'text-green-700' :
+                          isPremiumPlus ? 'text-[#003d1f]' : 'text-gray-900'
+                        }`}>
+                          {isPremiumPlus ? 'Premium+' : 'Premium'} — {clubSet.gender === 'mens' ? "Men's" : "Women's"}
+                        </span>
+                        {!isAvailable && (
+                          <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">Unavailable</span>
+                        )}
+                      </div>
+                      <div className={`text-[11px] mt-0.5 ${
+                        isSelected && isPremiumPlus ? 'text-white/70' :
+                        isSelected ? 'text-green-600/70' : 'text-gray-500'
+                      }`}>
+                        {clubSet.brand} {clubSet.model}
+                      </div>
+                    </div>
+                    <div className={`text-right flex-shrink-0 ml-2 ${
+                      isSelected && isPremiumPlus ? 'text-white' :
+                      isSelected ? 'text-green-700' : 'text-gray-900'
+                    }`}>
+                      <div className="font-bold text-sm">฿{price.toLocaleString()}</div>
+                      <div className={`text-[10px] ${
+                        isSelected && isPremiumPlus ? 'text-white/60' : 'text-gray-400'
+                      }`}>{duration}hr{duration > 1 ? 's' : ''}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            /* Fallback to static buttons if DB fetch fails */
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { onClubRentalChange?.('premium'); onClubSetIdChange?.(null); }}
+                className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+                  selectedClubRental === 'premium'
+                    ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                    : 'border-gray-300 text-gray-700 hover:border-green-600'
+                }`}
+              >
+                <span className="font-semibold text-[11px] sm:text-xs text-green-600 font-bold">Premium</span>
+                <span className="text-[10px] sm:text-xs mt-0.5 opacity-75">฿150+</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { onClubRentalChange?.('premium-plus'); onClubSetIdChange?.(null); }}
+                className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs transition-colors ${
+                  selectedClubRental === 'premium-plus'
+                    ? 'border-[#c8a96e] text-white font-medium'
+                    : 'border-gray-300 text-gray-700 hover:border-[#c8a96e]'
+                }`}
+                style={selectedClubRental === 'premium-plus' ? { backgroundColor: '#003d1f' } : undefined}
+              >
+                <span className="font-bold text-[11px] sm:text-xs" style={{ color: selectedClubRental === 'premium-plus' ? '#ffffff' : '#003d1f' }}>
+                  Premium+
+                </span>
+                <span className={`text-[10px] sm:text-xs mt-0.5 ${selectedClubRental === 'premium-plus' ? 'text-white/80' : 'opacity-75'}`}>฿250+</span>
+              </button>
+            </div>
+          )}
+
+          {/* Selected set details */}
+          {selectedClubSetId && availableClubSets.length > 0 && (() => {
+            const selectedSet = availableClubSets.find(s => s.id === selectedClubSetId);
+            if (!selectedSet) return null;
+            const isPP = selectedSet.tier === 'premium-plus';
+            const price = getIndoorPrice(selectedSet, duration);
+            return (
+              <div className={`mt-3 p-3 rounded-lg ${isPP ? '' : 'bg-green-50'}`} style={isPP ? { backgroundColor: '#003d1f' } : undefined}>
+                <div className={`text-sm font-medium mb-1 ${isPP ? 'text-white' : 'text-green-800'}`}>
+                  {selectedSet.name}
+                </div>
+                <div className={`text-xs ${isPP ? 'text-white/80' : 'text-gray-600'}`}>
+                  {selectedSet.specifications.join(' • ')}
+                </div>
+                <div className={`text-xs mt-1 font-medium ${isPP ? 'text-[#c8a96e]' : 'text-green-700'}`}>
+                  ฿{price.toLocaleString()} for {duration} hour{duration > 1 ? 's' : ''}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Fallback info for old-style selection without DB */}
+          {!selectedClubSetId && selectedClubRental === 'premium' && (
             <div className="mt-3 p-3 bg-green-50 rounded-lg">
               <div className="text-sm font-medium text-green-800 mb-1">Premium Clubs Selected</div>
               <div className="text-xs text-gray-600">
@@ -956,7 +1151,7 @@ export function BookingDetails({
             </div>
           )}
 
-          {selectedClubRental === 'premium-plus' && (
+          {!selectedClubSetId && selectedClubRental === 'premium-plus' && (
             <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: '#003d1f' }}>
               <div className="text-sm font-medium text-white mb-1">Premium+ Clubs Selected — Callaway Paradym</div>
               <div className="text-xs text-white/80">
@@ -1071,6 +1266,16 @@ export function BookingDetails({
             By placing a booking, you agree to receive communications regarding your booking status. If this is your first booking, you will also receive a follow-up message inviting you to rate your visit.
           </p>
         </div>
+
+        {/* Projected Cost Breakdown */}
+        {costBreakdown && (
+          <div className="mt-4">
+            <ProjectedCostBreakdown
+              breakdown={costBreakdown}
+              isLoading={costDataLoading}
+            />
+          </div>
+        )}
 
         {/* Submit Button */}
         <div className="flex space-x-3 justify-end mt-6">

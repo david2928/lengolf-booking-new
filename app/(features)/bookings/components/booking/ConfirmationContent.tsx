@@ -18,6 +18,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { isAILabBay } from '@/lib/bayConfig';
+import { calculateCost, type CostBreakdown } from '@/lib/cost-calculator';
+import { ProjectedCostBreakdown } from '@/components/booking/ProjectedCostBreakdown';
 
 // Dynamically import PageTransition with loading fallback
 const PageTransition = dynamic(
@@ -73,6 +75,34 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
     }
     return null;
   };
+
+  // Compute cost breakdown from booking data
+  const confirmationCostBreakdown: CostBreakdown | null = (() => {
+    if (!booking.date || !booking.start_time || !booking.duration) return null;
+
+    // Determine club rental from customer_notes
+    const clubInfo = getClubRentalInfo();
+    let clubRentalId = 'none';
+    if (clubInfo && 'id' in clubInfo && clubInfo.id) {
+      clubRentalId = clubInfo.id;
+    }
+
+    // Determine if package covers bay rate
+    const hasPackage = booking.booking_type === 'Package';
+    const isPlayFoodPkg = booking.booking_type === 'Play_Food_Package';
+
+    return calculateCost({
+      date: booking.date,
+      startTime: booking.start_time,
+      duration: booking.duration,
+      clubRentalId,
+      playFoodPackageId: isPlayFoodPkg ? (booking.package_name ?? null) : null,
+      hasActivePackage: hasPackage,
+      packageDisplayName: hasPackage ? (booking.package_name ?? undefined) : undefined,
+      isNewCustomer: false, // Don't show BOGO on confirmation since it was already applied
+      applicablePromotions: [],
+    });
+  })();
 
   return (
     <PageTransition>
@@ -228,6 +258,13 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Estimated Cost Breakdown */}
+        {confirmationCostBreakdown && (
+          <div className="mb-6">
+            <ProjectedCostBreakdown breakdown={confirmationCostBreakdown} />
           </div>
         )}
 

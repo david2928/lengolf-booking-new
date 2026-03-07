@@ -14,6 +14,7 @@ import BookingForm, { BookingFormData, UserProfile, ActivePackage } from '@/comp
 import BookingSummary from '@/components/liff/booking/BookingSummary';
 import { formatClubRentalInfo } from '@/types/golf-club-rental';
 import SuccessScreen from '@/components/liff/booking/SuccessScreen';
+import type { ApplicablePromotion } from '@/lib/cost-calculator';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import { BayType } from '@/lib/bayConfig';
 
@@ -78,6 +79,10 @@ export default function LiffBookingPage() {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null);
+
+  // Cost estimation state
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
+  const [applicablePromotions, setApplicablePromotions] = useState<ApplicablePromotion[]>([]);
 
   const t = bookingTranslations[language];
 
@@ -174,6 +179,13 @@ export default function LiffBookingPage() {
 
       // Always proceed to booking - customer matching happens at booking time
       setViewState('booking');
+
+      // Fetch promotions for cost estimation (non-blocking)
+      setIsNewCustomer(!data.activePackage); // Rough proxy: no package = likely new
+      fetch('/api/promotions/applicable')
+        .then(res => res.json())
+        .then(promoData => setApplicablePromotions(promoData.promotions ?? []))
+        .catch(() => {}); // Non-critical
     } catch (err) {
       console.error('[Booking] User data fetch error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load user data');
@@ -527,6 +539,8 @@ export default function LiffBookingPage() {
             isSubmitting={isSubmitting}
             onConfirm={handleConfirmBooking}
             onBack={goBackFromSummary}
+            isNewCustomer={isNewCustomer}
+            applicablePromotions={applicablePromotions}
           />
         </div>
       </>
