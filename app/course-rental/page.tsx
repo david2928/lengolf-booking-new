@@ -250,80 +250,95 @@ export default function CourseRentalPage() {
                 const isSelected = selectedSet?.id === set.id;
                 const images = SET_IMAGES[getSetImageKey(set)] || [];
                 const heroImg = images[0];
+                const activeImg = isSelected && images.length > 1 ? images[heroIndex % images.length] : heroImg;
                 return (
-                  <div key={set.id}>
+                  <div key={set.id} className="space-y-2">
                     <button
                       type="button"
                       disabled={!isAvailable}
                       onClick={() => setSelectedSet(set)}
                       className={`w-full text-left rounded-xl border-2 transition-all overflow-hidden ${
                         isSelected
-                          ? 'border-green-600 bg-green-50 shadow-md'
+                          ? 'border-green-600 bg-white shadow-md'
                           : isAvailable
                           ? 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
                           : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
                       }`}
                     >
-                      {/* Hero image */}
-                      {heroImg && (
-                        <div className="bg-white flex items-center justify-center p-4">
-                          <img
-                            src={isSelected && images.length > 1 ? images[heroIndex % images.length].src : heroImg.src}
-                            alt={isSelected && images.length > 1 ? images[heroIndex % images.length].alt : heroImg.alt}
-                            className="max-h-48 sm:max-h-56 object-contain"
-                            loading="lazy"
-                          />
-                        </div>
-                      )}
-                      <div className="p-4 sm:p-5">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            set.tier === 'premium-plus'
-                              ? 'bg-green-800 text-white'
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {set.tier === 'premium-plus' ? 'Premium+' : 'Premium'}
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            set.gender === 'mens'
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-pink-50 text-pink-700'
-                          }`}>
-                            {set.gender === 'mens' ? "Men's" : "Women's"}
-                          </span>
-                          {!isAvailable && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
-                              Unavailable
-                            </span>
+                      <div className="flex">
+                        {/* Square thumbnail on left */}
+                        <div className={`w-28 sm:w-36 flex-shrink-0 bg-gray-50 flex items-center justify-center ${heroImg ? '' : 'bg-gray-100'}`}>
+                          {heroImg ? (
+                            <img
+                              src={activeImg?.src || heroImg.src}
+                              alt={activeImg?.alt || heroImg.alt}
+                              className="w-full h-full object-cover aspect-square"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full aspect-square flex items-center justify-center text-gray-300">
+                              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" /></svg>
+                            </div>
                           )}
                         </div>
-                        <h3 className="font-semibold text-gray-900">{set.name}</h3>
-                        {set.brand && (
-                          <p className="text-sm text-gray-500">{set.brand} {set.model || ''}</p>
-                        )}
-                        {set.specifications && set.specifications.length > 0 && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            {(set.specifications as string[]).join(' · ')}
-                          </p>
-                        )}
+                        {/* Details on right */}
+                        <div className="flex-1 p-3 sm:p-4 flex flex-col justify-center min-h-[112px] sm:min-h-[144px]">
+                          <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                            <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-medium ${
+                              set.tier === 'premium-plus'
+                                ? 'bg-green-800 text-white'
+                                : 'bg-green-100 text-green-800'
+                            }`}>
+                              {set.tier === 'premium-plus' ? 'Premium+' : 'Premium'}
+                            </span>
+                            <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-medium ${
+                              set.gender === 'mens'
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'bg-pink-50 text-pink-700'
+                            }`}>
+                              {set.gender === 'mens' ? "Men's" : "Women's"}
+                            </span>
+                            {!isAvailable && (
+                              <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+                                Unavailable
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base leading-tight">{set.name}</h3>
+                          {set.brand && (
+                            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">{set.brand} {set.model || ''}</p>
+                          )}
+                          {set.specifications && set.specifications.length > 0 && (
+                            <p className="text-[10px] sm:text-xs text-gray-400 mt-1 line-clamp-2">
+                              {(set.specifications as string[]).join(' · ')}
+                            </p>
+                          )}
+                          {isSelected && (
+                            <div className="mt-2">
+                              <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
+                                <CheckIcon className="w-3.5 h-3.5" /> Selected
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </button>
 
                     {/* Thumbnail carousel for selected set with multiple images */}
                     {isSelected && images.length > 1 && (
-                      <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                      <div className="flex gap-1.5 overflow-x-auto pb-1 pl-1">
                         {images.map((img, i) => (
                           <button
                             key={i}
                             type="button"
                             onClick={() => setHeroIndex(i)}
-                            className={`flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                            className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${
                               heroIndex % images.length === i
                                 ? 'border-green-600 shadow-sm'
-                                : 'border-gray-200 opacity-60 hover:opacity-100'
+                                : 'border-gray-200 opacity-50 hover:opacity-100'
                             }`}
                           >
-                            <img src={img.src} alt={img.alt} className="w-full h-full object-contain p-0.5 bg-white" loading="lazy" />
+                            <img src={img.src} alt={img.alt} className="w-full h-full object-cover" loading="lazy" />
                           </button>
                         ))}
                       </div>
