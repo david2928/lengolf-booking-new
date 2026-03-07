@@ -8,6 +8,16 @@ import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/gol
 import { getCoursePrice, GEAR_UP_ITEMS } from '@/types/golf-club-rental';
 import { pushEventToGtm } from '@/utils/gtm';
 
+const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
+
+const HERO_IMAGES = [
+  { src: `${STORAGE_BASE}/clubs/premium-plus/2.png`, alt: 'Callaway Paradym full set' },
+  { src: `${STORAGE_BASE}/clubs/premium-plus/4.png`, alt: 'Callaway Paradym driver' },
+  { src: `${STORAGE_BASE}/clubs/premium-plus/11.png`, alt: 'Callaway Paradym irons' },
+  { src: `${STORAGE_BASE}/clubs/premium-plus/15.png`, alt: 'Odyssey putter' },
+  { src: `${STORAGE_BASE}/clubs/premium-plus/7.png`, alt: 'Callaway Paradym woods' },
+];
+
 const DURATION_OPTIONS = [
   { days: 1, label: '1 Day', description: 'Single round' },
   { days: 3, label: '3 Days', description: 'Weekend trip' },
@@ -32,6 +42,7 @@ export default function CourseRentalPage() {
   const [step, setStep] = useState<Step>('dates');
   const [availableSets, setAvailableSets] = useState<RentalClubSetWithAvailability[]>([]);
   const [setsLoading, setSetsLoading] = useState(true);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   // Selections
   const [selectedSet, setSelectedSet] = useState<RentalClubSetWithAvailability | null>(null);
@@ -88,6 +99,15 @@ export default function CourseRentalPage() {
   useEffect(() => {
     fetchSets();
   }, [fetchSets]);
+
+  // Auto-rotate hero image on dates step
+  useEffect(() => {
+    if (step !== 'dates') return;
+    const timer = setInterval(() => {
+      setHeroIndex(prev => (prev + 1) % HERO_IMAGES.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [step]);
 
   // Pricing
   const rentalPrice = selectedSet ? getCoursePrice(selectedSet, durationDays) : 0;
@@ -294,6 +314,34 @@ export default function CourseRentalPage() {
         {/* Step 1: Dates & Duration */}
         {step === 'dates' && (
           <div className="space-y-6">
+            {/* Hero image with auto-rotation */}
+            <div className="relative aspect-[4/3] sm:aspect-[16/9] max-w-lg mx-auto rounded-xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm">
+              {HERO_IMAGES.map((img, i) => (
+                <img
+                  key={img.alt}
+                  src={img.src}
+                  alt={img.alt}
+                  className={`absolute inset-0 w-full h-full object-contain p-4 transition-opacity duration-700 ${
+                    i === heroIndex ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                />
+              ))}
+              {/* Dots */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {HERO_IMAGES.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setHeroIndex(i)}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      i === heroIndex ? 'bg-green-600' : 'bg-gray-300'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
               <input
