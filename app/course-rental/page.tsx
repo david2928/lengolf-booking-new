@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
 import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { getCoursePrice, GEAR_UP_ITEMS } from '@/types/golf-club-rental';
+import { pushEventToGtm } from '@/utils/gtm';
 
 const DURATION_OPTIONS = [
   { days: 1, label: '1 Day', description: 'Single round' },
@@ -147,6 +148,21 @@ export default function CourseRentalPage() {
       }
 
       setRentalCode(data.rental_code);
+
+      // Push conversion event to GTM for Google Ads tracking
+      pushEventToGtm('course_rental_confirmed', {
+        enhanced_conversions: {
+          email: contactEmail?.toLowerCase().trim() || undefined,
+          phone_number: contactPhone || undefined,
+        },
+        conversion_value: totalPrice,
+        currency: 'THB',
+        rental_code: data.rental_code,
+        club_set: selectedSet?.name,
+        duration_days: durationDays,
+        delivery_requested: deliveryRequested,
+      });
+
       setStep('confirmation');
     } catch {
       setError('Something went wrong. Please try again.');
@@ -257,7 +273,7 @@ export default function CourseRentalPage() {
             )}
 
             <a
-              href="https://www.len.golf/club-rental"
+              href="https://www.len.golf/golf-course-club-rental/"
               target="_blank"
               rel="noopener noreferrer"
               className="block text-center text-sm text-green-700 hover:text-green-800 underline underline-offset-2"
@@ -323,7 +339,7 @@ export default function CourseRentalPage() {
             )}
 
             <a
-              href="https://www.len.golf/club-rental"
+              href="https://www.len.golf/golf-course-club-rental/"
               target="_blank"
               rel="noopener noreferrer"
               className="block text-center text-sm text-green-700 hover:text-green-800 underline underline-offset-2"
