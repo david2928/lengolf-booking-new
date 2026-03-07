@@ -100,9 +100,9 @@ export default function CourseRentalPage() {
     fetchSets();
   }, [fetchSets]);
 
-  // Auto-rotate hero image on dates step
+  // Auto-rotate hero image on set selection step
   useEffect(() => {
-    if (step !== 'dates') return;
+    if (step !== 'set') return;
     const timer = setInterval(() => {
       setHeroIndex(prev => (prev + 1) % HERO_IMAGES.length);
     }, 3000);
@@ -226,6 +226,33 @@ export default function CourseRentalPage() {
         {/* Step 2: Set Selection */}
         {step === 'set' && (
           <div className="space-y-4">
+            {/* Hero image with clickable thumbnails */}
+            <div className="mb-2">
+              <div className="relative aspect-[4/3] sm:aspect-[16/9] max-w-md mx-auto rounded-xl overflow-hidden bg-white border border-gray-100">
+                <img
+                  src={HERO_IMAGES[heroIndex].src}
+                  alt={HERO_IMAGES[heroIndex].alt}
+                  className="w-full h-full object-contain p-4"
+                />
+              </div>
+              <div className="flex justify-center gap-2 mt-3">
+                {HERO_IMAGES.map((img, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setHeroIndex(i)}
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                      i === heroIndex
+                        ? 'border-green-600 shadow-sm'
+                        : 'border-gray-200 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={img.src} alt={img.alt} className="w-full h-full object-contain p-0.5 bg-white" loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {setsLoading ? (
               <div className="flex justify-center py-12">
                 <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
@@ -314,34 +341,6 @@ export default function CourseRentalPage() {
         {/* Step 1: Dates & Duration */}
         {step === 'dates' && (
           <div className="space-y-6">
-            {/* Hero image with auto-rotation */}
-            <div className="relative aspect-[4/3] sm:aspect-[16/9] max-w-lg mx-auto rounded-xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm">
-              {HERO_IMAGES.map((img, i) => (
-                <img
-                  key={img.alt}
-                  src={img.src}
-                  alt={img.alt}
-                  className={`absolute inset-0 w-full h-full object-contain p-4 transition-opacity duration-700 ${
-                    i === heroIndex ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  loading={i === 0 ? 'eager' : 'lazy'}
-                />
-              ))}
-              {/* Dots */}
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {HERO_IMAGES.map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setHeroIndex(i)}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i === heroIndex ? 'bg-green-600' : 'bg-gray-300'
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
               <input
