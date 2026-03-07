@@ -26,7 +26,7 @@ const SET_IMAGES: Record<string, { src: string; alt: string }[]> = {
     { src: `${STORAGE_BASE}/clubs/warbird/warbird-full-set.webp`, alt: 'Callaway Warbird full set' },
   ],
   'premium_womens': [
-    { src: `${STORAGE_BASE}/clubs/premium-womens/maruman-sg.webp`, alt: 'Majesty Shuttle full set' },
+    { src: `${STORAGE_BASE}/clubs/premium-womens/majesty-shuttle-full-set.jpg`, alt: 'Majesty Shuttle full set' },
   ],
 };
 
