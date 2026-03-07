@@ -25,6 +25,9 @@ const SET_IMAGES: Record<string, { src: string; alt: string }[]> = {
   'premium_mens': [
     { src: `${STORAGE_BASE}/clubs/warbird/warbird-full-set.webp`, alt: 'Callaway Warbird full set' },
   ],
+  'premium_womens': [
+    { src: `${STORAGE_BASE}/clubs/premium-womens/maruman-sg.webp`, alt: 'Maruman SG full set' },
+  ],
 };
 
 function getSetImageKey(set: { tier: string; gender: string }): string {
