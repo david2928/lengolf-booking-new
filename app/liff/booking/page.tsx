@@ -180,8 +180,11 @@ export default function LiffBookingPage() {
       // Always proceed to booking - customer matching happens at booking time
       setViewState('booking');
 
-      // Fetch promotions for cost estimation (non-blocking)
-      setIsNewCustomer(!data.activePackage); // Rough proxy: no package = likely new
+      // Check if new customer for promotions (non-blocking)
+      fetch('/api/user/has-bookings')
+        .then(res => res.json())
+        .then(hbData => setIsNewCustomer(hbData.hasBookings === false))
+        .catch(() => setIsNewCustomer(false));
       fetch('/api/promotions/applicable')
         .then(res => res.json())
         .then(promoData => setApplicablePromotions(promoData.promotions ?? []))

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 
-const supabase = createAdminClient();
+const DATE_REGEX = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
+const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,10 +11,15 @@ export async function GET(request: NextRequest) {
     const rentalType = searchParams.get('type') || 'indoor';
     const date = searchParams.get('date');
     const startTime = searchParams.get('start_time') || null;
-    const durationHours = searchParams.get('duration') ? parseFloat(searchParams.get('duration')!) : null;
+    const durationParam = searchParams.get('duration');
+    const durationHours = durationParam ? parseFloat(durationParam) : null;
 
     if (!date) {
       return NextResponse.json({ error: 'date parameter is required' }, { status: 400 });
+    }
+
+    if (!DATE_REGEX.test(date)) {
+      return NextResponse.json({ error: 'date must be in YYYY-MM-DD format' }, { status: 400 });
     }
 
     if (!['indoor', 'course'].includes(rentalType)) {
@@ -22,6 +28,19 @@ export async function GET(request: NextRequest) {
 
     // For course rentals, end_date can span multiple days
     const endDate = searchParams.get('end_date') || date;
+    if (!DATE_REGEX.test(endDate)) {
+      return NextResponse.json({ error: 'end_date must be in YYYY-MM-DD format' }, { status: 400 });
+    }
+
+    if (startTime && !TIME_REGEX.test(startTime)) {
+      return NextResponse.json({ error: 'start_time must be in HH:MM format' }, { status: 400 });
+    }
+
+    if (durationHours !== null && (isNaN(durationHours) || durationHours <= 0 || durationHours > 24)) {
+      return NextResponse.json({ error: 'duration must be a positive number up to 24' }, { status: 400 });
+    }
+
+    const supabase = createAdminClient();
 
     const { data, error } = await supabase.rpc('get_available_club_sets', {
       p_rental_type: rentalType,

@@ -161,7 +161,7 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
                 </a>
             </div>
             <p style="font-size: 12px; margin-top: 15px; color: #777; text-align: center;">
-                &copy; 2024 LENGOLF. All rights reserved.
+                &copy; ${new Date().getFullYear()} LENGOLF. All rights reserved.
             </p>
         </div>
     </div>
@@ -337,7 +337,7 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
                 </a>
             </div>
             <p style="font-size: 12px; margin-top: 15px; color: #777; text-align: center;">
-                &copy; 2024 LENGOLF. All rights reserved.
+                &copy; ${new Date().getFullYear()} LENGOLF. All rights reserved.
             </p>
         </div>
     </div>
