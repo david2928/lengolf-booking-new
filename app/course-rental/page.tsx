@@ -14,13 +14,13 @@ const DURATION_OPTIONS = [
   { days: 14, label: '14 Days', description: 'Extended stay' },
 ];
 
-type Step = 'set' | 'dates' | 'delivery' | 'contact' | 'review' | 'confirmation';
+type Step = 'dates' | 'set' | 'delivery' | 'contact' | 'review' | 'confirmation';
 
-const STEP_ORDER: Step[] = ['set', 'dates', 'delivery', 'contact', 'review'];
+const STEP_ORDER: Step[] = ['dates', 'set', 'delivery', 'contact', 'review'];
 
 const STEP_LABELS: Record<Step, string> = {
-  set: 'Select Clubs',
   dates: 'Dates & Duration',
+  set: 'Select Clubs',
   delivery: 'Delivery & Add-ons',
   contact: 'Your Details',
   review: 'Review & Confirm',
@@ -28,7 +28,7 @@ const STEP_LABELS: Record<Step, string> = {
 };
 
 export default function CourseRentalPage() {
-  const [step, setStep] = useState<Step>('set');
+  const [step, setStep] = useState<Step>('dates');
   const [availableSets, setAvailableSets] = useState<RentalClubSetWithAvailability[]>([]);
   const [setsLoading, setSetsLoading] = useState(true);
 
@@ -67,12 +67,12 @@ export default function CourseRentalPage() {
     return d.toISOString().split('T')[0];
   })();
 
-  // Fetch available sets
+  // Fetch available sets — only when dates are selected
   const fetchSets = useCallback(async () => {
+    if (!startDate) return;
     setSetsLoading(true);
     try {
-      const dateParam = startDate || new Date().toISOString().split('T')[0];
-      const url = `/api/clubs/availability?type=course&date=${dateParam}&end_date=${startDate ? endDate : dateParam}`;
+      const url = `/api/clubs/availability?type=course&date=${startDate}&end_date=${endDate}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
@@ -87,14 +87,6 @@ export default function CourseRentalPage() {
   useEffect(() => {
     fetchSets();
   }, [fetchSets]);
-
-  // Re-check availability when date/duration changes (if a set was already selected)
-  useEffect(() => {
-    if (selectedSet && startDate) {
-      fetchSets();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, durationDays]);
 
   // Pricing
   const rentalPrice = selectedSet ? getCoursePrice(selectedSet, durationDays) : 0;
@@ -185,8 +177,8 @@ export default function CourseRentalPage() {
               {isConfirmation ? 'Booking Confirmed!' : STEP_LABELS[step]}
             </h2>
             <p className="text-gray-600 mt-1 text-sm">
-              {step === 'set' && 'Choose which premium club set to rent for the golf course.'}
               {step === 'dates' && 'Select your rental dates and duration.'}
+              {step === 'set' && 'Choose which premium club set to rent for the golf course.'}
               {step === 'delivery' && 'Choose pickup or delivery, and optional add-ons.'}
               {step === 'contact' && 'We need your details to confirm the reservation.'}
               {step === 'review' && 'Review your rental details before confirming.'}
@@ -195,7 +187,7 @@ export default function CourseRentalPage() {
           </div>
         </div>
 
-        {/* Step 1: Set Selection */}
+        {/* Step 2: Set Selection */}
         {step === 'set' && (
           <div className="space-y-4">
             {setsLoading ? (
@@ -283,7 +275,7 @@ export default function CourseRentalPage() {
           </div>
         )}
 
-        {/* Step 2: Dates & Duration */}
+        {/* Step 1: Dates & Duration */}
         {step === 'dates' && (
           <div className="space-y-6">
             <div>
@@ -292,7 +284,7 @@ export default function CourseRentalPage() {
                 type="date"
                 value={startDate}
                 min={minDate}
-                onChange={e => setStartDate(e.target.value)}
+                onChange={e => { setStartDate(e.target.value); setSelectedSet(null); }}
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
               />
             </div>
@@ -304,7 +296,7 @@ export default function CourseRentalPage() {
                   <button
                     key={opt.days}
                     type="button"
-                    onClick={() => setDurationDays(opt.days)}
+                    onClick={() => { setDurationDays(opt.days); setSelectedSet(null); }}
                     className={`p-4 rounded-xl border-2 text-left transition-all ${
                       durationDays === opt.days
                         ? 'border-green-600 bg-green-50'
@@ -330,24 +322,9 @@ export default function CourseRentalPage() {
               </div>
             )}
 
-            {/* Availability warning */}
-            {startDate && selectedSet && (
-              (() => {
-                const matchedSet = availableSets.find(s => s.id === selectedSet.id);
-                if (matchedSet && matchedSet.available_count <= 0) {
-                  return (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-                      This set is not available for the selected dates. Please choose different dates.
-                    </div>
-                  );
-                }
-                return null;
-              })()
-            )}
-
             <button
               onClick={goNext}
-              disabled={!startDate || (!!startDate && !!selectedSet && (availableSets.find(s => s.id === selectedSet.id)?.available_count ?? 1) <= 0)}
+              disabled={!startDate}
               className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               Continue
