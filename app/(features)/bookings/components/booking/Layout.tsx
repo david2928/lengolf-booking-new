@@ -17,9 +17,10 @@ import { LogOut, Package as PackageIconLucide, Calendar as CalendarIconLucide, T
 
 interface LayoutProps {
   children: React.ReactNode;
+  hidePromotionBar?: boolean;
 }
 
-export function Layout({ children }: LayoutProps) {
+export function Layout({ children, hidePromotionBar }: LayoutProps) {
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
   const { vipProfile, isLoading: vipLoading, error: vipError, refetchVipProfile } = useVipStatus();
@@ -389,7 +390,7 @@ export function Layout({ children }: LayoutProps) {
       />
 
       {/* Promotion Bar for New Customers - only show when we've confirmed user has no bookings */}
-      {hasBookings === false && (
+      {!hidePromotionBar && hasBookings === false && (
         <PromotionBar
           onPromotionClick={() => {
             setCurrentPromoIndex(0); // Set to new_customer_promo.jpg

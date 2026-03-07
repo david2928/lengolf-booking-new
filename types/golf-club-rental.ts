@@ -82,45 +82,19 @@ export const GOLF_CLUB_OPTIONS: GolfClubOption[] = [
 ];
 
 export const PREMIUM_CLUB_PRICING: GolfClubPricing[] = [
-  {
-    duration: 1,
-    unit: 'hour',
-    price: 150,
-    displayText: '1 hour'
-  },
-  {
-    duration: 2,
-    unit: 'hours',
-    price: 250,
-    displayText: '2 hours'
-  },
-  {
-    duration: 4,
-    unit: 'hours',
-    price: 400,
-    displayText: '4 hours'
-  }
+  { duration: 1, unit: 'hour', price: 150, displayText: '1 hour' },
+  { duration: 2, unit: 'hours', price: 250, displayText: '2 hours' },
+  { duration: 3, unit: 'hours', price: 350, displayText: '3 hours' },
+  { duration: 4, unit: 'hours', price: 400, displayText: '4 hours' },
+  { duration: 5, unit: 'hours', price: 450, displayText: '5 hours' },
 ];
 
 export const PREMIUM_PLUS_CLUB_PRICING: GolfClubPricing[] = [
-  {
-    duration: 1,
-    unit: 'hour',
-    price: 250,
-    displayText: '1 hour'
-  },
-  {
-    duration: 2,
-    unit: 'hours',
-    price: 450,
-    displayText: '2 hours'
-  },
-  {
-    duration: 4,
-    unit: 'hours',
-    price: 800,
-    displayText: '4 hours'
-  }
+  { duration: 1, unit: 'hour', price: 250, displayText: '1 hour' },
+  { duration: 2, unit: 'hours', price: 450, displayText: '2 hours' },
+  { duration: 3, unit: 'hours', price: 650, displayText: '3 hours' },
+  { duration: 4, unit: 'hours', price: 800, displayText: '4 hours' },
+  { duration: 5, unit: 'hours', price: 950, displayText: '5 hours' },
 ];
 
 /** @deprecated Use PREMIUM_CLUB_PRICING instead */
@@ -207,6 +181,7 @@ export interface ClubReserveRequest {
   add_ons?: ClubRentalAddOn[];
   delivery_requested?: boolean;
   delivery_address?: string;
+  delivery_time?: string;
   notes?: string;
   source?: 'website' | 'booking_app' | 'liff' | 'staff' | 'line';
 }

@@ -1120,45 +1120,6 @@ export function BookingDetails({
             </div>
           )}
 
-          {/* Selected set details */}
-          {selectedClubSetId && availableClubSets.length > 0 && (() => {
-            const selectedSet = availableClubSets.find(s => s.id === selectedClubSetId);
-            if (!selectedSet) return null;
-            const isPP = selectedSet.tier === 'premium-plus';
-            const price = getIndoorPrice(selectedSet, duration);
-            return (
-              <div className={`mt-3 p-3 rounded-lg ${isPP ? '' : 'bg-green-50'}`} style={isPP ? { backgroundColor: '#003d1f' } : undefined}>
-                <div className={`text-sm font-medium mb-1 ${isPP ? 'text-white' : 'text-green-800'}`}>
-                  {selectedSet.name}
-                </div>
-                <div className={`text-xs ${isPP ? 'text-white/80' : 'text-gray-600'}`}>
-                  {selectedSet.specifications.join(' • ')}
-                </div>
-                <div className={`text-xs mt-1 font-medium ${isPP ? 'text-[#c8a96e]' : 'text-green-700'}`}>
-                  ฿{price.toLocaleString()} for {duration} hour{duration > 1 ? 's' : ''}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Fallback info for old-style selection without DB */}
-          {!selectedClubSetId && selectedClubRental === 'premium' && (
-            <div className="mt-3 p-3 bg-green-50 rounded-lg">
-              <div className="text-sm font-medium text-green-800 mb-1">Premium Clubs Selected</div>
-              <div className="text-xs text-gray-600">
-                Pricing: {PREMIUM_CLUB_PRICING.map(p => `${p.duration}hr${p.duration > 1 ? 's' : ''} ฿${p.price.toLocaleString()}`).join(' • ')}
-              </div>
-            </div>
-          )}
-
-          {!selectedClubSetId && selectedClubRental === 'premium-plus' && (
-            <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: '#003d1f' }}>
-              <div className="text-sm font-medium text-white mb-1">Premium+ Clubs Selected — Callaway Paradym</div>
-              <div className="text-xs text-white/80">
-                Pricing: {PREMIUM_PLUS_CLUB_PRICING.map(p => `${p.duration}hr${p.duration > 1 ? 's' : ''} ฿${p.price.toLocaleString()}`).join(' • ')}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Contact Information Section */}
@@ -1260,13 +1221,6 @@ export function BookingDetails({
           </p>
         </div>
 
-        {/* Fine print about communications */}
-        <div className="mt-2">
-          <p className="text-xs text-gray-500">
-            By placing a booking, you agree to receive communications regarding your booking status. If this is your first booking, you will also receive a follow-up message inviting you to rate your visit.
-          </p>
-        </div>
-
         {/* Projected Cost Breakdown */}
         {costBreakdown && (
           <div className="mt-4">
@@ -1309,6 +1263,10 @@ export function BookingDetails({
             {isSubmitting ? 'Processing...' : 'Confirm Booking'}
           </button>
         </div>
+
+        <p className="text-xs text-gray-400 text-center mt-3">
+          By booking, you agree to receive booking status updates and a post-visit review request.
+        </p>
       </form>
 
       {/* No Availability Modal */}

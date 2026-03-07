@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
-import { getIndoorPrice, getCoursePrice } from '@/types/golf-club-rental';
+import { getIndoorPrice, getCoursePrice, GEAR_UP_ITEMS } from '@/types/golf-club-rental';
 import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rental';
+import { sendCourseRentalConfirmationEmail } from '@/lib/emailService';
+
+// Build a trusted price map for add-on validation
+const TRUSTED_ADDON_PRICES: Record<string, number> = Object.fromEntries(
+  GEAR_UP_ITEMS.map(item => [item.id, item.price])
+);
+
+// Helper to get base URL for server-side fetch
+function getBaseUrl(): string {
+  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'development' && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '';
+  if (baseUrl && !baseUrl.startsWith('http')) return `http://${baseUrl}`;
+  if (!baseUrl && process.env.NODE_ENV !== 'production') return 'http://localhost:3000';
+  return baseUrl;
+}
 
 const supabase = createAdminClient();
 
@@ -25,20 +42,53 @@ export async function POST(request: NextRequest) {
       add_ons = [],
       delivery_requested = false,
       delivery_address,
+      delivery_time,
       notes,
       source = 'booking_app',
     } = body;
+
+    const return_time = (body as unknown as Record<string, unknown>).return_time as string | undefined;
 
     // Validate required fields
     if (!rental_club_set_id || !rental_type || !start_date || !customer_name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Calculate end_date
+    // Validate rental_type
+    if (!['indoor', 'course'].includes(rental_type)) {
+      return NextResponse.json({ error: 'Invalid rental type' }, { status: 400 });
+    }
+
+    // Validate delivery address when delivery is requested
+    if (delivery_requested && !delivery_address?.trim()) {
+      return NextResponse.json({ error: 'Delivery address is required for delivery orders' }, { status: 400 });
+    }
+
+    // Validate time formats if provided (HH:MM)
+    const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (delivery_time && !timeRegex.test(delivery_time)) {
+      return NextResponse.json({ error: 'Invalid delivery time format' }, { status: 400 });
+    }
+    if (return_time && !timeRegex.test(return_time)) {
+      return NextResponse.json({ error: 'Invalid return time format' }, { status: 400 });
+    }
+
+    // Validate add-on prices against trusted server-side prices
+    for (const addon of add_ons) {
+      if (TRUSTED_ADDON_PRICES[addon.key] === undefined) {
+        return NextResponse.json({ error: `Unknown add-on: ${addon.key}` }, { status: 400 });
+      }
+    }
+    const validatedAddOns: ClubRentalAddOn[] = add_ons.map((addon: ClubRentalAddOn) => ({
+      ...addon,
+      price: TRUSTED_ADDON_PRICES[addon.key],
+    }));
+
+    // Calculate end_date: "1 day" means return next day, so end = start + duration
     let end_date = body.end_date || start_date;
-    if (rental_type === 'course' && duration_days && duration_days > 1) {
+    if (rental_type === 'course' && duration_days) {
       const start = new Date(start_date);
-      start.setDate(start.getDate() + duration_days - 1);
+      start.setDate(start.getDate() + duration_days);
       end_date = start.toISOString().split('T')[0];
     }
 
@@ -82,7 +132,7 @@ export async function POST(request: NextRequest) {
       rental_price = getCoursePrice(clubSet, duration_days);
     }
 
-    const add_ons_total = add_ons.reduce((sum: number, item: ClubRentalAddOn) => sum + item.price, 0);
+    const add_ons_total = validatedAddOns.reduce((sum: number, item: ClubRentalAddOn) => sum + item.price, 0);
     const delivery_fee = delivery_requested ? 500 : 0;
     const total_price = rental_price + add_ons_total + delivery_fee;
 
@@ -106,20 +156,24 @@ export async function POST(request: NextRequest) {
         customer_phone: customer_phone || null,
         user_id: user_id || null,
         rental_type,
-        status: rental_type === 'indoor' ? 'reserved' : 'reserved',
+        status: 'reserved',
         start_date,
         end_date,
         start_time: start_time || null,
         duration_hours: duration_hours || null,
         duration_days: duration_days || null,
         rental_price,
-        add_ons: add_ons.length > 0 ? add_ons : [],
+        add_ons: validatedAddOns.length > 0 ? validatedAddOns : [],
         add_ons_total,
         delivery_requested,
         delivery_address: delivery_address || null,
         delivery_fee,
         total_price,
-        notes: notes || null,
+        notes: [
+          delivery_time ? `${delivery_requested ? 'Delivery' : 'Pickup'} time: ${delivery_time}` : '',
+          return_time ? `Return time: ${return_time}` : '',
+          notes || '',
+        ].filter(Boolean).join('\n') || null,
         source,
       })
       .select()
@@ -131,6 +185,69 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[ClubReserve] Created rental ${rentalCode} for ${clubSet.name}, total: ฿${total_price}`);
+
+    // Send confirmation email for course rentals
+    if (rental_type === 'course' && customer_email) {
+      sendCourseRentalConfirmationEmail({
+        customerName: customer_name,
+        email: customer_email,
+        rentalCode,
+        clubSetName: clubSet.name,
+        clubSetTier: clubSet.tier,
+        clubSetGender: clubSet.gender,
+        startDate: start_date,
+        endDate: end_date,
+        durationDays: duration_days || 1,
+        deliveryRequested: delivery_requested,
+        deliveryAddress: delivery_address,
+        deliveryTime: [
+          delivery_time ? `${delivery_requested ? 'Delivery' : 'Pickup'}: ${delivery_time}` : '',
+          return_time ? `Return: ${return_time}` : '',
+        ].filter(Boolean).join(', ') || undefined,
+        addOns: validatedAddOns.map((a: ClubRentalAddOn) => ({ label: a.label, price: a.price })),
+        rentalPrice: rental_price,
+        deliveryFee: delivery_fee,
+        totalPrice: total_price,
+        notes: notes || undefined,
+      }).catch(err => console.error('[ClubReserve] Email send error:', err));
+    }
+
+    // Send LINE notification for staff
+    const baseUrl = getBaseUrl();
+    if (baseUrl) {
+      const addOnsText = validatedAddOns.length > 0
+        ? validatedAddOns.map((a: ClubRentalAddOn) => `${a.label} (฿${a.price})`).join(', ')
+        : 'None';
+      const timeInfo = [
+        delivery_time ? `${delivery_requested ? 'Delivery' : 'Pickup'}: ${delivery_time}` : '',
+        return_time ? `Return: ${return_time}` : '',
+      ].filter(Boolean).join(', ');
+      const deliveryText = delivery_requested
+        ? `Delivery: ${delivery_address}${timeInfo ? ` (${timeInfo})` : ''}`
+        : `Pickup at LENGOLF${timeInfo ? ` (${timeInfo})` : ''}`;
+      const dateText = duration_days && duration_days > 1
+        ? `${start_date} → ${end_date} (${duration_days}d)`
+        : `${start_date} (1d)`;
+
+      const lineMessage = [
+        `🏌️ CLUB RENTAL BOOKING (${rentalCode})`,
+        `----------------------------------`,
+        `📋 Set: ${clubSet.name} (${clubSet.tier === 'premium-plus' ? 'Premium+' : 'Premium'}, ${clubSet.gender === 'mens' ? "Men's" : "Women's"})`,
+        `📅 Dates: ${dateText}`,
+        `🚚 ${deliveryText}`,
+        `👤 Customer: ${customer_name}`,
+        `📞 Phone: ${customer_phone || 'N/A'}`,
+        `🎒 Add-ons: ${addOnsText}`,
+        `💰 Total: ฿${total_price.toLocaleString()}`,
+        `📱 Source: ${source}`,
+      ].join('\n');
+
+      fetch(`${baseUrl}/api/notifications/line`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: lineMessage }),
+      }).catch(err => console.error('[ClubReserve] LINE notification error:', err));
+    }
 
     return NextResponse.json({
       success: true,
