@@ -134,7 +134,9 @@ export interface RentalClubSet {
   rental_type: 'indoor' | 'course' | 'both';
   indoor_price_1h: number;
   indoor_price_2h: number;
+  indoor_price_3h: number | null;
   indoor_price_4h: number;
+  indoor_price_5h: number | null;
   course_price_1d: number;
   course_price_3d: number;
   course_price_7d: number;
@@ -182,6 +184,7 @@ export interface ClubReserveRequest {
   delivery_requested?: boolean;
   delivery_address?: string;
   delivery_time?: string;
+  return_time?: string;
   notes?: string;
   source?: 'website' | 'booking_app' | 'liff' | 'staff' | 'line';
 }
@@ -190,9 +193,9 @@ export interface ClubReserveRequest {
 export function getIndoorPrice(set: RentalClubSet, durationHours: number): number {
   if (durationHours <= 1) return Number(set.indoor_price_1h);
   if (durationHours <= 2) return Number(set.indoor_price_2h);
+  if (durationHours <= 3) return Number(set.indoor_price_3h || set.indoor_price_4h);
   if (durationHours <= 4) return Number(set.indoor_price_4h);
-  // For durations > 4, use 4h price (staff handles pricing for longer sessions)
-  return Number(set.indoor_price_4h);
+  return Number(set.indoor_price_5h || set.indoor_price_4h);
 }
 
 /** Get the course price for a given duration from a RentalClubSet */

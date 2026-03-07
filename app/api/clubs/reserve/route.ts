@@ -4,10 +4,19 @@ import { getIndoorPrice, getCoursePrice, GEAR_UP_ITEMS } from '@/types/golf-club
 import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { sendCourseRentalConfirmationEmail } from '@/lib/emailService';
 
-// Build a trusted price map for add-on validation
-const TRUSTED_ADDON_PRICES: Record<string, number> = Object.fromEntries(
-  GEAR_UP_ITEMS.map(item => [item.id, item.price])
+// Build a trusted price/label map for add-on validation
+const TRUSTED_ADDONS: Record<string, { price: number; label: string }> = Object.fromEntries(
+  GEAR_UP_ITEMS.map(item => [item.id, { price: item.price, label: item.name }])
 );
+
+const DATE_REGEX = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
+const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_NAME_LENGTH = 200;
+const MAX_ADDRESS_LENGTH = 500;
+const MAX_NOTES_LENGTH = 1000;
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PHONE_LENGTH = 20;
 
 // Helper to get base URL for server-side fetch
 function getBaseUrl(): string {
@@ -19,8 +28,6 @@ function getBaseUrl(): string {
   if (!baseUrl && process.env.NODE_ENV !== 'production') return 'http://localhost:3000';
   return baseUrl;
 }
-
-const supabase = createAdminClient();
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,17 +44,18 @@ export async function POST(request: NextRequest) {
       customer_name,
       customer_email,
       customer_phone,
-      customer_id,
-      user_id,
       add_ons = [],
       delivery_requested = false,
       delivery_address,
       delivery_time,
-      notes,
+      return_time,
+      notes: customerNotes,
       source = 'booking_app',
     } = body;
 
-    const return_time = (body as unknown as Record<string, unknown>).return_time as string | undefined;
+    // Only accept customer_id/user_id from trusted internal sources (booking_app with booking_id)
+    const customer_id = booking_id ? (body.customer_id || null) : null;
+    const user_id = booking_id ? (body.user_id || null) : null;
 
     // Validate required fields
     if (!rental_club_set_id || !rental_type || !start_date || !customer_name) {
@@ -59,30 +67,71 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid rental type' }, { status: 400 });
     }
 
+    // Validate UUID format for club set ID
+    if (!UUID_REGEX.test(rental_club_set_id)) {
+      return NextResponse.json({ error: 'Invalid club set ID format' }, { status: 400 });
+    }
+    // booking_id uses text format (e.g. BK260307LK9Z), validate length only
+    if (booking_id && (booking_id.length > 20 || !/^[A-Za-z0-9]+$/.test(booking_id))) {
+      return NextResponse.json({ error: 'Invalid booking ID format' }, { status: 400 });
+    }
+
+    // Validate date format
+    if (!DATE_REGEX.test(start_date)) {
+      return NextResponse.json({ error: 'Invalid start_date format (YYYY-MM-DD)' }, { status: 400 });
+    }
+
+    // Validate source
+    const validSources = ['website', 'booking_app', 'liff', 'staff', 'line'];
+    if (!validSources.includes(source)) {
+      return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
+    }
+
+    // Validate string lengths
+    if (customer_name.length > MAX_NAME_LENGTH) {
+      return NextResponse.json({ error: 'Customer name is too long' }, { status: 400 });
+    }
+    if (customer_email && customer_email.length > MAX_EMAIL_LENGTH) {
+      return NextResponse.json({ error: 'Email is too long' }, { status: 400 });
+    }
+    if (customer_phone && customer_phone.length > MAX_PHONE_LENGTH) {
+      return NextResponse.json({ error: 'Phone number is too long' }, { status: 400 });
+    }
+    if (delivery_address && delivery_address.length > MAX_ADDRESS_LENGTH) {
+      return NextResponse.json({ error: 'Delivery address is too long' }, { status: 400 });
+    }
+    if (customerNotes && customerNotes.length > MAX_NOTES_LENGTH) {
+      return NextResponse.json({ error: 'Notes are too long' }, { status: 400 });
+    }
+
     // Validate delivery address when delivery is requested
     if (delivery_requested && !delivery_address?.trim()) {
       return NextResponse.json({ error: 'Delivery address is required for delivery orders' }, { status: 400 });
     }
 
     // Validate time formats if provided (HH:MM)
-    const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
-    if (delivery_time && !timeRegex.test(delivery_time)) {
+    if (delivery_time && !TIME_REGEX.test(delivery_time)) {
       return NextResponse.json({ error: 'Invalid delivery time format' }, { status: 400 });
     }
-    if (return_time && !timeRegex.test(return_time)) {
+    if (return_time && !TIME_REGEX.test(return_time)) {
       return NextResponse.json({ error: 'Invalid return time format' }, { status: 400 });
     }
 
-    // Validate add-on prices against trusted server-side prices
+    // Validate add-ons: use trusted server-side prices AND labels
+    // Exclude 'delivery' add-on to prevent double-charging with delivery_fee
     for (const addon of add_ons) {
-      if (TRUSTED_ADDON_PRICES[addon.key] === undefined) {
+      if (addon.key === 'delivery') continue; // delivery is handled via delivery_fee, not as add-on
+      if (TRUSTED_ADDONS[addon.key] === undefined) {
         return NextResponse.json({ error: `Unknown add-on: ${addon.key}` }, { status: 400 });
       }
     }
-    const validatedAddOns: ClubRentalAddOn[] = add_ons.map((addon: ClubRentalAddOn) => ({
-      ...addon,
-      price: TRUSTED_ADDON_PRICES[addon.key],
-    }));
+    const validatedAddOns: ClubRentalAddOn[] = add_ons
+      .filter((addon: ClubRentalAddOn) => addon.key !== 'delivery')
+      .map((addon: ClubRentalAddOn) => ({
+        key: addon.key,
+        label: TRUSTED_ADDONS[addon.key].label,
+        price: TRUSTED_ADDONS[addon.key].price,
+      }));
 
     // Calculate end_date: "1 day" means return next day, so end = start + duration
     let end_date = body.end_date || start_date;
@@ -91,6 +140,8 @@ export async function POST(request: NextRequest) {
       start.setDate(start.getDate() + duration_days);
       end_date = start.toISOString().split('T')[0];
     }
+
+    const supabase = createAdminClient();
 
     // Check availability
     const { data: availableCount, error: availError } = await supabase.rpc('check_club_set_availability', {
@@ -150,11 +201,11 @@ export async function POST(request: NextRequest) {
         rental_code: rentalCode,
         rental_club_set_id,
         booking_id: booking_id || null,
-        customer_id: customer_id || null,
+        customer_id,
         customer_name,
         customer_email: customer_email || null,
         customer_phone: customer_phone || null,
-        user_id: user_id || null,
+        user_id,
         rental_type,
         status: 'reserved',
         start_date,
@@ -167,13 +218,11 @@ export async function POST(request: NextRequest) {
         add_ons_total,
         delivery_requested,
         delivery_address: delivery_address || null,
+        delivery_time: delivery_time || null,
+        return_time: return_time || null,
         delivery_fee,
         total_price,
-        notes: [
-          delivery_time ? `${delivery_requested ? 'Delivery' : 'Pickup'} time: ${delivery_time}` : '',
-          return_time ? `Return time: ${return_time}` : '',
-          notes || '',
-        ].filter(Boolean).join('\n') || null,
+        notes: customerNotes || null,
         source,
       })
       .select()
@@ -182,6 +231,25 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('[ClubReserve] Insert error:', insertError);
       return NextResponse.json({ error: 'Failed to create rental reservation' }, { status: 500 });
+    }
+
+    // Re-check availability after insert to detect race conditions (TOCTOU mitigation)
+    const { data: postInsertCount, error: postCheckError } = await supabase.rpc('check_club_set_availability', {
+      p_set_id: rental_club_set_id,
+      p_start_date: start_date,
+      p_end_date: end_date,
+      p_start_time: start_time || null,
+      p_duration_hours: duration_hours || null,
+    });
+
+    if (!postCheckError && postInsertCount !== null && postInsertCount < 0) {
+      // Overbooking detected — rollback by deleting the just-created rental
+      console.warn(`[ClubReserve] TOCTOU race detected for ${rentalCode}, rolling back`);
+      await supabase.from('club_rentals').delete().eq('id', rental.id);
+      return NextResponse.json(
+        { error: 'This club set was just booked by someone else. Please try again.' },
+        { status: 409 }
+      );
     }
 
     console.log(`[ClubReserve] Created rental ${rentalCode} for ${clubSet.name}, total: ฿${total_price}`);
@@ -208,7 +276,7 @@ export async function POST(request: NextRequest) {
         rentalPrice: rental_price,
         deliveryFee: delivery_fee,
         totalPrice: total_price,
-        notes: notes || undefined,
+        notes: customerNotes || undefined,
       }).catch(err => console.error('[ClubReserve] Email send error:', err));
     }
 
