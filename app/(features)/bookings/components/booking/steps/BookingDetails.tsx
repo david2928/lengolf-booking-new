@@ -143,7 +143,7 @@ export function BookingDetails({
   const router = useRouter();
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
   const [duration, setDuration] = useState<number>(1);
-  const [selectedBay, setSelectedBay] = useState<BayType | null>(selectedBayType || null);
+  const [selectedBay, setSelectedBay] = useState<BayType | null>(selectedBayType || 'social');
   const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
