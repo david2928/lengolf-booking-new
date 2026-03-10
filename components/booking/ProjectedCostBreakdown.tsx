@@ -83,7 +83,9 @@ export function ProjectedCostBreakdown({
             )}
             {item.isCoveredByPackage && (
               <span className="inline-block mt-1 text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                {isThai ? 'รวมในแพ็กเกจ' : 'Covered by package'}
+                {item.packageName
+                  ? (isThai ? `รวมในแพ็กเกจ ${item.packageName}` : `Covered by ${item.packageName}`)
+                  : (isThai ? 'รวมในแพ็กเกจ' : 'Covered by package')}
               </span>
             )}
           </div>
