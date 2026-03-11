@@ -39,10 +39,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters: date and currentTimeInBangkok' }, { status: 400 });
     }
 
-    // 3. Use native database function instead of Google Calendar
+    // 3. Use native database function to fetch availability (v2 adds half-hour start times)
     const supabase = createServerClient();
-    
-    const { data: slots, error } = await supabase.rpc('get_available_slots_with_max_hours', {
+
+    const { data: slots, error } = await supabase.rpc('get_available_slots_with_max_hours_v2', {
       p_date: date,
       p_current_time_bangkok: currentTimeInBangkok,
       p_start_hour: 10,

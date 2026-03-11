@@ -62,48 +62,6 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
     return undefined;
   };
 
-  // Helper to check if bay types change across durations
-  const getDurationWarning = (slot: TimeSlot): string | null => {
-    if (!slot.bayAvailabilityByDuration || slot.maxHours === 1) return null;
-
-    // Track what's available at each duration
-    let hasSocialToAiSwitch = false;
-    let hasAiToSocialSwitch = false;
-    let switchDuration = 0;
-
-    // Check each duration to see if bay types change
-    for (let i = 1; i <= slot.maxHours; i++) {
-      const currentAvail = slot.bayAvailabilityByDuration[i.toString()];
-      const nextAvail = slot.bayAvailabilityByDuration[(i + 1).toString()];
-
-      if (!currentAvail || !nextAvail) continue;
-
-      // Check if social bays disappear
-      if (currentAvail.social > 0 && nextAvail.social === 0 && nextAvail.ai > 0) {
-        hasSocialToAiSwitch = true;
-        switchDuration = i + 1;
-        break;
-      }
-
-      // Check if AI bay disappears
-      if (currentAvail.ai > 0 && nextAvail.ai === 0 && nextAvail.social > 0) {
-        hasAiToSocialSwitch = true;
-        switchDuration = i + 1;
-        break;
-      }
-    }
-
-    if (hasSocialToAiSwitch) {
-      return `Social bays available up to ${switchDuration - 1}hr. ${switchDuration}+ hrs requires AI Bay.`;
-    }
-
-    if (hasAiToSocialSwitch) {
-      return `AI Bay available up to ${switchDuration - 1}hr. ${switchDuration}+ hrs requires Social Bay.`;
-    }
-
-    return null;
-  };
-
   // Bay Filter Component
   const BayTypeFilter = () => (
     <div className="mb-4">
@@ -200,105 +158,66 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                   </div>
                 </div>
 
-                {/* Time Slots */}
+                {/* Time Slots - Paired by hour */}
                 <div className="divide-y">
-                  {periodSlots
-                    .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                    .map((slot, index) => {
-                      const bayType = getBayTypeForSelection();
-                      
+                  {(() => {
+                    const sorted = [...periodSlots].sort((a, b) => a.startTime.localeCompare(b.startTime));
+                    const bayType = getBayTypeForSelection();
+
+                    // Group into pairs by hour: [12:00, 12:30], [13:00, 13:30], etc.
+                    const pairs: [TimeSlot, TimeSlot | null][] = [];
+                    let i = 0;
+                    while (i < sorted.length) {
+                      const current = sorted[i];
+                      const next = sorted[i + 1];
+                      const currentMin = current.startTime.split(':')[1];
+                      if (currentMin === '00' && next && next.startTime.split(':')[1] === '30'
+                          && next.startTime.split(':')[0] === current.startTime.split(':')[0]) {
+                        pairs.push([current, next]);
+                        i += 2;
+                      } else {
+                        pairs.push([current, null]);
+                        i += 1;
+                      }
+                    }
+
+                    const renderTimeButton = (slot: TimeSlot) => {
+                      const limited = slot.maxHours <= 2;
                       return (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.2, delay: index * 0.05 }}
-                          className="group px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                        <button
                           onClick={() => onTimeSelect(slot.startTime, slot.maxHours, bayType, slot)}
+                          className={`flex flex-col items-center justify-center h-12 w-full rounded-lg border transition-colors ${
+                            limited
+                              ? 'border-amber-200 bg-amber-50/50 hover:border-amber-400 hover:bg-amber-50'
+                              : 'border-gray-200 hover:border-green-500 hover:bg-green-50'
+                          }`}
                         >
-                          <div className="space-y-2">
-                            {/* Main time and duration */}
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center sm:gap-3 gap-2 flex-1 min-w-0">
-                                <div className="flex items-center text-green-800 flex-shrink-0 sm:min-w-0 min-w-[4.5rem]">
-                                  <ClockIcon className="h-5 w-5 mr-2" />
-                                  <span className="text-lg font-semibold">{slot.startTime}</span>
-                                </div>
-                                <div className="flex flex-col gap-1 min-w-0">
-                                  <span className="text-gray-600 text-sm whitespace-nowrap">
-                                    <span className="hidden sm:inline">Up to </span>{slot.maxHours} hour{slot.maxHours > 1 ? 's' : ''}
-                                  </span>
-                                  {/* Show bay type indicator */}
-                                  {(() => {
-                                    // Don't show badges when a specific bay type is already filtered
-                                    if (bayFilter !== 'all') return null;
-
-                                    const firstDuration = slot.bayAvailabilityByDuration?.['1'];
-                                    if (!firstDuration) return null;
-
-                                    // Check if it's mixed or single type
-                                    const hasBoth = firstDuration.social > 0 && firstDuration.ai > 0;
-                                    const socialOnly = firstDuration.social > 0 && firstDuration.ai === 0;
-                                    const aiOnly = firstDuration.social === 0 && firstDuration.ai > 0;
-
-                                    const warning = getDurationWarning(slot);
-
-                                    if (hasBoth && !warning) {
-                                      // Both available and no changes - don't show anything
-                                      return null;
-                                    }
-
-                                    if (socialOnly) {
-                                      return (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs border border-green-200 w-fit">
-                                          <UsersIcon className="h-3 w-3 flex-shrink-0" />
-                                          <span className="whitespace-nowrap">Social only</span>
-                                        </span>
-                                      );
-                                    }
-
-                                    if (aiOnly) {
-                                      return (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs border border-purple-200 w-fit">
-                                          <ComputerDesktopIcon className="h-3 w-3 flex-shrink-0" />
-                                          <span className="whitespace-nowrap">AI only</span>
-                                        </span>
-                                      );
-                                    }
-
-                                    // If there's a warning about bay types changing
-                                    if (warning) {
-                                      return (
-                                        <div className="relative group/tooltip w-fit">
-                                          <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-xs border border-amber-200 cursor-help">
-                                            <svg className="h-3 w-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                            </svg>
-                                            <span className="whitespace-nowrap">Bay varies</span>
-                                          </div>
-                                          {/* Tooltip */}
-                                          <div className="invisible group-hover/tooltip:visible absolute left-0 top-full mt-1 z-10 w-64 px-3 py-2 text-xs bg-gray-900 text-white rounded shadow-lg pointer-events-none">
-                                            {warning}
-                                          </div>
-                                        </div>
-                                      );
-                                    }
-
-                                    return null;
-                                  })()}
-                                </div>
-                              </div>
-                              <div className="flex items-center text-green-700 font-medium group-hover:text-green-800 flex-shrink-0">
-                                Select
-                                <svg className="w-5 h-5 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
+                          <span className="flex items-center gap-1.5">
+                            <ClockIcon className={`h-4 w-4 flex-shrink-0 ${limited ? 'text-amber-600' : 'text-green-700'}`} />
+                            <span className={`text-base font-semibold ${limited ? 'text-amber-700' : 'text-green-800'}`}>{slot.startTime}</span>
+                          </span>
+                          {limited && (
+                            <span className="text-[10px] text-amber-600 font-medium -mt-0.5">{slot.maxHours}hr max</span>
+                          )}
+                        </button>
                       );
-                    })}
+                    };
+
+                    return pairs.map(([primary, half], pairIndex) => (
+                      <motion.div
+                        key={pairIndex}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2, delay: pairIndex * 0.05 }}
+                        className="px-4 py-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">{renderTimeButton(primary)}</div>
+                          <div className="flex-1">{half ? renderTimeButton(half) : null}</div>
+                        </div>
+                      </motion.div>
+                    ));
+                  })()}
                 </div>
               </div>
             );
