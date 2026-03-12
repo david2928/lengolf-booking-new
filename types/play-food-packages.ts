@@ -1,3 +1,5 @@
+import { getCachedPricing, findPrice } from '@/lib/pricing';
+
 export interface FoodItem {
   name: string;
   quantity: number;
@@ -23,7 +25,7 @@ export interface PlayFoodPackage {
   badge?: string;
 }
 
-export const PLAY_FOOD_PACKAGES: PlayFoodPackage[] = [
+const DEFAULT_PLAY_FOOD_PACKAGES: PlayFoodPackage[] = [
   {
     id: 'SET_A',
     name: 'SET A',
@@ -64,8 +66,8 @@ export const PLAY_FOOD_PACKAGES: PlayFoodPackage[] = [
     id: 'SET_C',
     name: 'SET C',
     displayName: 'Premium',
-    price: 3500,
-    pricePerPerson: 700,
+    price: 2975,
+    pricePerPerson: 595,
     duration: 3,
     maxPeople: 5,
     foodItems: [
@@ -82,10 +84,39 @@ export const PLAY_FOOD_PACKAGES: PlayFoodPackage[] = [
   }
 ];
 
+/** @deprecated Use getPlayFoodPackages() for dynamic pricing */
+export const PLAY_FOOD_PACKAGES: PlayFoodPackage[] = DEFAULT_PLAY_FOOD_PACKAGES;
+
+/**
+ * Get Play & Food packages with dynamic API prices when available.
+ */
+export function getPlayFoodPackages(): PlayFoodPackage[] {
+  const pricing = getCachedPricing();
+  if (!pricing) return DEFAULT_PLAY_FOOD_PACKAGES;
+
+  const { mixedPackages } = pricing;
+  const setMap: Record<string, RegExp> = {
+    SET_A: /food\s*&?\s*play.*set\s*a/i,
+    SET_B: /food\s*&?\s*play.*set\s*b/i,
+    SET_C: /food\s*&?\s*play.*set\s*c/i,
+  };
+
+  return DEFAULT_PLAY_FOOD_PACKAGES.map((pkg) => {
+    const pattern = setMap[pkg.id];
+    if (!pattern) return pkg;
+    const apiPrice = findPrice(mixedPackages, pattern, pkg.price);
+    return {
+      ...pkg,
+      price: apiPrice,
+      pricePerPerson: Math.round(apiPrice / pkg.maxPeople),
+    };
+  });
+}
+
 export function getPackageById(id: string): PlayFoodPackage | null {
-  return PLAY_FOOD_PACKAGES.find(pkg => pkg.id === id) || null;
+  return getPlayFoodPackages().find(pkg => pkg.id === id) || null;
 }
 
 export function isValidPackageId(id: string): id is 'SET_A' | 'SET_B' | 'SET_C' {
-  return ['SET_A', 'SET_B', 'SET_C'].includes(id);
+  return (['SET_A', 'SET_B', 'SET_C'] as string[]).includes(id);
 }

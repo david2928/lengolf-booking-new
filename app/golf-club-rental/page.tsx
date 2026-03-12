@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
-import { PREMIUM_CLUB_PRICING, PREMIUM_PLUS_CLUB_PRICING } from '@/types/golf-club-rental';
+import { getPremiumClubPricing, getPremiumPlusClubPricing } from '@/types/golf-club-rental';
+import { usePricingLoader } from '@/lib/pricing';
 import { CheckIcon } from '@heroicons/react/24/outline';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
@@ -22,6 +23,9 @@ const ALL_PARADYM_IMAGES = Array.from({ length: 18 }, (_, i) => ({
 
 export default function GolfClubRentalPage() {
   const [carouselIndex, setCarouselIndex] = useState<number | null>(null);
+  usePricingLoader();
+  const PREMIUM_CLUB_PRICING = getPremiumClubPricing();
+  const PREMIUM_PLUS_CLUB_PRICING = getPremiumPlusClubPricing();
 
   return (
     <Layout>

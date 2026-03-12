@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Language, bayRatesTranslations } from '@/lib/liff/translations';
-import { timeSlots, rates, bayRatesConfig, getCurrentTimeSlot } from '@/lib/liff/bay-rates-data';
+import { timeSlots, getRates, bayRatesConfig, getCurrentTimeSlot } from '@/lib/liff/bay-rates-data';
+import { usePricingLoader } from '@/lib/pricing';
 
 interface PricingTableProps {
   language: Language;
@@ -11,6 +12,7 @@ interface PricingTableProps {
 export default function PricingTable({ language }: PricingTableProps) {
   const t = bayRatesTranslations[language];
   const [currentSlotId, setCurrentSlotId] = useState<string | null>(null);
+  usePricingLoader();
 
   useEffect(() => {
     const updateCurrentSlot = () => {
@@ -23,6 +25,8 @@ export default function PricingTable({ language }: PricingTableProps) {
 
     return () => clearInterval(interval);
   }, []);
+
+  const dynamicRates = getRates();
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
@@ -48,7 +52,7 @@ export default function PricingTable({ language }: PricingTableProps) {
           </thead>
           <tbody>
             {timeSlots.map((slot) => {
-              const rate = rates.find((r) => r.timeSlotId === slot.id);
+              const rate = dynamicRates.find((r) => r.timeSlotId === slot.id);
               const isCurrentSlot = slot.id === currentSlotId;
 
               return (

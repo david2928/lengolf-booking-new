@@ -21,8 +21,9 @@ import type { Session } from 'next-auth';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
-import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
-import { PREMIUM_CLUB_PRICING, PREMIUM_PLUS_CLUB_PRICING, formatClubRentalInfo, getIndoorPrice } from '@/types/golf-club-rental';
+import { getPlayFoodPackages } from '@/types/play-food-packages';
+import { getPremiumClubPricing, getPremiumPlusClubPricing, formatClubRentalInfo, getIndoorPrice } from '@/types/golf-club-rental';
+import { usePricingLoader } from '@/lib/pricing';
 import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import { BayInfoModal } from '../../BayInfoModal';
@@ -142,6 +143,10 @@ export function BookingDetails({
 }: BookingDetailsProps) {
   const router = useRouter();
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
+  usePricingLoader();
+  const PLAY_FOOD_PACKAGES = getPlayFoodPackages();
+  const PREMIUM_CLUB_PRICING = getPremiumClubPricing();
+  const PREMIUM_PLUS_CLUB_PRICING = getPremiumPlusClubPricing();
   const [duration, setDuration] = useState<number>(1);
   const [selectedBay, setSelectedBay] = useState<BayType | null>(selectedBayType || 'social');
   const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);

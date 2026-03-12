@@ -1,3 +1,5 @@
+import { getCachedPricing, findPrice } from '@/lib/pricing';
+
 export interface GearUpItem {
   id: string;
   name: string;
@@ -6,11 +8,28 @@ export interface GearUpItem {
   image: string;
 }
 
-export const GEAR_UP_ITEMS: GearUpItem[] = [
+const DEFAULT_GEAR_UP_ITEMS: GearUpItem[] = [
   { id: 'gloves', name: 'Premium Leather Gloves', price: 600, image: '/images/gear-up/gloves.png' },
   { id: 'balls', name: 'Golf Balls (6-pack)', price: 400, image: '/images/gear-up/balls.png' },
   { id: 'delivery', name: 'Delivery Service', price: 500, description: 'pick-up + return (within Bangkok)', image: '/images/gear-up/delivery.png' },
 ];
+
+/** @deprecated Use getGearUpItems() for dynamic pricing */
+export const GEAR_UP_ITEMS: GearUpItem[] = DEFAULT_GEAR_UP_ITEMS;
+
+/** Get gear-up add-on items with dynamic API prices when available. */
+export function getGearUpItems(): GearUpItem[] {
+  const pricing = getCachedPricing();
+  if (!pricing) return DEFAULT_GEAR_UP_ITEMS;
+
+  const { clubRental } = pricing;
+  return DEFAULT_GEAR_UP_ITEMS.map((item) => {
+    if (item.id === 'gloves') return { ...item, price: findPrice(clubRental.addons, /glove/i, item.price) };
+    if (item.id === 'balls') return { ...item, price: findPrice(clubRental.addons, /ball/i, item.price) };
+    if (item.id === 'delivery') return { ...item, price: findPrice(clubRental.addons, /delivery/i, item.price) };
+    return item;
+  });
+}
 
 export interface GolfClubOption {
   id: 'premium' | 'premium-plus' | 'standard' | 'none';
@@ -81,7 +100,7 @@ export const GOLF_CLUB_OPTIONS: GolfClubOption[] = [
   }
 ];
 
-export const PREMIUM_CLUB_PRICING: GolfClubPricing[] = [
+const DEFAULT_PREMIUM_CLUB_PRICING: GolfClubPricing[] = [
   { duration: 1, unit: 'hour', price: 150, displayText: '1 hour' },
   { duration: 2, unit: 'hours', price: 250, displayText: '2 hours' },
   { duration: 3, unit: 'hours', price: 350, displayText: '3 hours' },
@@ -89,7 +108,7 @@ export const PREMIUM_CLUB_PRICING: GolfClubPricing[] = [
   { duration: 5, unit: 'hours', price: 450, displayText: '5 hours' },
 ];
 
-export const PREMIUM_PLUS_CLUB_PRICING: GolfClubPricing[] = [
+const DEFAULT_PREMIUM_PLUS_CLUB_PRICING: GolfClubPricing[] = [
   { duration: 1, unit: 'hour', price: 250, displayText: '1 hour' },
   { duration: 2, unit: 'hours', price: 450, displayText: '2 hours' },
   { duration: 3, unit: 'hours', price: 650, displayText: '3 hours' },
@@ -97,12 +116,45 @@ export const PREMIUM_PLUS_CLUB_PRICING: GolfClubPricing[] = [
   { duration: 5, unit: 'hours', price: 950, displayText: '5 hours' },
 ];
 
+/** @deprecated Use getPremiumClubPricing() for dynamic pricing */
+export const PREMIUM_CLUB_PRICING: GolfClubPricing[] = DEFAULT_PREMIUM_CLUB_PRICING;
+/** @deprecated Use getPremiumPlusClubPricing() for dynamic pricing */
+export const PREMIUM_PLUS_CLUB_PRICING: GolfClubPricing[] = DEFAULT_PREMIUM_PLUS_CLUB_PRICING;
+
 /** @deprecated Use PREMIUM_CLUB_PRICING instead */
 export const GOLF_CLUB_PRICING = PREMIUM_CLUB_PRICING;
 
+/** Build dynamic club pricing from API modifiers */
+function buildDynamicClubPricing(
+  productPattern: RegExp,
+  defaults: GolfClubPricing[]
+): GolfClubPricing[] {
+  const pricing = getCachedPricing();
+  if (!pricing) return defaults;
+
+  const product = pricing.clubRental.indoor.find((p) => productPattern.test(p.name));
+  if (!product?.modifiers?.length) return defaults;
+
+  return defaults.map((tier) => {
+    const hourLabel = tier.duration === 1 ? /1\s*hour/i : new RegExp(`${tier.duration}\\s*hour`, 'i');
+    const modifier = product.modifiers!.find((m) => hourLabel.test(m.name));
+    return modifier ? { ...tier, price: modifier.price } : tier;
+  });
+}
+
+/** Get Premium club pricing with dynamic API prices. */
+export function getPremiumClubPricing(): GolfClubPricing[] {
+  return buildDynamicClubPricing(/premium(?!\+|\s*\+)\s*indoor/i, DEFAULT_PREMIUM_CLUB_PRICING);
+}
+
+/** Get Premium+ club pricing with dynamic API prices. */
+export function getPremiumPlusClubPricing(): GolfClubPricing[] {
+  return buildDynamicClubPricing(/premium\+\s*indoor/i, DEFAULT_PREMIUM_PLUS_CLUB_PRICING);
+}
+
 export function getClubPricing(clubId: string): GolfClubPricing[] {
-  if (clubId === 'premium-plus') return PREMIUM_PLUS_CLUB_PRICING;
-  if (clubId === 'premium') return PREMIUM_CLUB_PRICING;
+  if (clubId === 'premium-plus') return getPremiumPlusClubPricing();
+  if (clubId === 'premium') return getPremiumClubPricing();
   return [];
 }
 

@@ -1,7 +1,10 @@
 /**
  * Coaching Data
- * Static data for the Coaching LIFF page including coach profiles, pricing, and packages
+ * Data for the Coaching LIFF page including coach profiles, pricing, and packages.
+ * Prices are dynamically fetched from the pricing API with hardcoded fallbacks.
  */
+
+import { getCachedPricing, findPrice } from '@/lib/pricing';
 
 export interface Coach {
   id: string;
@@ -187,10 +190,8 @@ export const coaches: Coach[] = [
   },
 ];
 
-/**
- * Standard lesson packages from the lesson packages image
- */
-export const lessonPackages: LessonPackage[] = [
+/** Hardcoded fallback lesson packages */
+const DEFAULT_LESSON_PACKAGES: LessonPackage[] = [
   {
     id: '1hr',
     hours: 1,
@@ -234,10 +235,46 @@ export const lessonPackages: LessonPackage[] = [
   },
 ];
 
+/** @deprecated Use getLessonPackages() for dynamic pricing */
+export const lessonPackages: LessonPackage[] = DEFAULT_LESSON_PACKAGES;
+
 /**
- * Special coaching packages with unique benefits
+ * Get lesson packages with dynamic API prices when available.
+ * Maps API coaching products (split by golfer count) back to the LessonPackage structure.
  */
-export const specialPackages: SpecialPackage[] = [
+export function getLessonPackages(): LessonPackage[] {
+  const pricing = getCachedPricing();
+  if (!pricing) return DEFAULT_LESSON_PACKAGES;
+
+  const { coaching } = pricing;
+
+  // Helper: find coaching price by hour count and golfer suffix.
+  // API naming is inconsistent across hour tiers:
+  //   "1 Golf Lesson", "5 Golf Lessons Package", "10 Golf Lesson Package"
+  //   "10 Golf Lessons (2 PAX)" (no "Package" for multi-golfer variants)
+  // We use flexible regex: "{h} Golf Lessons?( Package)?" to handle all variants.
+  const cp = (hours: number | string, suffix: string, fallback: number): number => {
+    const h = String(hours);
+    const isOne = h === '1';
+    const base = isOne ? '1 Golf Lessons?' : `${h} Golf Lessons?(\\s+Package)?`;
+    const pattern = suffix
+      ? new RegExp(`^${base}\\s*\\(${suffix}`, 'i')
+      : new RegExp(`^${base}$`, 'i');
+    return findPrice(coaching, pattern, fallback);
+  };
+
+  return DEFAULT_LESSON_PACKAGES.map((pkg) => ({
+    ...pkg,
+    prices: {
+      golfers1: cp(pkg.hours, '', pkg.prices.golfers1),
+      golfers2: cp(pkg.hours, '2 PAX', pkg.prices.golfers2),
+      golfers3to5: cp(pkg.hours, '3-5 PAX', pkg.prices.golfers3to5),
+    },
+  }));
+}
+
+/** Hardcoded fallback special packages */
+const DEFAULT_SPECIAL_PACKAGES: SpecialPackage[] = [
   {
     id: 'starter',
     name: { en: 'Starter Package', th: 'โปรแกรมเริ่มต้น', ja: 'スターターパッケージ', zh: '入门套餐' },
@@ -291,6 +328,41 @@ export const specialPackages: SpecialPackage[] = [
     validity: { en: '6 months', th: '6 เดือน', ja: '6ヶ月', zh: '6个月' },
   },
 ];
+
+/** @deprecated Use getSpecialPackages() for dynamic pricing */
+export const specialPackages: SpecialPackage[] = DEFAULT_SPECIAL_PACKAGES;
+
+/**
+ * Get special packages with dynamic API prices when available.
+ */
+export function getSpecialPackages(): SpecialPackage[] {
+  const pricing = getCachedPricing();
+  if (!pricing) return DEFAULT_SPECIAL_PACKAGES;
+
+  const { mixedPackages, coaching } = pricing;
+  return DEFAULT_SPECIAL_PACKAGES.map((pkg) => {
+    if (pkg.id === 'starter') {
+      return {
+        ...pkg,
+        prices: {
+          golfers1: findPrice(mixedPackages, /^starter\s*package$/i, pkg.prices.golfers1 ?? 0) || pkg.prices.golfers1,
+          golfers2: findPrice(mixedPackages, /starter.*package.*2/i, pkg.prices.golfers2 ?? 0) || pkg.prices.golfers2,
+        },
+      };
+    }
+    if (pkg.id === 'sim-to-fairway') {
+      // Sim to Fairway may be in coaching or mixedPackages depending on POS config
+      const price = findPrice(coaching, /sim.*fairway/i, 0)
+        || findPrice(mixedPackages, /sim.*fairway/i, 0)
+        || pkg.prices.golfers1;
+      return {
+        ...pkg,
+        prices: { golfers1: price },
+      };
+    }
+    return pkg;
+  });
+}
 
 /**
  * Package includes (what's provided with lessons)

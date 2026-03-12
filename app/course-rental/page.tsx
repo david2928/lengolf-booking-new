@@ -5,7 +5,8 @@ import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
 import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
-import { getCoursePrice, GEAR_UP_ITEMS } from '@/types/golf-club-rental';
+import { getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
+import { usePricingLoader } from '@/lib/pricing';
 import { pushEventToGtm } from '@/utils/gtm';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
@@ -55,6 +56,8 @@ const STEP_LABELS: Record<Step, string> = {
 };
 
 export default function CourseRentalPage() {
+  usePricingLoader();
+  const GEAR_UP_ITEMS = getGearUpItems();
   const [step, setStep] = useState<Step>('dates');
   const [availableSets, setAvailableSets] = useState<RentalClubSetWithAvailability[]>([]);
   const [setsLoading, setSetsLoading] = useState(true);

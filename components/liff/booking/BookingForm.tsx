@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
-import { PLAY_FOOD_PACKAGES, PlayFoodPackage } from '@/types/play-food-packages';
+import { getPlayFoodPackages, type PlayFoodPackage } from '@/types/play-food-packages';
 import { BayType } from '@/lib/bayConfig';
-import { PREMIUM_CLUB_PRICING, PREMIUM_PLUS_CLUB_PRICING } from '@/types/golf-club-rental';
+import { getPremiumClubPricing, getPremiumPlusClubPricing } from '@/types/golf-club-rental';
+import { usePricingLoader } from '@/lib/pricing';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
@@ -54,6 +55,10 @@ export default function BookingForm({
 }: BookingFormProps) {
   const t = bookingTranslations[language];
   const [isInitialized, setIsInitialized] = useState(false);
+  usePricingLoader();
+  const PLAY_FOOD_PACKAGES = getPlayFoodPackages();
+  const PREMIUM_CLUB_PRICING = getPremiumClubPricing();
+  const PREMIUM_PLUS_CLUB_PRICING = getPremiumPlusClubPricing();
 
   // Pre-fill form data from profile on first load
   useEffect(() => {

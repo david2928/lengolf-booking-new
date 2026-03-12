@@ -1,7 +1,10 @@
 /**
  * Bay Rates Data
- * Data structures and helper functions for the Bay Rates LIFF page
+ * Data structures and helper functions for the Bay Rates LIFF page.
+ * Prices are dynamically fetched from the pricing API with hardcoded fallbacks.
  */
+
+import { getCachedPricing, findPrice } from '@/lib/pricing';
 
 export interface TimeSlot {
   id: string;
@@ -58,7 +61,8 @@ export const timeSlots: TimeSlot[] = [
   },
 ];
 
-export const rates: Rate[] = [
+/** Hardcoded fallback rates — used when the pricing API is unavailable */
+const DEFAULT_RATES: Rate[] = [
   {
     timeSlotId: 'morning',
     weekdayPrice: 500,
@@ -77,6 +81,41 @@ export const rates: Rate[] = [
     originalWeekendPrice: 1400,
   },
 ];
+
+/** @deprecated Use getRates() for dynamic pricing */
+export const rates: Rate[] = DEFAULT_RATES;
+
+/**
+ * Get bay rates — returns dynamic API prices when available, fallback defaults otherwise.
+ */
+export function getRates(): Rate[] {
+  const pricing = getCachedPricing();
+  if (!pricing) return DEFAULT_RATES;
+
+  const { bayRates } = pricing;
+  return [
+    {
+      timeSlotId: 'morning',
+      weekdayPrice: findPrice(bayRates.morning, /weekday/i, 500),
+      weekendPrice: findPrice(bayRates.morning, /weekend/i, 700),
+    },
+    {
+      timeSlotId: 'afternoon',
+      weekdayPrice: findPrice(bayRates.afternoon, /weekday/i, 700),
+      weekendPrice: findPrice(bayRates.afternoon, /weekend/i, 900),
+    },
+    {
+      timeSlotId: 'evening',
+      weekdayPrice: findPrice(bayRates.evening, /weekday/i, 700),
+      weekendPrice: findPrice(bayRates.evening, /weekend/i, 900),
+      // Promo pricing: evening shows original (higher) prices as strikethrough.
+      // The API returns the current (promo) price. Original prices stay hardcoded
+      // since they represent the "was" price for display only.
+      originalWeekdayPrice: 1200,
+      originalWeekendPrice: 1400,
+    },
+  ];
+}
 
 export const amenities: Amenity[] = [
   {
@@ -171,7 +210,7 @@ export function getRateForTime(hour: number): Rate | null {
     (s) => hour >= s.startHour && hour < s.endHour
   );
   if (!slot) return null;
-  return rates.find((r) => r.timeSlotId === slot.id) || null;
+  return getRates().find((r) => r.timeSlotId === slot.id) || null;
 }
 
 /**
@@ -185,7 +224,7 @@ export function getCurrentRate(): {
   const { slot, isWeekend } = getCurrentTimeSlot();
   if (!slot) return { rate: null, isWeekend, price: null };
 
-  const rate = rates.find((r) => r.timeSlotId === slot.id) || null;
+  const rate = getRates().find((r) => r.timeSlotId === slot.id) || null;
   const price = rate
     ? isWeekend
       ? rate.weekendPrice

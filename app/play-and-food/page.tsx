@@ -4,10 +4,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
-import { PLAY_FOOD_PACKAGES } from '@/types/play-food-packages';
+import { getPlayFoodPackages } from '@/types/play-food-packages';
+import { usePricingLoader } from '@/lib/pricing';
 
 export default function PlayAndFoodPage() {
   const [isImageEnlarged, setIsImageEnlarged] = useState(false);
+  usePricingLoader();
+  const PLAY_FOOD_PACKAGES = getPlayFoodPackages();
 
   return (
     <Layout>

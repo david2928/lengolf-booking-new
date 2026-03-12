@@ -1,5 +1,8 @@
-import { lessonPackages, packageIncludes } from '@/lib/liff/coaching-data';
+'use client';
+
+import { getLessonPackages, packageIncludes } from '@/lib/liff/coaching-data';
 import { Language, coachingTranslations } from '@/lib/liff/translations';
+import { usePricingLoader } from '@/lib/pricing';
 
 interface PricingTableProps {
   language: Language;
@@ -7,6 +10,8 @@ interface PricingTableProps {
 
 export default function PricingTable({ language }: PricingTableProps) {
   const t = coachingTranslations[language];
+  usePricingLoader();
+  const lessonPackages = getLessonPackages();
 
   const formatPrice = (price: number) => {
     return `฿${price.toLocaleString()}`;

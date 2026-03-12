@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { PLAY_FOOD_PACKAGES, type PlayFoodPackage } from '@/types/play-food-packages';
+import { getPlayFoodPackages, type PlayFoodPackage } from '@/types/play-food-packages';
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from './useAvailability';
@@ -30,7 +30,7 @@ export function useBookingFlow() {
       
       // Handle package parameter
       if (packageParam && !selectedPackage) {
-        const pkg = PLAY_FOOD_PACKAGES.find(p => p.id === packageParam);
+        const pkg = getPlayFoodPackages().find(p => p.id === packageParam);
         if (pkg) {
           setSelectedPackage(pkg);
           console.log(`[useBookingFlow] Package selected: ${pkg.name}`);

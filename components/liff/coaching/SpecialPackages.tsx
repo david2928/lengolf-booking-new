@@ -1,5 +1,8 @@
-import { specialPackages } from '@/lib/liff/coaching-data';
+'use client';
+
+import { getSpecialPackages } from '@/lib/liff/coaching-data';
 import { Language, coachingTranslations } from '@/lib/liff/translations';
+import { usePricingLoader } from '@/lib/pricing';
 
 interface SpecialPackagesProps {
   language: Language;
@@ -7,6 +10,8 @@ interface SpecialPackagesProps {
 
 export default function SpecialPackages({ language }: SpecialPackagesProps) {
   const t = coachingTranslations[language];
+  usePricingLoader();
+  const specialPackages = getSpecialPackages();
 
   const formatPrice = (price: number) => {
     return `฿${price.toLocaleString()}`;

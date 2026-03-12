@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Language, bayRatesTranslations } from '@/lib/liff/translations';
 import { getCurrentRate } from '@/lib/liff/bay-rates-data';
 import { getBusinessHoursStatus } from '@/lib/businessHours';
+import { usePricingLoader } from '@/lib/pricing';
 
 interface CurrentTimeIndicatorProps {
   language: Language;
@@ -13,6 +14,7 @@ export default function CurrentTimeIndicator({ language }: CurrentTimeIndicatorP
   const t = bayRatesTranslations[language];
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  usePricingLoader();
 
   useEffect(() => {
     const updateCurrentInfo = () => {
