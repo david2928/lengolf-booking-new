@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef } from 'react';
 import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
 import { LIFF_URLS } from '@/lib/liff/urls';
@@ -19,7 +19,7 @@ export default function DateSelector({
   onDateSelect
 }: DateSelectorProps) {
   const t = bookingTranslations[language];
-  const [showCalendar, setShowCalendar] = useState(false);
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const locale = language === 'th' ? th : language === 'ja' ? ja : language === 'zh' ? zhCN : enUS;
 
   const today = new Date();
@@ -76,9 +76,36 @@ export default function DateSelector({
           })}
         </div>
 
-        {/* Other Date Button */}
+        {/* Hidden date input - always rendered, triggered by Other Date button */}
+        <input
+          ref={dateInputRef}
+          type="date"
+          min={format(today, 'yyyy-MM-dd')}
+          value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
+          onChange={(e) => {
+            if (e.target.value) {
+              onDateSelect(new Date(e.target.value));
+            }
+          }}
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+
+        {/* Other Date Button - directly opens native date picker */}
         <button
-          onClick={() => setShowCalendar(!showCalendar)}
+          onClick={() => {
+            const input = dateInputRef.current;
+            if (input) {
+              // showPicker() directly opens the native date picker overlay
+              if (typeof input.showPicker === 'function') {
+                try { input.showPicker(); return; } catch { /* fallback below */ }
+              }
+              // Fallback: focus + click for older browsers
+              input.focus();
+              input.click();
+            }
+          }}
           className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
             selectedDate && !dates.some(d => format(d, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'))
               ? 'bg-primary text-white'
@@ -93,23 +120,6 @@ export default function DateSelector({
             : t.otherDate
           }
         </button>
-
-        {showCalendar && (
-          <div className="mt-3 border-t border-gray-100 pt-3">
-            <input
-              type="date"
-              min={format(today, 'yyyy-MM-dd')}
-              value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
-              onChange={(e) => {
-                if (e.target.value) {
-                  onDateSelect(new Date(e.target.value));
-                  setShowCalendar(false);
-                }
-              }}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
-        )}
       </div>
 
       {/* Info Cards - Subtle */}
