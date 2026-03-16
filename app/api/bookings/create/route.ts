@@ -764,6 +764,27 @@ export async function POST(request: NextRequest) {
     });
     logTiming('Data formatting', 'success');
     
+    // Append active auto-apply promo labels to notes for staff notification
+    let notificationNotes = customer_notes || '';
+    if (isNewCustomer) {
+      try {
+        const { data: autoPromos } = await supabase
+          .from('promotions')
+          .select('title_en')
+          .eq('is_active', true)
+          .eq('auto_apply', true)
+          .not('promotion_type', 'is', null);
+        if (autoPromos?.length) {
+          const promoLabels = autoPromos.map(p => p.title_en).join(', ');
+          notificationNotes = notificationNotes
+            ? `${notificationNotes}, ${promoLabels}`
+            : promoLabels;
+        }
+      } catch {
+        // Non-critical — don't block booking
+      }
+    }
+
     // Send notifications in parallel and wait for them to complete
     const notificationResults = await sendNotifications(
       formattedData,
@@ -771,7 +792,7 @@ export async function POST(request: NextRequest) {
       bayDisplayName,
       customerCode || customerId || undefined, // Use customer code/ID
       packageInfo,
-      customer_notes,
+      notificationNotes || undefined,
       isLiffContext ? 'LINE' : 'Website'
     );
 
