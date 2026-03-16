@@ -14,7 +14,7 @@ import BookingForm, { BookingFormData, UserProfile, ActivePackage } from '@/comp
 import BookingSummary from '@/components/liff/booking/BookingSummary';
 import { formatClubRentalInfo } from '@/types/golf-club-rental';
 import SuccessScreen from '@/components/liff/booking/SuccessScreen';
-import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
+import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import { BayType } from '@/lib/bayConfig';
 
