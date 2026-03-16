@@ -5,6 +5,8 @@ import { bookingTranslations } from '@/lib/liff/booking-translations';
 import { LIFF_URLS } from '@/lib/liff/urls';
 import { format } from 'date-fns';
 import { th, enUS, ja, zhCN } from 'date-fns/locale';
+import { type CostBreakdown } from '@/lib/cost-calculator';
+import { ProjectedCostBreakdown } from '@/components/booking/ProjectedCostBreakdown';
 
 interface BookingDetails {
   bookingId: string;
@@ -20,6 +22,7 @@ interface BookingDetails {
 interface SuccessScreenProps {
   language: Language;
   booking: BookingDetails;
+  costBreakdown?: CostBreakdown;
   onBookAnother: () => void;
   onClose: () => void;
 }
@@ -27,6 +30,7 @@ interface SuccessScreenProps {
 export default function SuccessScreen({
   language,
   booking,
+  costBreakdown,
   onBookAnother,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onClose
@@ -91,6 +95,16 @@ export default function SuccessScreen({
               </div>
             </div>
           </div>
+
+          {/* Estimated Cost Breakdown */}
+          {costBreakdown && (
+            <div className="mb-4">
+              <ProjectedCostBreakdown
+                breakdown={costBreakdown}
+                language={language === 'ja' || language === 'zh' ? 'en' : language}
+              />
+            </div>
+          )}
 
           {/* Confirmation Notice */}
           <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6">

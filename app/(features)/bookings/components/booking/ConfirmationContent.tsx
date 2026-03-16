@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Booking } from '@/types';
+import { type ApplicablePromotion } from '@/lib/cost-calculator';
 import {
   CheckCircleIcon,
   CalendarIcon,
@@ -41,6 +42,16 @@ interface ConfirmationContentProps {
 
 export function ConfirmationContent({ booking }: ConfirmationContentProps) {
   const router = useRouter();
+  const [applicablePromotions, setApplicablePromotions] = useState<ApplicablePromotion[]>([]);
+
+  // Fetch applicable promotions for cost display
+  useEffect(() => {
+    if (!(booking as Record<string, unknown>).is_new_customer) return;
+    fetch('/api/promotions/applicable')
+      .then(res => res.json())
+      .then(data => setApplicablePromotions(data.promotions ?? []))
+      .catch(() => {});
+  }, [booking]);
 
   // Push user-provided data to dataLayer for Google Ads Enhanced Conversions for Leads.
   // GTM reads this to match offline conversion uploads (hashed email/phone) to ad clicks.
@@ -99,8 +110,8 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
       playFoodPackageId: isPlayFoodPkg ? (booking.package_name ?? null) : null,
       hasActivePackage: hasPackage,
       packageDisplayName: hasPackage ? (booking.package_name ?? undefined) : undefined,
-      isNewCustomer: false, // Don't show BOGO on confirmation since it was already applied
-      applicablePromotions: [],
+      isNewCustomer: !!(booking as Record<string, unknown>).is_new_customer,
+      applicablePromotions,
     });
   })();
 

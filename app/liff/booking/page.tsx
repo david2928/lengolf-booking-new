@@ -14,7 +14,7 @@ import BookingForm, { BookingFormData, UserProfile, ActivePackage } from '@/comp
 import BookingSummary from '@/components/liff/booking/BookingSummary';
 import { formatClubRentalInfo } from '@/types/golf-club-rental';
 import SuccessScreen from '@/components/liff/booking/SuccessScreen';
-import type { ApplicablePromotion } from '@/lib/cost-calculator';
+import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import { BayType } from '@/lib/bayConfig';
 
@@ -503,6 +503,19 @@ export default function LiffBookingPage() {
       return { en: 'Social Bay', th: 'Social Bay', ja: 'ソーシャルベイ', zh: 'Social Bay' }[language];
     };
 
+    // Compute cost breakdown for success screen (same as pre-confirm)
+    const successCostBreakdown = calculateCost({
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      startTime: selectedSlot.time,
+      duration: formData.duration,
+      clubRentalId: formData.clubRental,
+      playFoodPackageId: formData.playFoodPackage?.id ?? null,
+      hasActivePackage: !!activePackage,
+      packageDisplayName: activePackage?.displayName,
+      isNewCustomer,
+      applicablePromotions,
+    });
+
     return (
       <SuccessScreen
         language={language}
@@ -516,6 +529,7 @@ export default function LiffBookingPage() {
           bayDisplayName: getBayTypeDisplay(bookingResult.bay),
           numberOfPeople: formData.numberOfPeople
         }}
+        costBreakdown={successCostBreakdown}
         onBookAnother={resetBooking}
         onClose={closeLiff}
       />

@@ -76,6 +76,7 @@ export interface Database {
           cancelled_by_type?: string | null
           cancelled_by_identifier?: string | null
           cancellation_reason?: string | null
+          is_new_customer?: boolean | null
           created_at: string
           updated_at: string
         }
