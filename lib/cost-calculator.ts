@@ -232,8 +232,8 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         if (discountAmount > 0) {
           discounts.push({
             id: `promo-${promo.id}`,
-            label: `${promo.title_en} (${freeHours} free hr${freeHours > 1 ? 's' : ''})`,
-            labelTh: `${promo.title_th} (ฟรี ${freeHours} ชม.)`,
+            label: promo.title_en,
+            labelTh: promo.title_th,
             amount: -discountAmount,
             promotionId: promo.id,
           });
