@@ -219,22 +219,29 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
 
   // 4. Apply promotions
   for (const promo of applicablePromotions) {
-    // BOGO: new customer gets free hours off bay rate
+    // BOGO: 2+ hours → discount applied now; 1 hour → hint to book longer next time for free hour
     if (promo.promotion_type === 'bogo' && promo.free_hours) {
       const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
       if (isNewCustomerOnly && !isNewCustomer) continue;
-      if (packageCoversThisSlot || playFoodPkg) continue; // no discount if package covers bay
+      if (packageCoversThisSlot || playFoodPkg) continue;
 
-      const freeHours = Math.min(promo.free_hours, duration);
-      const discountAmount = hourlyRate * freeHours;
-      if (discountAmount > 0) {
-        discounts.push({
-          id: `promo-${promo.id}`,
-          label: `${promo.title_en} (${freeHours} free hr${freeHours > 1 ? 's' : ''})`,
-          labelTh: `${promo.title_th} (ฟรี ${freeHours} ชม.)`,
-          amount: -discountAmount,
-          promotionId: promo.id,
-        });
+      if (duration >= 2) {
+        // Apply free hour discount to current booking
+        const freeHours = Math.min(promo.free_hours, duration - 1);
+        const discountAmount = hourlyRate * freeHours;
+        if (discountAmount > 0) {
+          discounts.push({
+            id: `promo-${promo.id}`,
+            label: `${promo.title_en} (${freeHours} free hr${freeHours > 1 ? 's' : ''})`,
+            labelTh: `${promo.title_th} (ฟรี ${freeHours} ชม.)`,
+            amount: -discountAmount,
+            promotionId: promo.id,
+          });
+        }
+      } else {
+        // 1-hour booking: hint about the free hour they can redeem within 7 days
+        notes.push(`🎉 ${promo.title_en} — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
+        notesTh.push(`🎉 ${promo.title_th} — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
       }
     }
 

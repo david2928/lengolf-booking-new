@@ -770,12 +770,26 @@ export async function POST(request: NextRequest) {
       try {
         const { data: autoPromos } = await supabase
           .from('promotions')
-          .select('title_en')
+          .select('title_en, promotion_type, free_hours')
           .eq('is_active', true)
           .eq('auto_apply', true)
           .not('promotion_type', 'is', null);
         if (autoPromos?.length) {
-          const promoLabels = autoPromos.map(p => p.title_en).join(', ');
+          const bookingDate = new Date(date);
+          const expiryDate = new Date(bookingDate);
+          expiryDate.setDate(expiryDate.getDate() + 7);
+          const expiryStr = expiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+          const bookingDuration = parseInt(duration, 10) || 1;
+          const promoLabels = autoPromos.map(p => {
+            if (p.promotion_type === 'bogo' && p.free_hours) {
+              if (bookingDuration >= 2) {
+                return p.title_en;
+              }
+              return `${p.title_en} (${p.free_hours} free hr to redeem within 7 days, expires ${expiryStr})`;
+            }
+            return p.title_en;
+          }).join(', ');
           notificationNotes = notificationNotes
             ? `${notificationNotes}, ${promoLabels}`
             : promoLabels;
