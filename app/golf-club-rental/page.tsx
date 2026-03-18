@@ -340,10 +340,8 @@ export default function GolfClubRentalPage() {
 
         {/* On-Course Rental Cross-Link */}
         <div className="mb-8 sm:mb-12 max-w-4xl mx-auto">
-          <a
-            href="https://len.golf/golf-course-club-rental/"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/course-rental"
             className="block rounded-xl p-4 sm:p-5 border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
           >
             <div className="flex items-center justify-between gap-3 sm:gap-4">
@@ -355,11 +353,11 @@ export default function GolfClubRentalPage() {
               </div>
               <div className="flex-shrink-0 text-gray-400">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
             </div>
-          </a>
+          </Link>
         </div>
 
         {/* Why Choose LENGOLF Section */}
@@ -429,14 +427,12 @@ export default function GolfClubRentalPage() {
               <p className="text-xs sm:text-sm text-gray-700">
                 The hourly rates on this page are for in-bay simulator use only. For taking clubs to a Bangkok golf course
                 (daily rates from ฿1,200 with delivery available), see our{' '}
-                <a
-                  href="https://len.golf/golf-course-club-rental/"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/course-rental"
                   className="text-green-600 hover:text-green-700 underline font-medium"
                 >
                   Golf Course Club Rental
-                </a> page.
+                </Link> page.
               </p>
             </div>
           </div>

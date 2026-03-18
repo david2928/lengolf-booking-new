@@ -18,9 +18,10 @@ import { LogOut, Package as PackageIconLucide, Calendar as CalendarIconLucide, T
 interface LayoutProps {
   children: React.ReactNode;
   hidePromotionBar?: boolean;
+  hideNav?: boolean;
 }
 
-export function Layout({ children, hidePromotionBar }: LayoutProps) {
+export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
   const { vipProfile, isLoading: vipLoading, error: vipError, refetchVipProfile } = useVipStatus();
@@ -130,6 +131,7 @@ export function Layout({ children, hidePromotionBar }: LayoutProps) {
         onToggleMobileMenu={toggleMobileMenu}
         rightContent={
           <>
+            {!hideNav && (
             <div className="header-desktop:hidden flex gap-1">
               <button
                 onClick={() => setShowBayRates(true)}
@@ -153,8 +155,11 @@ export function Layout({ children, hidePromotionBar }: LayoutProps) {
                 <AcademicCapIcon className="h-5 w-5" />
               </button>
             </div>
+            )}
 
             <nav className="hidden header-desktop:flex gap-4 items-center">
+              {!hideNav && (
+              <>
               {/* Primary booking-related actions - clean and minimal */}
               <button
                 onClick={() => setShowBayRates(!showBayRates)}
@@ -194,6 +199,8 @@ export function Layout({ children, hidePromotionBar }: LayoutProps) {
 
               {/* Vertical separator */}
               <div className="h-6 w-px bg-white/30"></div>
+              </>
+              )}
 
               {/* Simple My Account dropdown */}
               {sessionStatus === 'authenticated' && vipLoading ? (

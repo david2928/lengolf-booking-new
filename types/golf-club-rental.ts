@@ -250,10 +250,81 @@ export function getIndoorPrice(set: RentalClubSet, durationHours: number): numbe
   return Number(set.indoor_price_5h || set.indoor_price_4h);
 }
 
-/** Get the course price for a given duration from a RentalClubSet */
+/** A single pack in a course rental combo breakdown */
+export interface CoursePackItem {
+  days: number;
+  label: string;
+  price: number;
+}
+
+/** Result of optimal course pricing calculation */
+export interface CoursePriceBreakdown {
+  total: number;
+  packs: CoursePackItem[];
+  dailyRate: number;       // price if paying 1-day rate × days
+  savings: number;         // dailyRate - total
+}
+
+/**
+ * Calculate the optimal (cheapest) combination of rental packs for a given number of days.
+ * Uses dynamic programming over the available tier prices: 1d, 3d, 7d, 14d.
+ * Overpacking is allowed — e.g. 2 days may use a 3-day pack if it's cheaper than 2×1-day.
+ * This is intentional: the customer pays less and gets extra coverage.
+ */
+export function getCoursePriceBreakdown(set: RentalClubSet, durationDays: number): CoursePriceBreakdown {
+  const tiers: { days: number; price: number; label: string }[] = [
+    { days: 1, price: Number(set.course_price_1d), label: '1-day' },
+    { days: 3, price: Number(set.course_price_3d), label: '3-day pack' },
+    { days: 7, price: Number(set.course_price_7d), label: '7-day pack' },
+    { days: 14, price: Number(set.course_price_14d), label: '14-day pack' },
+  ];
+
+  const dayPrice = tiers[0].price;
+  const dailyRate = durationDays * dayPrice;
+
+  // dp[i] = minimum cost to cover i days
+  const n = durationDays;
+  const dp = new Array(n + 1).fill(Infinity);
+  const choice = new Array(n + 1).fill(-1);
+  dp[0] = 0;
+
+  for (let i = 1; i <= n; i++) {
+    for (const tier of tiers) {
+      const prev = Math.max(0, i - tier.days);
+      if (dp[prev] + tier.price < dp[i]) {
+        dp[i] = dp[prev] + tier.price;
+        choice[i] = tier.days;
+      }
+    }
+  }
+
+  // Reconstruct packs
+  const packCounts: Record<number, number> = {};
+  let remaining = n;
+  while (remaining > 0) {
+    const tierDays = choice[remaining];
+    packCounts[tierDays] = (packCounts[tierDays] || 0) + 1;
+    remaining = Math.max(0, remaining - tierDays);
+  }
+
+  const packs: CoursePackItem[] = [];
+  // Show larger packs first
+  for (const tier of [...tiers].reverse()) {
+    const count = packCounts[tier.days] || 0;
+    for (let i = 0; i < count; i++) {
+      packs.push({ days: tier.days, label: tier.label, price: tier.price });
+    }
+  }
+
+  return {
+    total: dp[n],
+    packs,
+    dailyRate,
+    savings: dailyRate - dp[n],
+  };
+}
+
+/** Get the optimal course price for a given duration from a RentalClubSet */
 export function getCoursePrice(set: RentalClubSet, durationDays: number): number {
-  if (durationDays <= 1) return Number(set.course_price_1d);
-  if (durationDays <= 3) return Number(set.course_price_3d);
-  if (durationDays <= 7) return Number(set.course_price_7d);
-  return Number(set.course_price_14d);
+  return getCoursePriceBreakdown(set, durationDays).total;
 }

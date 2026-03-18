@@ -5,7 +5,7 @@ import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
 import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
-import { getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
+import { getCoursePrice, getCoursePriceBreakdown, getGearUpItems } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing';
 import { pushEventToGtm } from '@/utils/gtm';
 
@@ -35,11 +35,10 @@ function getSetImageKey(set: { tier: string; gender: string }): string {
   return `${set.tier}_${set.gender}`;
 }
 
-const DURATION_OPTIONS = [
-  { days: 1, label: '1 Day', description: 'Single round' },
-  { days: 3, label: '3 Days', description: 'Weekend trip' },
-  { days: 7, label: '7 Days', description: 'Full week' },
-  { days: 14, label: '14 Days', description: 'Extended stay' },
+const TIME_OPTIONS = [
+  '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
+  '15:00', '16:00', '17:00', '18:00', '19:00', '20:00',
+  '21:00', '22:00',
 ];
 
 type Step = 'dates' | 'set' | 'delivery' | 'contact' | 'review' | 'confirmation';
@@ -68,11 +67,11 @@ export default function CourseRentalPage() {
   // Selections
   const [selectedSet, setSelectedSet] = useState<RentalClubSetWithAvailability | null>(null);
   const [startDate, setStartDate] = useState('');
-  const [durationDays, setDurationDays] = useState(1);
-  const [deliveryRequested, setDeliveryRequested] = useState(false);
-  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [returnTime, setReturnTime] = useState('');
+  const [deliveryRequested, setDeliveryRequested] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState('');
   const [addOns, setAddOns] = useState<ClubRentalAddOn[]>([]);
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -84,25 +83,20 @@ export default function CourseRentalPage() {
   const [rentalCode, setRentalCode] = useState('');
   const [error, setError] = useState('');
 
-  // Calculate dates: "1 day" rental means return next day, so end = start + duration
-  const endDate = startDate
-    ? (() => {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + durationDays);
-        return d.toISOString().split('T')[0];
-      })()
-    : '';
+  // Calculate duration from start/end dates
+  const durationDays = (startDate && endDate)
+    ? Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
 
-  // Calculate minimum date (tomorrow for delivery, today for pickup)
-  const minDate = (() => {
+  // Today's date for min
+  const todayStr = (() => {
     const d = new Date();
-    if (deliveryRequested) d.setDate(d.getDate() + 1);
     return d.toISOString().split('T')[0];
   })();
 
-  // Fetch available sets — only when dates are selected
+  // Fetch available sets filtered by selected dates
   const fetchSets = useCallback(async () => {
-    if (!startDate) return;
+    if (!startDate || !endDate) return;
     setSetsLoading(true);
     try {
       const url = `/api/clubs/availability?type=course&date=${startDate}&end_date=${endDate}`;
@@ -126,8 +120,9 @@ export default function CourseRentalPage() {
     setHeroIndex(0);
   }, [selectedSet?.id]);
 
-  // Pricing
-  const rentalPrice = selectedSet ? getCoursePrice(selectedSet, durationDays) : 0;
+  // Pricing — optimal combo
+  const breakdown = (selectedSet && durationDays > 0) ? getCoursePriceBreakdown(selectedSet, durationDays) : null;
+  const rentalPrice = breakdown?.total || 0;
   const addOnsTotal = addOns.reduce((sum, a) => sum + a.price, 0);
   const deliveryFee = deliveryRequested ? 500 : 0;
   const totalPrice = rentalPrice + addOnsTotal + deliveryFee;
@@ -212,7 +207,7 @@ export default function CourseRentalPage() {
   const isConfirmation = step === 'confirmation';
 
   return (
-    <Layout hidePromotionBar>
+    <Layout hidePromotionBar hideNav>
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         {/* Header with back button */}
         <div className="mb-6 flex items-start">
@@ -230,7 +225,7 @@ export default function CourseRentalPage() {
               {isConfirmation ? 'Booking Confirmed!' : STEP_LABELS[step]}
             </h2>
             <p className="text-gray-600 mt-1 text-sm">
-              {step === 'dates' && 'Select your rental dates and duration.'}
+              {step === 'dates' && 'Select your rental dates and times.'}
               {step === 'set' && 'Choose which premium club set to rent for the golf course.'}
               {step === 'delivery' && 'Choose pickup or delivery, and optional add-ons.'}
               {step === 'contact' && 'We need your details to confirm the reservation.'}
@@ -243,6 +238,17 @@ export default function CourseRentalPage() {
         {/* Step 2: Set Selection */}
         {step === 'set' && (
           <div className="space-y-4">
+            {/* Selected dates summary */}
+            <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between text-sm">
+              <span className="text-gray-600">
+                {durationDays} {durationDays === 1 ? 'day' : 'days'}
+                <span className="mx-1.5">&middot;</span>
+                {new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                {' '}-{' '}
+                {new Date(endDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+              </span>
+            </div>
+
             {setsLoading ? (
               <div className="flex justify-center py-12">
                 <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
@@ -328,8 +334,26 @@ export default function CourseRentalPage() {
                               {(set.specifications as string[]).join(' · ')}
                             </p>
                           )}
+                          {durationDays > 0 && (() => {
+                            const bd = getCoursePriceBreakdown(set, durationDays);
+                            return (
+                              <div className="mt-1">
+                                <p className="text-sm font-bold text-green-700">
+                                  ฿{bd.total.toLocaleString()}
+                                </p>
+                                {bd.savings > 0 && (
+                                  <p className="text-[10px] text-green-600 font-medium">
+                                    Save ฿{bd.savings.toLocaleString()} vs daily rate
+                                  </p>
+                                )}
+                                <p className="text-[10px] text-gray-400">
+                                  {bd.packs.map(p => p.label).join(' + ')}
+                                </p>
+                              </div>
+                            );
+                          })()}
                           {isSelected && (
-                            <div className="mt-2">
+                            <div className="mt-1.5">
                               <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
                                 <CheckIcon className="w-3.5 h-3.5" /> Selected
                               </span>
@@ -385,62 +409,123 @@ export default function CourseRentalPage() {
         {/* Step 1: Dates & Duration */}
         {step === 'dates' && (
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-              <input
-                type="date"
-                value={startDate}
-                min={minDate}
-                onChange={e => { setStartDate(e.target.value); setSelectedSet(null); }}
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
-              <div className="grid grid-cols-2 gap-3">
-                {DURATION_OPTIONS.map(opt => (
-                  <button
-                    key={opt.days}
-                    type="button"
-                    onClick={() => { setDurationDays(opt.days); setSelectedSet(null); }}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                      durationDays === opt.days
-                        ? 'border-green-600 bg-green-50'
-                        : 'border-gray-200 hover:border-green-300'
-                    }`}
-                  >
-                    <p className="font-semibold text-gray-900">{opt.label}</p>
-                    <p className="text-xs text-gray-500">{opt.description}</p>
-                  </button>
-                ))}
+            {/* Date pickers */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  min={todayStr}
+                  onChange={e => {
+                    setStartDate(e.target.value);
+                    if (endDate && e.target.value > endDate) setEndDate('');
+                    setSelectedSet(null);
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate || todayStr}
+                  disabled={!startDate}
+                  onChange={e => {
+                    setEndDate(e.target.value);
+                    setSelectedSet(null);
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                />
               </div>
             </div>
 
-            {startDate && (
-              <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600">
-                <p>
-                  <span className="font-medium text-gray-900">Rental period:</span>{' '}
-                  {new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                  {' '}&rarr;{' '}
-                  {new Date(endDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                  {' '}({durationDays} {durationDays === 1 ? 'day' : 'days'})
+            {/* Time pickers */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Pickup Time <span className="text-red-500">*</span></label>
+                <select
+                  value={pickupTime}
+                  onChange={e => {
+                    setPickupTime(e.target.value);
+                    if (!returnTime) setReturnTime(e.target.value);
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
+                >
+                  <option value="">Select</option>
+                  {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Return Time <span className="text-red-500">*</span></label>
+                <select
+                  value={returnTime}
+                  onChange={e => setReturnTime(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
+                >
+                  <option value="">Select</option>
+                  {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Collapsible pricing guide — matches len.golf styling */}
+            <details className="group">
+              <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                View pricing guide
+              </summary>
+              <div className="mt-3 overflow-hidden rounded-xl border border-gray-200/60">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-[#1B5E20] text-white">
+                      <th className="px-5 py-3 text-sm font-semibold">Duration</th>
+                      <th className="px-5 py-3 text-sm font-semibold text-center">Premium</th>
+                      <th className="px-5 py-3 text-sm font-semibold text-center">Premium+</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="bg-white">
+                      <td className="px-5 py-4 text-sm font-medium text-gray-900">1 Day</td>
+                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>1,200 THB</td>
+                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>1,800 THB</td>
+                    </tr>
+                    <tr className="bg-gray-50/50">
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-medium text-gray-900">3 Days</span>
+                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">Pay 2, get 1 free</span>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>2,400 THB</td>
+                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>3,600 THB</td>
+                    </tr>
+                    <tr className="bg-white">
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-medium text-gray-900">7 Days</span>
+                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">Pay 4, get 3 free</span>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>4,800 THB</td>
+                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>7,200 THB</td>
+                    </tr>
+                    <tr className="bg-gray-50/50">
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-medium text-gray-900">14 Days</span>
+                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">Pay 7, get 7 free</span>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>8,400 THB</td>
+                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>12,600 THB</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="text-xs text-gray-400 italic px-5 py-2.5">
+                  For other durations, we automatically find the best price combination.
                 </p>
               </div>
-            )}
-
-            <a
-              href="https://www.len.golf/golf-course-club-rental/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block text-center text-sm text-green-700 hover:text-green-800 underline underline-offset-2"
-            >
-              View our available club sets on len.golf
-            </a>
+            </details>
 
             <button
               onClick={goNext}
-              disabled={!startDate}
+              disabled={!startDate || !endDate || !pickupTime || !returnTime}
               className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               Continue
@@ -456,7 +541,7 @@ export default function CourseRentalPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => { setDeliveryRequested(false); setPickupTime(''); setReturnTime(''); }}
+                  onClick={() => setDeliveryRequested(false)}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     !deliveryRequested
                       ? 'border-green-600 bg-green-50'
@@ -470,7 +555,7 @@ export default function CourseRentalPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setDeliveryRequested(true); setPickupTime(''); setReturnTime(''); }}
+                  onClick={() => setDeliveryRequested(true)}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     deliveryRequested
                       ? 'border-green-600 bg-green-50'
@@ -499,109 +584,6 @@ export default function CourseRentalPage() {
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Delivery Time <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={pickupTime}
-                      onChange={e => setPickupTime(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
-                    >
-                      <option value="">Select</option>
-                      <option value="09:00">09:00</option>
-                      <option value="10:00">10:00</option>
-                      <option value="11:00">11:00</option>
-                      <option value="12:00">12:00</option>
-                      <option value="13:00">13:00</option>
-                      <option value="14:00">14:00</option>
-                      <option value="15:00">15:00</option>
-                      <option value="16:00">16:00</option>
-                      <option value="17:00">17:00</option>
-                      <option value="18:00">18:00</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Return Time <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={returnTime}
-                      onChange={e => setReturnTime(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
-                    >
-                      <option value="">Select</option>
-                      <option value="09:00">09:00</option>
-                      <option value="10:00">10:00</option>
-                      <option value="11:00">11:00</option>
-                      <option value="12:00">12:00</option>
-                      <option value="13:00">13:00</option>
-                      <option value="14:00">14:00</option>
-                      <option value="15:00">15:00</option>
-                      <option value="16:00">16:00</option>
-                      <option value="17:00">17:00</option>
-                      <option value="18:00">18:00</option>
-                    </select>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-400">We&apos;ll confirm the exact times with you.</p>
-              </div>
-            )}
-
-            {!deliveryRequested && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pickup Time <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={pickupTime}
-                    onChange={e => setPickupTime(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
-                  >
-                    <option value="">Select</option>
-                    <option value="10:00">10:00</option>
-                    <option value="11:00">11:00</option>
-                    <option value="12:00">12:00</option>
-                    <option value="13:00">13:00</option>
-                    <option value="14:00">14:00</option>
-                    <option value="15:00">15:00</option>
-                    <option value="16:00">16:00</option>
-                    <option value="17:00">17:00</option>
-                    <option value="18:00">18:00</option>
-                    <option value="19:00">19:00</option>
-                    <option value="20:00">20:00</option>
-                    <option value="21:00">21:00</option>
-                    <option value="22:00">22:00</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Return Time <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={returnTime}
-                    onChange={e => setReturnTime(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
-                  >
-                    <option value="">Select</option>
-                    <option value="10:00">10:00</option>
-                    <option value="11:00">11:00</option>
-                    <option value="12:00">12:00</option>
-                    <option value="13:00">13:00</option>
-                    <option value="14:00">14:00</option>
-                    <option value="15:00">15:00</option>
-                    <option value="16:00">16:00</option>
-                    <option value="17:00">17:00</option>
-                    <option value="18:00">18:00</option>
-                    <option value="19:00">19:00</option>
-                    <option value="20:00">20:00</option>
-                    <option value="21:00">21:00</option>
-                    <option value="22:00">22:00</option>
-                  </select>
-                </div>
-                <p className="text-xs text-gray-400 col-span-2">Mercury Ville @ BTS Chidlom, Floor 4</p>
               </div>
             )}
 
@@ -643,7 +625,7 @@ export default function CourseRentalPage() {
 
             <button
               onClick={goNext}
-              disabled={!pickupTime || !returnTime || (deliveryRequested && !deliveryAddress.trim())}
+              disabled={deliveryRequested && !deliveryAddress.trim()}
               className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               Continue
@@ -742,8 +724,10 @@ export default function CourseRentalPage() {
               <h3 className="text-sm font-medium text-gray-500 mb-2">Rental Period</h3>
               <p className="font-semibold text-gray-900">
                 {new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                {pickupTime && ` ${pickupTime}`}
                 {' '}&rarr;{' '}
                 {new Date(endDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                {returnTime && ` ${returnTime}`}
               </p>
               <p className="text-sm text-gray-500 mt-1">
                 {durationDays} {durationDays === 1 ? 'day' : 'days'}
@@ -799,10 +783,12 @@ export default function CourseRentalPage() {
             <div className="bg-green-50 rounded-xl border border-green-200 p-4">
               <h3 className="text-sm font-medium text-green-800 mb-3">Pricing</h3>
               <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Club rental ({durationDays}d)</span>
-                  <span className="text-gray-900">฿{rentalPrice.toLocaleString()}</span>
-                </div>
+                {breakdown && breakdown.packs.map((pack, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span className="text-gray-700">{pack.label}</span>
+                    <span className="text-gray-900">฿{pack.price.toLocaleString()}</span>
+                  </div>
+                ))}
                 {deliveryRequested && (
                   <div className="flex justify-between">
                     <span className="text-gray-700">Delivery & return</span>
@@ -815,6 +801,11 @@ export default function CourseRentalPage() {
                     <span className="text-gray-900">฿{a.price.toLocaleString()}</span>
                   </div>
                 ))}
+                {breakdown && breakdown.savings > 0 && (
+                  <div className="flex justify-between text-green-600 text-xs">
+                    <span>You save ฿{breakdown.savings.toLocaleString()} vs daily rate</span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-2 border-t border-green-300 font-bold text-base">
                   <span className="text-green-800">Total</span>
                   <span className="text-green-800">฿{totalPrice.toLocaleString()}</span>
@@ -825,7 +816,7 @@ export default function CourseRentalPage() {
             {/* Payment info */}
             <div className="bg-blue-50 rounded-xl border border-blue-200 p-4 text-sm text-blue-800">
               <p className="font-medium mb-1">Payment</p>
-              <p>Our team will contact you within 2 hours to confirm availability and arrange payment. No payment is required now.</p>
+              <p>Our team will contact you within 2 hours to arrange payment. No payment is required now.</p>
             </div>
 
             {error && (

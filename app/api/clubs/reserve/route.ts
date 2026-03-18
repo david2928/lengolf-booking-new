@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
-import { getIndoorPrice, getCoursePrice, GEAR_UP_ITEMS } from '@/types/golf-club-rental';
+import { getIndoorPrice, getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
 import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { sendCourseRentalConfirmationEmail } from '@/lib/emailService';
 
-// Build a trusted price/label map for add-on validation
-const TRUSTED_ADDONS: Record<string, { price: number; label: string }> = Object.fromEntries(
-  GEAR_UP_ITEMS.map(item => [item.id, { price: item.price, label: item.name }])
-);
+/** Build trusted add-on price/label map at request time for dynamic pricing */
+function getTrustedAddons(): Record<string, { price: number; label: string }> {
+  return Object.fromEntries(
+    getGearUpItems().map(item => [item.id, { price: item.price, label: item.name }])
+  );
+}
 
 const DATE_REGEX = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -76,9 +78,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid booking ID format' }, { status: 400 });
     }
 
-    // Validate date format
+    // Validate date formats
     if (!DATE_REGEX.test(start_date)) {
       return NextResponse.json({ error: 'Invalid start_date format (YYYY-MM-DD)' }, { status: 400 });
+    }
+    if (body.end_date && !DATE_REGEX.test(body.end_date)) {
+      return NextResponse.json({ error: 'Invalid end_date format (YYYY-MM-DD)' }, { status: 400 });
     }
 
     // Validate source
@@ -119,9 +124,10 @@ export async function POST(request: NextRequest) {
 
     // Validate add-ons: use trusted server-side prices AND labels
     // Exclude 'delivery' add-on to prevent double-charging with delivery_fee
+    const trustedAddons = getTrustedAddons();
     for (const addon of add_ons) {
       if (addon.key === 'delivery') continue; // delivery is handled via delivery_fee, not as add-on
-      if (TRUSTED_ADDONS[addon.key] === undefined) {
+      if (trustedAddons[addon.key] === undefined) {
         return NextResponse.json({ error: `Unknown add-on: ${addon.key}` }, { status: 400 });
       }
     }
@@ -129,8 +135,8 @@ export async function POST(request: NextRequest) {
       .filter((addon: ClubRentalAddOn) => addon.key !== 'delivery')
       .map((addon: ClubRentalAddOn) => ({
         key: addon.key,
-        label: TRUSTED_ADDONS[addon.key].label,
-        price: TRUSTED_ADDONS[addon.key].price,
+        label: trustedAddons[addon.key].label,
+        price: trustedAddons[addon.key].price,
       }));
 
     // Calculate end_date: "1 day" means return next day, so end = start + duration
@@ -286,29 +292,34 @@ export async function POST(request: NextRequest) {
       const addOnsText = validatedAddOns.length > 0
         ? validatedAddOns.map((a: ClubRentalAddOn) => `${a.label} (฿${a.price})`).join(', ')
         : 'None';
+      const tierLabel = clubSet.tier === 'premium-plus' ? 'Premium+' : 'Premium';
+      const genderLabel = clubSet.gender === 'mens' ? "Men's" : "Women's";
       const timeInfo = [
         delivery_time ? `${delivery_requested ? 'Delivery' : 'Pickup'}: ${delivery_time}` : '',
         return_time ? `Return: ${return_time}` : '',
       ].filter(Boolean).join(', ');
       const deliveryText = delivery_requested
-        ? `Delivery: ${delivery_address}${timeInfo ? ` (${timeInfo})` : ''}`
+        ? `Delivery to: ${delivery_address}${timeInfo ? `\nTime: ${timeInfo}` : ''}`
         : `Pickup at LENGOLF${timeInfo ? ` (${timeInfo})` : ''}`;
-      const dateText = duration_days && duration_days > 1
-        ? `${start_date} → ${end_date} (${duration_days}d)`
-        : `${start_date} (1d)`;
+
+      const startDateFmt = new Date(start_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+      const endDateFmt = new Date(end_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+      const daysLabel = duration_days && duration_days > 1 ? `${duration_days}d` : '1d';
 
       const lineMessage = [
-        `🏌️ CLUB RENTAL BOOKING (${rentalCode})`,
-        `----------------------------------`,
-        `📋 Set: ${clubSet.name} (${clubSet.tier === 'premium-plus' ? 'Premium+' : 'Premium'}, ${clubSet.gender === 'mens' ? "Men's" : "Women's"})`,
-        `📅 Dates: ${dateText}`,
-        `🚚 ${deliveryText}`,
-        `👤 Customer: ${customer_name}`,
-        `📞 Phone: ${customer_phone || 'N/A'}`,
-        `🎒 Add-ons: ${addOnsText}`,
-        `💰 Total: ฿${total_price.toLocaleString()}`,
-        `📱 Source: ${source}`,
-      ].join('\n');
+        `Club Rental Notification (${rentalCode})`,
+        `Customer: ${customer_name}`,
+        `Phone: ${customer_phone || 'N/A'}`,
+        customer_email ? `Email: ${customer_email}` : null,
+        `Set: ${clubSet.name} (${tierLabel}, ${genderLabel})`,
+        `Dates: ${startDateFmt} - ${endDateFmt} (${daysLabel})`,
+        deliveryText,
+        addOnsText !== 'None' ? `Add-ons: ${addOnsText}` : null,
+        `Total: ฿${total_price.toLocaleString()}`,
+        `Source: ${source}`,
+        ``,
+        `Please contact the customer to confirm availability and arrange payment.`,
+      ].filter(Boolean).join('\n');
 
       fetch(`${baseUrl}/api/notifications/line`, {
         method: 'POST',
