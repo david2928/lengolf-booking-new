@@ -5,7 +5,7 @@ import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
 import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
-import { getCoursePrice, getCoursePriceBreakdown, getGearUpItems } from '@/types/golf-club-rental';
+import { getCoursePriceBreakdown, getGearUpItems } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing';
 import { pushEventToGtm } from '@/utils/gtm';
 
