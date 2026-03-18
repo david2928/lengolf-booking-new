@@ -339,11 +339,11 @@ export default function CourseRentalPage() {
                             return (
                               <div className="mt-1">
                                 <p className="text-sm font-bold text-green-700">
-                                  ฿{bd.total.toLocaleString()}
+                                  ฿{bd.total.toLocaleString('en-US')}
                                 </p>
                                 {bd.savings > 0 && (
                                   <p className="text-[10px] text-green-600 font-medium">
-                                    Save ฿{bd.savings.toLocaleString()} vs daily rate
+                                    Save ฿{bd.savings.toLocaleString('en-US')} vs daily rate
                                   </p>
                                 )}
                                 <p className="text-[10px] text-gray-400">
@@ -610,7 +610,7 @@ export default function CourseRentalPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-3">
-                        <p className="text-sm font-bold text-green-700">฿{item.price.toLocaleString()}</p>
+                        <p className="text-sm font-bold text-green-700">฿{item.price.toLocaleString('en-US')}</p>
                         <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
                           isSelected ? 'bg-green-600 border-green-600' : 'border-gray-300'
                         }`}>
@@ -764,7 +764,7 @@ export default function CourseRentalPage() {
                 {addOns.map(a => (
                   <div key={a.key} className="flex justify-between text-sm">
                     <span className="text-gray-900">{a.label}</span>
-                    <span className="text-gray-600">฿{a.price.toLocaleString()}</span>
+                    <span className="text-gray-600">฿{a.price.toLocaleString('en-US')}</span>
                   </div>
                 ))}
               </div>
@@ -786,29 +786,29 @@ export default function CourseRentalPage() {
                 {breakdown && breakdown.packs.map((pack, i) => (
                   <div key={i} className="flex justify-between">
                     <span className="text-gray-700">{pack.label}</span>
-                    <span className="text-gray-900">฿{pack.price.toLocaleString()}</span>
+                    <span className="text-gray-900">฿{pack.price.toLocaleString('en-US')}</span>
                   </div>
                 ))}
                 {deliveryRequested && (
                   <div className="flex justify-between">
                     <span className="text-gray-700">Delivery & return</span>
-                    <span className="text-gray-900">฿{deliveryFee.toLocaleString()}</span>
+                    <span className="text-gray-900">฿{deliveryFee.toLocaleString('en-US')}</span>
                   </div>
                 )}
                 {addOns.map(a => (
                   <div key={a.key} className="flex justify-between">
                     <span className="text-gray-700">{a.label}</span>
-                    <span className="text-gray-900">฿{a.price.toLocaleString()}</span>
+                    <span className="text-gray-900">฿{a.price.toLocaleString('en-US')}</span>
                   </div>
                 ))}
                 {breakdown && breakdown.savings > 0 && (
                   <div className="flex justify-between text-green-600 text-xs">
-                    <span>You save ฿{breakdown.savings.toLocaleString()} vs daily rate</span>
+                    <span>You save ฿{breakdown.savings.toLocaleString('en-US')} vs daily rate</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-2 border-t border-green-300 font-bold text-base">
                   <span className="text-green-800">Total</span>
-                  <span className="text-green-800">฿{totalPrice.toLocaleString()}</span>
+                  <span className="text-green-800">฿{totalPrice.toLocaleString('en-US')}</span>
                 </div>
               </div>
             </div>
@@ -881,7 +881,7 @@ export default function CourseRentalPage() {
               </div>
               <div className="pt-2 border-t border-gray-100">
                 <p className="text-xs text-gray-500">Total</p>
-                <p className="text-xl font-bold text-green-700">฿{totalPrice.toLocaleString()}</p>
+                <p className="text-xl font-bold text-green-700">฿{totalPrice.toLocaleString('en-US')}</p>
               </div>
             </div>
 
