@@ -602,6 +602,32 @@ export function BookingDetails({
           .eq('id', session.user.id);
       }
 
+      // Pre-validate club rental availability before creating booking
+      if (selectedClubSetId && selectedClubRental && selectedClubRental !== 'none' && selectedClubRental !== 'standard') {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const availParams = new URLSearchParams({
+          type: 'indoor',
+          date: dateStr,
+          start_time: selectedTime!,
+          duration: String(duration),
+        });
+        const availRes = await fetch(`/api/clubs/availability?${availParams}`);
+        if (availRes.ok) {
+          const availData = await availRes.json();
+          const selectedSet = (availData.sets || []).find((s: { id: string }) => s.id === selectedClubSetId);
+          if (!selectedSet || selectedSet.available_count <= 0) {
+            toast.error('The selected club set is no longer available for your time slot. Please choose a different option.');
+            onClubRentalChange?.('standard');
+            onClubSetIdChange?.(null);
+            setIsSubmitting(false);
+            setShowLoadingOverlay(false);
+            return;
+          }
+        } else {
+          console.warn('[BookingDetails] Club availability pre-check failed, proceeding with server-side validation:', availRes.status);
+        }
+      }
+
       // Step 1: Create the booking record
       setLoadingStep(0); // Checking availability
       const createResponse = await fetch('/api/bookings/create', {

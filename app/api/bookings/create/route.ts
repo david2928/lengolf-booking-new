@@ -612,6 +612,37 @@ export async function POST(request: NextRequest) {
       console.log(`[Normal Booking] Booking type: ${derivedBookingType}`);
     }
 
+    // 7.7. Pre-validate club rental availability BEFORE creating booking
+    if (club_set_id && club_rental_type && club_rental_type !== 'none' && club_rental_type !== 'standard') {
+      const { data: clubAvailCount, error: clubAvailError } = await supabase.rpc('check_club_set_availability', {
+        p_set_id: club_set_id,
+        p_start_date: date,
+        p_end_date: date,
+        p_start_time: start_time || null,
+        p_duration_hours: parseFloat(duration) || null,
+        p_rental_type: 'indoor',
+        p_return_time: null,
+      });
+
+      if (clubAvailError) {
+        console.error('[ClubRental] Pre-validation availability check error:', clubAvailError);
+        return NextResponse.json(
+          { error: 'Failed to check club availability. Please try again.' },
+          { status: 500 }
+        );
+      }
+
+      if (!clubAvailCount || clubAvailCount <= 0) {
+        console.warn(`[ClubRental] Club set ${club_set_id} is no longer available for ${date} ${start_time}`);
+        return NextResponse.json(
+          { error: 'The selected club set is no longer available for your time slot. Please go back and choose a different option.' },
+          { status: 409 }
+        );
+      }
+
+      logTiming('Club rental pre-validation', 'success', { clubSetId: club_set_id, availableCount: clubAvailCount });
+    }
+
     // 8. Create the booking record with customer information AND booking_type
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -725,15 +756,55 @@ export async function POST(request: NextRequest) {
 
           if (rentalError) {
             console.error('[ClubRental] Failed to create rental:', rentalError);
-            // Don't fail the booking — club rental is ancillary
+            // Delete the booking since club rental was requested but couldn't be fulfilled
+            const { error: deleteError } = await supabase.from('bookings').delete().eq('id', booking.id);
+            if (deleteError) {
+              console.error(`[ClubRental] CRITICAL: Failed to delete booking ${booking.id} after rental failure:`, deleteError);
+            }
+            return NextResponse.json(
+              { error: 'The selected club set is no longer available. Please go back and choose a different option.' },
+              { status: 409 }
+            );
           } else {
+            // TOCTOU race condition check: re-verify availability after insert
+            const { data: postInsertCount } = await supabase.rpc('check_club_set_availability', {
+              p_set_id: club_set_id,
+              p_start_date: date,
+              p_end_date: date,
+              p_start_time: start_time || null,
+              p_duration_hours: parseFloat(duration) || null,
+              p_rental_type: 'indoor',
+              p_return_time: null,
+            });
+
+            if (postInsertCount !== null && postInsertCount < 0) {
+              console.warn(`[ClubRental] TOCTOU race detected, rolling back rental ${rentalCode} and booking ${booking.id}`);
+              await supabase.from('club_rentals').delete().eq('rental_code', rentalCode);
+              const { error: deleteError } = await supabase.from('bookings').delete().eq('id', booking.id);
+              if (deleteError) {
+                console.error(`[ClubRental] CRITICAL: Failed to delete booking ${booking.id} after TOCTOU rollback:`, deleteError);
+              }
+              return NextResponse.json(
+                { error: 'The selected club set was just booked by someone else. Please try again.' },
+                { status: 409 }
+              );
+            }
+
             clubRentalCode = rentalCode;
             console.log(`[ClubRental] Created rental ${rentalCode} for booking ${booking.id}, set: ${clubSet?.name}, price: ฿${rentalPrice}`);
           }
         }
       } catch (clubError) {
         console.error('[ClubRental] Error creating club rental:', clubError);
-        // Don't fail the booking
+        // Delete the booking since club rental was requested but couldn't be fulfilled
+        const { error: deleteError } = await supabase.from('bookings').delete().eq('id', booking.id);
+        if (deleteError) {
+          console.error(`[ClubRental] CRITICAL: Failed to delete booking ${booking.id} after rental error:`, deleteError);
+        }
+        return NextResponse.json(
+          { error: 'Failed to create club rental reservation. Please try again.' },
+          { status: 500 }
+        );
       }
       logTiming('Club rental creation', clubRentalCode ? 'success' : 'error', {
         clubSetId: club_set_id,
