@@ -122,6 +122,12 @@ EMAIL_TLS_REJECT_UNAUTHORIZED=false  # Set to false to allow self-signed certifi
 - Support for both regular and package-based bookings
 - Automated review request scheduling (30min post-session)
 
+### LIFF / iOS Compatibility
+- iOS Safari and LIFF WebView do NOT support `showPicker()` on hidden date inputs
+- Never use `sr-only` + programmatic `showPicker()`/`focus()`/`click()` for native inputs on mobile
+- Instead, overlay the native `<input>` with `opacity: 0` over a visual button so iOS gets a real user gesture
+- Always set `fontSize: '16px'` on mobile inputs to prevent iOS auto-zoom
+
 ### LIFF Language System
 - Language preference persisted to `customers.preferred_language` column
 - Each booking records `bookings.language` at creation time

@@ -76,50 +76,38 @@ export default function DateSelector({
           })}
         </div>
 
-        {/* Hidden date input - always rendered, triggered by Other Date button */}
-        <input
-          ref={dateInputRef}
-          type="date"
-          min={format(today, 'yyyy-MM-dd')}
-          value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
-          onChange={(e) => {
-            if (e.target.value) {
-              onDateSelect(new Date(e.target.value));
-            }
-          }}
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
-        />
-
-        {/* Other Date Button - directly opens native date picker */}
-        <button
-          onClick={() => {
-            const input = dateInputRef.current;
-            if (input) {
-              // showPicker() directly opens the native date picker overlay
-              if (typeof input.showPicker === 'function') {
-                try { input.showPicker(); return; } catch { /* fallback below */ }
+        {/* Other Date Button - native date input overlaid for iOS compatibility */}
+        <div className="relative">
+          <input
+            ref={dateInputRef}
+            type="date"
+            min={format(today, 'yyyy-MM-dd')}
+            value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
+            onChange={(e) => {
+              if (e.target.value) {
+                onDateSelect(new Date(e.target.value));
               }
-              // Fallback: focus + click for older browsers
-              input.focus();
-              input.click();
+            }}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            style={{ fontSize: '16px' }}
+            aria-label={t.otherDate}
+          />
+          <div
+            className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 pointer-events-none ${
+              selectedDate && !dates.some(d => format(d, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'))
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-700'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {selectedDate && !dates.some(d => format(d, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'))
+              ? format(selectedDate, 'EEEE, MMM d', { locale })
+              : t.otherDate
             }
-          }}
-          className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-            selectedDate && !dates.some(d => format(d, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'))
-              ? 'bg-primary text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          {selectedDate && !dates.some(d => format(d, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'))
-            ? format(selectedDate, 'EEEE, MMM d', { locale })
-            : t.otherDate
-          }
-        </button>
+          </div>
+        </div>
       </div>
 
       {/* Info Cards - Subtle */}
