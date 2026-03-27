@@ -42,7 +42,7 @@ export interface BayRatesConfig {
 export const timeSlots: TimeSlot[] = [
   {
     id: 'morning',
-    startHour: 10,
+    startHour: 9,
     endHour: 14,
     label: { en: 'Before 14:00', th: 'ก่อน 14:00', ja: '14:00前', zh: '14:00前' },
   },
@@ -145,20 +145,20 @@ export const bayRatesConfig: BayRatesConfig = {
   operatingHours: {
     weekday: {
       days: { en: 'Mon - Sun', th: 'จันทร์ - อาทิตย์', ja: '月〜日', zh: '周一至周日' },
-      open: '10:00',
+      open: '09:00',
       close: '23:00',
     },
     weekend: {
       days: { en: 'Fri - Sun', th: 'ศุกร์ - อาทิตย์', ja: '金〜日', zh: '周五至周日' },
-      open: '10:00',
+      open: '09:00',
       close: '23:00',
     },
   },
   appointmentNote: {
-    en: '*After 23:00 or before 10:00 only via appointment',
-    th: '*หลัง 23:00 หรือก่อน 10:00 กรุณานัดหมายล่วงหน้า',
-    ja: '*23:00以降または10:00前は要予約',
-    zh: '*23:00后或10:00前需提前预约',
+    en: '*After 23:00 or before 09:00 only via appointment',
+    th: '*หลัง 23:00 หรือก่อน 09:00 กรุณานัดหมายล่วงหน้า',
+    ja: '*23:00以降または09:00前は要予約',
+    zh: '*23:00后或09:00前需提前预约',
   },
   rateNote: {
     en: 'Rates are per bay and per hour',
