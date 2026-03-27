@@ -114,7 +114,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                 </div>
                 <div className="ml-3">
                   <p className="font-medium text-gray-900 mb-1">Opening Hours</p>
-                  <p className="text-sm text-gray-600">10:00 AM - 11:00 PM daily</p>
+                  <p className="text-sm text-gray-600">9:00 AM - 11:00 PM daily</p>
                   <p className="text-xs text-gray-500">Peak: 6-9 PM | Last booking: 10 PM</p>
                 </div>
               </div>
@@ -196,7 +196,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                   <ClockIcon className="h-4 w-4 text-green-600" />
                 </div>
                 <div className="ml-3 text-gray-600 leading-normal">
-                  <p><span className="font-medium">Opening Hours:</span> 10:00 AM - 11:00 PM daily</p>
+                  <p><span className="font-medium">Opening Hours:</span> 9:00 AM - 11:00 PM daily</p>
                   <p className="text-sm text-gray-500">Peak Hours: 6:00 PM - 9:00 PM</p>
                   <p className="text-sm text-gray-500">Last booking: 10:00 PM (1-hour session)</p>
                 </div>

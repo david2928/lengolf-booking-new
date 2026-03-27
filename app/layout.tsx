@@ -178,7 +178,7 @@ export default function RootLayout({
                   'Saturday',
                   'Sunday'
                 ],
-                opens: '10:00',
+                opens: '09:00',
                 closes: '23:00'
               },
               priceRange: '฿฿฿',

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
+import { getOpeningHour } from '@/lib/opening-hours';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
     const { data: slots, error } = await supabase.rpc('get_available_slots_with_max_hours_v2', {
       p_date: date,
       p_current_time_bangkok: currentTimeInBangkok,
-      p_start_hour: 10,
+      p_start_hour: getOpeningHour(date),
       p_end_hour: 23
     });
 

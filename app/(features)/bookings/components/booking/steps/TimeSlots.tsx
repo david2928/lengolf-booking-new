@@ -149,7 +149,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                       <h3 className="text-lg font-semibold text-white">
                         {period.charAt(0).toUpperCase() + period.slice(1)}
                         <span className="ml-2 text-sm font-normal opacity-90">
-                          {period === 'morning' ? '(10:00 - 13:00)' : 
+                          {period === 'morning' ? '(09:00 - 13:00)' :
                            period === 'afternoon' ? '(13:00 - 17:00)' : 
                            '(17:00 - 23:00)'}
                         </span>
