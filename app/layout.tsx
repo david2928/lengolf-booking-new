@@ -3,7 +3,11 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import Script from 'next/script';
-import ChatWidget from '@/components/chat/ChatWidget';
+import dynamic from 'next/dynamic';
+
+const ChatWidget = dynamic(() => import('@/components/chat/ChatWidget'), {
+  ssr: false,
+});
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from '@vercel/speed-insights/next';
 

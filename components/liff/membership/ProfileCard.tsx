@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { Language } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
 
@@ -20,9 +21,11 @@ export default function ProfileCard({ profile, language }: ProfileCardProps) {
       <div className="flex items-center gap-4">
         <div className="flex-shrink-0">
           {profile.pictureUrl ? (
-            <img
+            <Image
               src={profile.pictureUrl}
               alt={profile.name || ''}
+              width={64}
+              height={64}
               className="w-16 h-16 rounded-full object-cover"
             />
           ) : (

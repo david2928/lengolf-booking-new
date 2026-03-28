@@ -3,11 +3,20 @@
 import { useSession } from 'next-auth/react';
 import { format } from 'date-fns';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import dynamic from 'next/dynamic';
 import { Layout } from './components/booking/Layout';
 import { DateSelection } from './components/booking/steps/DateSelection';
-import { TimeSlots } from './components/booking/steps/TimeSlots';
-import { BookingDetails } from './components/booking/steps/BookingDetails';
 import { useBookingFlow } from './hooks/useBookingFlow';
+
+const TimeSlots = dynamic(
+  () => import('./components/booking/steps/TimeSlots').then(mod => ({ default: mod.TimeSlots })),
+  { loading: () => <div className="flex items-center justify-center min-h-[20rem]"><div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" /></div> }
+);
+
+const BookingDetails = dynamic(
+  () => import('./components/booking/steps/BookingDetails').then(mod => ({ default: mod.BookingDetails })),
+  { loading: () => <div className="flex items-center justify-center min-h-[20rem]"><div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" /></div> }
+);
 
 export default function BookingsPage() {
   

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Language } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
@@ -90,9 +91,11 @@ export default function LinkAccountForm({
         <div className="text-center mb-6">
           <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             {pictureUrl ? (
-              <img
+              <Image
                 src={pictureUrl}
                 alt={displayName}
+                width={80}
+                height={80}
                 className="w-20 h-20 rounded-full object-cover"
               />
             ) : (

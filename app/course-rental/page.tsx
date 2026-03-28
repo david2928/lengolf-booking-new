@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
 import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
@@ -290,11 +291,13 @@ export default function CourseRentalPage() {
                           } : undefined}
                         >
                           {heroImg ? (
-                            <img
+                            <Image
                               src={activeImg?.src || heroImg.src}
                               alt={activeImg?.alt || heroImg.alt}
-                              className="w-full h-full object-cover aspect-square"
+                              fill
+                              className="object-cover"
                               loading="lazy"
+                              sizes="(max-width: 640px) 112px, 144px"
                             />
                           ) : (
                             <div className="w-full aspect-square flex items-center justify-center text-gray-300">
@@ -377,7 +380,7 @@ export default function CourseRentalPage() {
                                 : 'border-gray-200 opacity-50 hover:opacity-100'
                             }`}
                           >
-                            <img src={img.src} alt={img.alt} className="w-full h-full object-cover" loading="lazy" />
+                            <Image src={img.src} alt={img.alt} width={56} height={56} className="w-full h-full object-cover" loading="lazy" />
                           </button>
                         ))}
                       </div>
@@ -932,10 +935,13 @@ export default function CourseRentalPage() {
           </div>
 
           <div className="flex-1 flex items-center justify-center w-full px-12 sm:px-20" onClick={e => e.stopPropagation()}>
-            <img
+            <Image
               src={lightboxImages[lightboxIndex].src}
               alt={lightboxImages[lightboxIndex].alt}
+              width={800}
+              height={600}
               className="max-w-full max-h-[70vh] object-contain"
+              unoptimized
             />
           </div>
 
@@ -970,7 +976,7 @@ export default function CourseRentalPage() {
                       i === lightboxIndex ? 'border-white' : 'border-transparent opacity-50 hover:opacity-80'
                     }`}
                   >
-                    <img src={img.src} alt={img.alt} className="w-full h-full object-cover" loading="lazy" />
+                    <Image src={img.src} alt={img.alt} width={48} height={48} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>

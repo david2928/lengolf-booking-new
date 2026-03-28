@@ -251,7 +251,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, 400px"
-                priority
+                loading="lazy"
               />
             </div>
             <div className="relative w-full h-44 rounded-lg overflow-hidden">
@@ -261,7 +261,7 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, 400px"
-                priority
+                loading="lazy"
               />
             </div>
           </div>

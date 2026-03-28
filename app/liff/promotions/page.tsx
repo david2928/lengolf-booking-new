@@ -23,56 +23,56 @@ export default function PromotionsPage() {
 
   // Initialize LIFF
   useEffect(() => {
+    const loadPromotionsAndReady = async () => {
+      const data = await fetchPromotions();
+      setPromotions(data);
+      setViewState('ready');
+    };
+
+    const initializePage = async () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const devMode = urlParams.get('dev') === 'true';
+
+        if (devMode && process.env.NODE_ENV === 'development') {
+          console.log('[DEV MODE] Promotions page loaded without LIFF');
+          await loadPromotionsAndReady();
+          return;
+        }
+
+        if (!window.liff) {
+          const script = document.createElement('script');
+          script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+          script.async = true;
+          document.body.appendChild(script);
+
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+          });
+        }
+
+        const liffId = process.env.NEXT_PUBLIC_LIFF_PROMOTIONS_ID;
+        if (!liffId || liffId === 'your-liff-id-here') {
+          console.log('[Promotions] LIFF ID not configured - running without LIFF features');
+          await loadPromotionsAndReady();
+          return;
+        }
+
+        await window.liff.init({ liffId }).catch((err) => {
+          console.warn('[Promotions] LIFF init failed - continuing without LIFF features:', err);
+        });
+
+        await loadPromotionsAndReady();
+      } catch (err) {
+        console.error('Error initializing page:', err);
+        setError(err instanceof Error ? err.message : 'Failed to initialize page');
+        await loadPromotionsAndReady(); // Continue anyway
+      }
+    };
+
     initializePage();
   }, []);
-
-  const loadPromotionsAndReady = async () => {
-    const data = await fetchPromotions();
-    setPromotions(data);
-    setViewState('ready');
-  };
-
-  const initializePage = async () => {
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const devMode = urlParams.get('dev') === 'true';
-
-      if (devMode && process.env.NODE_ENV === 'development') {
-        console.log('[DEV MODE] Promotions page loaded without LIFF');
-        await loadPromotionsAndReady();
-        return;
-      }
-
-      if (!window.liff) {
-        const script = document.createElement('script');
-        script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-        script.async = true;
-        document.body.appendChild(script);
-
-        await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = reject;
-        });
-      }
-
-      const liffId = process.env.NEXT_PUBLIC_LIFF_PROMOTIONS_ID;
-      if (!liffId || liffId === 'your-liff-id-here') {
-        console.log('[Promotions] LIFF ID not configured - running without LIFF features');
-        await loadPromotionsAndReady();
-        return;
-      }
-
-      await window.liff.init({ liffId }).catch((err) => {
-        console.warn('[Promotions] LIFF init failed - continuing without LIFF features:', err);
-      });
-
-      await loadPromotionsAndReady();
-    } catch (err) {
-      console.error('Error initializing page:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initialize page');
-      await loadPromotionsAndReady(); // Continue anyway
-    }
-  };
 
   const handleNext = useCallback(() => {
     // Clear interval FIRST to prevent race condition

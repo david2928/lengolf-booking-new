@@ -34,9 +34,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect root to bookings (non-LINE browsers)
+  // Serve bookings content at root URL (rewrite avoids 302 redirect round-trip)
   if (pathname === '/') {
-    return NextResponse.redirect(new URL('/bookings', request.url));
+    return NextResponse.rewrite(new URL('/bookings', request.url));
   }
 
   // LIFF pages don't need NextAuth session validation

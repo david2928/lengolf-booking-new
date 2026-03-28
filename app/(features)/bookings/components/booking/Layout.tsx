@@ -426,7 +426,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                 width={800}
                 height={600}
                 className="rounded-xl w-full h-auto object-contain"
-                priority
+                loading="lazy"
               />
             </div>
           </div>
@@ -454,7 +454,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                     width={800}
                     height={600}
                     className="rounded-xl w-full h-auto object-contain"
-                    priority
+                    loading="lazy"
                   />
                   
                   {promotions.length > 1 && (
@@ -535,6 +535,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                   width={500}
                   height={375}
                   className="rounded-xl w-auto h-auto mx-auto object-contain mb-4"
+                  loading="lazy"
                 />
                 <h4 className="text-lg font-semibold text-gray-900 mb-2">Book Professional Golf Lessons</h4>
                 <p className="text-gray-600 mb-4">

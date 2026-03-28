@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
 import { getPremiumClubPricing, getPremiumPlusClubPricing } from '@/types/golf-club-rental';
@@ -56,11 +57,13 @@ export default function GolfClubRentalPage() {
               onClick={() => setCarouselIndex(fullIndex >= 0 ? fullIndex : 0)}
               className="relative aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-gray-50 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md hover:border-green-300 transition-all duration-200 group"
             >
-              <img
+              <Image
                 src={img.src}
                 alt={img.alt}
-                className="w-full h-full object-contain p-1.5 sm:p-2 group-hover:scale-105 transition-transform duration-200"
+                fill
+                className="object-contain p-1.5 sm:p-2 group-hover:scale-105 transition-transform duration-200"
                 loading="lazy"
+                sizes="(max-width: 640px) 33vw, 200px"
               />
             </button>
             );
@@ -92,10 +95,13 @@ export default function GolfClubRentalPage() {
 
             {/* Main image */}
             <div className="flex-1 flex items-center justify-center w-full px-12 sm:px-20" onClick={(e) => e.stopPropagation()}>
-              <img
+              <Image
                 src={current.src}
                 alt={current.alt}
+                width={800}
+                height={600}
                 className="max-w-full max-h-[70vh] object-contain"
+                unoptimized
               />
             </div>
 
@@ -131,7 +137,7 @@ export default function GolfClubRentalPage() {
                     i === carouselIndex ? 'border-white' : 'border-transparent opacity-50 hover:opacity-80'
                   }`}
                 >
-                  <img src={img.src} alt={img.alt} className="w-full h-full object-contain bg-white/10 p-0.5" loading="lazy" />
+                  <Image src={img.src} alt={img.alt} width={48} height={48} className="w-full h-full object-contain bg-white/10 p-0.5" />
                 </button>
               ))}
             </div>
@@ -292,11 +298,13 @@ export default function GolfClubRentalPage() {
                     onClick={() => setCarouselIndex(imgNum - 1)}
                     className="relative aspect-square rounded-md overflow-hidden bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
                   >
-                    <img
+                    <Image
                       src={`${STORAGE_BASE}/clubs/premium-plus/${imgNum}.png`}
                       alt={`Paradym photo ${imgNum}`}
-                      className="w-full h-full object-contain p-1"
+                      fill
+                      className="object-contain p-1"
                       loading="lazy"
+                      sizes="100px"
                     />
                   </button>
                 ))}

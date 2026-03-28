@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import {
   CalendarIcon,
   ClockIcon,
@@ -1664,10 +1665,13 @@ export function BookingDetails({
 
                       {/* Main image */}
                       <div className="flex-1 flex items-center justify-center w-full px-12 sm:px-20" onClick={(e) => e.stopPropagation()}>
-                        <img
+                        <Image
                           src={current.src}
                           alt={current.alt}
+                          width={800}
+                          height={600}
                           className="max-w-full max-h-[70vh] object-contain"
+                          unoptimized
                         />
                       </div>
 
@@ -1703,7 +1707,7 @@ export function BookingDetails({
                               i === paradymCarouselIndex ? 'border-white' : 'border-transparent opacity-50 hover:opacity-80'
                             }`}
                           >
-                            <img src={img.src} alt={img.alt} className="w-full h-full object-contain bg-white/10 p-0.5" />
+                            <Image src={img.src} alt={img.alt} width={48} height={48} className="w-full h-full object-contain bg-white/10 p-0.5" />
                           </button>
                         ))}
                       </div>
