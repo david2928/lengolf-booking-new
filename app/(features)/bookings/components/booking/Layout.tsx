@@ -421,7 +421,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
             </div>
             <div className="relative">
               <Image
-                src="/images/lengolf_bay_rate.jpg"
+                src="https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets/golf/bay-rates.jpg"
                 alt="LENGOLF Bay Rates"
                 width={800}
                 height={600}

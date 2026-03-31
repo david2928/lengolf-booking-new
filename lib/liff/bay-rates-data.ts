@@ -65,20 +65,20 @@ export const timeSlots: TimeSlot[] = [
 const DEFAULT_RATES: Rate[] = [
   {
     timeSlotId: 'morning',
-    weekdayPrice: 500,
-    weekendPrice: 700,
+    weekdayPrice: 550,
+    weekendPrice: 750,
   },
   {
     timeSlotId: 'afternoon',
-    weekdayPrice: 700,
-    weekendPrice: 900,
+    weekdayPrice: 750,
+    weekendPrice: 950,
   },
   {
     timeSlotId: 'evening',
-    weekdayPrice: 700,
-    weekendPrice: 900,
-    originalWeekdayPrice: 1200,
-    originalWeekendPrice: 1400,
+    weekdayPrice: 750,
+    weekendPrice: 950,
+    originalWeekdayPrice: 1250,
+    originalWeekendPrice: 1450,
   },
 ];
 
@@ -96,23 +96,23 @@ export function getRates(): Rate[] {
   return [
     {
       timeSlotId: 'morning',
-      weekdayPrice: findPrice(bayRates.morning, /weekday/i, 500),
-      weekendPrice: findPrice(bayRates.morning, /weekend/i, 700),
+      weekdayPrice: findPrice(bayRates.morning, /weekday/i, 550),
+      weekendPrice: findPrice(bayRates.morning, /weekend/i, 750),
     },
     {
       timeSlotId: 'afternoon',
-      weekdayPrice: findPrice(bayRates.afternoon, /weekday/i, 700),
-      weekendPrice: findPrice(bayRates.afternoon, /weekend/i, 900),
+      weekdayPrice: findPrice(bayRates.afternoon, /weekday/i, 750),
+      weekendPrice: findPrice(bayRates.afternoon, /weekend/i, 950),
     },
     {
       timeSlotId: 'evening',
-      weekdayPrice: findPrice(bayRates.evening, /weekday/i, 700),
-      weekendPrice: findPrice(bayRates.evening, /weekend/i, 900),
+      weekdayPrice: findPrice(bayRates.evening, /weekday/i, 750),
+      weekendPrice: findPrice(bayRates.evening, /weekend/i, 950),
       // Promo pricing: evening shows original (higher) prices as strikethrough.
       // The API returns the current (promo) price. Original prices stay hardcoded
       // since they represent the "was" price for display only.
-      originalWeekdayPrice: 1200,
-      originalWeekendPrice: 1400,
+      originalWeekdayPrice: 1250,
+      originalWeekendPrice: 1450,
     },
   ];
 }
