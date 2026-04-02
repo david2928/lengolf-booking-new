@@ -6,16 +6,12 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const lineUserId = searchParams.get('lineUserId');
+    let customerId = searchParams.get('customerId');
 
-    if (!lineUserId) {
-      return NextResponse.json(
-        { error: 'lineUserId is required' },
-        { status: 400 }
-      );
-    }
+    const supabase = createAdminClient();
+    const cacheKey = `simulator_stats_${customerId || lineUserId}`;
 
     // Check cache first
-    const cacheKey = `simulator_stats_${lineUserId}`;
     const cachedData = appCache.get(cacheKey);
     if (cachedData) {
       return NextResponse.json(cachedData, {
@@ -23,26 +19,34 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const supabase = createAdminClient();
+    // If customerId is provided directly (demo mode), skip LINE lookup
+    if (!customerId) {
+      if (!lineUserId) {
+        return NextResponse.json(
+          { error: 'lineUserId is required' },
+          { status: 400 }
+        );
+      }
 
-    // Look up profile by LINE userId
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, customer_id')
-      .eq('provider', 'line')
-      .eq('provider_id', lineUserId)
-      .maybeSingle();
+      // Look up profile by LINE userId
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, customer_id')
+        .eq('provider', 'line')
+        .eq('provider_id', lineUserId)
+        .maybeSingle();
 
-    if (profileError) {
-      console.error('[Simulator Stats] Profile query error:', profileError);
-      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+      if (profileError) {
+        console.error('[Simulator Stats] Profile query error:', profileError);
+        return NextResponse.json({ error: 'Database error' }, { status: 500 });
+      }
+
+      if (!profile?.customer_id) {
+        return NextResponse.json({ status: 'not_matched' });
+      }
+
+      customerId = profile.customer_id as string;
     }
-
-    if (!profile?.customer_id) {
-      return NextResponse.json({ status: 'not_matched' });
-    }
-
-    const customerId = profile.customer_id as string;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sim = (supabase as any).schema('simulator');
