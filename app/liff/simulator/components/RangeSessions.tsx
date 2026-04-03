@@ -92,7 +92,7 @@ function ShotDetailView({ sessionId, onBack }: { sessionId: string; onBack: () =
           <h3 className="font-bold text-base">Range Session</h3>
           <div className="flex items-center gap-3 text-sm text-green-100 mt-1">
             <span>{sessionInfo.date}</span>
-            <span>&middot; Bay {sessionInfo.bayNumber}</span>
+            {/* bay info hidden from customers */}
             {sessionInfo.startTime && <span>&middot; {sessionInfo.startTime} – {sessionInfo.endTime}</span>}
           </div>
           <div className="text-sm text-green-100 mt-1">{sessionInfo.totalShots} shots</div>
@@ -180,7 +180,7 @@ export default function RangeSessions({ rangeData }: RangeSessionsProps) {
               >
                 <div className="text-xs text-gray-400">
                   {formatDate(session.date)}
-                  {session.bayNumber && <> &middot; Bay {session.bayNumber}</>}
+                  {/* bay info hidden from customers */}
                   {session.startTime && session.endTime && (
                     <> &middot; {session.startTime} – {session.endTime}</>
                   )}
