@@ -181,7 +181,8 @@ export default function LiffBookingPage() {
       setViewState('booking');
 
       // Check if new customer for promotions (non-blocking)
-      fetch('/api/user/has-bookings')
+      // Use LIFF-specific endpoint with lineUserId (NextAuth session not available in LIFF)
+      fetch(`/api/liff/booking/has-bookings?lineUserId=${encodeURIComponent(userId)}`)
         .then(res => res.json())
         .then(hbData => setIsNewCustomer(hbData.hasBookings === false))
         .catch(() => setIsNewCustomer(false));
