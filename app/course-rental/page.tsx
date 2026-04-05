@@ -75,6 +75,7 @@ export default function CourseRentalPage() {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [addOns, setAddOns] = useState<ClubRentalAddOn[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
+  const [preferredContact, setPreferredContact] = useState<'line' | 'email' | 'whatsapp'>('line');
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -171,6 +172,7 @@ export default function CourseRentalPage() {
           return_time: returnTime || undefined,
           notes: [
             `Payment: ${paymentMethod === 'cash' ? 'Cash (at LENGOLF)' : 'Payment link (credit/debit card or Shopee wallet)'}`,
+            `Contact via: ${preferredContact === 'line' ? 'LINE' : preferredContact === 'email' ? 'Email' : 'WhatsApp'}`,
             notes,
           ].filter(Boolean).join('\n') || undefined,
           source: 'website' as const,
@@ -726,6 +728,30 @@ export default function CourseRentalPage() {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Contact Method</label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { key: 'line' as const, label: 'LINE' },
+                  { key: 'email' as const, label: 'Email' },
+                  { key: 'whatsapp' as const, label: 'WhatsApp' },
+                ]).map(opt => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setPreferredContact(opt.key)}
+                    className={`py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                      preferredContact === opt.key
+                        ? 'border-green-600 bg-green-50 text-green-800'
+                        : 'border-gray-200 text-gray-600 hover:border-green-300'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button
               onClick={goNext}
               disabled={!contactName.trim() || !contactPhone.trim()}
@@ -816,6 +842,9 @@ export default function CourseRentalPage() {
               <p className="font-semibold text-gray-900">{contactName}</p>
               <p className="text-sm text-gray-500">{contactPhone}</p>
               {contactEmail && <p className="text-sm text-gray-500">{contactEmail}</p>}
+              <p className="text-sm text-gray-500 mt-1">
+                Preferred contact: {preferredContact === 'line' ? 'LINE' : preferredContact === 'email' ? 'Email' : 'WhatsApp'}
+              </p>
               {notes && <p className="text-sm text-gray-400 mt-1 italic">{notes}</p>}
             </div>
 
