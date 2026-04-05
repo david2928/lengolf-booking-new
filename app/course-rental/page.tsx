@@ -289,7 +289,7 @@ export default function CourseRentalPage() {
                       <div className="flex">
                         {/* Square thumbnail on left */}
                         <div
-                          className={`w-28 sm:w-36 flex-shrink-0 bg-gray-50 flex items-center justify-center ${heroImg ? '' : 'bg-gray-100'} ${isSelected && images.length > 1 ? 'cursor-zoom-in' : ''}`}
+                          className={`relative w-28 sm:w-36 flex-shrink-0 bg-gray-50 flex items-center justify-center ${heroImg ? '' : 'bg-gray-100'} ${isSelected && images.length > 1 ? 'cursor-zoom-in' : ''}`}
                           onClick={isSelected && images.length > 1 ? (e) => {
                             e.stopPropagation();
                             setLightboxImages(images);
