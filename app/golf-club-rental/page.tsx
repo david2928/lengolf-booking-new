@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
 import { getPremiumClubPricing, getPremiumPlusClubPricing } from '@/types/golf-club-rental';
-import { usePricingLoader } from '@/lib/pricing';
+import { usePricingLoader } from '@/lib/pricing-hook';
 import { CheckIcon } from '@heroicons/react/24/outline';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';

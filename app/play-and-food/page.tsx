@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
 import { getPlayFoodPackages } from '@/types/play-food-packages';
-import { usePricingLoader } from '@/lib/pricing';
+import { usePricingLoader } from '@/lib/pricing-hook';
 
 export default function PlayAndFoodPage() {
   const [isImageEnlarged, setIsImageEnlarged] = useState(false);

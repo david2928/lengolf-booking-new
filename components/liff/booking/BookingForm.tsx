@@ -6,7 +6,7 @@ import { bookingTranslations } from '@/lib/liff/booking-translations';
 import { getPlayFoodPackages, type PlayFoodPackage } from '@/types/play-food-packages';
 import { BayType } from '@/lib/bayConfig';
 import { getPremiumClubPricing, getPremiumPlusClubPricing } from '@/types/golf-club-rental';
-import { usePricingLoader } from '@/lib/pricing';
+import { usePricingLoader } from '@/lib/pricing-hook';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
