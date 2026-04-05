@@ -318,7 +318,7 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
 
         <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
             <p style="font-weight: bold; color: #1e40af; margin: 0 0 5px;">What happens next?</p>
-            <p style="color: #1e40af; margin: 0; font-size: 14px;">Our team will contact you within 2 hours via phone or LINE to confirm availability and arrange payment. No payment is required now.</p>
+            <p style="color: #1e40af; margin: 0; font-size: 14px;">Our team will contact you within 2 hours via LINE to confirm availability and send a payment link. You can pay by credit/debit card or Shopee wallet.</p>
         </div>
 
         <div style="font-size: 14px; color: #777; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">

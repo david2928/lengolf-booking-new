@@ -317,6 +317,7 @@ export async function POST(request: NextRequest) {
         addOnsText !== 'None' ? `Add-ons: ${addOnsText}` : null,
         `Total: ฿${total_price.toLocaleString()}`,
         `Source: ${source}`,
+        customerNotes ? `Notes: ${customerNotes}` : null,
         ``,
         `Please contact the customer to confirm availability and arrange payment.`,
       ].filter(Boolean).join('\n');

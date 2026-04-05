@@ -7,7 +7,7 @@ import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@her
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems } from '@/types/golf-club-rental';
-import { usePricingLoader } from '@/lib/pricing';
+import { usePricingLoader } from '@/lib/pricing-hook';
 import { pushEventToGtm } from '@/utils/gtm';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
@@ -923,6 +923,12 @@ export default function CourseRentalPage() {
                   </p>
                 )}
               </div>
+              <div>
+                <p className="text-xs text-gray-500">Payment</p>
+                <p className="font-medium text-gray-900">
+                  {paymentMethod === 'cash' ? 'Cash (at LENGOLF)' : 'Credit Card / QR (payment link)'}
+                </p>
+              </div>
               <div className="pt-2 border-t border-gray-100">
                 <p className="text-xs text-gray-500">Total</p>
                 <p className="text-xl font-bold text-green-700">฿{totalPrice.toLocaleString('en-US')}</p>
@@ -931,7 +937,11 @@ export default function CourseRentalPage() {
 
             <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
               <p className="font-medium mb-1">What happens next?</p>
-              <p>Our team will contact you within 2 hours via LINE to confirm your reservation and send a payment link.</p>
+              {paymentMethod === 'cash' ? (
+                <p>Our team will contact you within 2 hours via LINE to confirm your reservation. Pay with cash when you pick up the clubs.</p>
+              ) : (
+                <p>Our team will contact you within 2 hours via LINE to confirm your reservation and send a payment link.</p>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
