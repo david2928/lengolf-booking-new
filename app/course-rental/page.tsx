@@ -660,10 +660,14 @@ export default function CourseRentalPage() {
                   }`}
                 >
                   <p className="font-semibold text-gray-900">Payment Link</p>
-                  <p className="text-xs text-gray-500 mt-1">We&apos;ll send a payment link via LINE</p>
+                  <p className="text-xs text-gray-500 mt-1">We&apos;ll send you a payment link</p>
                 </button>
               </div>
             </div>
+
+            {deliveryRequested && !deliveryAddress.trim() && (
+              <p className="text-sm text-amber-600 text-center">Please enter a delivery address above to continue</p>
+            )}
 
             <button
               onClick={goNext}
@@ -888,7 +892,7 @@ export default function CourseRentalPage() {
               {paymentMethod === 'cash' ? (
                 <p>Pay with cash when you pick up the clubs at LENGOLF.</p>
               ) : (
-                <p>Our team will send you a payment link via LINE within 2 hours. You can pay by credit/debit card or Shopee wallet.</p>
+                <p>Our team will send you a payment link within 2 hours. You can pay by credit/debit card or Shopee wallet.</p>
               )}
             </div>
 
@@ -967,9 +971,9 @@ export default function CourseRentalPage() {
             <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
               <p className="font-medium mb-1">What happens next?</p>
               {paymentMethod === 'cash' ? (
-                <p>Our team will contact you within 2 hours via LINE to confirm your reservation. Pay with cash when you pick up the clubs.</p>
+                <p>Our team will contact you within 2 hours to confirm your reservation. Pay with cash when you pick up the clubs.</p>
               ) : (
-                <p>Our team will contact you within 2 hours via LINE to confirm your reservation and send a payment link.</p>
+                <p>Our team will contact you within 2 hours to confirm your reservation and send a payment link.</p>
               )}
             </div>
 
