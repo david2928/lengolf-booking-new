@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Language, bayRatesTranslations } from '@/lib/liff/translations';
 import { timeSlots, getRates, bayRatesConfig, getCurrentTimeSlot } from '@/lib/liff/bay-rates-data';
-import { usePricingLoader } from '@/lib/pricing';
+import { usePricingLoader } from '@/lib/pricing-hook';
 
 interface PricingTableProps {
   language: Language;

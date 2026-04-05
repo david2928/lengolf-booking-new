@@ -2,7 +2,7 @@
 
 import { getLessonPackages, packageIncludes } from '@/lib/liff/coaching-data';
 import { Language, coachingTranslations } from '@/lib/liff/translations';
-import { usePricingLoader } from '@/lib/pricing';
+import { usePricingLoader } from '@/lib/pricing-hook';
 
 interface PricingTableProps {
   language: Language;

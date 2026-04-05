@@ -3,11 +3,10 @@
  * Fetches product pricing from the shared pricing API (lengolf-forms).
  * Module-level cache with 30-minute TTL ensures fresh data without excessive requests.
  * All consumers fall back to hardcoded defaults if the API is unavailable.
+ *
+ * NOTE: This module is shared between server and client. Do NOT add 'use client'.
+ * The React hook lives in lib/pricing-hook.ts.
  */
-
-'use client';
-
-import { useState, useEffect } from 'react';
 
 // ─── Types (mirrors the API response) ────────────────────────────────────────
 
@@ -126,18 +125,3 @@ export function findPrice(
   return match?.price ?? fallback;
 }
 
-// ─── React Hook ──────────────────────────────────────────────────────────────
-
-/**
- * Hook that triggers pricing load on mount.
- * Causes a re-render when pricing becomes available so dynamic getters
- * return API data instead of hardcoded fallbacks.
- */
-export function usePricingLoader(): void {
-  const [, setLoaded] = useState(!!_catalog);
-
-  useEffect(() => {
-    if (_catalog) return;
-    loadPricing().then(() => setLoaded(true));
-  }, []);
-}

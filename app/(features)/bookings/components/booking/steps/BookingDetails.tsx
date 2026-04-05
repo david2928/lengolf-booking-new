@@ -24,7 +24,7 @@ import 'react-phone-number-input/style.css';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { getPlayFoodPackages } from '@/types/play-food-packages';
 import { getPremiumClubPricing, getPremiumPlusClubPricing, formatClubRentalInfo, getIndoorPrice } from '@/types/golf-club-rental';
-import { usePricingLoader } from '@/lib/pricing';
+import { usePricingLoader } from '@/lib/pricing-hook';
 import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import { BayInfoModal } from '../../BayInfoModal';

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Language, bayRatesTranslations } from '@/lib/liff/translations';
 import { getCurrentRate } from '@/lib/liff/bay-rates-data';
 import { getBusinessHoursStatus } from '@/lib/businessHours';
-import { usePricingLoader } from '@/lib/pricing';
+import { usePricingLoader } from '@/lib/pricing-hook';
 
 interface CurrentTimeIndicatorProps {
   language: Language;
