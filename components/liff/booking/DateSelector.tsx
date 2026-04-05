@@ -121,7 +121,7 @@ export default function DateSelector({
               </svg>
               <span className="text-sm">{{ en: 'Opening Hours', th: 'เวลาเปิดทำการ', ja: '営業時間', zh: '营业时间' }[language]}</span>
             </div>
-            <span className="text-sm font-medium text-gray-900">{{ en: '10:00 AM - 11:00 PM', th: '10:00 - 23:00 น.', ja: '10:00 - 23:00', zh: '10:00 - 23:00' }[language]}</span>
+            <span className="text-sm font-medium text-gray-900">{{ en: '9:00 AM - 11:00 PM', th: '9:00 - 23:00 น.', ja: '9:00 - 23:00', zh: '9:00 - 23:00' }[language]}</span>
           </div>
 
           {/* Location */}
