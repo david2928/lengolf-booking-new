@@ -36,7 +36,7 @@ export default function OpeningHours({ language }: OpeningHoursProps) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-gray-600 text-sm">{t.daily}</span>
-          <span className="font-semibold text-gray-900">10:00 AM - 11:00 PM</span>
+          <span className="font-semibold text-gray-900">9:00 AM - 11:00 PM</span>
         </div>
 
         <div className="pt-2 border-t border-gray-100">

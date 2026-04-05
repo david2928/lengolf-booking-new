@@ -45,7 +45,7 @@ const SharedFooter = () => {
           <div>
             <p className="text-[#005a32] font-semibold mb-3">Opening Hours</p>
             <p className="text-gray-600">
-              10am - 11pm<br />
+              9am - 11pm<br />
               Monday - Sunday
             </p>
           </div>
@@ -157,7 +157,7 @@ const SharedFooter = () => {
           <div className="text-center">
             <p className="text-[#005a32] font-semibold mb-2">Opening Hours</p>
             <p className="text-gray-600">
-              10am - 11pm<br />
+              9am - 11pm<br />
               Monday - Sunday
             </p>
           </div>
