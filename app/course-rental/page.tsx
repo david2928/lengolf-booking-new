@@ -7,7 +7,7 @@ import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@her
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems } from '@/types/golf-club-rental';
-import { usePricingLoader } from '@/lib/pricing-hook';
+import { usePricingLoader } from '@/lib/pricing';
 import { pushEventToGtm } from '@/utils/gtm';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
@@ -74,6 +74,7 @@ export default function CourseRentalPage() {
   const [deliveryRequested, setDeliveryRequested] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [addOns, setAddOns] = useState<ClubRentalAddOn[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -168,8 +169,11 @@ export default function CourseRentalPage() {
           delivery_address: deliveryRequested ? deliveryAddress : undefined,
           delivery_time: pickupTime || undefined,
           return_time: returnTime || undefined,
-          notes: notes || undefined,
-          source: 'booking_app' as const,
+          notes: [
+            `Payment: ${paymentMethod === 'cash' ? 'Cash (at LENGOLF)' : 'Payment link (credit/debit card or Shopee wallet)'}`,
+            notes,
+          ].filter(Boolean).join('\n') || undefined,
+          source: 'website' as const,
         }),
       });
 
@@ -283,7 +287,7 @@ export default function CourseRentalPage() {
                       <div className="flex">
                         {/* Square thumbnail on left */}
                         <div
-                          className={`relative w-28 sm:w-36 flex-shrink-0 bg-gray-50 flex items-center justify-center ${heroImg ? '' : 'bg-gray-100'} ${isSelected && images.length > 1 ? 'cursor-zoom-in' : ''}`}
+                          className={`w-28 sm:w-36 flex-shrink-0 bg-gray-50 flex items-center justify-center ${heroImg ? '' : 'bg-gray-100'} ${isSelected && images.length > 1 ? 'cursor-zoom-in' : ''}`}
                           onClick={isSelected && images.length > 1 ? (e) => {
                             e.stopPropagation();
                             setLightboxImages(images);
@@ -558,7 +562,7 @@ export default function CourseRentalPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDeliveryRequested(true)}
+                  onClick={() => { setDeliveryRequested(true); setPaymentMethod('card'); }}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     deliveryRequested
                       ? 'border-green-600 bg-green-50'
@@ -623,6 +627,39 @@ export default function CourseRentalPage() {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Payment method */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">Payment Method</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {!deliveryRequested && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                      paymentMethod === 'cash'
+                        ? 'border-green-600 bg-green-50'
+                        : 'border-gray-200 hover:border-green-300'
+                    }`}
+                  >
+                    <p className="font-semibold text-gray-900">Cash</p>
+                    <p className="text-xs text-gray-500 mt-1">Pay when you pick up at LENGOLF</p>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('card')}
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    paymentMethod === 'card'
+                      ? 'border-green-600 bg-green-50'
+                      : 'border-gray-200 hover:border-green-300'
+                  }`}
+                >
+                  <p className="font-semibold text-gray-900">Payment Link</p>
+                  <p className="text-xs text-gray-500 mt-1">We&apos;ll send a payment link via LINE</p>
+                </button>
               </div>
             </div>
 
@@ -819,7 +856,11 @@ export default function CourseRentalPage() {
             {/* Payment info */}
             <div className="bg-blue-50 rounded-xl border border-blue-200 p-4 text-sm text-blue-800">
               <p className="font-medium mb-1">Payment</p>
-              <p>Our team will contact you within 2 hours to arrange payment. No payment is required now.</p>
+              {paymentMethod === 'cash' ? (
+                <p>Pay with cash when you pick up the clubs at LENGOLF.</p>
+              ) : (
+                <p>Our team will send you a payment link via LINE within 2 hours. You can pay by credit/debit card or Shopee wallet.</p>
+              )}
             </div>
 
             {error && (
@@ -890,7 +931,7 @@ export default function CourseRentalPage() {
 
             <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
               <p className="font-medium mb-1">What happens next?</p>
-              <p>Our team will contact you within 2 hours via phone or LINE to confirm your reservation and arrange payment.</p>
+              <p>Our team will contact you within 2 hours via LINE to confirm your reservation and send a payment link.</p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
