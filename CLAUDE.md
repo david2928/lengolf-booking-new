@@ -155,3 +155,49 @@ EMAIL_TLS_REJECT_UNAUTHORIZED=false  # Set to false to allow self-signed certifi
 2. Run `npm run typecheck` to verify no TypeScript errors
 3. Fix any errors before proceeding
 4. Only then commit and push
+
+---
+
+## 🔒 Supabase Security — Non-Negotiable Rules
+
+This database was hardened after a security audit. Don't regress it.
+
+### The single most important rule
+
+`utils/supabase/server.ts` exports `createServerClient()` which uses
+`SUPABASE_SERVICE_ROLE_KEY` and is marked `import 'server-only'`.
+**Never change the env var back to `NEXT_PUBLIC_SUPABASE_ANON_KEY`** — a
+dozen+ server API routes depend on bypassing RLS via service_role, and
+the anon-level grants those routes used to rely on are now gone.
+
+### Client selection
+
+- **Server code** (`app/api/**`, `lib/`, `utils/`, server components, server
+  actions): use `createServerClient()` from `@/utils/supabase/server`.
+- **Browser code** (`'use client'`): use `createClient()` from
+  `@/utils/supabase/client`. This is the anon-key client. Because this
+  project uses real Supabase Auth via `@supabase/ssr` middleware, logged-in
+  customers carry a Supabase JWT and `auth.uid()` IS the profile id — so
+  RLS policies with `auth.uid() = id` DO fire. (Different from lengolf-forms,
+  which uses NextAuth and hits as pure anon.)
+
+### The browser-side table allowlist is not duplicated here
+
+Specific grants drift. See the shared security memory for the current list
+of tables the browser client is allowed to touch:
+`~/.claude/plans/humming-singing-candy.md`
+
+Adding a new browser-side `.from(...)` call to a table not on that list
+means writing a `GRANT` migration + updating the memory. Prefer moving
+the call to an API route using `createServerClient()` instead.
+
+### Hard red flags — stop and reconsider
+
+- A file under `app/api/**` importing from `@/utils/supabase/client` (the
+  anon browser factory) instead of `@/utils/supabase/server`
+- Any inline `createClient(..., process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)`
+- A browser component doing `.insert(...)` or `.update(...)` against a
+  non-profile table — refactor to an API route using `createServerClient()`
+- A migration that does `GRANT ALL ... TO anon` on anything in `public` or
+  on any of the admin schemas (accounting, finance, marketing, products,
+  simulator, ai_eval) — these are locked
