@@ -46,6 +46,57 @@ export default function GolfClubRentalPage() {
           </p>
         </div>
 
+        {/* Course Rental — prominent top banner with course hero image */}
+        <div className="mb-8 sm:mb-10 max-w-6xl mx-auto">
+          <div className="rounded-xl shadow-lg overflow-hidden relative" style={{ backgroundColor: '#003d1f' }}>
+            {/* Background course image */}
+            <div className="absolute inset-0">
+              <Image
+                src={`${STORAGE_BASE}/golf/hero-course-rental.webp`}
+                alt="Rent premium golf clubs for Bangkok golf courses"
+                fill
+                priority
+                className="object-cover"
+                sizes="(max-width: 1200px) 100vw, 1152px"
+              />
+              {/* Gradient overlay for text legibility */}
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(0,61,31,0.92) 0%, rgba(0,61,31,0.78) 45%, rgba(0,61,31,0.35) 100%)' }} />
+            </div>
+
+            <div className="relative p-5 sm:p-7 lg:p-9 flex flex-col md:flex-row md:items-center gap-4 md:gap-6 min-h-[220px] sm:min-h-[240px]">
+              <div className="flex-1 min-w-0 max-w-xl">
+                <div className="inline-block bg-white/20 text-white text-[11px] sm:text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full mb-2 sm:mb-3 backdrop-blur-sm">
+                  Playing a real course?
+                </div>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1.5 sm:mb-2 leading-tight drop-shadow-sm">
+                  Rent Premium Clubs for Your Round
+                </h2>
+                <p className="text-sm sm:text-base text-white/90 mb-3 sm:mb-4 drop-shadow-sm">
+                  Warbird, Shuttle &amp; Paradym sets &middot; <span className="font-semibold text-white">From ฿1,200/day</span> &middot; Delivery anywhere in Bangkok
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link
+                    href="/course-rental"
+                    className="inline-flex items-center gap-2 bg-white hover:bg-gray-100 px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg font-bold text-sm sm:text-base transition-colors shadow-lg"
+                    style={{ color: '#003d1f' }}
+                  >
+                    Book Course Rental
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                  <Link
+                    href="/course-rental"
+                    className="inline-flex items-center gap-1.5 text-white/95 hover:text-white px-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium underline underline-offset-4 decoration-white/50 hover:decoration-white transition-colors"
+                  >
+                    See pricing &amp; details
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Hero Image Gallery - clickable */}
         <div className="mb-8 sm:mb-10 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 max-w-4xl mx-auto">
           {HERO_IMAGES.map((img) => {
@@ -344,28 +395,6 @@ export default function GolfClubRentalPage() {
               </Link>
             </div>
           </div>
-        </div>
-
-        {/* On-Course Rental Cross-Link */}
-        <div className="mb-8 sm:mb-12 max-w-4xl mx-auto">
-          <Link
-            href="/course-rental"
-            className="block rounded-xl p-4 sm:p-5 border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
-          >
-            <div className="flex items-center justify-between gap-3 sm:gap-4">
-              <div>
-                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-0.5">Taking clubs to a golf course?</h3>
-                <p className="text-xs sm:text-sm text-gray-600">
-                  Full-day rates from ฿1,200 &middot; Multi-day packages &middot; Delivery in Bangkok
-                </p>
-              </div>
-              <div className="flex-shrink-0 text-gray-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
-          </Link>
         </div>
 
         {/* Why Choose LENGOLF Section */}

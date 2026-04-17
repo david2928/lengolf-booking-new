@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useVipStatus } from '@/components/providers/VipStatusProvider';
 import { toast } from 'react-hot-toast';
-import { ChevronDownIcon, XMarkIcon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, HomeIcon as HeroHomeIcon, UserIcon as HeroUserIcon, ShoppingBagIcon, GiftIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, XMarkIcon, CurrencyDollarIcon, AcademicCapIcon, FireIcon, HomeIcon as HeroHomeIcon, UserIcon as HeroUserIcon, ShoppingBagIcon, GiftIcon, TruckIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { FaLine } from 'react-icons/fa';
 import SharedFooter from '@/components/shared/Footer';
@@ -367,6 +367,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                 <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">SERVICES</p>
                 <ul className="mt-1 space-y-1">
                   <li><Link href="/golf-club-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><ShoppingBagIcon className="h-4 w-4" />Club Rental</Link></li>
+                  <li><Link href="/course-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TruckIcon className="h-4 w-4" />Course Rental</Link></li>
                   <li><Link href="/play-and-food" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><GiftIcon className="h-4 w-4" />Play & Food</Link></li>
                 </ul>
               </li>
