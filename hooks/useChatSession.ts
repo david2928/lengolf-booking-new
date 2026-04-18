@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { useSession } from 'next-auth/react';
 
@@ -44,6 +44,11 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
   const [unreadCount, setUnreadCount] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
 
+  // Coalesce concurrent initialize calls (e.g. handleOpen + autoConnect effect
+  // firing in the same tick) onto a single in-flight promise. Prevents two
+  // POSTs racing the unique-active-conversation-per-user index.
+  const initInFlight = useRef<Promise<void> | null>(null);
+
   const supabase = createClient();
 
   // Generate or retrieve session ID
@@ -71,9 +76,16 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
       return;
     }
 
+    // If an init is already in-flight (e.g. handleOpen fired immediately and
+    // the autoConnect effect re-fires on the same tick), reuse that promise.
+    if (initInFlight.current) {
+      return initInFlight.current;
+    }
+
     setIsLoading(true);
     setError(null);
 
+    const run = (async () => {
     try {
       const sessionId = getSessionId();
 
@@ -149,7 +161,15 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
     } finally {
       setIsLoading(false);
     }
-  }, [chatSession.isInitialized, session, getSessionId, supabase]);
+    })();
+
+    initInFlight.current = run;
+    try {
+      await run;
+    } finally {
+      initInFlight.current = null;
+    }
+  }, [chatSession.isInitialized, session, getSessionId, supabase, status]);
 
   // Load messages for conversation using API route
   const loadMessages = useCallback(async (conversationId: string) => {

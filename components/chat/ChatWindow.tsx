@@ -41,6 +41,16 @@ export function ChatWindow({
     void initializeChat();
   }, [initializeChat]);
 
+  // Lock body scroll while the chat is open so mobile swipes inside the
+  // fixed-overlay window don't bleed through and scroll the page underneath.
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
   // Mark messages from staff/bot as read while the window is open
   useEffect(() => {
     if (!chatSession.conversationId) {

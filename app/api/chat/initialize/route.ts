@@ -186,13 +186,21 @@ export async function POST(request: NextRequest) {
     let conversation;
 
     if (userInfo?.userId) {
-      // For authenticated users: find existing conversation
-      const { data: existingConv } = await serverSupabase
+      // For authenticated users: find existing conversation. Use limit(1) instead
+      // of maybeSingle() so historical duplicates don't throw — pick the newest.
+      const { data: existingConvs, error: existingErr } = await serverSupabase
         .from('web_chat_conversations')
         .select('*')
         .eq('user_id', userInfo.userId)
         .eq('is_active', true)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existingErr) {
+        throw new Error(`Failed to lookup conversation: ${existingErr.message}`);
+      }
+
+      const existingConv = existingConvs?.[0] ?? null;
 
       if (existingConv) {
         // Update existing conversation - only update session_id, NOT last_message_at
@@ -223,10 +231,45 @@ export async function POST(request: NextRequest) {
           .select()
           .single();
 
-        if (convError || !newConv) {
-          throw new Error(`Failed to create conversation: ${convError?.message}`);
+        if (convError) {
+          // Race: a parallel request created the conversation between our
+          // SELECT and INSERT. The partial unique index
+          // idx_unique_active_conversation_per_user enforces one active row
+          // per user. Re-fetch the winning row and adopt it.
+          if (convError.code === '23505') {
+            const { data: raceConvs, error: raceErr } = await serverSupabase
+              .from('web_chat_conversations')
+              .select('*')
+              .eq('user_id', userInfo.userId)
+              .eq('is_active', true)
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            const raceConv = raceConvs?.[0];
+            if (raceErr || !raceConv) {
+              throw new Error(`Failed to recover from conversation race: ${raceErr?.message ?? 'no row found after 23505'}`);
+            }
+
+            // Point the recovered conversation at our session for realtime.
+            const { data: updatedConv, error: updateError } = await serverSupabase
+              .from('web_chat_conversations')
+              .update({ session_id: chatSession.id })
+              .eq('id', raceConv.id)
+              .select()
+              .single();
+
+            if (updateError || !updatedConv) {
+              throw new Error(`Failed to update conversation after race: ${updateError?.message}`);
+            }
+            conversation = updatedConv;
+          } else {
+            throw new Error(`Failed to create conversation: ${convError.message}`);
+          }
+        } else if (!newConv) {
+          throw new Error('Failed to create conversation: No row returned');
+        } else {
+          conversation = newConv;
         }
-        conversation = newConv;
       }
     } else {
       // For anonymous users: find most recent conversation by session string
