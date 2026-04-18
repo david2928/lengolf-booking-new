@@ -23,7 +23,7 @@ import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { getPlayFoodPackages } from '@/types/play-food-packages';
-import { getPremiumClubPricing, getPremiumPlusClubPricing, formatClubRentalInfo, getIndoorPrice } from '@/types/golf-club-rental';
+import { getPremiumClubPricing, getPremiumPlusClubPricing, formatClubRentalInfo, getIndoorPrice, getSetThumbnailUrl } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
 import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
@@ -1063,6 +1063,7 @@ export function BookingDetails({
                 const isAvailable = clubSet.available_count > 0;
                 const price = getIndoorPrice(clubSet, duration);
                 const isPremiumPlus = clubSet.tier === 'premium-plus';
+                const thumbUrl = getSetThumbnailUrl(clubSet);
 
                 return (
                   <button
@@ -1074,7 +1075,7 @@ export function BookingDetails({
                       onClubRentalChange?.(clubSet.tier);
                       onClubSetIdChange?.(clubSet.id);
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-3 rounded-lg border text-left transition-colors ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors ${
                       !isAvailable
                         ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
                         : isSelected && isPremiumPlus
@@ -1085,6 +1086,20 @@ export function BookingDetails({
                     }`}
                     style={isSelected && isPremiumPlus ? { backgroundColor: '#003d1f' } : undefined}
                   >
+                    {thumbUrl && (
+                      <div className={`relative w-14 h-14 rounded-md overflow-hidden flex-shrink-0 flex items-center justify-center border ${
+                        isSelected && isPremiumPlus ? 'bg-white border-white/30' : 'bg-white border-gray-200'
+                      }`}>
+                        <Image
+                          src={thumbUrl}
+                          alt={`${clubSet.brand ?? ''} ${clubSet.model ?? ''}`.trim() || 'Club set'}
+                          fill
+                          className="object-contain p-0.5"
+                          sizes="56px"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className={`font-semibold text-xs ${
@@ -1105,7 +1120,7 @@ export function BookingDetails({
                         {clubSet.brand} {clubSet.model}
                       </div>
                     </div>
-                    <div className={`text-right flex-shrink-0 ml-2 ${
+                    <div className={`text-right flex-shrink-0 ml-auto ${
                       isSelected && isPremiumPlus ? 'text-white' :
                       isSelected ? 'text-green-700' : 'text-gray-900'
                     }`}>
@@ -1528,24 +1543,25 @@ export function BookingDetails({
                 {/* Club Options - flex col on mobile, 3-col on desktop, all cards stretch to equal height */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
                   {/* Standard Clubs */}
-                  <div className="bg-gray-50 rounded-lg border p-4 sm:p-5 opacity-75 flex flex-col">
-                    <h3 className="text-base sm:text-lg font-bold text-gray-600 mb-1">Standard Set</h3>
+                  <div className="bg-gray-50 rounded-lg border p-4 sm:p-5 opacity-90 flex flex-col">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-700 mb-1">Standard Set</h3>
+                    <p className="text-xs italic text-gray-500 mb-2">Quality house set &mdash; great for casual play</p>
                     <p className="text-xs sm:text-sm text-gray-500 mb-3">House Set &mdash; Men&apos;s &amp; Ladies&apos;</p>
 
                     <div className="mb-4 flex-1">
-                      <ul className="space-y-1 text-xs sm:text-sm text-gray-500">
+                      <ul className="space-y-1 text-xs sm:text-sm text-gray-600">
                         <li className="flex items-start">
-                          <CheckIcon className="h-3.5 w-3.5 text-gray-400 mr-1.5 mt-0.5 flex-shrink-0" />
+                          <CheckIcon className="h-3.5 w-3.5 text-gray-500 mr-1.5 mt-0.5 flex-shrink-0" />
                           <span>Driver, Irons (5&ndash;PW), Putter</span>
                         </li>
                         <li className="flex items-start">
-                          <CheckIcon className="h-3.5 w-3.5 text-gray-400 mr-1.5 mt-0.5 flex-shrink-0" />
+                          <CheckIcon className="h-3.5 w-3.5 text-gray-500 mr-1.5 mt-0.5 flex-shrink-0" />
                           <span>Golf bag included</span>
                         </li>
                       </ul>
                     </div>
 
-                    <div className="text-center py-2 px-3 rounded bg-gray-200 text-gray-500 font-semibold text-sm mt-auto">
+                    <div className="text-center py-2 px-3 rounded bg-gray-200 text-gray-700 font-semibold text-sm mt-auto">
                       Free with Booking
                     </div>
                   </div>
@@ -1556,8 +1572,32 @@ export function BookingDetails({
                       Premium
                     </div>
 
+                    {/* Warbird + Majesty photo pair */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="relative h-28 bg-white rounded-md overflow-hidden border border-gray-100">
+                        <Image
+                          src={getSetThumbnailUrl({ tier: 'premium', gender: 'mens' })}
+                          alt="Callaway Warbird full set"
+                          fill
+                          className="object-contain p-1"
+                          sizes="(max-width: 768px) 50vw, 200px"
+                          loading="lazy"
+                        />
+                      </div>
+                      <div className="relative h-28 bg-white rounded-md overflow-hidden border border-gray-100">
+                        <Image
+                          src={getSetThumbnailUrl({ tier: 'premium', gender: 'womens' })}
+                          alt="Majesty Shuttle full set"
+                          fill
+                          className="object-contain p-1"
+                          sizes="(max-width: 768px) 50vw, 200px"
+                          loading="lazy"
+                        />
+                      </div>
+                    </div>
+
                     <h3 className="text-base sm:text-lg font-bold text-green-800 mb-1">Premium Sets</h3>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-3">Callaway Warbird &amp; Majesty Shuttle</p>
+                    <p className="text-xs italic text-gray-600 mb-2">Callaway Warbird (men&apos;s) &middot; Majesty Shuttle (ladies&apos;)</p>
 
                     <div className="space-y-2 mb-4 flex-1">
                       <div className="border-l-3 border-green-500 pl-2.5">
@@ -1565,7 +1605,7 @@ export function BookingDetails({
                         <p className="text-[11px] sm:text-xs text-gray-600">Driver, 5-wood, Irons 5-9, PW, SW</p>
                       </div>
                       <div className="border-l-3 border-green-500 pl-2.5">
-                        <h4 className="font-semibold text-gray-800 text-xs sm:text-sm">Women&apos;s &mdash; Majesty Shuttle</h4>
+                        <h4 className="font-semibold text-gray-800 text-xs sm:text-sm">Ladies&apos; &mdash; Majesty Shuttle</h4>
                         <p className="text-[11px] sm:text-xs text-gray-600">12.5&deg; Driver, Irons 7-9, PW, 56&deg; SW</p>
                       </div>
                     </div>
@@ -1581,7 +1621,20 @@ export function BookingDetails({
                       Premium+
                     </div>
 
+                    {/* Paradym hero photo */}
+                    <div className="relative h-28 bg-white rounded-md overflow-hidden mb-3">
+                      <Image
+                        src={getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' })}
+                        alt="Callaway Paradym Forged Carbon"
+                        fill
+                        className="object-contain p-1"
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        loading="lazy"
+                      />
+                    </div>
+
                     <h3 className="text-base sm:text-lg font-bold text-white mb-1">Premium+ Set</h3>
+                    <p className="text-xs italic text-white/70 mb-2">Tour-grade Paradym Forged Carbon with Ventus TR shafts</p>
                     <p className="text-xs sm:text-sm text-white/80 mb-3">Callaway Paradym Forged Carbon</p>
 
                     <div className="space-y-1 mb-2 flex-1">
@@ -1606,7 +1659,7 @@ export function BookingDetails({
                       onClick={() => setParadymCarouselIndex(0)}
                       className="text-[11px] sm:text-xs text-white/70 hover:text-white underline mb-3 text-left"
                     >
-                      View photos &rarr;
+                      View all 18 photos &rarr;
                     </button>
 
                     <div className="text-center py-2 px-3 rounded font-semibold text-sm bg-white mt-auto" style={{ color: '#003d1f' }}>

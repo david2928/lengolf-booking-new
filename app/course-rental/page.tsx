@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import { useSession } from 'next-auth/react';
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
-import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CheckIcon, InformationCircleIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
-import { getCoursePriceBreakdown, getGearUpItems } from '@/types/golf-club-rental';
+import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
 import { pushEventToGtm } from '@/utils/gtm';
 
@@ -36,6 +39,16 @@ function getSetImageKey(set: { tier: string; gender: string }): string {
   return `${set.tier}_${set.gender}`;
 }
 
+// Preview sets shown on Step 1 (dates) as orientation - not a selection UI.
+// Real availability-filtered selection happens on Step 2.
+// Image URLs come from getSetThumbnailUrl() so they stay in sync with the
+// booking selector and the rental-options modal.
+const PREVIEW_SETS = [
+  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'mens' }), name: 'Callaway Warbird', meta: "Men's · Premium" },
+  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'womens' }), name: 'Majesty Shuttle', meta: "Ladies' · Premium" },
+  { img: getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' }), name: 'Callaway Paradym', meta: "Men's · Premium+" },
+];
+
 const TIME_OPTIONS = [
   '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
   '15:00', '16:00', '17:00', '18:00', '19:00', '20:00',
@@ -57,6 +70,7 @@ const STEP_LABELS: Record<Step, string> = {
 
 export default function CourseRentalPage() {
   usePricingLoader();
+  const { data: session, status: authStatus } = useSession();
   const GEAR_UP_ITEMS = getGearUpItems();
   const [step, setStep] = useState<Step>('dates');
   const [availableSets, setAvailableSets] = useState<RentalClubSetWithAvailability[]>([]);
@@ -77,9 +91,10 @@ export default function CourseRentalPage() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
   const [preferredContact, setPreferredContact] = useState<'line' | 'email' | 'whatsapp'>('line');
   const [contactName, setContactName] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
+  const [contactPhone, setContactPhone] = useState<string | undefined>(undefined);
   const [contactEmail, setContactEmail] = useState('');
   const [notes, setNotes] = useState('');
+  const [profilePrefilled, setProfilePrefilled] = useState(false);
 
   // Submission
   const [submitting, setSubmitting] = useState(false);
@@ -122,6 +137,68 @@ export default function CourseRentalPage() {
   useEffect(() => {
     setHeroIndex(0);
   }, [selectedSet?.id]);
+
+  // Prefill contact fields for logged-in customers from VIP profile.
+  // Mirrors the BookingDetails approach (sessionStorage cache + /api/vip/profile).
+  useEffect(() => {
+    if (authStatus !== 'authenticated' || !session?.user?.id || profilePrefilled) return;
+
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      try {
+        const cacheKey = `vip_profile_${session.user.id}`;
+        let vipProfile: { name?: string; email?: string; phoneNumber?: string } | null = null;
+
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (Date.now() - (parsed.timestamp ?? 0) < 5 * 60 * 1000) {
+              vipProfile = parsed.data;
+            }
+          } catch {
+            // stale cache, fall through
+          }
+        }
+
+        if (!vipProfile) {
+          const res = await fetch('/api/vip/profile');
+          if (!res.ok) return;
+          vipProfile = await res.json();
+          sessionStorage.setItem(cacheKey, JSON.stringify({ data: vipProfile, timestamp: Date.now() }));
+        }
+
+        if (cancelled || !vipProfile) return;
+
+        // Only fill empty fields so we never clobber what the user already typed.
+        if (vipProfile.name) setContactName(prev => prev || vipProfile!.name!);
+        if (vipProfile.email) setContactEmail(prev => prev || vipProfile!.email!);
+        if (vipProfile.phoneNumber) {
+          let formatted = vipProfile.phoneNumber;
+          // Normalize Thai numbers into E.164 (react-phone-number-input expects +NNN...).
+          if (!formatted.startsWith('+')) {
+            if (formatted.startsWith('0') && formatted.length === 10) {
+              formatted = '+66' + formatted.slice(1);
+            } else if (formatted.length === 9) {
+              formatted = '+66' + formatted;
+            }
+          }
+          setContactPhone(prev => prev || formatted);
+        }
+
+        setProfilePrefilled(true);
+      } catch {
+        // silent - guest fallback still works
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus, session?.user?.id, profilePrefilled]);
 
   // Pricing — optimal combo
   const breakdown = (selectedSet && durationDays > 0) ? getCoursePriceBreakdown(selectedSet, durationDays) : null;
@@ -532,6 +609,37 @@ export default function CourseRentalPage() {
               </div>
             </details>
 
+            {/* FYI strip - shows the sets that can be rented. Availability is checked on Step 2. */}
+            <div>
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
+                <InformationCircleIcon className="w-3.5 h-3.5" />
+                <span>Clubs you can rent</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {PREVIEW_SETS.map((s) => (
+                  <div key={s.name} className="flex flex-col items-center">
+                    <div className="relative h-16 sm:h-20 w-full bg-white rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
+                      <Image
+                        src={s.img}
+                        alt={s.name}
+                        fill
+                        className="object-contain p-1"
+                        loading="lazy"
+                        sizes="(max-width: 640px) 33vw, 200px"
+                      />
+                    </div>
+                    <div className="text-center mt-1.5">
+                      <div className="text-[10px] sm:text-[11px] font-medium text-gray-700 leading-tight">{s.name}</div>
+                      <div className="text-[9px] sm:text-[10px] text-gray-400">{s.meta}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2 text-center">
+                Pick your set in the next step once we check availability for these dates.
+              </p>
+            </div>
+
             <button
               onClick={goNext}
               disabled={!startDate || !endDate || !pickupTime || !returnTime}
@@ -699,13 +807,30 @@ export default function CourseRentalPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Phone Number <span className="text-red-500">*</span>
               </label>
-              <input
-                type="tel"
+              <PhoneInput
+                international
+                defaultCountry="TH"
+                placeholder="Enter phone number"
                 value={contactPhone}
-                onChange={e => setContactPhone(e.target.value)}
-                placeholder="e.g. 096-668-2335"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
+                onChange={setContactPhone}
+                aria-invalid={!!contactPhone && !isValidPhoneNumber(contactPhone)}
+                aria-describedby="course-rental-phone-hint"
+                className={`w-full h-12 px-3 py-2 rounded-xl border custom-phone-input focus:ring-1 focus:ring-green-500 ${
+                  contactPhone && isValidPhoneNumber(contactPhone)
+                    ? 'border-green-500 focus:border-green-500'
+                    : 'border-gray-300 focus:border-green-500'
+                }`}
               />
+              {!contactPhone && (
+                <p id="course-rental-phone-hint" className="mt-1 text-xs text-gray-500">
+                  Please select your country code and enter your phone number.
+                </p>
+              )}
+              {contactPhone && !isValidPhoneNumber(contactPhone) && (
+                <p id="course-rental-phone-hint" className="mt-1 text-xs text-red-600" role="alert">
+                  Please enter a valid phone number.
+                </p>
+              )}
             </div>
 
             <div>
@@ -758,7 +883,7 @@ export default function CourseRentalPage() {
 
             <button
               onClick={goNext}
-              disabled={!contactName.trim() || !contactPhone.trim()}
+              disabled={!contactName.trim() || !contactPhone || !isValidPhoneNumber(contactPhone)}
               className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               Review Booking
