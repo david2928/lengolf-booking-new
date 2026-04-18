@@ -169,6 +169,20 @@ export function formatClubRentalInfo(clubId: string): string | null {
   return `Golf Club Rental: ${club.name}`;
 }
 
+/**
+ * Thumbnail URL for a rental set (tier + gender -> hero photo in Supabase storage).
+ * Used by the booking flow selector, the club rental modal, and the /course-rental preview.
+ * Falls back to the empty string if no mapping exists - callers should check before rendering.
+ */
+const CLUB_IMAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets/clubs';
+
+export function getSetThumbnailUrl(set: { tier: string; gender: string }): string {
+  if (set.tier === 'premium-plus') return `${CLUB_IMAGE_BASE}/premium-plus/2.png`;
+  if (set.tier === 'premium' && set.gender === 'mens') return `${CLUB_IMAGE_BASE}/warbird/warbird-full-set.webp`;
+  if (set.tier === 'premium' && set.gender === 'womens') return `${CLUB_IMAGE_BASE}/premium-womens/majesty-shuttle-full-set.jpg`;
+  return '';
+}
+
 // --- New DB-backed types for club rental booking system ---
 
 /** A bookable club set from the rental_club_sets table */

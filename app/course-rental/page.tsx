@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
-import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CheckIcon, InformationCircleIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems } from '@/types/golf-club-rental';
@@ -35,6 +35,26 @@ const SET_IMAGES: Record<string, { src: string; alt: string }[]> = {
 function getSetImageKey(set: { tier: string; gender: string }): string {
   return `${set.tier}_${set.gender}`;
 }
+
+// Preview sets shown on Step 1 (dates) as orientation - not a selection UI.
+// Real availability-filtered selection happens on Step 2.
+const PREVIEW_SETS = [
+  {
+    img: `${STORAGE_BASE}/clubs/warbird/warbird-full-set.webp`,
+    name: 'Callaway Warbird',
+    meta: "Men's · Premium",
+  },
+  {
+    img: `${STORAGE_BASE}/clubs/premium-womens/majesty-shuttle-full-set.jpg`,
+    name: 'Majesty Shuttle',
+    meta: "Ladies' · Premium",
+  },
+  {
+    img: `${STORAGE_BASE}/clubs/premium-plus/2.png`,
+    name: 'Callaway Paradym',
+    meta: "Men's · Premium+",
+  },
+];
 
 const TIME_OPTIONS = [
   '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
@@ -531,6 +551,37 @@ export default function CourseRentalPage() {
                 </p>
               </div>
             </details>
+
+            {/* FYI strip - shows the sets that can be rented. Availability is checked on Step 2. */}
+            <div>
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
+                <InformationCircleIcon className="w-3.5 h-3.5" />
+                <span>Clubs you can rent</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {PREVIEW_SETS.map((s) => (
+                  <div key={s.name} className="flex flex-col items-center">
+                    <div className="relative h-16 sm:h-20 w-full bg-white rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
+                      <Image
+                        src={s.img}
+                        alt={s.name}
+                        fill
+                        className="object-contain p-1"
+                        loading="lazy"
+                        sizes="(max-width: 640px) 33vw, 200px"
+                      />
+                    </div>
+                    <div className="text-center mt-1.5">
+                      <div className="text-[10px] sm:text-[11px] font-medium text-gray-700 leading-tight">{s.name}</div>
+                      <div className="text-[9px] sm:text-[10px] text-gray-400">{s.meta}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2 text-center">
+                Pick your set in the next step once we check availability for these dates.
+              </p>
+            </div>
 
             <button
               onClick={goNext}
