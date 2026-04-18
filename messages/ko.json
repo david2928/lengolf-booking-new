@@ -1,1 +1,39 @@
-{}
+{
+  "common": {
+    "continue": "Continue",
+    "back": "Back",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "save": "Save",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "nav": {
+    "bookNow": "Book Now",
+    "myBookings": "My Bookings",
+    "dashboard": "Dashboard",
+    "profile": "Profile",
+    "packages": "Packages",
+    "membership": "Membership",
+    "signIn": "Sign In",
+    "signOut": "Sign Out"
+  },
+  "auth": {},
+  "bookings": {},
+  "vip": {},
+  "playAndFood": {},
+  "clubRental": {},
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "unauthorized": "You must be signed in to do this.",
+    "slotUnavailable": "That time slot is no longer available.",
+    "network": "Network error. Please check your connection."
+  },
+  "emails": {
+    "bookingConfirmation": {},
+    "reviewRequest": {},
+    "linkAccount": {}
+  }
+}
