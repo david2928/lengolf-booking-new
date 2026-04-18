@@ -8,7 +8,8 @@
     "save": "Save",
     "close": "Close",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "languageSwitcherLabel": "Language"
   },
   "nav": {
     "bookNow": "Book Now",

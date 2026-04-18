@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { TranslatedFormMessage } from '@/components/shared/TranslatedFormMessage';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { linkAccount } from '../../lib/vipService';
 import { VipApiError } from '../../types/vip';
@@ -138,12 +139,11 @@ const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName 
                         }`}
                       />
                     </FormControl>
-                    {fieldState.error?.message && (
-                      <p className="text-[0.8rem] font-medium text-destructive">
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                        {t(fieldState.error.message as any)}
-                      </p>
-                    )}
+                    <TranslatedFormMessage>
+                      {fieldState.error?.message &&
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        t(fieldState.error.message as any)}
+                    </TranslatedFormMessage>
                   </FormItem>
                 )}
               />

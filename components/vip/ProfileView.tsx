@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox'; // Assuming checkbox.tsx
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { TranslatedFormMessage } from '@/components/shared/TranslatedFormMessage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { getVipProfile, updateVipProfile } from '../../lib/vipService'; // VipApiError removed
 import { VipProfileResponse, UpdateVipProfileRequest, VipApiError } from '../../types/vip'; // VipApiError imported here
@@ -155,12 +156,11 @@ const ProfileView = () => {
                 <FormItem>
                   <FormLabel>{t('displayName')}</FormLabel>
                   <FormControl><Input placeholder={t('displayNamePlaceholder')} {...field} /></FormControl>
-                  {fieldState.error?.message && (
-                    <p className="text-[0.8rem] font-medium text-destructive">
-                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                      {t(fieldState.error.message as any)}
-                    </p>
-                  )}
+                  <TranslatedFormMessage>
+                    {fieldState.error?.message &&
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      t(fieldState.error.message as any)}
+                  </TranslatedFormMessage>
                 </FormItem>
               )}
             />
@@ -171,12 +171,11 @@ const ProfileView = () => {
                 <FormItem>
                   <FormLabel>{t('emailAddress')}</FormLabel>
                   <FormControl><Input type="email" placeholder={t('emailPlaceholder')} {...field} /></FormControl>
-                  {fieldState.error?.message && (
-                    <p className="text-[0.8rem] font-medium text-destructive">
-                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                      {t(fieldState.error.message as any)}
-                    </p>
-                  )}
+                  <TranslatedFormMessage>
+                    {fieldState.error?.message &&
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      t(fieldState.error.message as any)}
+                  </TranslatedFormMessage>
                 </FormItem>
               )}
             />

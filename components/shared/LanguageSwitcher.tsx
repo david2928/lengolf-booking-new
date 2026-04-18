@@ -1,6 +1,6 @@
 'use client';
 
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useTransition } from 'react';
 import { useSession } from 'next-auth/react';
 import { usePathname, useRouter } from '@/i18n/navigation';
@@ -22,6 +22,7 @@ const VARIANT_CLASSES: Record<NonNullable<LanguageSwitcherProps['variant']>, str
 
 export function LanguageSwitcher({ variant = 'dark' }: LanguageSwitcherProps = {}) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('common');
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
@@ -46,7 +47,7 @@ export function LanguageSwitcher({ variant = 'dark' }: LanguageSwitcherProps = {
 
   return (
     <select
-      aria-label="Language"
+      aria-label={t('languageSwitcherLabel')}
       value={locale}
       onChange={(e) => handleChange(e.target.value as Locale)}
       disabled={pending}
