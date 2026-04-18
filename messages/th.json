@@ -11,7 +11,7 @@
     "no": "No"
   },
   "nav": {
-    "bookNow": "Book Now",
+    "bookNow": "จองเลย",
     "myBookings": "My Bookings",
     "dashboard": "Dashboard",
     "profile": "Profile",
@@ -62,11 +62,11 @@
     },
     "layout": {
       "headerBadge": "Booking",
-      "bayRates": "Bay Rates",
+      "bayRates": "ราคาห้อง",
       "promotions": "Promotions",
-      "lessons": "Lessons",
+      "lessons": "เรียนกอล์ฟ",
       "golfLessons": "Golf Lessons",
-      "clubRental": "Club Rental",
+      "clubRental": "เช่าไม้กอล์ฟ",
       "courseRental": "Course Rental",
       "playAndFood": "Play & Food",
       "myAccount": "My Account",
@@ -675,7 +675,7 @@
   },
   "clubRental": {
     "hero": {
-      "badge": "For use in your LENGOLF bay",
+      "badge": "สำหรับใช้ในห้องซิม LENGOLF",
       "titleGreen": "Premium Clubs,",
       "titleBlack": " No Commitment",
       "subtitle": "Free standard sets with every booking. Upgrade to Callaway Warbird, Majesty Shuttle, or Callaway Paradym for the ultimate simulator experience.",
@@ -695,14 +695,14 @@
     },
     "pricingTable": {
       "heading": "Club Upgrade Pricing",
-      "durationHeader": "Duration",
-      "premiumHeader": "Premium",
-      "premiumPlusHeader": "Premium+",
+      "durationHeader": "ระยะเวลา",
+      "premiumHeader": "พรีเมียม",
+      "premiumPlusHeader": "พรีเมียม+",
       "footnote": "Standard clubs are always free with any bay booking. In-bay use only."
     },
     "sets": {
       "sectionHeading": "Available Golf Club Sets",
-      "standardTitle": "Standard Set",
+      "standardTitle": "ชุดมาตรฐาน",
       "standardSubtitle": "House Set",
       "standardDescription": "Men's & Ladies' sets included free with every bay booking",
       "includesLabel": "Includes:",
@@ -739,9 +739,9 @@
       "heading": "Why Choose LENGOLF Golf Club Rental?",
       "feature1Title": "Premium Quality Equipment",
       "feature1Body": "Our rental clubs are high-quality models from top brands like Callaway and Majesty. All clubs are professionally maintained and cleaned after each use.",
-      "feature2Title": "Free Standard Sets",
+      "feature2Title": "ไม้มาตรฐานฟรี",
       "feature2Body": "Every bay booking includes complimentary standard clubs at no extra charge. Upgrade to Premium or Premium+ anytime during your session.",
-      "feature3Title": "Flexible Duration",
+      "feature3Title": "ระยะเวลายืดหยุ่น",
       "feature3Body": "Rent premium clubs by the hour — 1, 2, or 4-hour options available. No minimum commitment, just upgrade any bay session.",
       "feature4Title": "Easy Online Booking",
       "feature4Body": "Select your preferred clubs when booking your simulator bay online. No deposits required, just show up and play!"

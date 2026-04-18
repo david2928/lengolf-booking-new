@@ -11,7 +11,7 @@
     "no": "No"
   },
   "nav": {
-    "bookNow": "Book Now",
+    "bookNow": "立即预订",
     "myBookings": "My Bookings",
     "dashboard": "Dashboard",
     "profile": "Profile",
@@ -62,11 +62,11 @@
     },
     "layout": {
       "headerBadge": "Booking",
-      "bayRates": "Bay Rates",
+      "bayRates": "球位收费",
       "promotions": "Promotions",
-      "lessons": "Lessons",
+      "lessons": "教学",
       "golfLessons": "Golf Lessons",
-      "clubRental": "Club Rental",
+      "clubRental": "球杆租借",
       "courseRental": "Course Rental",
       "playAndFood": "Play & Food",
       "myAccount": "My Account",
@@ -695,9 +695,9 @@
     },
     "pricingTable": {
       "heading": "Club Upgrade Pricing",
-      "durationHeader": "Duration",
-      "premiumHeader": "Premium",
-      "premiumPlusHeader": "Premium+",
+      "durationHeader": "租借时长",
+      "premiumHeader": "高级",
+      "premiumPlusHeader": "高级+",
       "footnote": "Standard clubs are always free with any bay booking. In-bay use only."
     },
     "sets": {

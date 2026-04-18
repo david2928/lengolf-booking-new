@@ -11,7 +11,7 @@
     "no": "No"
   },
   "nav": {
-    "bookNow": "Book Now",
+    "bookNow": "今すぐ予約",
     "myBookings": "My Bookings",
     "dashboard": "Dashboard",
     "profile": "Profile",
@@ -62,11 +62,11 @@
     },
     "layout": {
       "headerBadge": "Booking",
-      "bayRates": "Bay Rates",
+      "bayRates": "ベイ料金",
       "promotions": "Promotions",
-      "lessons": "Lessons",
+      "lessons": "レッスン",
       "golfLessons": "Golf Lessons",
-      "clubRental": "Club Rental",
+      "clubRental": "クラブレンタル",
       "courseRental": "Course Rental",
       "playAndFood": "Play & Food",
       "myAccount": "My Account",
@@ -695,9 +695,9 @@
     },
     "pricingTable": {
       "heading": "Club Upgrade Pricing",
-      "durationHeader": "Duration",
-      "premiumHeader": "Premium",
-      "premiumPlusHeader": "Premium+",
+      "durationHeader": "期間",
+      "premiumHeader": "プレミアム",
+      "premiumPlusHeader": "プレミアム+",
       "footnote": "Standard clubs are always free with any bay booking. In-bay use only."
     },
     "sets": {
