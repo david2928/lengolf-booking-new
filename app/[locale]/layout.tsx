@@ -2,21 +2,12 @@ import type { Metadata, Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { routing, isValidLocale } from '@/i18n/routing';
-import { Poppins } from 'next/font/google';
-import '../globals.css';
-import { Providers } from '../providers';
 import Script from 'next/script';
-import ChatWidgetLoader from '@/components/chat/ChatWidgetLoader';
 import { Analytics } from '@vercel/analytics/next';
 import type { ReactNode } from 'react';
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-poppins',
-  display: 'swap',
-});
+import { routing, isValidLocale } from '@/i18n/routing';
+import ChatWidgetLoader from '@/components/chat/ChatWidgetLoader';
+import { RootShell } from '@/components/layouts/RootShell';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -109,28 +100,15 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
-export default async function LocaleLayout({
-  children,
-  params,
-}: {
-  children: ReactNode;
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-  if (!isValidLocale(locale)) {
-    notFound();
-  }
-  setRequestLocale(locale);
-
+function LocaleHeadScripts() {
   return (
-    <html lang={locale} className={`${poppins.variable} font-sans`}>
-      <head>
-        {/* Preconnect to third-party origins */}
-        <link rel="preconnect" href="https://www.googletagmanager.com" />
-        <link rel="preconnect" href="https://connect.facebook.net" />
-        {/* Google Tag Manager + gtag config */}
-        <Script id="google-tag-manager" strategy="afterInteractive">
-          {`
+    <>
+      {/* Preconnect to third-party origins */}
+      <link rel="preconnect" href="https://www.googletagmanager.com" />
+      <link rel="preconnect" href="https://connect.facebook.net" />
+      {/* Google Tag Manager + gtag config */}
+      <Script id="google-tag-manager" strategy="afterInteractive">
+        {`
             // Safety check for TikTok Pixel
             window.ttq = window.ttq || {
               track: function() {},
@@ -156,87 +134,105 @@ export default async function LocaleLayout({
               }
             });
           `}
-        </Script>
+      </Script>
 
-        {/* JSON-LD Structured Data */}
-        <Script
-          id="structured-data"
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'SportsActivityLocation',
-              name: 'LENGOLF Bangkok',
-              description: 'Premier indoor golf simulator facility in Bangkok with state-of-the-art Korean simulators, professional coaching, and great amenities.',
-              url: 'https://booking.len.golf',
-              telephone: '+66966682335',
-              address: {
-                '@type': 'PostalAddress',
-                streetAddress: 'The Mercury Ville @ BTS Chidlom, Floor 4',
-                addressLocality: 'Bangkok',
-                addressRegion: 'Bangkok',
-                postalCode: '10330',
-                addressCountry: 'TH'
+      {/* JSON-LD Structured Data */}
+      <Script
+        id="structured-data"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SportsActivityLocation',
+            name: 'LENGOLF Bangkok',
+            description: 'Premier indoor golf simulator facility in Bangkok with state-of-the-art Korean simulators, professional coaching, and great amenities.',
+            url: 'https://booking.len.golf',
+            telephone: '+66966682335',
+            address: {
+              '@type': 'PostalAddress',
+              streetAddress: 'The Mercury Ville @ BTS Chidlom, Floor 4',
+              addressLocality: 'Bangkok',
+              addressRegion: 'Bangkok',
+              postalCode: '10330',
+              addressCountry: 'TH'
+            },
+            geo: {
+              '@type': 'GeoCoordinates',
+              latitude: '13.7445',
+              longitude: '100.5431'
+            },
+            openingHoursSpecification: {
+              '@type': 'OpeningHoursSpecification',
+              dayOfWeek: [
+                'Monday',
+                'Tuesday',
+                'Wednesday',
+                'Thursday',
+                'Friday',
+                'Saturday',
+                'Sunday'
+              ],
+              opens: '09:00',
+              closes: '23:00'
+            },
+            priceRange: '฿฿฿',
+            amenityFeature: [
+              {
+                '@type': 'LocationFeatureSpecification',
+                name: 'Golf Simulators',
+                value: true
               },
-              geo: {
-                '@type': 'GeoCoordinates',
-                latitude: '13.7445',
-                longitude: '100.5431'
+              {
+                '@type': 'LocationFeatureSpecification',
+                name: 'Professional Coaching',
+                value: true
               },
-              openingHoursSpecification: {
-                '@type': 'OpeningHoursSpecification',
-                dayOfWeek: [
-                  'Monday',
-                  'Tuesday',
-                  'Wednesday',
-                  'Thursday',
-                  'Friday',
-                  'Saturday',
-                  'Sunday'
-                ],
-                opens: '09:00',
-                closes: '23:00'
-              },
-              priceRange: '฿฿฿',
-              amenityFeature: [
-                {
-                  '@type': 'LocationFeatureSpecification',
-                  name: 'Golf Simulators',
-                  value: true
-                },
-                {
-                  '@type': 'LocationFeatureSpecification',
-                  name: 'Professional Coaching',
-                  value: true
-                },
-                {
-                  '@type': 'LocationFeatureSpecification',
-                  name: 'Equipment Rental',
-                  value: true
-                }
-              ]
-            })
-          }}
-        />
-      </head>
-      <body>
-        {/* Google Tag Manager (noscript) */}
-        <noscript>
-          <iframe
-            src="https://www.googletagmanager.com/ns.html?id=GTM-MKCHVJKW"
-            height="0"
-            width="0"
-            style={{ display: 'none', visibility: 'hidden' }}
-          />
-        </noscript>
-        <NextIntlClientProvider>
-          <Providers>
-            {children}
-            <ChatWidgetLoader />
-            <Analytics />
-          </Providers>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+              {
+                '@type': 'LocationFeatureSpecification',
+                name: 'Equipment Rental',
+                value: true
+              }
+            ]
+          })
+        }}
+      />
+    </>
+  );
+}
+
+function GTMNoScript() {
+  return (
+    <noscript>
+      <iframe
+        src="https://www.googletagmanager.com/ns.html?id=GTM-MKCHVJKW"
+        height="0"
+        width="0"
+        style={{ display: 'none', visibility: 'hidden' }}
+      />
+    </noscript>
+  );
+}
+
+export default async function LocaleLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  if (!isValidLocale(locale)) {
+    notFound();
+  }
+  setRequestLocale(locale);
+
+  return (
+    <RootShell lang={locale} head={<LocaleHeadScripts />} bodyStart={<GTMNoScript />}>
+      <NextIntlClientProvider>
+        {children}
+        <ChatWidgetLoader />
+        <Analytics />
+      </NextIntlClientProvider>
+    </RootShell>
   );
 }

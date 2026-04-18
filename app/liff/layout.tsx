@@ -1,14 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Poppins } from "next/font/google";
-import "../globals.css";
-import { Providers } from "../providers";
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-poppins',
-  display: 'swap',
-});
+import type { ReactNode } from "react";
+import { RootShell } from "@/components/layouts/RootShell";
 
 export const metadata: Metadata = {
   title: "LENGOLF",
@@ -29,13 +21,7 @@ export const viewport: Viewport = {
 export default function LiffLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
-  return (
-    <html lang="en" className={`${poppins.variable} font-sans`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
+  return <RootShell lang="en">{children}</RootShell>;
 }
