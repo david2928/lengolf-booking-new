@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Middleware smoke tests. Requires `npm run dev` running.
+# Override port via `BASE_URL=http://localhost:3001 bash __tests__/middleware-smoke.sh`.
+#
 # Smoke tests for middleware.ts i18n + auth handling.
 #
 # These exist to catch the two regressions fixed in commit:

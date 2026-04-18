@@ -30,6 +30,12 @@ function stripLocale(pathname: string): string {
   return pathname;
 }
 
+// Extract a leading locale prefix (e.g. `/th`) from a pathname, or '' if none.
+function localePrefix(pathname: string): string {
+  const match = pathname.match(/^\/(en|th|ko|ja|zh)(?=\/|$)/);
+  return match ? match[0] : '';
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
@@ -42,6 +48,9 @@ export async function middleware(request: NextRequest) {
   // URL) — the exact URL is what providers call back to. Don't let next-intl
   // localize it. All other /auth/* paths (login, etc.) live under
   // app/[locale]/(features)/auth/ and SHOULD be locale-handled.
+  // NOTE: this skip MUST run before the LINE-UA redirect below — otherwise a
+  // LINE user whose OAuth fails would get bounced to /liff/* and trapped in a
+  // redirect loop instead of seeing the error page.
   if (pathname === '/auth/error' || pathname.startsWith('/auth/error/')) {
     return NextResponse.next();
   }
@@ -82,14 +91,15 @@ export async function middleware(request: NextRequest) {
   // rewrite it to the bookings page for that locale.
   const bareEffective = stripLocale(effectivePath);
   if (bareEffective === '/') {
-    const localePrefixMatch = effectivePath.match(/^\/(en|th|ko|ja|zh)(?=\/|$)/);
-    const prefix = localePrefixMatch ? localePrefixMatch[0] : '';
+    const prefix = localePrefix(effectivePath);
     const url = request.nextUrl.clone();
     url.pathname = `${prefix}/bookings`;
     return NextResponse.rewrite(url);
   }
 
-  // NextAuth session check (best-effort; downstream pages enforce their own auth)
+  // NextAuth session check. A malformed/corrupted JWT cookie throws here —
+  // when that happens, redirect to the login page (locale-aware) so the user
+  // gets a clean re-auth flow instead of a silently logged-out experience.
   try {
     await getToken({
       req: request,
@@ -98,6 +108,10 @@ export async function middleware(request: NextRequest) {
     });
   } catch (error) {
     console.error('Middleware error:', error);
+    const prefix = localePrefix(pathname);
+    const url = request.nextUrl.clone();
+    url.pathname = `${prefix}/auth/login`;
+    return NextResponse.redirect(url);
   }
 
   return intlResponse;
