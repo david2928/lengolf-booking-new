@@ -92,16 +92,16 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
     }
   };
 
-  // Format time for display
+  // Format time for display. timeStr is an Asia/Bangkok wall-clock "HH:mm"
+  // value, so we anchor today's date in Bangkok and let the formatter render
+  // the locale's conventional short time (12h in en, 24h in ja/ko, etc.).
   const formatTime = (timeStr: string) => {
     try {
-      const [hours, minutes] = timeStr.split(':');
-      const date = new Date();
-      date.setHours(parseInt(hours), parseInt(minutes));
+      const today = new Date().toISOString().slice(0, 10);
+      const date = new Date(`${today}T${timeStr}:00+07:00`);
       return formatter.dateTime(date, {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
+        timeZone: 'Asia/Bangkok',
+        timeStyle: 'short',
       });
     } catch {
       return timeStr;

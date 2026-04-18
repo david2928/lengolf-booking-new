@@ -118,30 +118,31 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
   const formatTime = (booking: VipBooking): string => {
     if (!booking.startTime) return t('paxNotAvailable');
 
-    const serverTimeZone = 'Asia/Bangkok'; // As per bookings/create/route.ts
-    const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const dateTimeString = `${booking.date}T${booking.startTime}`;
+    // booking.date (YYYY-MM-DD) and booking.startTime (HH:mm) are stored as
+    // Asia/Bangkok wall-clock values (see bookings/create/route.ts).
+    // Build a UTC instant by appending Bangkok's offset, then format back in
+    // Bangkok with the current locale's conventional short time format.
+    const dateTimeString = `${booking.date}T${booking.startTime}:00+07:00`;
 
     try {
-      // Parse the server time string considering its original timezone (Asia/Bangkok)
-      // then immediately convert this conceptual UTC instant to the user's local timezone for formatting.
-      const zonedDate = utcToZonedTime(dateTimeString, localTimeZone, { timeZone: serverTimeZone });
-      
-      const startTimeDisplay = format(zonedDate, 'hh:mm a', { timeZone: localTimeZone });
+      const startDate = new Date(dateTimeString);
+      const startTimeDisplay = formatter.dateTime(startDate, {
+        timeZone: 'Asia/Bangkok',
+        timeStyle: 'short',
+      });
 
       let endTimeDisplay = '';
       if (booking.duration && typeof booking.duration === 'number' && booking.duration > 0) {
-        const endDate = new Date(zonedDate.getTime() + booking.duration * 60 * 60 * 1000);
-        // endDate is now conceptually a Date object representing an instant in time.
-        // Format this instant in the user's local timezone.
-        endTimeDisplay = ` - ${format(endDate, 'hh:mm a', { timeZone: localTimeZone })}`;
+        const endDate = new Date(startDate.getTime() + booking.duration * 60 * 60 * 1000);
+        endTimeDisplay = ` - ${formatter.dateTime(endDate, {
+          timeZone: 'Asia/Bangkok',
+          timeStyle: 'short',
+        })}`;
       }
       return `${startTimeDisplay}${endTimeDisplay}`;
     } catch (e) {
         console.error("Error formatting time:", e, "Input:", dateTimeString);
-        // Fallback for safety, though ideally this shouldn't happen with valid inputs
-        const fallbackDate = new Date(dateTimeString);
-        return fallbackDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        return booking.startTime;
     }
   };
 
