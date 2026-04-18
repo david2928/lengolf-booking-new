@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import {
   ClockIcon,
@@ -23,6 +24,7 @@ interface TimeSlotsProps {
 type BayFilterType = 'all' | 'social' | 'ai_lab';
 
 export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
+  const t = useTranslations('bookings.timeStep');
   const { isLoadingSlots, availableSlots, fetchAvailability } = useAvailability();
   const [bayFilter, setBayFilter] = useState<BayFilterType>('all');
   const [showBayInfoModal, setShowBayInfoModal] = useState(false);
@@ -74,7 +76,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          All Bays
+          {t('filterAllBays')}
         </button>
         <button
           onClick={() => setBayFilter('social')}
@@ -85,8 +87,8 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
           }`}
         >
           <UsersIcon className="h-4 w-4 flex-shrink-0" />
-          <span className="hidden sm:inline">Social Bays</span>
-          <span className="sm:hidden">Social</span>
+          <span className="hidden sm:inline">{t('filterSocialFull')}</span>
+          <span className="sm:hidden">{t('filterSocialShort')}</span>
         </button>
         <button
           onClick={() => setBayFilter('ai_lab')}
@@ -97,7 +99,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
           }`}
         >
           <ComputerDesktopIcon className="h-4 w-4 flex-shrink-0" />
-          <span>AI Bay</span>
+          <span>{t('filterAiLab')}</span>
         </button>
       </div>
       
@@ -107,7 +109,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
           onClick={() => setShowBayInfoModal(true)}
           className="text-sm text-gray-600 hover:text-gray-800 underline transition-colors"
         >
-          ❓ What&apos;s the difference?
+          ❓ {t('whatsTheDifference')}
         </button>
       </div>
     </div>
@@ -120,7 +122,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
       {isLoadingSlots ? (
         <div className="flex flex-col items-center justify-center h-full py-20">
           <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-lg text-gray-600">Loading available times...</p>
+          <p className="mt-4 text-lg text-gray-600">{t('loadingTimes')}</p>
         </div>
       ) : (
         <motion.div 
@@ -147,11 +149,13 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                     )}
                     <div>
                       <h3 className="text-lg font-semibold text-white">
-                        {period.charAt(0).toUpperCase() + period.slice(1)}
+                        {period === 'morning' ? t('periodMorning') :
+                         period === 'afternoon' ? t('periodAfternoon') :
+                         t('periodEvening')}
                         <span className="ml-2 text-sm font-normal opacity-90">
-                          {period === 'morning' ? '(09:00 - 13:00)' :
-                           period === 'afternoon' ? '(13:00 - 17:00)' : 
-                           '(17:00 - 23:00)'}
+                          {period === 'morning' ? t('periodMorningHours') :
+                           period === 'afternoon' ? t('periodAfternoonHours') :
+                           t('periodEveningHours')}
                         </span>
                       </h3>
                     </div>
@@ -197,7 +201,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                             <span className={`text-base font-semibold ${limited ? 'text-amber-700' : 'text-green-800'}`}>{slot.startTime}</span>
                           </span>
                           {limited && (
-                            <span className="text-[10px] text-amber-600 font-medium -mt-0.5">{slot.maxHours}hr max</span>
+                            <span className="text-[10px] text-amber-600 font-medium -mt-0.5">{t('hoursMaxLabel', { hours: slot.maxHours })}</span>
                           )}
                         </button>
                       );
@@ -230,9 +234,15 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
             >
               <div className="bg-white rounded-xl shadow-sm p-8 text-center">
                 <p className="text-gray-600 text-lg">
-                  {availableSlots.length === 0 
-                    ? "No available time slots for this date."
-                    : `No available ${bayFilter === 'social' ? 'Social Bay' : bayFilter === 'ai_lab' ? 'AI Lab' : ''} slots for this date.`
+                  {availableSlots.length === 0
+                    ? t('noSlots')
+                    : t('noSlotsForFilter', {
+                        filter: bayFilter === 'social'
+                          ? t('filterLabelSocial')
+                          : bayFilter === 'ai_lab'
+                          ? t('filterLabelAiLab')
+                          : '',
+                      })
                   }
                 </p>
                 {availableSlots.length > 0 && bayFilter !== 'all' && (
@@ -240,7 +250,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                     onClick={() => setBayFilter('all')}
                     className="mt-4 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
                   >
-                    Show All Available Times
+                    {t('showAllAvailable')}
                   </button>
                 )}
               </div>

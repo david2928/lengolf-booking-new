@@ -1,16 +1,20 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import { getTranslations } from 'next-intl/server';
 import type { Database } from '@/types/supabase';
 import { Layout } from '../components/booking/Layout';
 import { ConfirmationContent } from '../components/booking/ConfirmationContent';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/options';
 
-export const metadata: Metadata = {
-  title: 'Booking Confirmation - LENGOLF',
-  description: 'Confirm your booking at LENGOLF',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('bookings.confirmation');
+  return {
+    title: t('pageTitle'),
+    description: t('pageDescription'),
+  };
+}
 
 export default async function ConfirmationPage({
   searchParams,

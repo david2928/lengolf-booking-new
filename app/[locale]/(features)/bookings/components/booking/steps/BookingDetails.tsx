@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import Image from 'next/image';
 import {
   CalendarIcon,
@@ -72,7 +73,7 @@ interface BookingDetailsProps {
 }
 
 // Add loading animation components
-const LoadingOverlay = ({ steps, currentStep }: { steps: string[], currentStep: number }) => {
+const LoadingOverlay = ({ steps, currentStep, title, subtitle }: { steps: string[], currentStep: number, title: string, subtitle: string }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
@@ -83,8 +84,8 @@ const LoadingOverlay = ({ steps, currentStep }: { steps: string[], currentStep: 
               <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold mt-2">Confirming Your Booking</h3>
-          <p className="text-gray-600">Please wait while we process your reservation</p>
+          <h3 className="text-xl font-bold mt-2">{title}</h3>
+          <p className="text-gray-600">{subtitle}</p>
         </div>
         
         <div className="space-y-4">
@@ -142,6 +143,12 @@ export function BookingDetails({
   selectedClubSetId,
   onClubSetIdChange,
 }: BookingDetailsProps) {
+  const t = useTranslations('bookings.detailsStep');
+  const tCommon = useTranslations('common');
+  const tErrors = useTranslations('bookings.errors');
+  const formatter = useFormatter();
+  const locale = useLocale();
+  const costLanguage = (locale === 'th' || locale === 'ja' || locale === 'zh') ? locale : 'en';
   const router = useRouter();
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
   usePricingLoader();
@@ -174,10 +181,10 @@ export function BookingDetails({
   const [showNoAvailabilityModal, setShowNoAvailabilityModal] = useState(false);
   const [showBayInfoModal, setShowBayInfoModal] = useState(false);
   const loadingSteps = [
-    "Checking availability",
-    "Creating your booking",
-    "Sending notifications",
-    "Booking confirmed!"
+    t('loadingStepCheckingAvailability'),
+    t('loadingStepCreatingBooking'),
+    t('loadingStepSendingNotifications'),
+    t('loadingStepBookingConfirmed'),
   ];
 
   // Cost estimation state
@@ -427,20 +434,20 @@ export function BookingDetails({
         // Bay is selected but became unavailable due to duration change - auto-switch
         if (selectedBay === 'social' && availability.social === 0 && availability.ai > 0) {
           setSelectedBay('ai_lab');
-          toast('Duration changed: Switched to AI Bay (Social bays not available for this duration)', {
+          toast(t('durationSwitchedToAi'), {
             icon: 'ℹ️',
             duration: 4000,
           });
         } else if (selectedBay === 'ai_lab' && availability.ai === 0 && availability.social > 0) {
           setSelectedBay('social');
-          toast('Duration changed: Switched to Social Bay (AI bay not available for this duration)', {
+          toast(t('durationSwitchedToSocial'), {
             icon: 'ℹ️',
             duration: 4000,
           });
         }
       }
     }
-  }, [duration, selectedBay, selectedBayType, slotData, getBayAvailabilityForDuration]);
+  }, [duration, selectedBay, selectedBayType, slotData, getBayAvailabilityForDuration, t]);
 
   // Local state for package selector to allow switching
   const [localSelectedPackage, setLocalSelectedPackage] = useState<PlayFoodPackage | null>(selectedPackage || null);
@@ -503,25 +510,25 @@ export function BookingDetails({
     let isValid = true;
 
     if (!name) {
-      currentErrors.name = 'Name is required';
+      currentErrors.name = tErrors('nameRequired');
       isValid = false;
     }
     if (!email) {
-      currentErrors.email = 'Email is required';
+      currentErrors.email = tErrors('emailRequired');
       isValid = false;
     }
     // Updated phone number validation
     if (!phoneNumber) {
-      currentErrors.phoneNumber = 'Phone number is required';
+      currentErrors.phoneNumber = tErrors('phoneRequired');
       isValid = false;
     } else if (!isValidPhoneNumber(phoneNumber)) {
-      currentErrors.phoneNumber = 'Please enter a valid phone number';
+      currentErrors.phoneNumber = tErrors('phoneInvalid');
       isValid = false;
     }
 
     // Validate bay type selection when coming from "All Bays"
     if (!selectedBayType && !selectedBay) {
-      toast.error('Please select a bay type to continue');
+      toast.error(tErrors('selectBayType'));
       isValid = false;
     }
 
@@ -529,7 +536,7 @@ export function BookingDetails({
 
     if (!isValid && (currentErrors.name || currentErrors.email || currentErrors.phoneNumber)) {
       // Consolidate toast messages or show one generic message
-      toast.error('Please fill in all required fields correctly.');
+      toast.error(tErrors('fillAllRequired'));
     }
     return isValid;
   };
@@ -547,7 +554,7 @@ export function BookingDetails({
     e.preventDefault();
 
     if (!supabase) {
-      toast.error('Booking system is not ready. Please try again in a moment.');
+      toast.error(tErrors('bookingSystemNotReady'));
       return;
     }
 
@@ -556,7 +563,7 @@ export function BookingDetails({
     }
 
     if (!session) {
-      toast.error('Please sign in to continue');
+      toast.error(tErrors('signInToContinue'));
       router.push('/auth/signin');
       return;
     }
@@ -569,7 +576,7 @@ export function BookingDetails({
     
     try {
       if (!session?.user?.id) {
-        throw new Error('User not authenticated');
+        throw new Error(tErrors('userNotAuthenticated'));
       }
       
       // Prepare customer notes with club rental info
@@ -617,7 +624,7 @@ export function BookingDetails({
           const availData = await availRes.json();
           const selectedSet = (availData.sets || []).find((s: { id: string }) => s.id === selectedClubSetId);
           if (!selectedSet || selectedSet.available_count <= 0) {
-            toast.error('The selected club set is no longer available for your time slot. Please choose a different option.');
+            toast.error(tErrors('clubSetUnavailable'));
             onClubRentalChange?.('standard');
             onClubSetIdChange?.(null);
             setIsSubmitting(false);
@@ -651,35 +658,36 @@ export function BookingDetails({
           preferred_bay_type: selectedBayType || selectedBay,
           club_set_id: selectedClubSetId || null,
           club_rental_type: selectedClubRental,
+          language: locale,
         })
       });
       
       if (!createResponse.ok) {
-        let errorMessage = 'Failed to create booking';
+        let errorMessage = tErrors('createBookingFailed');
         try {
           const errorData = await createResponse.json();
           if (errorData.error) {
             errorMessage = errorData.error;
           }
         } catch {
-          errorMessage = `API Error: ${createResponse.status} ${createResponse.statusText}`;
+          errorMessage = tErrors('apiError', { status: createResponse.status, statusText: createResponse.statusText });
         }
         throw new Error(errorMessage);
       }
-      
+
       const createData = await createResponse.json();
-      
+
       // Check if booking data exists in the response
       if (!createData || !createData.booking) {
-        throw new Error('Invalid response from booking creation');
+        throw new Error(tErrors('invalidBookingResponse'));
       }
-      
+
       const { booking, notificationsSuccess } = createData;
-      
-      
+
+
       // If notifications failed, show a warning but continue
       if (notificationsSuccess === false) {
-        toast.error('Your booking was created, but there was an issue sending confirmation messages. Staff will be in touch shortly.');
+        toast.error(tErrors('notificationsFailed'));
       }
       
       // Step 2: Ensure we've shown the processing steps long enough for a good UX
@@ -696,14 +704,14 @@ export function BookingDetails({
       router.push(url);
       
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'An error occurred during booking');
+      toast.error(error instanceof Error ? error.message : tErrors('genericBookingError'));
       setIsSubmitting(false);
       setShowLoadingOverlay(false);
     }
   };
 
   const formatDate = (date: Date) => {
-    return format(date, 'EEE, do MMM yyyy');
+    return formatter.dateTime(date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   const isLineUser = session?.user?.provider === 'line';
@@ -727,7 +735,7 @@ export function BookingDetails({
               <CalendarIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-600">Selected Date</h3>
+              <h3 className="text-sm font-medium text-gray-600">{t('selectedDate')}</h3>
               <p className="text-lg sm:text-xl font-bold text-green-700">
                 {formatDate(selectedDate)}
               </p>
@@ -741,7 +749,7 @@ export function BookingDetails({
               <ClockIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-600">Start Time</h3>
+              <h3 className="text-sm font-medium text-gray-600">{t('startTime')}</h3>
               <p className="text-lg sm:text-xl font-bold text-green-700">
                 {selectedTime}
               </p>
@@ -764,7 +772,7 @@ export function BookingDetails({
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-600">
-                Bay Type <span className="text-red-500">*</span>
+                {t('bayType')} <span className="text-red-500">*</span>
               </h3>
               {!selectedBayType ? (
                 <div className="space-y-2 mt-1">
@@ -780,7 +788,7 @@ export function BookingDetails({
                           : 'text-gray-600 hover:text-gray-800'
                       }`}
                     >
-                      Social {currentAvailability.social === 0 && '(N/A)'}
+                      {t('social')} {currentAvailability.social === 0 && t('naSuffix')}
                     </button>
                     <button
                       onClick={() => setSelectedBay('ai_lab')}
@@ -793,14 +801,14 @@ export function BookingDetails({
                           : 'text-gray-600 hover:text-gray-800'
                       }`}
                     >
-                      AI Lab {currentAvailability.ai === 0 && '(N/A)'}
+                      {t('aiLab')} {currentAvailability.ai === 0 && t('naSuffix')}
                     </button>
                   </div>
                   <button
                     onClick={() => setShowBayInfoModal(true)}
                     className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors"
                   >
-                    What&apos;s the difference?
+                    {t('whatsTheDifference')}
                   </button>
                 </div>
               ) : (
@@ -808,13 +816,13 @@ export function BookingDetails({
                   <p className={`text-lg sm:text-xl font-bold ${
                     selectedBayType === 'ai_lab' ? 'text-purple-700' : 'text-green-700'
                   }`}>
-                    {selectedBayType === 'ai_lab' ? 'AI Lab' : 'Social Bay'}
+                    {selectedBayType === 'ai_lab' ? t('aiLab') : t('socialBay')}
                   </p>
                   <button
                     onClick={() => setShowBayInfoModal(true)}
                     className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors"
                   >
-                    Info
+                    {t('info')}
                   </button>
                 </div>
               )}
@@ -831,17 +839,16 @@ export function BookingDetails({
             <InformationCircleIcon className="h-5 w-5 text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
             <div>
               <h4 className="text-sm font-medium text-yellow-800 mb-1">
-                Recommendation for Best Experience
+                {t('aiLabRecommendationTitle')}
               </h4>
               <p className="text-sm text-yellow-700">
-                The LENGOLF AI Lab is optimized for 1-2 experienced players for the most detailed analysis. 
-                Social Bays are recommended for larger groups and beginners.
+                {t('aiLabRecommendationBody')}
               </p>
               <button
                 onClick={onBack}
                 className="mt-2 text-sm text-yellow-600 hover:text-yellow-500 underline"
               >
-                ← Go back to select Social Bay
+                {t('aiLabBackToSocial')}
               </button>
             </div>
           </div>
@@ -855,14 +862,14 @@ export function BookingDetails({
         <div>
           <div className="flex items-center justify-between mb-3">
             <label className="block text-sm font-medium text-gray-700">
-              Play & Food Package (Optional)
+              {t('playFoodPackageLabel')}
             </label>
-            <button 
+            <button
               type="button"
               onClick={() => setShowPackageModal(true)}
               className="text-xs text-green-600 hover:text-green-700 underline"
             >
-              View Details
+              {t('viewDetails')}
             </button>
           </div>
           <div className="grid grid-cols-4 gap-2">
@@ -880,8 +887,8 @@ export function BookingDetails({
                   : 'border-gray-300 text-gray-700 hover:border-green-600'
               }`}
             >
-              <span className="font-semibold text-[11px] sm:text-xs">Bay Only</span>
-              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75">Normal rates</span>
+              <span className="font-semibold text-[11px] sm:text-xs">{t('bayOnly')}</span>
+              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75">{t('bayOnlyDescription')}</span>
             </button>
             
             {PLAY_FOOD_PACKAGES.map((pkg) => {
@@ -917,15 +924,19 @@ export function BookingDetails({
           {localSelectedPackage ? (
             <div className="mt-4 p-3 bg-green-50 rounded-lg">
               <div className="text-sm font-medium text-green-800 mb-2">
-                {localSelectedPackage.name} - {localSelectedPackage.duration} Hour{localSelectedPackage.duration > 1 ? 's' : ''} - ฿{localSelectedPackage.price.toLocaleString()} NET
+                {t('selectedPackageInline', {
+                  name: localSelectedPackage.name,
+                  duration: localSelectedPackage.duration,
+                  price: localSelectedPackage.price.toLocaleString(),
+                })}
               </div>
               <div className="text-xs text-gray-600">
-                <span className="font-medium">Includes:</span> Golf simulator, {localSelectedPackage.foodItems.map(f => f.name).join(', ')}, {localSelectedPackage.drinks.map(d => d.type === 'unlimited' ? `Unlimited ${d.name}` : d.type === 'per_person' ? `${d.quantity}x ${d.name} per person` : `${d.quantity}x ${d.name}`).join(', ')}
+                <span className="font-medium">{t('packageIncludes')}</span> Golf simulator, {localSelectedPackage.foodItems.map(f => f.name).join(', ')}, {localSelectedPackage.drinks.map(d => d.type === 'unlimited' ? `Unlimited ${d.name}` : d.type === 'per_person' ? `${d.quantity}x ${d.name} per person` : `${d.quantity}x ${d.name}`).join(', ')}
               </div>
             </div>
           ) : (
             <div className="mt-3 text-xs text-gray-500 text-center">
-              Bay rental will be charged at normal hourly rates
+              {t('bayOnlyHelper')}
             </div>
           )}
         </div>
@@ -935,7 +946,7 @@ export function BookingDetails({
         {!localSelectedPackage && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Duration (in hours)
+              {t('durationLabel')}
             </label>
             <div className="grid grid-cols-5 gap-2">
               {Array.from({ length: maxDuration }, (_, i) => i + 1).map((hours) => (
@@ -963,20 +974,20 @@ export function BookingDetails({
                 <div className="flex items-start gap-2">
                   <InformationCircleIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <span className="font-medium text-blue-900">Available for {duration} hour{duration > 1 ? 's' : ''}: </span>
+                    <span className="font-medium text-blue-900">{t('availableForDuration', { duration })}</span>
                     {currentAvailability.social > 0 && currentAvailability.ai > 0 && (
                       <span className="text-blue-700">
-                        {currentAvailability.social} Social Bay{currentAvailability.social > 1 ? 's' : ''} or {currentAvailability.ai} AI Bay
+                        {t('availableSocialOrAi', { social: currentAvailability.social, ai: currentAvailability.ai })}
                       </span>
                     )}
                     {currentAvailability.social > 0 && currentAvailability.ai === 0 && (
                       <span className="text-blue-700">
-                        {currentAvailability.social} Social Bay{currentAvailability.social > 1 ? 's' : ''} only
+                        {t('availableSocialOnly', { social: currentAvailability.social })}
                       </span>
                     )}
                     {currentAvailability.social === 0 && currentAvailability.ai > 0 && (
                       <span className="text-blue-700">
-                        AI Bay only
+                        {t('availableAiOnly')}
                       </span>
                     )}
                   </div>
@@ -989,7 +1000,7 @@ export function BookingDetails({
         {/* Number of People */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Number of People
+            {t('numberOfPeople')}
           </label>
           <div className="grid grid-cols-5 gap-2">
             {[1, 2, 3, 4, 5].map((num) => (
@@ -1013,14 +1024,14 @@ export function BookingDetails({
         <div>
           <div className="flex items-center justify-between mb-3">
             <label className="block text-sm font-medium text-gray-700">
-              Golf Club Rental (Optional)
+              {t('clubRentalLabel')}
             </label>
             <button
               type="button"
               onClick={() => setShowClubRentalModal(true)}
               className="text-xs text-green-600 hover:text-green-700 underline"
             >
-              View Details
+              {t('viewDetails')}
             </button>
           </div>
 
@@ -1035,8 +1046,8 @@ export function BookingDetails({
                   : 'border-gray-300 text-gray-700 hover:border-green-600'
               }`}
             >
-              <span className="font-semibold text-[11px] sm:text-xs">No Rental</span>
-              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75">Own clubs</span>
+              <span className="font-semibold text-[11px] sm:text-xs">{t('noRental')}</span>
+              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75">{t('noRentalDescription')}</span>
             </button>
 
             <button
@@ -1048,14 +1059,14 @@ export function BookingDetails({
                   : 'border-gray-300 text-gray-700 hover:border-green-600'
               }`}
             >
-              <span className="font-semibold text-[11px] sm:text-xs">Standard Set</span>
-              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75 text-gray-500">Free</span>
+              <span className="font-semibold text-[11px] sm:text-xs">{t('standardSet')}</span>
+              <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75 text-gray-500">{t('standardSetFree')}</span>
             </button>
           </div>
 
           {/* Premium club sets from DB with real availability */}
           {clubSetsLoading ? (
-            <div className="text-xs text-gray-400 text-center py-3">Checking club availability...</div>
+            <div className="text-xs text-gray-400 text-center py-3">{t('checkingClubAvailability')}</div>
           ) : availableClubSets.length > 0 ? (
             <div className="space-y-2">
               {availableClubSets.map((clubSet) => {
@@ -1107,10 +1118,10 @@ export function BookingDetails({
                           isSelected ? 'text-green-700' :
                           isPremiumPlus ? 'text-[#003d1f]' : 'text-gray-900'
                         }`}>
-                          {isPremiumPlus ? 'Premium+' : 'Premium'} — {clubSet.gender === 'mens' ? "Men's" : "Women's"}
+                          {isPremiumPlus ? t('premiumPlusLabel') : t('premiumLabel')} — {clubSet.gender === 'mens' ? t('clubSetMens') : t('clubSetWomens')}
                         </span>
                         {!isAvailable && (
-                          <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">Unavailable</span>
+                          <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">{t('clubSetUnavailable')}</span>
                         )}
                       </div>
                       <div className={`text-[11px] mt-0.5 ${
@@ -1127,7 +1138,7 @@ export function BookingDetails({
                       <div className="font-bold text-sm">฿{price.toLocaleString()}</div>
                       <div className={`text-[10px] ${
                         isSelected && isPremiumPlus ? 'text-white/60' : 'text-gray-400'
-                      }`}>{duration}hr{duration > 1 ? 's' : ''}</div>
+                      }`}>{t('clubSetDurationSuffix', { hours: duration })}</div>
                     </div>
                   </button>
                 );
@@ -1145,8 +1156,8 @@ export function BookingDetails({
                     : 'border-gray-300 text-gray-700 hover:border-green-600'
                 }`}
               >
-                <span className="font-semibold text-[11px] sm:text-xs text-green-600 font-bold">Premium</span>
-                <span className="text-[10px] sm:text-xs mt-0.5 opacity-75">฿150+</span>
+                <span className="font-semibold text-[11px] sm:text-xs text-green-600 font-bold">{t('premiumLabel')}</span>
+                <span className="text-[10px] sm:text-xs mt-0.5 opacity-75">{t('premiumStartingFromShort')}</span>
               </button>
 
               <button
@@ -1160,9 +1171,9 @@ export function BookingDetails({
                 style={selectedClubRental === 'premium-plus' ? { backgroundColor: '#003d1f' } : undefined}
               >
                 <span className="font-bold text-[11px] sm:text-xs" style={{ color: selectedClubRental === 'premium-plus' ? '#ffffff' : '#003d1f' }}>
-                  Premium+
+                  {t('premiumPlusLabel')}
                 </span>
-                <span className={`text-[10px] sm:text-xs mt-0.5 ${selectedClubRental === 'premium-plus' ? 'text-white/80' : 'opacity-75'}`}>฿250+</span>
+                <span className={`text-[10px] sm:text-xs mt-0.5 ${selectedClubRental === 'premium-plus' ? 'text-white/80' : 'opacity-75'}`}>{t('premiumPlusStartingFromShort')}</span>
               </button>
             </div>
           )}
@@ -1171,13 +1182,13 @@ export function BookingDetails({
 
         {/* Contact Information Section */}
         <div className="pt-4 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Contact Information</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">{t('contactInformation')}</h3>
           
           <div className="space-y-4">
             {/* Name field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name
+                {t('name')}
               </label>
               <input
                 type="text"
@@ -1186,20 +1197,20 @@ export function BookingDetails({
                 className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
                   !name ? 'border-red-100' : 'border-green-500'
                 } border focus:border-green-500 focus:ring-1 focus:ring-green-500`}
-                placeholder="Enter your name"
+                placeholder={t('namePlaceholder')}
               />
             </div>
 
             {/* Phone Number */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number
+                {t('phoneNumber')}
               </label>
               <div className="relative">
                 <PhoneInput
                   international
                   defaultCountry="TH"
-                  placeholder="Enter phone number"
+                  placeholder={t('phoneNumberPlaceholder')}
                   value={phoneNumber}
                   onChange={setPhoneNumber}
                   className={`w-full h-12 px-3 py-2 rounded-lg bg-gray-50 focus:outline-none border focus:border-green-500 focus:ring-1 focus:ring-green-500 custom-phone-input ${
@@ -1214,7 +1225,7 @@ export function BookingDetails({
               {/* Helper text to guide country selection if number is empty */}
               {!phoneNumber && (
                 <p className="mt-1 text-xs text-gray-500">
-                  Please select your country code and enter your phone number.
+                  {t('phoneCountryHelper')}
                 </p>
               )}
               {errors.phoneNumber && (
@@ -1225,7 +1236,7 @@ export function BookingDetails({
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
+                {t('emailAddress')}
               </label>
               <div className="relative">
                 <input
@@ -1237,11 +1248,11 @@ export function BookingDetails({
                       ? 'border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
                       : 'border border-green-500'
                   }`}
-                  placeholder={isLineUser ? "Enter your email address" : "your@email.com"}
+                  placeholder={isLineUser ? t('emailPlaceholderLine') : t('emailPlaceholderDefault')}
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">
-              Booking confirmation will be sent to this email
+                {t('emailConfirmationNote')}
               </p>
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email}</p>
@@ -1253,7 +1264,7 @@ export function BookingDetails({
         {/* Add Customer Notes/Special Requests field */}
         <div>
           <label htmlFor="customerNotes" className="block text-sm font-medium text-gray-700 mb-1">
-            Notes / Requests (Optional)
+            {t('notesLabel')}
           </label>
           <textarea
             id="customerNotes"
@@ -1261,10 +1272,10 @@ export function BookingDetails({
             onChange={(e) => setCustomerNotes(e.target.value)}
             rows={3}
             className="w-full px-4 py-2 rounded-lg bg-gray-50 border border-gray-200 focus:border-green-500 focus:ring-1 focus:ring-green-500 focus:outline-none text-sm sm:text-base"
-            placeholder="e.g., specific club preferences, coaching add-on interest, specific simulator bay?"
+            placeholder={t('notesPlaceholder')}
           />
           <p className="mt-1 text-xs sm:text-sm text-gray-500">
-            Mention specific club preferences, promotions, coaching interest, or other requests here.
+            {t('notesHelper')}
           </p>
         </div>
 
@@ -1274,6 +1285,7 @@ export function BookingDetails({
             <ProjectedCostBreakdown
               breakdown={costBreakdown}
               isLoading={costDataLoading}
+              language={costLanguage}
             />
           </div>
         )}
@@ -1286,7 +1298,7 @@ export function BookingDetails({
             className="py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             disabled={isSubmitting}
           >
-            Back
+            {t('back')}
           </button>
           <button
             type="submit"
@@ -1307,12 +1319,12 @@ export function BookingDetails({
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           >
-            {isSubmitting ? 'Processing...' : 'Confirm Booking'}
+            {isSubmitting ? t('processing') : t('confirmBooking')}
           </button>
         </div>
 
         <p className="text-xs text-gray-400 text-center mt-3">
-          By booking, you agree to receive booking status updates and a post-visit review request.
+          {t('consentNote')}
         </p>
       </form>
 
@@ -1325,10 +1337,10 @@ export function BookingDetails({
                 <ClockIcon className="h-6 w-6 text-red-600" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Bay Not Available
+                {t('noAvailabilityTitle')}
               </h3>
               <p className="text-sm text-gray-500 mb-6">
-                All bays are currently booked for this time slot.
+                {t('noAvailabilityBody')}
               </p>
               <button
                 onClick={() => {
@@ -1337,7 +1349,7 @@ export function BookingDetails({
                 }}
                 className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
               >
-                Select Another Time
+                {t('noAvailabilityCta')}
               </button>
             </div>
           </div>
@@ -1346,7 +1358,12 @@ export function BookingDetails({
 
       {/* Add the loading overlay */}
       {showLoadingOverlay && (
-        <LoadingOverlay steps={loadingSteps} currentStep={loadingStep} />
+        <LoadingOverlay
+          steps={loadingSteps}
+          currentStep={loadingStep}
+          title={t('loadingOverlayTitle')}
+          subtitle={t('loadingOverlaySubtitle')}
+        />
       )}
 
       {/* Package Details Modal */}
@@ -1369,11 +1386,11 @@ export function BookingDetails({
                 {/* Header */}
                 <div className="text-center mb-4 sm:mb-6">
                   <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
-                    <span className="text-green-700">PLAY & FOOD</span>
-                    <span className="text-gray-900"> Packages</span>
+                    <span className="text-green-700">{t('packageModalTitleHighlight')}</span>
+                    <span className="text-gray-900">{t('packageModalTitleSuffix')}</span>
                   </h2>
                   <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
-                    All-inclusive packages for groups up to 5 people
+                    {t('packageModalSubtitle')}
                   </p>
                 </div>
 
@@ -1390,7 +1407,7 @@ export function BookingDetails({
                       >
                         {pkg.isPopular && (
                           <div className="absolute -top-2 sm:-top-3 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-2 sm:px-3 py-0.5 rounded-full text-xs font-semibold">
-                            Most Popular
+                            {t('packageMostPopular')}
                           </div>
                         )}
                         
@@ -1404,22 +1421,22 @@ export function BookingDetails({
                             ฿{pkg.price.toLocaleString()} <span className="text-xs font-normal text-gray-600">NET</span>
                           </div>
                           <div className="text-xs text-gray-500">
-                            ฿{pkg.pricePerPerson} per person
+                            {t('packagePricePerPerson', { price: pkg.pricePerPerson })}
                           </div>
                         </div>
 
                         <div className="text-xs text-gray-600 space-y-0.5 sm:space-y-1 mb-2 sm:mb-3">
-                          <div className="font-semibold">Duration: {pkg.duration} hour{pkg.duration > 1 ? 's' : ''}</div>
-                          <div className="font-semibold mt-1 sm:mt-2">Includes:</div>
+                          <div className="font-semibold">{t('packageDurationLabel', { duration: pkg.duration })}</div>
+                          <div className="font-semibold mt-1 sm:mt-2">{t('packageIncludes')}</div>
                           <div className="text-[11px] sm:text-xs space-y-0.5">
-                            <div>• Golf simulator ({pkg.duration}hr)</div>
+                            <div>• {t('packageGolfSimulator', { duration: pkg.duration })}</div>
                             {pkg.foodItems.slice(0, 2).map((food, idx) => (
                               <div key={idx}>• {food.name}</div>
                             ))}
                             {pkg.foodItems.length > 2 && (
-                              <div>• +{pkg.foodItems.length - 2} more items</div>
+                              <div>• {t('packageMoreItems', { count: pkg.foodItems.length - 2 })}</div>
                             )}
-                            <div>• {pkg.drinks[0].type === 'unlimited' ? 'Unlimited drinks' : 'Drinks included'}</div>
+                            <div>• {pkg.drinks[0].type === 'unlimited' ? t('packageDrinksUnlimited') : t('packageDrinksIncluded')}</div>
                           </div>
                         </div>
 
@@ -1442,7 +1459,7 @@ export function BookingDetails({
                               : 'bg-green-500 hover:bg-green-600 text-white'
                           }`}
                         >
-                          {!isAvailable ? 'Not Available' : `Select ${pkg.name}`}
+                          {!isAvailable ? t('packageNotAvailable') : t('packageSelectCta', { name: pkg.name })}
                         </button>
                       </div>
                     );
@@ -1461,21 +1478,20 @@ export function BookingDetails({
                     }}
                     className="w-full py-2 px-3 rounded border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    Continue without package (bay rental only - normal rates apply)
+                    {t('packageContinueWithoutPackage')}
                   </button>
                 </div>
 
                 {/* Additional Info */}
                 <div className="mt-4 sm:mt-6 bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
                   <p className="text-xs sm:text-sm text-gray-600">
-                    All packages are designed for groups of up to 5 people. 
-                    You can enjoy these packages with fewer people too!
+                    {t('packageGroupNote')}
                   </p>
-                  <Link 
+                  <Link
                     href="/play-and-food"
                     className="inline-block mt-2 sm:mt-3 text-xs sm:text-sm text-green-600 hover:text-green-700 underline"
                   >
-                    View full details and menu
+                    {t('packageViewFullDetails')}
                   </Link>
                 </div>
               </div>
@@ -1504,11 +1520,11 @@ export function BookingDetails({
                 {/* Header */}
                 <div className="text-center mb-4 sm:mb-6">
                   <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
-                    <span className="text-green-700">Golf Club Rental</span>
-                    <span className="text-gray-900"> Options</span>
+                    <span className="text-green-700">{t('clubRentalModalTitleHighlight')}</span>
+                    <span className="text-gray-900">{t('clubRentalModalTitleSuffix')}</span>
                   </h2>
                   <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
-                    Choose from standard, premium, or premium+ golf clubs for your session
+                    {t('clubRentalModalSubtitle')}
                   </p>
                 </div>
 
@@ -1518,9 +1534,9 @@ export function BookingDetails({
                     <table className="w-full">
                       <thead>
                         <tr>
-                          <th className="py-2.5 px-3 text-left text-xs sm:text-sm font-semibold text-gray-700 bg-gray-50">Duration</th>
-                          <th className="py-2.5 px-3 text-center text-xs sm:text-sm font-semibold text-green-700 bg-gray-50">Premium</th>
-                          <th className="py-2.5 px-3 text-center text-xs sm:text-sm font-semibold text-white" style={{ backgroundColor: '#003d1f' }}>Premium+</th>
+                          <th className="py-2.5 px-3 text-left text-xs sm:text-sm font-semibold text-gray-700 bg-gray-50">{t('clubRentalTableDuration')}</th>
+                          <th className="py-2.5 px-3 text-center text-xs sm:text-sm font-semibold text-green-700 bg-gray-50">{t('clubRentalTablePremium')}</th>
+                          <th className="py-2.5 px-3 text-center text-xs sm:text-sm font-semibold text-white" style={{ backgroundColor: '#003d1f' }}>{t('clubRentalTablePremiumPlus')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -1537,39 +1553,39 @@ export function BookingDetails({
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-center text-xs text-gray-500 mt-2">Standard clubs are always free with any bay booking</p>
+                  <p className="text-center text-xs text-gray-500 mt-2">{t('clubRentalStandardFreeNote')}</p>
                 </div>
 
                 {/* Club Options - flex col on mobile, 3-col on desktop, all cards stretch to equal height */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
                   {/* Standard Clubs */}
                   <div className="bg-gray-50 rounded-lg border p-4 sm:p-5 opacity-90 flex flex-col">
-                    <h3 className="text-base sm:text-lg font-bold text-gray-700 mb-1">Standard Set</h3>
-                    <p className="text-xs italic text-gray-500 mb-2">Quality house set &mdash; great for casual play</p>
-                    <p className="text-xs sm:text-sm text-gray-500 mb-3">House Set &mdash; Men&apos;s &amp; Ladies&apos;</p>
+                    <h3 className="text-base sm:text-lg font-bold text-gray-700 mb-1">{t('clubRentalStandardCardTitle')}</h3>
+                    <p className="text-xs italic text-gray-500 mb-2">{t('clubRentalStandardCardSubtitle')}</p>
+                    <p className="text-xs sm:text-sm text-gray-500 mb-3">{t('clubRentalStandardCardSubtitle2')}</p>
 
                     <div className="mb-4 flex-1">
                       <ul className="space-y-1 text-xs sm:text-sm text-gray-600">
                         <li className="flex items-start">
                           <CheckIcon className="h-3.5 w-3.5 text-gray-500 mr-1.5 mt-0.5 flex-shrink-0" />
-                          <span>Driver, Irons (5&ndash;PW), Putter</span>
+                          <span>{t('clubRentalStandardItem1')}</span>
                         </li>
                         <li className="flex items-start">
                           <CheckIcon className="h-3.5 w-3.5 text-gray-500 mr-1.5 mt-0.5 flex-shrink-0" />
-                          <span>Golf bag included</span>
+                          <span>{t('clubRentalStandardItem2')}</span>
                         </li>
                       </ul>
                     </div>
 
                     <div className="text-center py-2 px-3 rounded bg-gray-200 text-gray-700 font-semibold text-sm mt-auto">
-                      Free with Booking
+                      {t('clubRentalStandardFreeWithBooking')}
                     </div>
                   </div>
 
                   {/* Premium Clubs */}
                   <div className="bg-white rounded-lg border-2 border-green-500 p-4 sm:p-5 relative flex flex-col">
                     <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-3 py-0.5 rounded-full text-xs font-semibold">
-                      Premium
+                      {t('clubRentalPremiumBadge')}
                     </div>
 
                     {/* Warbird + Majesty photo pair */}
@@ -1577,7 +1593,7 @@ export function BookingDetails({
                       <div className="relative h-28 bg-white rounded-md overflow-hidden border border-gray-100">
                         <Image
                           src={getSetThumbnailUrl({ tier: 'premium', gender: 'mens' })}
-                          alt="Callaway Warbird full set"
+                          alt={t('clubRentalPremiumImageMensAlt')}
                           fill
                           className="object-contain p-1"
                           sizes="(max-width: 768px) 50vw, 200px"
@@ -1587,7 +1603,7 @@ export function BookingDetails({
                       <div className="relative h-28 bg-white rounded-md overflow-hidden border border-gray-100">
                         <Image
                           src={getSetThumbnailUrl({ tier: 'premium', gender: 'womens' })}
-                          alt="Majesty Shuttle full set"
+                          alt={t('clubRentalPremiumImageWomensAlt')}
                           fill
                           className="object-contain p-1"
                           sizes="(max-width: 768px) 50vw, 200px"
@@ -1596,36 +1612,36 @@ export function BookingDetails({
                       </div>
                     </div>
 
-                    <h3 className="text-base sm:text-lg font-bold text-green-800 mb-1">Premium Sets</h3>
-                    <p className="text-xs italic text-gray-600 mb-2">Callaway Warbird (men&apos;s) &middot; Majesty Shuttle (ladies&apos;)</p>
+                    <h3 className="text-base sm:text-lg font-bold text-green-800 mb-1">{t('clubRentalPremiumCardTitle')}</h3>
+                    <p className="text-xs italic text-gray-600 mb-2">{t('clubRentalPremiumCardSubtitle')}</p>
 
                     <div className="space-y-2 mb-4 flex-1">
                       <div className="border-l-3 border-green-500 pl-2.5">
-                        <h4 className="font-semibold text-gray-800 text-xs sm:text-sm">Men&apos;s &mdash; Callaway Warbird</h4>
-                        <p className="text-[11px] sm:text-xs text-gray-600">Driver, 5-wood, Irons 5-9, PW, SW</p>
+                        <h4 className="font-semibold text-gray-800 text-xs sm:text-sm">{t('clubRentalPremiumMensTitle')}</h4>
+                        <p className="text-[11px] sm:text-xs text-gray-600">{t('clubRentalPremiumMensSpecs')}</p>
                       </div>
                       <div className="border-l-3 border-green-500 pl-2.5">
-                        <h4 className="font-semibold text-gray-800 text-xs sm:text-sm">Ladies&apos; &mdash; Majesty Shuttle</h4>
-                        <p className="text-[11px] sm:text-xs text-gray-600">12.5&deg; Driver, Irons 7-9, PW, 56&deg; SW</p>
+                        <h4 className="font-semibold text-gray-800 text-xs sm:text-sm">{t('clubRentalPremiumWomensTitle')}</h4>
+                        <p className="text-[11px] sm:text-xs text-gray-600">{t('clubRentalPremiumWomensSpecs')}</p>
                       </div>
                     </div>
 
                     <div className="text-center py-2 px-3 rounded bg-green-600 text-white font-semibold text-sm mt-auto">
-                      Starting from ฿150
+                      {t('clubRentalStartingFromPremium')}
                     </div>
                   </div>
 
                   {/* Premium+ Clubs - Standout dark green + white */}
                   <div className="rounded-lg border-2 border-green-900 p-4 sm:p-5 relative flex flex-col" style={{ backgroundColor: '#003d1f' }}>
                     <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-white px-3 py-0.5 rounded-full text-xs font-semibold" style={{ color: '#003d1f' }}>
-                      Premium+
+                      {t('clubRentalPremiumPlusBadge')}
                     </div>
 
                     {/* Paradym hero photo */}
                     <div className="relative h-28 bg-white rounded-md overflow-hidden mb-3">
                       <Image
                         src={getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' })}
-                        alt="Callaway Paradym Forged Carbon"
+                        alt={t('clubRentalPremiumPlusImageAlt')}
                         fill
                         className="object-contain p-1"
                         sizes="(max-width: 768px) 100vw, 33vw"
@@ -1633,23 +1649,23 @@ export function BookingDetails({
                       />
                     </div>
 
-                    <h3 className="text-base sm:text-lg font-bold text-white mb-1">Premium+ Set</h3>
-                    <p className="text-xs italic text-white/70 mb-2">Tour-grade Paradym Forged Carbon with Ventus TR shafts</p>
-                    <p className="text-xs sm:text-sm text-white/80 mb-3">Callaway Paradym Forged Carbon</p>
+                    <h3 className="text-base sm:text-lg font-bold text-white mb-1">{t('clubRentalPremiumPlusCardTitle')}</h3>
+                    <p className="text-xs italic text-white/70 mb-2">{t('clubRentalPremiumPlusCardSubtitle')}</p>
+                    <p className="text-xs sm:text-sm text-white/80 mb-3">{t('clubRentalPremiumPlusCardSubtitle2')}</p>
 
                     <div className="space-y-1 mb-2 flex-1">
                       <ul className="space-y-0.5 text-xs sm:text-sm text-white/90">
                         <li className="flex items-start">
                           <CheckIcon className="h-3.5 w-3.5 text-white mr-1.5 mt-0.5 flex-shrink-0" />
-                          <span>Driver + 3W + 5W + 4H</span>
+                          <span>{t('clubRentalPremiumPlusItem1')}</span>
                         </li>
                         <li className="flex items-start">
                           <CheckIcon className="h-3.5 w-3.5 text-white mr-1.5 mt-0.5 flex-shrink-0" />
-                          <span>Irons 5&ndash;PW, Jaws Raw Wedges</span>
+                          <span>{t('clubRentalPremiumPlusItem2')}</span>
                         </li>
                         <li className="flex items-start">
                           <CheckIcon className="h-3.5 w-3.5 text-white mr-1.5 mt-0.5 flex-shrink-0" />
-                          <span>Odyssey Putter + Callaway bag</span>
+                          <span>{t('clubRentalPremiumPlusItem3')}</span>
                         </li>
                       </ul>
                     </div>
@@ -1659,25 +1675,25 @@ export function BookingDetails({
                       onClick={() => setParadymCarouselIndex(0)}
                       className="text-[11px] sm:text-xs text-white/70 hover:text-white underline mb-3 text-left"
                     >
-                      View all 18 photos &rarr;
+                      {t('clubRentalPremiumPlusViewPhotos')}
                     </button>
 
                     <div className="text-center py-2 px-3 rounded font-semibold text-sm bg-white mt-auto" style={{ color: '#003d1f' }}>
-                      Starting from ฿250
+                      {t('clubRentalStartingFromPremiumPlus')}
                     </div>
                   </div>
                 </div>
 
                 {/* On-Course Rental Link */}
                 <div className="mt-4 text-center text-xs sm:text-sm text-gray-500">
-                  Taking clubs to a golf course?{' '}
+                  {t('clubRentalCourseLink')}{' '}
                   <a
                     href="https://len.golf/golf-course-club-rental/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-green-600 hover:text-green-700 underline font-medium"
                   >
-                    View daily rates &amp; delivery options
+                    {t('clubRentalCourseLinkCta')}
                   </a>
                 </div>
 
@@ -1687,7 +1703,7 @@ export function BookingDetails({
                     onClick={() => setShowClubRentalModal(false)}
                     className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-colors text-sm"
                   >
-                    Close
+                    {tCommon('close')}
                   </button>
                 </div>
 
@@ -1696,7 +1712,7 @@ export function BookingDetails({
                   const baseUrl = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets/clubs/premium-plus';
                   const images = Array.from({ length: 18 }, (_, i) => ({
                     src: `${baseUrl}/${i + 1}.png`,
-                    alt: `Callaway Paradym Forged Carbon - Photo ${i + 1}`,
+                    alt: t('carouselPhotoAlt', { index: i + 1 }),
                   }));
                   const current = images[paradymCarouselIndex];
                   return (

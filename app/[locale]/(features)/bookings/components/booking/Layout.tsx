@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { useSession, signOut, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -23,6 +24,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
+  const t = useTranslations('bookings.layout');
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
   const { vipProfile, isLoading: vipLoading, error: vipError, refetchVipProfile } = useVipStatus();
@@ -85,7 +87,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
       router.push('/auth/login');
     } catch (error) {
       console.error('Error signing out:', error);
-      toast.error('Failed to sign out. Please try again.');
+      toast.error(t('signOutErrorToast'));
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +127,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
       <Header
         title="LENGOLF"
         badge={{
-          text: "Booking",
+          text: t('headerBadge'),
           href: "/bookings"
         }}
         mobileMenuOpen={mobileMenuOpen}
@@ -137,21 +139,21 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
               <button
                 onClick={() => setShowBayRates(true)}
                 className="p-2 text-white hover:bg-white/10 rounded-md"
-                aria-label="Bay Rates"
+                aria-label={t('bayRates')}
               >
                 <CurrencyDollarIcon className="h-5 w-5" />
               </button>
               <button
                 onClick={() => setShowPromotions(true)}
                 className="p-2 text-white hover:bg-white/10 rounded-md"
-                aria-label="Promotions"
+                aria-label={t('promotions')}
               >
                 <FireIcon className="h-5 w-5" />
               </button>
               <button
                 onClick={() => setShowLessons(true)}
                 className="p-2 text-white hover:bg-white/10 rounded-md"
-                aria-label="Golf Lessons"
+                aria-label={t('golfLessons')}
               >
                 <AcademicCapIcon className="h-5 w-5" />
               </button>
@@ -168,35 +170,35 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                 className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <CurrencyDollarIcon className="h-4 w-4" />
-                <span>Bay Rates</span>
+                <span>{t('bayRates')}</span>
               </button>
               <button
                 onClick={() => setShowPromotions(!showPromotions)}
                 className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <FireIcon className="h-4 w-4" />
-                <span>Promotions</span>
+                <span>{t('promotions')}</span>
               </button>
               <button
                 onClick={() => setShowLessons(!showLessons)}
                 className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <AcademicCapIcon className="h-4 w-4" />
-                <span>Lessons</span>
+                <span>{t('lessons')}</span>
               </button>
               <Link
                 href="/golf-club-rental"
                 className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <ShoppingBagIcon className="h-4 w-4" />
-                <span>Club Rental</span>
+                <span>{t('clubRental')}</span>
               </Link>
               <Link
                 href="/play-and-food"
                 className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <GiftIcon className="h-4 w-4" />
-                <span>Play & Food</span>
+                <span>{t('playAndFood')}</span>
               </Link>
 
               {/* Vertical separator */}
@@ -210,7 +212,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
               {sessionStatus === 'authenticated' && vipLoading ? (
                 <div className="flex items-center gap-2 px-4 py-2 text-white">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Loading...</span>
+                  <span>{t('loading')}</span>
                 </div>
               ) : sessionStatus === 'authenticated' ? (
                 <>
@@ -229,34 +231,34 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                           }
                         }}
                       >
-                        My Account <ChevronDownIcon className="h-4 w-4" />
+                        {t('myAccount')} <ChevronDownIcon className="h-4 w-4" />
                       </button>
                       
                       {/* Dropdown menu */}
                       <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                         <Link href="/vip" className="flex items-center gap-2 px-4 py-3 text-green-700 hover:bg-green-50 transition-colors font-medium border-b border-green-100">
-                          <span>Dashboard</span>
-                          <span className="ml-auto bg-green-700 text-white px-2 py-0.5 rounded text-xs font-medium">VIP</span>
+                          <span>{t('dashboard')}</span>
+                          <span className="ml-auto bg-green-700 text-white px-2 py-0.5 rounded text-xs font-medium">{t('vipBadge')}</span>
                         </Link>
-                        
+
                         {isUserLinked ? (
                           <>
                             <div className="border-t border-gray-100"></div>
                             <Link href="/vip/profile" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                               <UserIconLucide className="h-4 w-4" />
-                              <span>My Profile</span>
+                              <span>{t('myProfile')}</span>
                             </Link>
                             <Link href="/vip/bookings" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                               <CalendarIconLucide className="h-4 w-4" />
-                              <span>My Bookings</span>
+                              <span>{t('myBookings')}</span>
                             </Link>
                             <Link href="/vip/packages" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                               <PackageIconLucide className="h-4 w-4" />
-                              <span>My Packages</span>
+                              <span>{t('myPackages')}</span>
                             </Link>
                             <Link href="/vip/membership" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                               <TrophyIconLucide className="h-4 w-4" />
-                              <span>Membership</span>
+                              <span>{t('membership')}</span>
                             </Link>
                           </>
                         ) : shouldShowLinkAccount ? (
@@ -264,28 +266,28 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                             <div className="border-t border-gray-100"></div>
                             <Link href="/vip/link-account" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors font-medium">
                               <LinkIconLucideRadix className="h-4 w-4" />
-                              <span>Link Account to Access VIP Features</span>
+                              <span>{t('linkAccountFull')}</span>
                             </Link>
                           </>
                         ) : null}
-                        
+
                         <div className="border-t border-gray-100"></div>
-                        <a 
+                        <a
                           href="https://len.golf"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           <HeroHomeIcon className="h-4 w-4" />
-                          <span>Main Site</span>
+                          <span>{t('mainSite')}</span>
                         </a>
-                        <button 
-                          onClick={handleSignOut} 
+                        <button
+                          onClick={handleSignOut}
                           disabled={isLoading}
                           className="flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors w-full text-left disabled:opacity-50"
                         >
                           <LogOut className="h-4 w-4" />
-                          <span>{isLoading ? 'Signing Out...' : 'Sign Out'}</span>
+                          <span>{isLoading ? t('signingOut') : t('signOut')}</span>
                         </button>
                       </div>
                     </div>
@@ -297,7 +299,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                       className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium disabled:opacity-50"
                     >
                       <LogOut className="h-5 w-5" />
-                      {isLoading ? 'Signing Out...' : 'Sign Out'}
+                      {isLoading ? t('signingOut') : t('signOut')}
                     </button>
                   )}
                 </>
@@ -307,7 +309,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                   className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium"
                 >
                   <HeroUserIcon className="h-5 w-5" />
-                  Sign In
+                  {t('signIn')}
                 </button>
               )}
             </nav>
@@ -321,63 +323,63 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                     <li>
                       <Link href="/vip" className="flex items-center justify-between gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 bg-primary-foreground/5 border border-white/10" onClick={toggleMobileMenu}>
                         <span className="flex items-center gap-2 font-medium">
-                          Dashboard
+                          {t('dashboard')}
                         </span>
-                        <span className="bg-white text-green-700 px-2 py-0.5 rounded text-xs font-medium">VIP</span>
+                        <span className="bg-white text-green-700 px-2 py-0.5 rounded text-xs font-medium">{t('vipBadge')}</span>
                       </Link>
                     </li>
-                    
+
                     {isUserLinked && (
                       <>
                         <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                          <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PROFILE</p>
+                          <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">{t('sectionProfile')}</p>
                           <ul className="mt-1 space-y-1">
-                            <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><UserIconLucide size={16} />My Profile</Link></li>
+                            <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><UserIconLucide size={16} />{t('myProfile')}</Link></li>
                           </ul>
                         </li>
-                        
+
                         <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                          <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">BOOKINGS</p>
+                          <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">{t('sectionBookings')}</p>
                           <ul className="mt-1 space-y-1">
-                            <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16} />My Bookings</Link></li>
-                            <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>New Booking</Link></li>
+                            <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16} />{t('myBookings')}</Link></li>
+                            <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>{t('newBooking')}</Link></li>
                           </ul>
                         </li>
-                        
+
                         <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                          <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PACKAGES</p>
+                          <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">{t('sectionPackages')}</p>
                           <ul className="mt-1 space-y-1">
-                            <li><Link href="/vip/packages" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><PackageIconLucide size={16} />My Packages</Link></li>
+                            <li><Link href="/vip/packages" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><PackageIconLucide size={16} />{t('myPackages')}</Link></li>
                           </ul>
                         </li>
-                        
+
                         <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                          <Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TrophyIconLucide size={16} />Membership</Link>
+                          <Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TrophyIconLucide size={16} />{t('membership')}</Link>
                         </li>
                       </>
                     )}
-                    
+
                     {shouldShowLinkAccount && (
                       <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                        <Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 font-medium" onClick={toggleMobileMenu}><LinkIconLucideRadix size={16} />Link Account</Link>
+                        <Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 font-medium" onClick={toggleMobileMenu}><LinkIconLucideRadix size={16} />{t('linkAccount')}</Link>
                       </li>
                     )}
                   </>
                ) : (
-                  <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>New Booking</Link></li>
+                  <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><CalendarIconLucide size={16}/>{t('newBooking')}</Link></li>
                )}
 
               <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">SERVICES</p>
+                <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">{t('sectionServices')}</p>
                 <ul className="mt-1 space-y-1">
-                  <li><Link href="/golf-club-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><ShoppingBagIcon className="h-4 w-4" />Club Rental</Link></li>
-                  <li><Link href="/course-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TruckIcon className="h-4 w-4" />Course Rental</Link></li>
-                  <li><Link href="/play-and-food" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><GiftIcon className="h-4 w-4" />Play & Food</Link></li>
+                  <li><Link href="/golf-club-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><ShoppingBagIcon className="h-4 w-4" />{t('clubRental')}</Link></li>
+                  <li><Link href="/course-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TruckIcon className="h-4 w-4" />{t('courseRental')}</Link></li>
+                  <li><Link href="/play-and-food" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><GiftIcon className="h-4 w-4" />{t('playAndFood')}</Link></li>
                 </ul>
               </li>
 
               <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                <a 
+                <a
                   href="https://len.golf"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -385,15 +387,15 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                   onClick={toggleMobileMenu}
                 >
                   <HeroHomeIcon className="h-4 w-4" />
-                  Main Site
+                  {t('mainSite')}
                 </a>
               </li>
-              
+
               <li className="border-t border-primary-foreground/20 pt-2 mt-2">
                 {sessionStatus === 'authenticated' ? (
-                  <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />Sign Out</button>
+                  <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />{t('signOut')}</button>
                 ) : (
-                  <button onClick={() => { signIn(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />Sign In</button>
+                  <button onClick={() => { signIn(); toggleMobileMenu(); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"><LogOut size={16} />{t('signIn')}</button>
                 )}
               </li>
             </ul>
@@ -418,7 +420,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
                 <CurrencyDollarIcon className="h-6 w-6 mr-2 text-green-600" />
-                Bay Rates
+                {t('bayRates')}
               </h3>
               <button onClick={() => setShowBayRates(false)} className="text-gray-500 hover:text-gray-700">
                 <XMarkIcon className="h-6 w-6" />
@@ -427,7 +429,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
             <div className="relative">
               <Image
                 src="https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets/golf/bay-rates.jpg"
-                alt="LENGOLF Bay Rates"
+                alt={t('modalBayRatesAlt')}
                 width={800}
                 height={600}
                 className="rounded-xl w-full h-auto object-contain"
@@ -444,7 +446,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
                 <FireIcon className="h-6 w-6 mr-2 text-green-600" />
-                Promotions
+                {t('promotions')}
               </h3>
               <button onClick={() => setShowPromotions(false)} className="text-gray-500 hover:text-gray-700">
                 <XMarkIcon className="h-6 w-6" />
@@ -455,7 +457,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                 <div className="relative">
                   <Image
                     src={promotions[currentPromoIndex]?.image}
-                    alt={promotions[currentPromoIndex]?.title?.en || `LENGOLF Promotion ${currentPromoIndex + 1}`}
+                    alt={promotions[currentPromoIndex]?.title?.en || t('modalPromotionAlt', { index: currentPromoIndex + 1 })}
                     width={800}
                     height={600}
                     className="rounded-xl w-full h-auto object-contain"
@@ -512,7 +514,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                 </div>
               ) : (
                 <div className="text-center py-10 bg-gray-50 rounded-xl">
-                  <p className="text-gray-500">No promotions available at the moment.</p>
+                  <p className="text-gray-500">{t('noPromotions')}</p>
                 </div>
               )}
             </div>
@@ -526,7 +528,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
                 <AcademicCapIcon className="h-6 w-6 mr-2 text-green-600" />
-                Golf Lessons
+                {t('golfLessons')}
               </h3>
               <button onClick={() => setShowLessons(false)} className="text-gray-500 hover:text-gray-700">
                 <XMarkIcon className="h-6 w-6" />
@@ -542,23 +544,22 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                   className="rounded-xl w-auto h-auto mx-auto object-contain mb-4"
                   loading="lazy"
                 />
-                <h4 className="text-lg font-semibold text-gray-900 mb-2">Book Professional Golf Lessons</h4>
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">{t('lessonsHeading')}</h4>
                 <p className="text-gray-600 mb-4">
-                  Improve your golf skills with our professional instructors. 
-                  Various lesson packages available for beginners to advanced players.
-                  <span className="font-medium block mt-1">Golf lessons can only be booked via LINE.</span>
+                  {t('lessonsBody')}
+                  <span className="font-medium block mt-1">{t('lessonsLineOnly')}</span>
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center gap-3 mb-4">
-                  <a 
+                  <a
                     href="https://lin.ee/uxQpIXn"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 bg-[#06C755] text-white px-4 py-2 rounded-lg hover:bg-[#05b04e] transition-colors"
                   >
                     <FaLine className="text-xl" />
-                    Contact via LINE
+                    {t('contactViaLine')}
                   </a>
-                  <a 
+                  <a
                     href="https://www.len.golf/lessons"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -567,7 +568,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
-                    View for more information
+                    {t('moreInformation')}
                   </a>
                 </div>
               </div>

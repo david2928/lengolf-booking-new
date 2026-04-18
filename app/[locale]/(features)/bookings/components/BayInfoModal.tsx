@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment } from 'react';
+import { useTranslations } from 'next-intl';
 import { Dialog, Transition } from '@headlessui/react';
 import Image from 'next/image';
 import { 
@@ -21,6 +22,7 @@ interface BayInfoModalProps {
 }
 
 export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
+  const t = useTranslations('bookings.bayInfoModal');
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -51,10 +53,10 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                 {/* Header */}
                 <div className="relative bg-gradient-to-r from-green-600 to-purple-600 px-6 py-4">
                   <Dialog.Title as="h2" className="text-2xl lg:text-3xl font-bold text-center text-white">
-                    Choose Your Golf Experience
+                    {t('title')}
                   </Dialog.Title>
                   <p className="text-center text-green-100 mt-1">
-                    Select the perfect bay type for your skill level and group size
+                    {t('subtitle')}
                   </p>
                   <button
                     onClick={onClose}
@@ -75,57 +77,57 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                         </div>
                         <div>
                           <h3 className="text-xl font-bold text-green-800">
-                            Social Bays
+                            {t('socialBaysHeading')}
                           </h3>
                           <span className="px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full font-medium">
-                            3 Available
+                            {t('socialBaysAvailable')}
                           </span>
                         </div>
                       </div>
                       
                       <div className="space-y-4">
-                        <p className="text-gray-700 font-medium">Perfect for beginners, groups, and social play</p>
-                        
+                        <p className="text-gray-700 font-medium">{t('socialBaysIntro')}</p>
+
                         <div className="space-y-2">
-                          <h4 className="font-semibold text-green-800 text-sm">Ideal For:</h4>
+                          <h4 className="font-semibold text-green-800 text-sm">{t('idealFor')}</h4>
                           <ul className="space-y-1 text-sm">
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>New to golf & beginners</span>
+                              <span>{t('socialIdeal1')}</span>
                             </li>
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Groups of 1-5 players</span>
+                              <span>{t('socialIdeal2')}</span>
                             </li>
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Casual, fun experiences</span>
+                              <span>{t('socialIdeal3')}</span>
                             </li>
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Celebrations & parties</span>
+                              <span>{t('socialIdeal4')}</span>
                             </li>
                           </ul>
                         </div>
 
                         <div className="space-y-2">
-                          <h4 className="font-semibold text-green-800 text-sm">Features:</h4>
+                          <h4 className="font-semibold text-green-800 text-sm">{t('features')}</h4>
                           <ul className="space-y-1 text-sm">
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Auto tee system</span>
+                              <span>{t('socialFeature1')}</span>
                             </li>
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Several match modes on 100+ courses</span>
+                              <span>{t('socialFeature2')}</span>
                             </li>
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>All skill levels welcome</span>
+                              <span>{t('socialFeature3')}</span>
                             </li>
                             <li className="flex items-start">
                               <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Social atmosphere</span>
+                              <span>{t('socialFeature4')}</span>
                             </li>
                           </ul>
                         </div>
@@ -134,7 +136,7 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                         <div className="mt-4">
                           <Image
                             src="/images/bays/social-bay.jpg"
-                            alt="Social Bay Experience"
+                            alt={t('socialBayAlt')}
                             width={400}
                             height={160}
                             className="w-full h-40 object-cover rounded-lg"
@@ -145,7 +147,7 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                             }}
                           />
                           <div className="bg-gray-200 h-40 rounded-lg flex items-center justify-center mt-4 hidden">
-                            <span className="text-gray-500 text-sm">Social Bay Experience</span>
+                            <span className="text-gray-500 text-sm">{t('socialBayAlt')}</span>
                           </div>
                         </div>
                       </div>
@@ -154,66 +156,66 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                     {/* AI Lab Section */}
                     <div className="border-2 border-purple-500 rounded-lg p-6 bg-purple-50 relative">
                       <div className="absolute -top-3 right-4 bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                        NEW!
+                        {t('newBadge')}
                       </div>
-                      
+
                       <div className="flex items-center mb-4">
                         <div className="bg-purple-500 p-2 rounded-full mr-3">
                           <ComputerDesktopIcon className="h-6 w-6 text-white" />
                         </div>
                         <div>
                           <h3 className="text-xl font-bold text-purple-800">
-                            LENGOLF AI Lab
+                            {t('aiLabHeading')}
                           </h3>
                           <span className="px-2 py-1 bg-purple-200 text-purple-800 text-xs rounded-full font-medium">
-                            1 Available
+                            {t('aiLabAvailable')}
                           </span>
                         </div>
                       </div>
                       
                       <div className="space-y-4">
-                        <p className="text-gray-700 font-medium">Advanced technology for experienced players</p>
-                        
+                        <p className="text-gray-700 font-medium">{t('aiLabIntro')}</p>
+
                         <div className="space-y-2">
-                          <h4 className="font-semibold text-purple-800 text-sm">Ideal For:</h4>
+                          <h4 className="font-semibold text-purple-800 text-sm">{t('idealFor')}</h4>
                           <ul className="space-y-1 text-sm">
                             <li className="flex items-start">
                               <AcademicCapIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Intermediate+ players</span>
+                              <span>{t('aiIdeal1')}</span>
                             </li>
                             <li className="flex items-start">
                               <UsersIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Solo or duo sessions (1-2 players)</span>
+                              <span>{t('aiIdeal2')}</span>
                             </li>
                             <li className="flex items-start">
                               <SparklesIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Serious improvement focused</span>
+                              <span>{t('aiIdeal3')}</span>
                             </li>
                             <li className="flex items-start">
                               <HandRaisedIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Left & right-handed players</span>
+                              <span>{t('aiIdeal4')}</span>
                             </li>
                           </ul>
                         </div>
 
                         <div className="space-y-2">
-                          <h4 className="font-semibold text-purple-800 text-sm">Advanced Features:</h4>
+                          <h4 className="font-semibold text-purple-800 text-sm">{t('advancedFeatures')}</h4>
                           <ul className="space-y-1 text-sm">
                             <li className="flex items-start">
                               <SparklesIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>AI-powered swing analysis</span>
+                              <span>{t('aiFeature1')}</span>
                             </li>
                             <li className="flex items-start">
                               <VideoCameraIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Dual-angle video replay</span>
+                              <span>{t('aiFeature2')}</span>
                             </li>
                             <li className="flex items-start">
                               <ComputerDesktopIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>4K Projector from BenQ for 4K course simulator</span>
+                              <span>{t('aiFeature3')}</span>
                             </li>
                             <li className="flex items-start">
                               <HandRaisedIcon className="h-4 w-4 text-purple-500 mr-2 mt-0.5 flex-shrink-0" />
-                              <span>Left & right-handed optimized setup</span>
+                              <span>{t('aiFeature4')}</span>
                             </li>
                           </ul>
                         </div>
@@ -222,7 +224,7 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                         <div className="mt-4">
                           <Image
                             src="/images/bays/ai-lab-technology.jpg"
-                            alt="AI Lab Technology"
+                            alt={t('aiLabAlt')}
                             width={400}
                             height={160}
                             className="w-full h-40 object-cover rounded-lg"
@@ -233,7 +235,7 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                             }}
                           />
                           <div className="bg-gray-200 h-40 rounded-lg flex items-center justify-center mt-4 hidden">
-                            <span className="text-gray-500 text-sm">AI Lab Technology</span>
+                            <span className="text-gray-500 text-sm">{t('aiLabAlt')}</span>
                           </div>
                         </div>
                       </div>
@@ -244,52 +246,52 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                   <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg mb-6">
                     <h4 className="font-semibold text-blue-900 mb-4 flex items-center text-lg">
                       <InformationCircleIcon className="h-5 w-5 mr-2" />
-                      Which bay is right for you?
+                      {t('decisionTitle')}
                     </h4>
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <h5 className="font-medium text-green-800 border-b border-green-200 pb-1">
-                          Choose Social Bays if you are:
+                          {t('chooseSocialIfTitle')}
                         </h5>
                         <ul className="space-y-2 text-sm text-gray-700">
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                            <span>New to golf or still learning</span>
+                            <span>{t('chooseSocial1')}</span>
                           </li>
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                            <span>Playing with 1-5 people</span>
+                            <span>{t('chooseSocial2')}</span>
                           </li>
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                            <span>Looking for a casual, fun experience</span>
+                            <span>{t('chooseSocial3')}</span>
                           </li>
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                            <span>Celebrating or having a party</span>
+                            <span>{t('chooseSocial4')}</span>
                           </li>
                         </ul>
                       </div>
                       <div className="space-y-3">
                         <h5 className="font-medium text-purple-800 border-b border-purple-200 pb-1">
-                          Choose LENGOLF AI Lab if you are:
+                          {t('chooseAiIfTitle')}
                         </h5>
                         <ul className="space-y-2 text-sm text-gray-700">
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                            <span>An intermediate+ player</span>
+                            <span>{t('chooseAi1')}</span>
                           </li>
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                            <span>Playing solo or with 1 partner</span>
+                            <span>{t('chooseAi2')}</span>
                           </li>
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                            <span>Serious about analyzing your swing</span>
+                            <span>{t('chooseAi3')}</span>
                           </li>
                           <li className="flex items-start">
                             <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                            <span>Looking for optimized setup (left or right-handed)</span>
+                            <span>{t('chooseAi4')}</span>
                           </li>
                         </ul>
                       </div>
@@ -298,9 +300,9 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
 
                   {/* Launch Poster Reference */}
                   <div className="bg-gradient-to-r from-green-500 to-purple-500 p-6 rounded-lg text-white text-center mb-6">
-                    <h4 className="font-bold text-lg mb-2">🚀 Introducing LENGOLF AI Lab</h4>
+                    <h4 className="font-bold text-lg mb-2">{t('introducingTitle')}</h4>
                     <p className="text-sm opacity-90">
-                      Advanced AI-powered swing analysis • Dual-angle video replay • 4K course simulation
+                      {t('introducingBody')}
                     </p>
                   </div>
 
@@ -310,7 +312,7 @@ export function BayInfoModal({ isOpen, onClose }: BayInfoModalProps) {
                       onClick={onClose}
                       className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
                     >
-                      I understand - Let me choose
+                      {t('understandCta')}
                     </button>
                   </div>
                 </div>

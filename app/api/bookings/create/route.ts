@@ -9,6 +9,13 @@ import { findOrCreateCustomer, getPackageInfoForCustomer } from '@/utils/custome
 import { BAY_DISPLAY_NAMES } from '@/lib/bayConfig';
 import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
 import { isValidLanguage } from '@/lib/liff/translations';
+import { isValidLocale } from '@/i18n/routing';
+
+// Accept any LIFF Language (en/th/ja/zh) OR any main-site Locale (en/th/ko/ja/zh).
+// LIFF's isValidLanguage doesn't include 'ko', but the main flow can produce it.
+function isAcceptableBookingLanguage(value: unknown): value is string {
+  return typeof value === 'string' && (isValidLanguage(value) || isValidLocale(value));
+}
 import { appCache } from '@/lib/cache';
 
 const supabase = createAdminClient();
@@ -664,7 +671,7 @@ export async function POST(request: NextRequest) {
         booking_type: derivedBookingType, // NEW: Include booking_type from the start
         package_name: derivedPackageName, // NEW: Include package_name from the start
         package_id: derivedPackageId, // NEW: Include package_id from the start (undefined for non-simulator packages)
-        language: (language && isValidLanguage(language)) ? language : null
+        language: isAcceptableBookingLanguage(language) ? language : null
         // REMOVED: stable_hash_id (deprecated)
       })
       .select()
@@ -680,7 +687,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fire-and-forget: update customer preferred_language if valid language provided
-    if (language && isValidLanguage(language) && customerId) {
+    if (isAcceptableBookingLanguage(language) && customerId) {
       supabase
         .from('customers')
         .update({ preferred_language: language })

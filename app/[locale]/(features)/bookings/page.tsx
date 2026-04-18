@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { format } from 'date-fns';
+import { useTranslations, useFormatter } from 'next-intl';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import dynamic from 'next/dynamic';
 import { Layout } from './components/booking/Layout';
@@ -19,7 +19,10 @@ const BookingDetails = dynamic(
 );
 
 export default function BookingsPage() {
-  
+  const tCommon = useTranslations('bookings.common');
+  const tPage = useTranslations('bookings.page');
+  const format = useFormatter();
+
   const { status } = useSession({
     required: false,
     onUnauthenticated() {
@@ -62,26 +65,26 @@ export default function BookingsPage() {
           <button
             onClick={handleBack}
             className="mr-4 p-2 rounded-lg hover:bg-gray-100"
-            aria-label="Go back"
+            aria-label={tCommon('goBack')}
           >
             <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
           </button>
         )}
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
-            {currentStep === 1 
-              ? 'Select Date'
+            {currentStep === 1
+              ? tPage('stepDateTitle')
               : currentStep === 2
-              ? 'Select Time'
-              : 'Provide Details'
+              ? tPage('stepTimeTitle')
+              : tPage('stepDetailsTitle')
             }
           </h2>
           <p className="text-gray-600 mt-1">
-            {currentStep === 1 
-              ? 'Choose when you\'d like to play.'
+            {currentStep === 1
+              ? tPage('stepDateSubtitle')
               : currentStep === 2
-              ? format(selectedDate!, 'EEE, d MMM yyyy')
-              : 'Complete your booking details.'
+              ? format.dateTime(selectedDate!, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+              : tPage('stepDetailsSubtitle')
             }
           </p>
         </div>
