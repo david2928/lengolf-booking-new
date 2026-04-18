@@ -813,6 +813,8 @@ export default function CourseRentalPage() {
                 placeholder="Enter phone number"
                 value={contactPhone}
                 onChange={setContactPhone}
+                aria-invalid={!!contactPhone && !isValidPhoneNumber(contactPhone)}
+                aria-describedby="course-rental-phone-hint"
                 className={`w-full h-12 px-3 py-2 rounded-xl border custom-phone-input focus:ring-1 focus:ring-green-500 ${
                   contactPhone && isValidPhoneNumber(contactPhone)
                     ? 'border-green-500 focus:border-green-500'
@@ -820,12 +822,14 @@ export default function CourseRentalPage() {
                 }`}
               />
               {!contactPhone && (
-                <p className="mt-1 text-xs text-gray-500">
+                <p id="course-rental-phone-hint" className="mt-1 text-xs text-gray-500">
                   Please select your country code and enter your phone number.
                 </p>
               )}
               {contactPhone && !isValidPhoneNumber(contactPhone) && (
-                <p className="mt-1 text-xs text-red-600">Please enter a valid phone number.</p>
+                <p id="course-rental-phone-hint" className="mt-1 text-xs text-red-600" role="alert">
+                  Please enter a valid phone number.
+                </p>
               )}
             </div>
 
