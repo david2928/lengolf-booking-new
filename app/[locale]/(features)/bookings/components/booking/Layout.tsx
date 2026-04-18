@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { FaLine } from 'react-icons/fa';
 import SharedFooter from '@/components/shared/Footer';
 import Header from '@/components/shared/Header';
+import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import PromotionBar from '@/components/shared/PromotionBar';
 import { Promotion, fetchPromotions } from '@/lib/liff/promotions-data';
 import { LogOut, Package as PackageIconLucide, Calendar as CalendarIconLucide, Trophy as TrophyIconLucide, Link as LinkIconLucideRadix, User as UserIconLucide } from 'lucide-react';
@@ -132,7 +133,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
         rightContent={
           <>
             {!hideNav && (
-            <div className="header-desktop:hidden flex gap-1">
+            <div className="header-desktop:hidden flex gap-1 items-center">
               <button
                 onClick={() => setShowBayRates(true)}
                 className="p-2 text-white hover:bg-white/10 rounded-md"
@@ -154,6 +155,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
               >
                 <AcademicCapIcon className="h-5 w-5" />
               </button>
+              <LanguageSwitcher />
             </div>
             )}
 
@@ -201,6 +203,8 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
               <div className="h-6 w-px bg-white/30"></div>
               </>
               )}
+
+              <LanguageSwitcher />
 
               {/* Simple My Account dropdown */}
               {sessionStatus === 'authenticated' && vipLoading ? (
