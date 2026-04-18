@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { getIndoorPrice, getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
 import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rental';
-import { sendCourseRentalConfirmationEmail } from '@/lib/emailService';
+import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
 
 /** Build trusted add-on price/label map at request time for dynamic pricing */
 function getTrustedAddons(): Record<string, { price: number; label: string }> {
@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       return_time,
       notes: customerNotes,
       source = 'booking_app',
+      language: bodyLanguage,
     } = body;
 
     // Only accept customer_id/user_id from trusted internal sources (booking_app with booking_id)
@@ -262,6 +263,19 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation email for course rentals
     if (rental_type === 'course' && customer_email) {
+      // Resolve locale: explicit body param first, then fall back to
+      // customers.preferred_language if we know the customer.
+      let resolvedLanguage: string | null = typeof bodyLanguage === 'string' ? bodyLanguage : null;
+      if (!resolvedLanguage && customer_id) {
+        const { data: customerLang } = await supabase
+          .from('customers')
+          .select('preferred_language')
+          .eq('id', customer_id)
+          .single();
+        resolvedLanguage = customerLang?.preferred_language ?? null;
+      }
+      const emailLocale = resolveEmailLocale(resolvedLanguage);
+
       sendCourseRentalConfirmationEmail({
         customerName: customer_name,
         email: customer_email,
@@ -283,6 +297,7 @@ export async function POST(request: NextRequest) {
         deliveryFee: delivery_fee,
         totalPrice: total_price,
         notes: customerNotes || undefined,
+        language: emailLocale,
       }).catch(err => console.error('[ClubReserve] Email send error:', err));
     }
 

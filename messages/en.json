@@ -853,6 +853,41 @@
       "visitWebsiteCta": "Visit Our Website",
       "copyright": "© {year} LENGOLF. All rights reserved."
     },
-    "linkAccount": {}
+    "linkAccount": {},
+    "courseRentalConfirmation": {
+      "subject": "LENGOLF Course Rental Confirmation - {rentalCode}",
+      "logoAlt": "LENGOLF Logo",
+      "heading": "Course Rental Reservation Confirmed!",
+      "greeting": "Dear {name},",
+      "intro": "Thank you for your golf club rental reservation. Here are your details:",
+      "rentalCodeLabel": "Your Rental Code",
+      "clubSetLabel": "Club Set",
+      "clubSetTierPremium": "Premium",
+      "clubSetTierPremiumPlus": "Premium+",
+      "clubSetGenderMens": "Men's",
+      "clubSetGenderWomens": "Women's",
+      "clubSetMeta": "{tier} · {gender}",
+      "rentalPeriodLabel": "Rental Period",
+      "rentalPeriodSingle": "{date}",
+      "rentalPeriodRange": "{startDate} → {endDate} ({days, plural, =1 {# day} other {# days}})",
+      "deliveryLabelDelivery": "Delivery",
+      "deliveryLabelPickup": "Pickup",
+      "deliveryValueDelivery": "Delivery & Return",
+      "deliveryValuePickup": "Pickup at LENGOLF",
+      "deliveryPickupAddress": "Mercury Ville @ BTS Chidlom, Floor 4",
+      "deliveryPreferredTime": "Preferred time: {time}",
+      "notesLabel": "Notes",
+      "rentalFeeLabel": "Club Rental ({days}d)",
+      "deliveryFeeLabel": "Delivery & Return",
+      "totalLabel": "Total",
+      "whatsNextHeading": "What happens next?",
+      "whatsNextBody": "Our team will contact you within 2 hours via LINE to confirm availability and send a payment link. You can pay by credit/debit card or Shopee wallet.",
+      "footerPhoneLabel": "Phone Number:",
+      "footerLineLabel": "LINE:",
+      "footerAddressLabel": "Address:",
+      "footerAddressValue": "4th Floor, Mercury Ville at BTS Chidlom",
+      "visitWebsiteCta": "Visit Our Website",
+      "copyright": "© {year} LENGOLF. All rights reserved."
+    }
   }
 }

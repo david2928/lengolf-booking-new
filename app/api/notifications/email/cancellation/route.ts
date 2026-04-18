@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { createTranslator } from 'next-intl';
+import { createTranslator, createFormatter } from 'next-intl';
 import { resolveEmailLocale } from '@/lib/emailService';
 import type { Locale } from '@/i18n/routing';
 import enMessages from '@/messages/en.json';
@@ -40,6 +40,8 @@ interface BookingCancellationBody {
   subjectName?: string;
   bookingId: string;
   bookingDate: string;
+  /** Optional raw YYYY-MM-DD date for locale-aware formatting. */
+  bookingDateISO?: string;
   startTime: string;
   endTime?: string;
   duration: number;
@@ -47,6 +49,13 @@ interface BookingCancellationBody {
   bayName?: string;
   cancellationReason?: string;
   language?: string;
+}
+
+/** Build a UTC-anchored Date for Asia/Bangkok (UTC+7, no DST) from YYYY-MM-DD + HH:MM. */
+function bangkokDateTime(dateISO: string, time: string): Date {
+  const [y, m, d] = dateISO.split('-').map(Number);
+  const [hh, mm] = time.split(':').map(Number);
+  return new Date(Date.UTC(y, (m || 1) - 1, d || 1, (hh || 0) - 7, mm || 0));
 }
 
 export async function POST(request: NextRequest) {
@@ -67,6 +76,7 @@ export async function POST(request: NextRequest) {
       userName,
       bookingId,
       bookingDate,
+      bookingDateISO,
       startTime,
       endTime,
       duration,
@@ -89,6 +99,28 @@ export async function POST(request: NextRequest) {
       messages: messagesByLocale[locale],
       namespace: 'emails.bookingCancellation',
     });
+    const format = createFormatter({ locale });
+
+    // Locale-aware date/time display when a raw ISO date is provided; otherwise
+    // fall back to the upstream pre-formatted strings.
+    const dateDisplay = bookingDateISO
+      ? format.dateTime(bangkokDateTime(bookingDateISO, startTime), {
+          dateStyle: 'long',
+          timeZone: 'Asia/Bangkok',
+        })
+      : bookingDate;
+    const startTimeDisplay = bookingDateISO
+      ? format.dateTime(bangkokDateTime(bookingDateISO, startTime), {
+          timeStyle: 'short',
+          timeZone: 'Asia/Bangkok',
+        })
+      : startTime;
+    const endTimeDisplay = bookingDateISO && endTime
+      ? format.dateTime(bangkokDateTime(bookingDateISO, endTime), {
+          timeStyle: 'short',
+          timeZone: 'Asia/Bangkok',
+        })
+      : endTime;
 
     // 4. Create email transporter with same config as emailService.ts
     const transporter = nodemailer.createTransport({
@@ -106,7 +138,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Create email content
     // Align subject line format with booking confirmation email
-    const emailSubject = t('subject', { date: bookingDate, time: startTime });
+    const emailSubject = t('subject', { date: dateDisplay, time: startTimeDisplay });
 
     // Construct VIP bookings URL for rebooking
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://booking.len.golf';
@@ -138,16 +170,16 @@ export async function POST(request: NextRequest) {
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 15px;">
             <tr>
               <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('dateLabel')}</th>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${escapeHtml(bookingDate)}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${escapeHtml(dateDisplay)}</td>
             </tr>
             <tr>
               <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('startTimeLabel')}</th>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${escapeHtml(startTime)}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${escapeHtml(startTimeDisplay)}</td>
             </tr>
-            ${endTime ? `
+            ${endTimeDisplay ? `
             <tr>
               <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('endTimeLabel')}</th>
-              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${escapeHtml(endTime)}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #ddd;">${escapeHtml(endTimeDisplay)}</td>
             </tr>
             ` : ''}
             <tr>

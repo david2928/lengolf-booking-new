@@ -253,6 +253,8 @@ export interface ClubReserveRequest {
   return_time?: string;
   notes?: string;
   source?: 'website' | 'booking_app' | 'liff' | 'staff' | 'line';
+  /** Customer locale for localized email/notifications (e.g. 'en', 'th', 'ja'). */
+  language?: string;
 }
 
 /** Get the indoor price for a given duration from a RentalClubSet */

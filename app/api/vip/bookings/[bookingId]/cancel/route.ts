@@ -318,7 +318,8 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
         userName,
         subjectName: userName, // subjectName will be the same as userName
         bookingId: cancelledBooking.id,
-        bookingDate: formattedDate, // Use formatted date to match booking confirmation
+        bookingDate: formattedDate, // Pre-formatted date (legacy fallback)
+        bookingDateISO: cancelledBooking.date, // Raw YYYY-MM-DD for locale-aware formatting
         startTime: cancelledBooking.start_time,
         endTime: endTimeCalc,
         duration: cancelledBooking.duration,
