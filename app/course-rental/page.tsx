@@ -6,7 +6,7 @@ import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
 import { ArrowLeftIcon, CheckIcon, InformationCircleIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
-import { getCoursePriceBreakdown, getGearUpItems } from '@/types/golf-club-rental';
+import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
 import { pushEventToGtm } from '@/utils/gtm';
 
@@ -38,22 +38,12 @@ function getSetImageKey(set: { tier: string; gender: string }): string {
 
 // Preview sets shown on Step 1 (dates) as orientation - not a selection UI.
 // Real availability-filtered selection happens on Step 2.
+// Image URLs come from getSetThumbnailUrl() so they stay in sync with the
+// booking selector and the rental-options modal.
 const PREVIEW_SETS = [
-  {
-    img: `${STORAGE_BASE}/clubs/warbird/warbird-full-set.webp`,
-    name: 'Callaway Warbird',
-    meta: "Men's · Premium",
-  },
-  {
-    img: `${STORAGE_BASE}/clubs/premium-womens/majesty-shuttle-full-set.jpg`,
-    name: 'Majesty Shuttle',
-    meta: "Ladies' · Premium",
-  },
-  {
-    img: `${STORAGE_BASE}/clubs/premium-plus/2.png`,
-    name: 'Callaway Paradym',
-    meta: "Men's · Premium+",
-  },
+  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'mens' }), name: 'Callaway Warbird', meta: "Men's · Premium" },
+  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'womens' }), name: 'Majesty Shuttle', meta: "Ladies' · Premium" },
+  { img: getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' }), name: 'Callaway Paradym', meta: "Men's · Premium+" },
 ];
 
 const TIME_OPTIONS = [

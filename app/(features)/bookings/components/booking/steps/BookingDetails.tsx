@@ -1120,7 +1120,7 @@ export function BookingDetails({
                         {clubSet.brand} {clubSet.model}
                       </div>
                     </div>
-                    <div className={`text-right flex-shrink-0 ml-2 ${
+                    <div className={`text-right flex-shrink-0 ml-auto ${
                       isSelected && isPremiumPlus ? 'text-white' :
                       isSelected ? 'text-green-700' : 'text-gray-900'
                     }`}>
@@ -1576,21 +1576,21 @@ export function BookingDetails({
                     <div className="grid grid-cols-2 gap-2 mb-3">
                       <div className="relative h-28 bg-white rounded-md overflow-hidden border border-gray-100">
                         <Image
-                          src="https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets/clubs/warbird/warbird-full-set.webp"
+                          src={getSetThumbnailUrl({ tier: 'premium', gender: 'mens' })}
                           alt="Callaway Warbird full set"
                           fill
                           className="object-contain p-1"
-                          sizes="160px"
+                          sizes="(max-width: 768px) 50vw, 200px"
                           loading="lazy"
                         />
                       </div>
                       <div className="relative h-28 bg-white rounded-md overflow-hidden border border-gray-100">
                         <Image
-                          src="https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets/clubs/premium-womens/majesty-shuttle-full-set.jpg"
+                          src={getSetThumbnailUrl({ tier: 'premium', gender: 'womens' })}
                           alt="Majesty Shuttle full set"
                           fill
                           className="object-contain p-1"
-                          sizes="160px"
+                          sizes="(max-width: 768px) 50vw, 200px"
                           loading="lazy"
                         />
                       </div>
@@ -1624,11 +1624,11 @@ export function BookingDetails({
                     {/* Paradym hero photo */}
                     <div className="relative h-28 bg-white rounded-md overflow-hidden mb-3">
                       <Image
-                        src="https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets/clubs/premium-plus/2.png"
+                        src={getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' })}
                         alt="Callaway Paradym Forged Carbon"
                         fill
                         className="object-contain p-1"
-                        sizes="320px"
+                        sizes="(max-width: 768px) 100vw, 33vw"
                         loading="lazy"
                       />
                     </div>
