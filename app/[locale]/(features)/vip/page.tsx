@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useTranslations, useFormatter } from 'next-intl';
 import DashboardView from '@/components/vip/DashboardView';
 import { useVipContext } from './contexts/VipContext';
 import { getVipProfile, getVipBookings, getVipPackages } from '@/lib/vipService'; // Adjusted path
@@ -28,6 +29,10 @@ interface DashboardActivePackage {
 const VipDashboardPage = () => {
   const { session, vipStatus, isLoadingVipStatus, vipStatusError, refetchVipStatus, sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
   const router = useRouter();
+  const t = useTranslations('vip.dashboard');
+  const tCommon = useTranslations('vip.common');
+  const tErrors = useTranslations('vip.errors');
+  const format = useFormatter();
 
   // Local state for dashboard-specific data
   const [profile, setProfile] = useState<VipProfileResponse | null>(null);
@@ -92,9 +97,11 @@ const VipDashboardPage = () => {
           id: firstActivePackage.id,
           name: firstActivePackage.package_display_name || firstActivePackage.packageName,
           hoursRemaining: hrsRemaining,
-          expires: firstActivePackage.expiryDate ? new Date(firstActivePackage.expiryDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric'}) : undefined,
-          tier: firstActivePackage.package_type_name?.includes('(') ? 
-                firstActivePackage.package_type_name.substring(firstActivePackage.package_type_name.indexOf('(') + 1, firstActivePackage.package_type_name.indexOf(')')) : 
+          expires: firstActivePackage.expiryDate
+            ? format.dateTime(new Date(firstActivePackage.expiryDate + 'T00:00:00'), { year: 'numeric', month: 'short', day: 'numeric' })
+            : undefined,
+          tier: firstActivePackage.package_type_name?.includes('(') ?
+                firstActivePackage.package_type_name.substring(firstActivePackage.package_type_name.indexOf('(') + 1, firstActivePackage.package_type_name.indexOf(')')) :
                 (firstActivePackage.packageName?.includes('(') ? firstActivePackage.packageName.substring(firstActivePackage.packageName.indexOf('(') + 1, firstActivePackage.packageName.indexOf(')')) : undefined)
         });
       } else {
@@ -134,7 +141,7 @@ const VipDashboardPage = () => {
         // Update shared data
         updateSharedDataRef.current({ profile: profileData });
       } else {
-        throw new Error('Failed to fetch profile data');
+        throw new Error(tErrors('failedToFetchProfile'));
       }
 
       // Process bookings data
@@ -195,7 +202,9 @@ const VipDashboardPage = () => {
               id: firstActivePackage.id,
               name: firstActivePackage.package_display_name || firstActivePackage.packageName,
               hoursRemaining: hrsRemaining,
-              expires: firstActivePackage.expiryDate ? new Date(firstActivePackage.expiryDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric'}) : undefined,
+              expires: firstActivePackage.expiryDate
+                ? format.dateTime(new Date(firstActivePackage.expiryDate + 'T00:00:00'), { year: 'numeric', month: 'short', day: 'numeric' })
+                : undefined,
               tier: firstActivePackage.package_type_name?.includes('(') ? 
                     firstActivePackage.package_type_name.substring(firstActivePackage.package_type_name.indexOf('(') + 1, firstActivePackage.package_type_name.indexOf(')')) : 
                     (firstActivePackage.packageName?.includes('(') ? firstActivePackage.packageName.substring(firstActivePackage.packageName.indexOf('(') + 1, firstActivePackage.packageName.indexOf(')')) : undefined)
@@ -218,7 +227,7 @@ const VipDashboardPage = () => {
       } else if (error instanceof Error) {
         setFetchError(error.message);
       } else {
-        setFetchError('An unknown error occurred during data fetch.');
+        setFetchError(tErrors('unknownFetchError'));
       }
     } finally {
       setIsLoadingProfile(false);
@@ -229,7 +238,7 @@ const VipDashboardPage = () => {
         setIsLoadingPackages(false);
       }
     }
-  }, [session, vipStatus]);
+  }, [session, vipStatus, format, tErrors]);
 
   useEffect(() => {
     const handleRetryEvent = () => {
@@ -258,7 +267,7 @@ const VipDashboardPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-muted-foreground">Loading VIP Dashboard Status...</p>
+        <p className="text-muted-foreground">{t('loadingStatus')}</p>
       </div>
     );
   }
@@ -266,19 +275,19 @@ const VipDashboardPage = () => {
   if (vipStatusError) {
     return (
       <div className="text-center py-10">
-        <h2 className="text-xl font-semibold text-destructive mb-2">Error Loading VIP Status</h2>
-        <p className="text-muted-foreground mb-4">Could not determine your VIP account status.</p>
-        {(vipStatusError instanceof VipApiError && vipStatusError.payload?.message) && <p className="text-sm text-red-500 mb-2">Details: {vipStatusError.payload.message}</p>}
-        {!(vipStatusError instanceof VipApiError) && <p className="text-sm text-red-500 mb-2">Details: {vipStatusError.message}</p>}
-        {refetchVipStatus && <Button onClick={refetchVipStatus}>Try Again (Status)</Button>}
+        <h2 className="text-xl font-semibold text-destructive mb-2">{t('errorLoadingStatus')}</h2>
+        <p className="text-muted-foreground mb-4">{t('errorLoadingStatusBody')}</p>
+        {(vipStatusError instanceof VipApiError && vipStatusError.payload?.message) && <p className="text-sm text-red-500 mb-2">{t('errorDetails', { message: vipStatusError.payload.message })}</p>}
+        {!(vipStatusError instanceof VipApiError) && <p className="text-sm text-red-500 mb-2">{t('errorDetails', { message: vipStatusError.message })}</p>}
+        {refetchVipStatus && <Button onClick={refetchVipStatus}>{t('tryAgainStatus')}</Button>}
       </div>
     );
   }
-  
+
   if (!vipStatus || !session) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
-        <p className="text-muted-foreground">Initializing session or VIP status...</p>
+        <p className="text-muted-foreground">{t('initializing')}</p>
       </div>
     );
   }
@@ -286,7 +295,7 @@ const VipDashboardPage = () => {
   if (vipStatus?.status === 'not_linked') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
-        <p className="text-muted-foreground">Redirecting to account setup...</p>
+        <p className="text-muted-foreground">{tCommon('redirectingToAccountSetup')}</p>
       </div>
     );
   }
@@ -299,7 +308,7 @@ const VipDashboardPage = () => {
     return (
      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-       <p className="text-muted-foreground">Loading dashboard details...</p>
+       <p className="text-muted-foreground">{t('loadingDetails')}</p>
      </div>
    );
  }
@@ -307,18 +316,18 @@ const VipDashboardPage = () => {
   if (fetchError) {
     return (
       <div className="text-center py-10">
-        <h2 className="text-xl font-semibold text-destructive mb-2">Error Loading Dashboard Data</h2>
+        <h2 className="text-xl font-semibold text-destructive mb-2">{t('errorLoadingData')}</h2>
         <p className="text-muted-foreground mb-4">{fetchError}</p>
         <Button onClick={() => {
-            setFetchError(null); 
+            setFetchError(null);
             document.dispatchEvent(new Event('fetchDashboardData'));
-        }}>Try Again (Data)</Button>
+        }}>{t('tryAgainData')}</Button>
       </div>
     );
   }
-  
+
   const isMatched = vipStatus.status === 'linked_matched';
-  const userName = profile?.name || session.user?.name || 'VIP Member';
+  const userName = profile?.name || session.user?.name || t('vipMemberFallback');
   const vipTierName = profile?.vipTier?.name;
 
   return (

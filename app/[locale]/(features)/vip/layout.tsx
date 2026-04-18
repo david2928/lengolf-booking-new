@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { redirect } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, User, Package, Calendar, LogOut, Trophy, LinkIcon, ExternalLink } from 'lucide-react';
 import { XMarkIcon, FireIcon } from '@heroicons/react/24/outline';
 import { VipContextProvider, VipContextType, VipSharedData } from './contexts/VipContext';
@@ -21,6 +22,8 @@ interface VipLayoutProps {
 
 const VipLayout = ({ children }: VipLayoutProps) => {
   const { data: session, status: sessionStatus } = useSession();
+  const t = useTranslations('vip.common');
+  const tLayout = useTranslations('vip.layout');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPromotions, setShowPromotions] = useState(false);
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
@@ -193,17 +196,17 @@ const VipLayout = ({ children }: VipLayoutProps) => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-muted-foreground text-lg">Loading VIP Area...</p>
+        <p className="text-muted-foreground text-lg">{t('loadingVipArea')}</p>
       </div>
     );
   }
-  
+
   if (sessionStatus === 'unauthenticated') {
       // This should ideally not be reached if redirect works immediately
       // but as a fallback or if redirect is not instant.
       return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-          <p className="text-muted-foreground text-lg">Redirecting to login...</p>
+          <p className="text-muted-foreground text-lg">{t('redirectingToLogin')}</p>
         </div>
       );
   }
@@ -212,15 +215,15 @@ const VipLayout = ({ children }: VipLayoutProps) => {
   if (sessionStatus === 'authenticated' && vipStatusError && !isLoadingVipStatus) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
-        <h2 className="text-2xl font-semibold text-destructive mb-4">Error Loading VIP Information</h2>
+        <h2 className="text-2xl font-semibold text-destructive mb-4">{tLayout('errorLoadingVipInfo')}</h2>
         <p className="text-muted-foreground mb-4">
-          We couldn&apos;t retrieve your VIP status at the moment. Please try again later.
+          {tLayout('errorLoadingVipInfoBody')}
         </p>
         <p className="text-sm text-muted-foreground mb-6">
           {(vipStatusError as VipApiError)?.payload?.message || vipStatusError.message}
         </p>
-        <button onClick={() => fetchVipStatus(true)}>Try Again</button>
-        <button onClick={handleSignOut} className="ml-2">Sign Out</button>
+        <button onClick={() => fetchVipStatus(true)}>{t('tryAgain')}</button>
+        <button onClick={handleSignOut} className="ml-2">{t('signOut')}</button>
       </div>
     );
   }
@@ -260,7 +263,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                 <Link href="/bookings">
                   <button className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium">
                     <Calendar className="h-4 w-4" />
-                    <span>New Booking</span>
+                    <span>{t('newBooking')}</span>
                   </button>
                 </Link>
 
@@ -270,34 +273,34 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                 {/* Simple My Account dropdown */}
                 <div className="relative group">
                   <button className="flex items-center gap-1 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-white">
-                    My Account <ChevronDown size={16} />
+                    {t('myAccount')} <ChevronDown size={16} />
                   </button>
-                  
+
                   {/* Dropdown menu - matching booking layout style with separators */}
                   <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <Link href="/vip" className="flex items-center gap-2 px-4 py-3 text-green-700 hover:bg-green-50 transition-colors font-medium border-b border-green-100">
-                      <span>Dashboard</span>
-                      <span className="ml-auto bg-green-700 text-white px-2 py-0.5 rounded text-xs font-medium">VIP</span>
+                      <span>{t('dashboard')}</span>
+                      <span className="ml-auto bg-green-700 text-white px-2 py-0.5 rounded text-xs font-medium">{t('vipBadge')}</span>
                     </Link>
-                    
+
                     {isUserLinked ? (
                       <>
                         <div className="border-t border-gray-100"></div>
                         <Link href="/vip/profile" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                           <User size={16} />
-                          <span>My Profile</span>
+                          <span>{t('myProfile')}</span>
                         </Link>
                         <Link href="/vip/bookings" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                           <Calendar size={16} />
-                          <span>My Bookings</span>
+                          <span>{t('myBookings')}</span>
                         </Link>
                         <Link href="/vip/packages" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                           <Package size={16} />
-                          <span>My Packages</span>
+                          <span>{t('myPackages')}</span>
                         </Link>
                         <Link href="/vip/membership" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors">
                           <Trophy size={16} />
-                          <span>Membership</span>
+                          <span>{t('membership')}</span>
                         </Link>
                       </>
                     ) : shouldShowLinkAccount ? (
@@ -305,24 +308,24 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                         <div className="border-t border-gray-100"></div>
                         <Link href="/vip/link-account" className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors font-medium">
                           <LinkIcon size={16} />
-                          <span>Link Account to Access VIP Features</span>
+                          <span>{t('linkAccountFull')}</span>
                         </Link>
                       </>
                     ) : null}
-                    
+
                     <div className="border-t border-gray-100"></div>
-                    <a 
+                    <a
                       href="https://len.golf"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       <ExternalLink size={16} />
-                      <span>Main Site</span>
+                      <span>{t('mainSite')}</span>
                     </a>
                     <button onClick={handleSignOut} className="flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors w-full text-left">
                       <LogOut size={16} />
-                      <span>Sign Out</span>
+                      <span>{t('signOut')}</span>
                     </button>
                   </div>
                 </div>
@@ -332,7 +335,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                 <Link href="/bookings">
                   <button className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white/10 transition-all duration-200 flex items-center gap-2 font-medium">
                     <Calendar className="h-4 w-4" />
-                    <span>New Booking</span>
+                    <span>{t('newBooking')}</span>
                   </button>
                 </Link>
 
@@ -341,7 +344,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
 
                 <button onClick={handleSignOut} className="text-white px-4 py-2 rounded-lg border border-white/30 hover:bg-white hover:text-green-800 transition-all duration-200 flex items-center gap-2 font-medium">
                   <LogOut size={16} />
-                  <span>Sign Out</span>
+                  <span>{t('signOut')}</span>
                 </button>
               </nav>
             ) : null}
@@ -355,54 +358,54 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                   <li>
                     <Link href="/vip" className="flex items-center justify-between gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 bg-primary-foreground/5 border border-white/10" onClick={toggleMobileMenu}>
                       <span className="flex items-center gap-2 font-medium">
-                        Dashboard
+                        {t('dashboard')}
                       </span>
-                      <span className="bg-white text-green-700 px-2 py-0.5 rounded text-xs font-medium">VIP</span>
+                      <span className="bg-white text-green-700 px-2 py-0.5 rounded text-xs font-medium">{t('vipBadge')}</span>
                     </Link>
                   </li>
-                
+
                   {isUserLinked && (
                     <>
                       <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PROFILE</p>
+                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">{t('sectionProfile')}</p>
                         <ul className="mt-1 space-y-1">
-                          <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><User size={16} />My Profile</Link></li>
+                          <li><Link href="/vip/profile" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><User size={16} />{t('myProfile')}</Link></li>
                         </ul>
                       </li>
-                      
+
                       <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">BOOKINGS</p>
+                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">{t('sectionBookings')}</p>
                         <ul className="mt-1 space-y-1">
-                          <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />My Bookings</Link></li>
-                          <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />New Booking</Link></li>
+                          <li><Link href="/vip/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />{t('myBookings')}</Link></li>
+                          <li><Link href="/bookings" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Calendar size={16} />{t('newBooking')}</Link></li>
                         </ul>
                       </li>
-                      
+
                       <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">PACKAGES</p>
+                        <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">{t('sectionPackages')}</p>
                         <ul className="mt-1 space-y-1">
-                          <li><Link href="/vip/packages" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Package size={16} />My Packages</Link></li>
+                          <li><Link href="/vip/packages" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Package size={16} />{t('myPackages')}</Link></li>
                         </ul>
                       </li>
-                      
+
                       <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                        <Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Trophy size={16} />Membership</Link>
+                        <Link href="/vip/membership" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><Trophy size={16} />{t('membership')}</Link>
                       </li>
                     </>
                   )}
-                  
+
                   {shouldShowLinkAccount && (
                     <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                      <Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 font-medium" onClick={toggleMobileMenu}><LinkIcon size={16} />Link Account</Link>
+                      <Link href="/vip/link-account" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 font-medium" onClick={toggleMobileMenu}><LinkIcon size={16} />{t('linkAccount')}</Link>
                     </li>
                   )}
                 </>
               ) : (
-                <li><Link href="/bookings" className="block px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}>New Booking</Link></li>
+                <li><Link href="/bookings" className="block px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}>{t('newBooking')}</Link></li>
               )}
-            
+
               <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                <a 
+                <a
                   href="https://len.golf"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -410,12 +413,12 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                   onClick={toggleMobileMenu}
                 >
                   <ExternalLink size={16} />
-                  Main Site
+                  {t('mainSite')}
                 </a>
               </li>
-              
+
               <li className="border-t border-primary-foreground/20 pt-2 mt-2">
-                <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="flex items-center gap-2 px-3 py-2 rounded-md w-full text-left hover:bg-primary-foreground/10"><LogOut size={16} />Sign Out</button>
+                <button onClick={() => { handleSignOut(); toggleMobileMenu(); }} className="flex items-center gap-2 px-3 py-2 rounded-md w-full text-left hover:bg-primary-foreground/10"><LogOut size={16} />{t('signOut')}</button>
             </li>
             </ul>
           </nav>
@@ -444,7 +447,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center">
                 <FireIcon className="h-6 w-6 mr-2 text-green-600" />
-                Promotions
+                {t('promotions')}
               </h3>
               <button onClick={() => setShowPromotions(false)} className="text-gray-500 hover:text-gray-700">
                 <XMarkIcon className="h-6 w-6" />
@@ -455,7 +458,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                 <div className="relative">
                   <Image
                     src={promotions[currentPromoIndex]?.image}
-                    alt={promotions[currentPromoIndex]?.title?.en || `LENGOLF Promotion ${currentPromoIndex + 1}`}
+                    alt={promotions[currentPromoIndex]?.title?.en || t('promotionAlt', { index: currentPromoIndex + 1 })}
                     width={800}
                     height={600}
                     className="rounded-xl w-full h-auto object-contain"
@@ -512,7 +515,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
                 </div>
               ) : (
                 <div className="text-center py-10 bg-gray-50 rounded-xl">
-                  <p className="text-gray-500">No promotions available at the moment.</p>
+                  <p className="text-gray-500">{t('noPromotions')}</p>
                 </div>
               )}
             </div>

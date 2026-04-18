@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import BookingsList from '@/components/vip/BookingsList';
 import { useVipContext } from '../contexts/VipContext';
 import { Loader2 } from 'lucide-react';
@@ -17,6 +18,8 @@ import type { VipBooking } from '@/types/vip';
 const VipBookingsPage = () => {
   const { vipStatus, isLoadingVipStatus, session, refetchVipStatus } = useVipContext();
   const router = useRouter();
+  const t = useTranslations('vip.bookings');
+  const tCommon = useTranslations('vip.common');
   
   const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -120,7 +123,7 @@ const VipBookingsPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading bookings information...</p>
+        <p className="text-muted-foreground">{t('loading')}</p>
       </div>
     );
   }
@@ -130,7 +133,7 @@ const VipBookingsPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Redirecting to account linking...</p>
+        <p className="text-muted-foreground">{tCommon('redirectingToAccountLinking')}</p>
       </div>
     );
   }
@@ -138,8 +141,8 @@ const VipBookingsPage = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
-        <p className="text-muted-foreground">View and manage your past and upcoming tee times.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('heading')}</h1>
+        <p className="text-muted-foreground">{t('subheading')}</p>
       </div>
       
       <BookingsList 

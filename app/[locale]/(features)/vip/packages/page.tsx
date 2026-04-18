@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import PackagesList from '@/components/vip/PackagesList'; // To be created
 import { useVipContext } from '../contexts/VipContext';
 import { Loader2 } from 'lucide-react';
@@ -9,6 +10,8 @@ import { Loader2 } from 'lucide-react';
 const VipPackagesPage = () => {
   const { vipStatus, isLoadingVipStatus, session } = useVipContext();
   const router = useRouter();
+  const t = useTranslations('vip.packages');
+  const tCommon = useTranslations('vip.common');
 
   // Redirect unlinked users to link-account page
   // Note: linked_unmatched users can access this page but will see empty state
@@ -25,7 +28,7 @@ const VipPackagesPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading package information...</p>
+        <p className="text-muted-foreground">{t('loading')}</p>
       </div>
     );
   }
@@ -35,7 +38,7 @@ const VipPackagesPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Redirecting to account linking...</p>
+        <p className="text-muted-foreground">{tCommon('redirectingToAccountLinking')}</p>
       </div>
     );
   }
@@ -43,8 +46,8 @@ const VipPackagesPage = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">My Packages</h1>
-        <p className="text-muted-foreground">View your active and past lesson or practice packages.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('heading')}</h1>
+        <p className="text-muted-foreground">{t('subheading')}</p>
       </div>
       <PackagesList /> {/* This component will handle actual data fetching and display */}
     </div>

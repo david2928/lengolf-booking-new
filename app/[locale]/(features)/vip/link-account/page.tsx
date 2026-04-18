@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import ManualLinkAccountForm from '@/components/vip/ManualLinkAccountForm';
-import { useVipContext } from '../contexts/VipContext'; 
+import { useVipContext } from '../contexts/VipContext';
 import { useRouter } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // User needs to ensure this component is installed (e.g., npx shadcn-ui@latest add alert)
@@ -10,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // 
 const LinkAccountPage = () => {
   const { session, vipStatus, isLoadingVipStatus } = useVipContext();
   const router = useRouter();
+  const t = useTranslations('vip.linkAccount');
 
   // Enhanced access control: Redirect users who don't need linking
   useEffect(() => {
@@ -32,7 +34,7 @@ const LinkAccountPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-300px)]">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-muted-foreground">Loading account status...</p>
+        <p className="text-muted-foreground">{t('loadingStatus')}</p>
       </div>
     );
   }
@@ -44,14 +46,14 @@ const LinkAccountPage = () => {
         <div className="text-center">
           <AlertCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-green-700 mb-2">
-            {vipStatus.status === 'linked_matched' ? 'Account Already Linked' : 'VIP Account Ready'}
+            {vipStatus.status === 'linked_matched' ? t('alreadyLinkedTitle') : t('vipReadyTitle')}
           </h2>
           <p className="text-muted-foreground mb-4">
-            {vipStatus.status === 'linked_matched' 
-              ? 'Your account is already connected to your customer profile.' 
-              : 'Your VIP account is set up and ready to use.'}
+            {vipStatus.status === 'linked_matched'
+              ? t('alreadyLinkedBody')
+              : t('vipReadyBody')}
           </p>
-          <p className="text-muted-foreground">Redirecting to VIP dashboard...</p>
+          <p className="text-muted-foreground">{t('redirectingToDashboard')}</p>
         </div>
       </div>
     );
@@ -62,18 +64,18 @@ const LinkAccountPage = () => {
       {vipStatus.status === 'not_linked' && (
          <Alert className="mb-6" variant="default">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Account Link Required</AlertTitle>
+            <AlertTitle>{t('linkRequiredTitle')}</AlertTitle>
             <AlertDescription>
-              Connect your account using your phone number to access all VIP features including bookings and packages.
+              {t('linkRequiredBody')}
             </AlertDescription>
         </Alert>
       )}
       {vipStatus.status === 'vip_data_exists_crm_unmatched' && (
          <Alert variant="default" className="mb-6">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Final Linking Step Needed</AlertTitle>
+            <AlertTitle>{t('finalStepTitle')}</AlertTitle>
             <AlertDescription>
-              We found some VIP data for your login, but it needs to be matched to your customer records. Please provide your phone number to complete the link.
+              {t('finalStepBody')}
             </AlertDescription>
         </Alert>
       )}

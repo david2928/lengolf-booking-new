@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations, useFormatter } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,8 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
   onClose,
   onBookingCancelled
 }) => {
+  const t = useTranslations('vip.bookings');
+  const formatter = useFormatter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cancellationReason, setCancellationReason] = useState('');
@@ -41,11 +44,11 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
     try {
       await cancelVipBooking(bookingId, cancellationReason.trim() ? { cancellation_reason: cancellationReason.trim() } : undefined);
       setIsSuccess(true); // Show success state - user must manually close
-      
+
       // Immediately notify parent that cancellation succeeded (for optimistic updates and refresh)
       onBookingCancelled();
     } catch (e: unknown) {
-      let errorMessage = 'Could not cancel the booking. Please try again.';
+      let errorMessage = t('cancelErrorDefault');
       if (e instanceof VipApiError) {
         errorMessage = e.payload?.message || e.message || errorMessage;
       } else if (e instanceof Error) {
@@ -78,11 +81,11 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      return formatter.dateTime(date, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
     } catch {
       return dateStr;
@@ -95,10 +98,10 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
       const [hours, minutes] = timeStr.split(':');
       const date = new Date();
       date.setHours(parseInt(hours), parseInt(minutes));
-      return date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
+      return formatter.dateTime(date, {
+        hour: 'numeric',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
       });
     } catch {
       return timeStr;
@@ -113,43 +116,43 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
           <DialogHeader>
             <DialogTitle className="flex items-center">
               <CheckCircle className="h-6 w-6 mr-2 text-green-600 flex-shrink-0" />
-              Booking Cancelled Successfully
+              {t('cancelSuccessTitle')}
             </DialogTitle>
             <DialogDescription className="mt-2">
-              Your booking has been cancelled and a confirmation email has been sent.
+              {t('cancelSuccessBody')}
             </DialogDescription>
           </DialogHeader>
 
           {booking && (
             <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-              <h4 className="font-medium text-gray-800 mb-2">Cancelled Booking:</h4>
-              
+              <h4 className="font-medium text-gray-800 mb-2">{t('cancelledBooking')}</h4>
+
               <div className="space-y-2 text-sm">
                 <div className="flex items-center text-gray-700">
                   <Calendar className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
                   <span>{formatDate(booking.date)}</span>
                 </div>
-                
+
                 <div className="flex items-center text-gray-700">
                   <Clock className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
                   <span>{formatTime(booking.startTime)}</span>
                 </div>
-                
+
                 <div className="flex items-center text-gray-700">
                   <Clock className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
-                  <span>Duration: {booking.duration} hour{booking.duration !== 1 ? 's' : ''}</span>
+                  <span>{t('durationValue', { hours: booking.duration })}</span>
                 </div>
-                
+
                 <div className="flex items-center text-gray-700">
                   <Users className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
-                  <span>{booking.numberOfPeople} person{booking.numberOfPeople !== 1 ? 's' : ''}</span>
+                  <span>{t('personValue', { count: booking.numberOfPeople })}</span>
                 </div>
               </div>
 
               {cancellationReason && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <p className="text-sm text-gray-700">
-                    <strong>Reason:</strong> {cancellationReason}
+                    {t('reasonLabel', { reason: cancellationReason })}
                   </p>
                 </div>
               )}
@@ -160,7 +163,7 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
             <div className="flex items-center">
               <CheckCircle className="h-5 w-5 text-green-600 mr-2 flex-shrink-0" />
               <p className="text-sm text-green-800">
-                <strong>Confirmation email sent</strong> - Check your inbox for cancellation details.
+                <strong>{t('cancelSuccessEmailStrong')}</strong> - {t('cancelSuccessEmailBody')}
               </p>
             </div>
           </div>
@@ -170,7 +173,7 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
               // Parent was already notified when cancellation succeeded
               onClose();
             }}>
-              Done
+              {t('done')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -185,24 +188,24 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <ShieldAlert className="h-6 w-6 mr-2 text-destructive flex-shrink-0" />
-            Confirm Cancellation
+            {t('cancelConfirmTitle')}
           </DialogTitle>
           <DialogDescription className="mt-2">
-            Are you sure you want to cancel this booking? This action cannot be undone.
+            {t('cancelConfirmBody')}
           </DialogDescription>
         </DialogHeader>
 
         {/* Show booking details in confirmation if available */}
         {booking && (
           <div className="bg-gray-50 p-3 rounded-lg space-y-2 text-sm">
-            <h4 className="font-medium text-gray-800 mb-2">Booking to Cancel:</h4>
+            <h4 className="font-medium text-gray-800 mb-2">{t('bookingToCancel')}</h4>
             <div className="flex items-center text-gray-600">
               <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span>{formatDate(booking.date)} at {formatTime(booking.startTime)}</span>
+              <span>{t('dateAtTime', { date: formatDate(booking.date), time: formatTime(booking.startTime) })}</span>
             </div>
             <div className="flex items-center text-gray-600">
               <Users className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span>{booking.numberOfPeople} person{booking.numberOfPeople !== 1 ? 's' : ''} • {booking.duration} hour{booking.duration !== 1 ? 's' : ''}</span>
+              <span>{t('pillPersonDuration', { count: booking.numberOfPeople, hours: booking.duration })}</span>
             </div>
           </div>
         )}
@@ -217,19 +220,19 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
         <div className="space-y-3">
           <div>
             <label htmlFor="cancellation-reason" className="block text-sm font-medium text-gray-700 mb-1">
-              Reason for cancellation (optional)
+              {t('reasonFieldLabel')}
             </label>
             <textarea
               id="cancellation-reason"
               value={cancellationReason}
               onChange={(e) => setCancellationReason(e.target.value)}
-              placeholder="Let us know why you're cancelling (e.g., change of plans, emergency, etc.)"
+              placeholder={t('reasonPlaceholder')}
               className="w-full p-2 border border-gray-300 rounded-md resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={3}
               maxLength={500}
               disabled={isLoading}
             />
-            <p className="text-xs text-gray-500 mt-1">{cancellationReason.length}/500 characters</p>
+            <p className="text-xs text-gray-500 mt-1">{t('charCount', { count: cancellationReason.length })}</p>
           </div>
         </div>
 
@@ -241,14 +244,14 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
             className="w-full sm:w-auto"
           >
             {isLoading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Confirming...</>
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('confirming')}</>
             ) : (
-              'Yes, Cancel Booking'
+              t('yesCancel')
             )}
           </Button>
           <DialogClose asChild>
             <Button variant="outline" onClick={() => {/* onOpenChange handles error reset */}} className="w-full sm:w-auto">
-              Keep Booking
+              {t('keepBooking')}
             </Button>
           </DialogClose>
         </DialogFooter>

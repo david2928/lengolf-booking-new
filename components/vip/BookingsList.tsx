@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslations, useFormatter } from 'next-intl';
 import { getVipBookings } from '../../lib/vipService';
 import { VipBooking, VipBookingsResponse, VipApiError } from '../../types/vip';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,9 @@ type FilterType = "future" | "past" | "all";
 
 const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBooking, refreshNonce, optimisticUpdates }) => {
   const { vipStatus, isLoadingVipStatus } = useVipContext();
+  const t = useTranslations('vip.bookings');
+  const tErrors = useTranslations('vip.errors');
+  const formatter = useFormatter();
   const [bookings, setBookings] = useState<VipBooking[]>([]);
   const [paginationData, setPaginationData] = useState<VipBookingsResponse['pagination'] | null>(null);
   const [currentFilter, setCurrentFilter] = useState<FilterType>('future');
@@ -66,7 +70,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
       setPaginationData(data.pagination);
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
-      let errorMessage = 'Could not load bookings.';
+      let errorMessage = tErrors('couldNotLoadBookings');
       if (err instanceof VipApiError) {
         errorMessage = err.payload?.message || err.message || errorMessage;
       } else if (err instanceof Error) {
@@ -78,7 +82,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
     } finally {
       setIsLoading(false);
     }
-  }, [vipStatus]);
+  }, [vipStatus, tErrors]);
 
   useEffect(() => {
     // Allow both linked_matched and linked_unmatched users to fetch bookings
@@ -104,15 +108,15 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString + 'T00:00:00'); // Ensure correct date parsing
-    return date.toLocaleDateString("en-US", {
-      weekday: "short", // "Mon"
-      month: "short",   // "Aug"
-      day: "numeric",   // "26"
+    return formatter.dateTime(date, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
     });
   };
 
   const formatTime = (booking: VipBooking): string => {
-    if (!booking.startTime) return 'N/A';
+    if (!booking.startTime) return t('paxNotAvailable');
 
     const serverTimeZone = 'Asia/Bangkok'; // As per bookings/create/route.ts
     const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -142,19 +146,17 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
   };
 
   if (isLoadingVipStatus) {
-    return <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-muted-foreground">Loading account status...</span></div>;
+    return <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-muted-foreground">{t('loadingAccountStatus')}</span></div>;
   }
-  
+
   if (vipStatus && vipStatus.status === 'not_linked') {
     return (
         <EmptyState
             Icon={Info}
-            title="Account Linking Required"
-            message={<>
-                Please link your account to view your bookings and packages.
-            </>}
+            title={t('accountLinkingRequiredTitle')}
+            message={t('accountLinkingRequiredBody')}
             action={{
-                text: "Link Account Now",
+                text: t('linkAccountNow'),
                 href: "/vip/link-account"
             }}
             className="mt-4"
@@ -162,11 +164,16 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
     );
   }
 
-  // Fallback if vipStatus is somehow null after initial loading checks, 
+  // Fallback if vipStatus is somehow null after initial loading checks,
   // or if not linked_matched (though caught above, this is a safeguard before rendering tabs)
-  if (!vipStatus) { 
-      return <div className="text-center py-10 text-muted-foreground">Could not determine account status to load bookings.</div>;
+  if (!vipStatus) {
+      return <div className="text-center py-10 text-muted-foreground">{t('couldNotDetermineStatus')}</div>;
   }
+
+  const emptyBody =
+    currentFilter === 'future' ? t('noBookingsFutureBody') :
+    currentFilter === 'past' ? t('noBookingsPastBody') :
+    t('noBookingsAllBody');
 
   return (
     <div className="space-y-6">
@@ -174,36 +181,36 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
         <Link href="/bookings">
           <Button className="bg-green-700 hover:bg-green-800 text-white">
             <PlusCircle className="mr-2 h-5 w-5" />
-            New Booking
+            {t('newBooking')}
           </Button>
         </Link>
       </div>
       <Tabs value={currentFilter} onValueChange={handleFilterChange}>
         <TabsList className="grid w-full grid-cols-3 md:w-auto md:inline-flex bg-muted p-1 rounded-lg">
-          <TabsTrigger value="future" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Future</TabsTrigger>
-          <TabsTrigger value="past" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Past</TabsTrigger>
-          <TabsTrigger value="all" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
+          <TabsTrigger value="future" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t('filterFuture')}</TabsTrigger>
+          <TabsTrigger value="past" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t('filterPast')}</TabsTrigger>
+          <TabsTrigger value="all" className="data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">{t('filterAll')}</TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {isLoading && <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-muted-foreground">Loading bookings...</span></div>}
+      {isLoading && <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2 text-muted-foreground">{t('loadingBookings')}</span></div>}
 
       {!isLoading && error && (
          <EmptyState
             Icon={AlertTriangle}
-            title="Error Loading Bookings"
+            title={t('errorLoadingTitle')}
             message={error}
-            action={{ text: "Try Again", onClick: () => fetchUserBookings(currentPage, currentFilter) }}
+            action={{ text: t('tryAgain'), onClick: () => fetchUserBookings(currentPage, currentFilter) }}
             className="mt-4"
         />
       )}
 
       {!isLoading && !error && displayBookings.length === 0 && (
-         <EmptyState 
+         <EmptyState
             Icon={CalendarOff}
-            title="No Bookings Found"
-            message={`You currently have no ${currentFilter !== 'all' ? currentFilter : ''} bookings recorded.`}
-            action={currentFilter !== 'past' ? { text: "Make a New Booking", href: "/bookings" } : undefined}
+            title={t('noBookingsTitle')}
+            message={emptyBody}
+            action={currentFilter !== 'past' ? { text: t('makeNewBooking'), href: "/bookings" } : undefined}
             className="mt-4"
         />
       )}
@@ -220,7 +227,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                 <div className="flex justify-between items-start">
                     <div>
                         <CardTitle className="text-lg font-semibold text-gray-800">{formatDate(booking.date)}</CardTitle>
-                        <CardDescription className="text-sm text-gray-500">Booking ID: {booking.id}</CardDescription>
+                        <CardDescription className="text-sm text-gray-500">{t('bookingIdLabel', { id: booking.id })}</CardDescription>
                     </div>
                     <span
                         className={`absolute top-2 right-2 text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap
@@ -229,7 +236,10 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                             booking.status === 'completed' ? 'bg-blue-100 text-blue-800' :
                             'bg-gray-100 text-gray-800'}`}
                     >
-                        {booking.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1) : 'Unknown'}
+                        {booking.status === 'confirmed' ? t('statusConfirmed') :
+                         booking.status === 'cancelled' ? t('statusCancelled') :
+                         booking.status === 'completed' ? t('statusCompleted') :
+                         t('statusUnknown')}
                     </span>
                 </div>
               </CardHeader>
@@ -240,12 +250,12 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                 </div>
                 <div className="flex items-center">
                   <Users size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                  <span className="text-gray-600">Pax: {booking.numberOfPeople || 'N/A'}</span>
+                  <span className="text-gray-600">{t('paxLabel', { count: booking.numberOfPeople || t('paxNotAvailable') })}</span>
                 </div>
                 {booking.notes && (
                   <div className="flex items-start text-gray-600">
                       <InfoIcon size={16} className="mr-2 text-gray-500 flex-shrink-0 mt-0.5" />
-                      <p className="break-words">Note: {booking.notes}</p>
+                      <p className="break-words">{t('noteLabel', { note: booking.notes })}</p>
                   </div>
                 )}
               </CardContent>
@@ -276,14 +286,14 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                 return (
                   <CardFooter className="flex gap-2 pt-0 pb-4 px-4">
                     <Button variant="outline" onClick={() => onModifyBooking(booking.id)} className="flex-1 py-1 px-2 h-auto text-xs">
-                      <Edit className="mr-1 h-3 w-3" /> Edit
+                      <Edit className="mr-1 h-3 w-3" /> {t('edit')}
                     </Button>
-                    <Button 
+                    <Button
                       variant="outline"
-                      onClick={() => onCancelBooking(booking.id)} 
+                      onClick={() => onCancelBooking(booking.id)}
                       className="flex-1 py-1 px-2 h-auto text-xs text-red-600 border-red-500 hover:bg-red-50 hover:text-red-700"
                     >
-                      <XCircle className="mr-1 h-3 w-3" /> Cancel
+                      <XCircle className="mr-1 h-3 w-3" /> {t('cancel')}
                     </Button>
                   </CardFooter>
                 );
@@ -331,7 +341,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                 <div className="flex items-center sm:hidden">
                   <PaginationItem>
                     <span className="text-sm">
-                      Page {currentPage} of {paginationData.totalPages}
+                      {t('pageLabel', { current: currentPage, total: paginationData.totalPages })}
                     </span>
                   </PaginationItem>
                 </div>
