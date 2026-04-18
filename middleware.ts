@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import createIntlMiddleware from 'next-intl/middleware';
 import type { NextRequest } from 'next/server';
+import { routing } from './i18n/routing';
 
-// Bot detection removed - Cloudflare handles DDoS protection and bot management
+const intlMiddleware = createIntlMiddleware(routing);
 
 // Detect LINE in-app browser from User-Agent header
 function isLineBrowser(request: NextRequest): boolean {
@@ -18,58 +20,83 @@ const LIFF_ROUTE_MAP: Record<string, string> = {
   '/vip/dashboard': '/liff/membership',
 };
 
+// Strip a leading locale segment so LINE-UA detection works on both
+// `/bookings` and `/th/bookings`.
+function stripLocale(pathname: string): string {
+  for (const locale of routing.locales) {
+    if (pathname === `/${locale}`) return '/';
+    if (pathname.startsWith(`/${locale}/`)) return pathname.slice(locale.length + 1);
+  }
+  return pathname;
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // LINE browser users: redirect to LIFF pages (skip if already on /liff/)
-  if (isLineBrowser(request) && !pathname.startsWith('/liff')) {
-    // Check exact match first, then prefix match for nested routes
+  // LIFF routes: skip locale handling and auth entirely
+  if (pathname.startsWith('/liff')) {
+    return NextResponse.next();
+  }
+
+  // /auth/* (e.g. /auth/error registered with OAuth providers) must NOT be
+  // localized — the exact URL is what providers call back to. Skip both
+  // next-intl and the rewrite logic.
+  if (pathname.startsWith('/auth/')) {
+    return NextResponse.next();
+  }
+
+  // LINE browser users: redirect to LIFF equivalents (locale-agnostic)
+  if (isLineBrowser(request)) {
+    const bare = stripLocale(pathname);
     const liffRoute =
-      LIFF_ROUTE_MAP[pathname] ??
-      (pathname.startsWith('/bookings') ? '/liff/booking' : null) ??
-      (pathname.startsWith('/vip') ? '/liff/membership' : null);
+      LIFF_ROUTE_MAP[bare] ??
+      (bare.startsWith('/bookings') ? '/liff/booking' : null) ??
+      (bare.startsWith('/vip') ? '/liff/membership' : null);
 
     if (liffRoute) {
       return NextResponse.redirect(new URL(liffRoute, request.url));
     }
   }
 
-  // Serve bookings content at root URL (rewrite avoids 302 redirect round-trip)
-  if (pathname === '/') {
-    return NextResponse.rewrite(new URL('/bookings', request.url));
+  // Root URL must serve the bookings page for every locale.
+  // Handle this BEFORE next-intl so we directly rewrite to the locale-prefixed
+  // bookings path. (Inspecting next-intl's `x-middleware-rewrite` header is
+  // brittle; checking the original pathname is cleaner.)
+  const bare = stripLocale(pathname);
+  if (bare === '/') {
+    const localePrefixMatch = pathname.match(/^\/(en|th|ko|ja|zh)(?=\/|$)/);
+    const prefix = localePrefixMatch ? localePrefixMatch[0] : '';
+    const url = request.nextUrl.clone();
+    url.pathname = `${prefix}/bookings`;
+    return NextResponse.rewrite(url);
   }
 
-  // LIFF pages don't need NextAuth session validation
-  if (pathname.startsWith('/liff')) {
-    return NextResponse.next();
-  }
+  // Delegate locale resolution, cookie handling, and redirects to next-intl.
+  const intlResponse = intlMiddleware(request);
 
+  // NextAuth session check (best-effort; downstream pages enforce their own auth)
   try {
-    // Check for NextAuth session token
-    const token = await getToken({
+    await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
       secureCookie: process.env.NODE_ENV === 'production',
     });
-
-    return NextResponse.next();
   } catch (error) {
     console.error('Middleware error:', error);
-    return NextResponse.redirect(new URL('/auth/login', request.url));
   }
+
+  return intlResponse;
 }
 
 export const config = {
   matcher: [
-    /*
-     * Only match routes that actually need middleware processing.
-     * Using explicit positive matching instead of complex negative lookahead.
-     * This eliminates edge function invocations for static assets entirely.
-     */
     '/',
     '/(en|th|ko|ja|zh)/:path*',
     '/bookings/:path*',
     '/vip/:path*',
+    '/play-and-food/:path*',
+    '/golf-club-rental/:path*',
+    '/auth/:path*',
     '/liff/:path*',
   ],
-}; 
+};
