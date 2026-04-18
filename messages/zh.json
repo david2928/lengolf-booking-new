@@ -20,7 +20,39 @@
     "signIn": "Sign In",
     "signOut": "Sign Out"
   },
-  "auth": {},
+  "auth": {
+    "login": {
+      "logoAlt": "LENGOLF Logo",
+      "welcomeHeading": "Welcome to LENGOLF",
+      "welcomeSubheading": "Please choose a login method to start booking your slot",
+      "browserWarning": "For the best experience, please open this page in your device's external browser (Safari, Chrome, etc.)",
+      "connecting": "Connecting...",
+      "continueWithGoogle": "Continue with Google",
+      "continueWithFacebook": "Continue with Facebook",
+      "continueWithLine": "Continue with LINE",
+      "continueAsGuest": "Continue as Guest",
+      "dividerOr": "Or",
+      "privacyPolicy": "Privacy Policy",
+      "errorOAuthSignin": "Error signing in with provider.",
+      "errorOAuthCallback": "Error during authentication callback.",
+      "errorOAuthCreateAccount": "Error creating account.",
+      "errorEmailCreateAccount": "Error creating email account.",
+      "errorCallback": "Error during authentication callback.",
+      "errorDefault": "An error occurred during authentication.",
+      "guestHeading": "Guest Information",
+      "guestNameLabel": "Name",
+      "guestEmailLabel": "Email",
+      "guestPhoneLabel": "Phone",
+      "guestPhonePlaceholder": "Enter phone number",
+      "guestPhoneHelper": "Please select your country code and enter your phone number.",
+      "guestCancel": "Cancel",
+      "guestContinue": "Continue",
+      "guestProcessing": "Processing...",
+      "guestAllFieldsRequired": "All fields are required.",
+      "guestInvalidPhone": "Please enter a valid phone number.",
+      "guestSessionFailed": "Failed to create guest session. Please try again."
+    }
+  },
   "bookings": {
     "common": {
       "goBack": "Go back",
@@ -604,8 +636,137 @@
       "couldNotLoadPackages": "Could not load packages."
     }
   },
-  "playAndFood": {},
-  "clubRental": {},
+  "playAndFood": {
+    "hero": {
+      "titlePlay": "PLAY",
+      "titleAnd": " & ",
+      "titleFood": "FOOD",
+      "titleSuffix": " Package",
+      "subtitle": "Golf entertainment + delicious food. Perfect for groups of 5 people.",
+      "overviewImageAlt": "Play & Food Package Sets Overview",
+      "clickToEnlarge": "Click to enlarge"
+    },
+    "packages": {
+      "mostPopular": "Most Popular",
+      "priceNet": "NET",
+      "pricePerPerson": "฿{price} per person (group of 5)",
+      "durationLabel": "Duration:",
+      "durationValue": "{hours, plural, =1 {# hour} other {# hours}}",
+      "includesLabel": "Includes:",
+      "simulatorUsage": "Golf simulator usage ({hours, plural, =1 {# hour} other {# hours}})",
+      "foodItem": "{quantity, plural, =1 {# Serving} other {# Servings}} of {name}",
+      "drinkUnlimited": "Unlimited {name}",
+      "drinkPerPerson": "{quantity}x {name} per person",
+      "drinkGeneric": "{quantity}x {name}",
+      "selectCta": "Select {name}"
+    },
+    "about": {
+      "heading": "About Our Play & Food Packages",
+      "paragraph1": "Experience the ultimate golf entertainment with our all-in-one packages that combine golf simulation with delicious food and drinks!",
+      "paragraph2": "Each package is designed for groups of up to 5 people and includes everything you need for a perfect outing: golf simulator time, fresh food prepared in our kitchen, and beverages. You can enjoy these packages with fewer people too! No hidden costs, no surprises - just pure entertainment value.",
+      "paragraph3": "Perfect for friend groups, family outings, celebrations, or team building events. No golf experience required - our friendly staff will help you get started!"
+    },
+    "info": {
+      "heading": "Perfect for Groups",
+      "body": "All packages include golf simulation, food, and drinks for 5 people. No golf experience needed - our staff will help you get started!",
+      "regularBooking": "Regular Booking",
+      "contactUs": "Questions? Contact us"
+    }
+  },
+  "clubRental": {
+    "hero": {
+      "badge": "For use in your LENGOLF bay",
+      "titleGreen": "Premium Clubs,",
+      "titleBlack": " No Commitment",
+      "subtitle": "Free standard sets with every booking. Upgrade to Callaway Warbird, Majesty Shuttle, or Callaway Paradym for the ultimate simulator experience.",
+      "imgFullSetAlt": "Callaway Paradym full set in bag",
+      "imgDriverAlt": "Callaway Paradym driver",
+      "imgIronsAlt": "Callaway Paradym irons",
+      "imgPutterAlt": "Odyssey putter",
+      "galleryPhotoAlt": "Callaway Paradym Forged Carbon - Photo {index}"
+    },
+    "courseBanner": {
+      "kicker": "Playing a real course?",
+      "heading": "Rent Premium Clubs for Your Round",
+      "body": "Warbird, Shuttle & Paradym sets · From ฿1,200/day · Delivery anywhere in Bangkok",
+      "bgAlt": "Rent premium golf clubs for Bangkok golf courses",
+      "primaryCta": "Book Course Rental",
+      "secondaryCta": "See pricing & details"
+    },
+    "pricingTable": {
+      "heading": "Club Upgrade Pricing",
+      "durationHeader": "Duration",
+      "premiumHeader": "Premium",
+      "premiumPlusHeader": "Premium+",
+      "footnote": "Standard clubs are always free with any bay booking. In-bay use only."
+    },
+    "sets": {
+      "sectionHeading": "Available Golf Club Sets",
+      "standardTitle": "Standard Set",
+      "standardSubtitle": "House Set",
+      "standardDescription": "Men's & Ladies' sets included free with every bay booking",
+      "includesLabel": "Includes:",
+      "standardItemDriver": "Driver",
+      "standardItemIrons": "Irons (5–PW)",
+      "standardItemPutter": "Putter",
+      "standardItemBag": "Golf bag included",
+      "standardCta": "Free with Booking",
+      "premiumBadge": "From ฿150/hr",
+      "premiumTitle": "Premium Set",
+      "premiumSubtitle": "Callaway Warbird & Majesty Shuttle",
+      "premiumMensTitle": "Men's — Callaway Warbird",
+      "premiumMensDescription": "Full set with Uniflex shafts",
+      "premiumMensSpecs": "Driver, 5-wood, Irons 5-9, PW, SW",
+      "premiumMensBag": "Premium Callaway golf bag",
+      "premiumWomensTitle": "Women's — Majesty Shuttle",
+      "premiumWomensDescription": "Ladies flex with premium design",
+      "premiumWomensSpecs": "12.5° Driver, Irons 7-9, PW, 56° SW",
+      "premiumWomensBag": "Premium ladies golf bag",
+      "premiumCta": "Book with Premium Clubs",
+      "premiumPlusBadge": "From ฿250/hr",
+      "premiumPlusTitle": "Premium+ Set",
+      "premiumPlusSubtitle": "Callaway Paradym Forged Carbon",
+      "premiumPlusParadymAlt": "Paradym photo {index}",
+      "premiumPlusCardTitle": "Callaway Paradym",
+      "premiumPlusDescription": "Tour-level equipment",
+      "premiumPlusItem1": "Driver (10.5°) + 3W + 5W + 4H — Ventus TR shafts",
+      "premiumPlusItem2": "Irons 5–PW — Tungsten weighted",
+      "premiumPlusItem3": "Jaws Raw Wedges (52°, 56°)",
+      "premiumPlusItem4": "Odyssey Putter + Callaway camo bag",
+      "premiumPlusCta": "Book with Premium+ Clubs"
+    },
+    "why": {
+      "heading": "Why Choose LENGOLF Golf Club Rental?",
+      "feature1Title": "Premium Quality Equipment",
+      "feature1Body": "Our rental clubs are high-quality models from top brands like Callaway and Majesty. All clubs are professionally maintained and cleaned after each use.",
+      "feature2Title": "Free Standard Sets",
+      "feature2Body": "Every bay booking includes complimentary standard clubs at no extra charge. Upgrade to Premium or Premium+ anytime during your session.",
+      "feature3Title": "Flexible Duration",
+      "feature3Body": "Rent premium clubs by the hour — 1, 2, or 4-hour options available. No minimum commitment, just upgrade any bay session.",
+      "feature4Title": "Easy Online Booking",
+      "feature4Body": "Select your preferred clubs when booking your simulator bay online. No deposits required, just show up and play!"
+    },
+    "faq": {
+      "heading": "Frequently Asked Questions",
+      "q1Title": "What's the difference between Standard, Premium, and Premium+?",
+      "q1Body": "Standard clubs are house sets included free with every booking. Premium sets feature Callaway Warbird (men's) and Majesty Shuttle (ladies') starting from ฿150/hr. Premium+ offers tour-level Callaway Paradym Forged Carbon clubs from ฿250/hr.",
+      "q2Title": "Can tourists rent golf clubs at LENGOLF?",
+      "q2Body": "Yes! Our golf club rental service is perfect for tourists visiting Bangkok. No membership required — just book online and enjoy premium clubs during your visit.",
+      "q3Title": "Do I need to reserve clubs in advance?",
+      "q3Body": "You can select your preferred clubs when booking your bay online, or simply request them when you arrive. Premium and Premium+ sets are subject to availability.",
+      "q4Title": "Can I use the rental clubs outside of LENGOLF?",
+      "q4BodyBefore": "The hourly rates on this page are for in-bay simulator use only. For taking clubs to a Bangkok golf course (daily rates from ฿1,200 with delivery available), see our ",
+      "q4Link": "Golf Course Club Rental",
+      "q4BodyAfter": " page."
+    },
+    "cta": {
+      "heading": "Ready to Play with Premium Clubs?",
+      "body": "Book your simulator session and upgrade to premium clubs at LENGOLF Bangkok.",
+      "address": "Mercury Ville, Chidlom (Open in Maps)",
+      "bookCta": "Book with Golf Clubs",
+      "contactCta": "Questions? Contact Us"
+    }
+  },
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "unauthorized": "You must be signed in to do this.",

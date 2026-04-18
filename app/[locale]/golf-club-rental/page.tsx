@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
 import { getPremiumClubPricing, getPremiumPlusClubPricing } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
@@ -10,23 +11,24 @@ import { CheckIcon } from '@heroicons/react/24/outline';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
 
-const HERO_IMAGES = [
-  { src: `${STORAGE_BASE}/clubs/premium-plus/2.png`, alt: 'Callaway Paradym full set in bag' },
-  { src: `${STORAGE_BASE}/clubs/premium-plus/4.png`, alt: 'Callaway Paradym driver' },
-  { src: `${STORAGE_BASE}/clubs/premium-plus/11.png`, alt: 'Callaway Paradym irons' },
-  { src: `${STORAGE_BASE}/clubs/premium-plus/15.png`, alt: 'Odyssey putter' },
-];
-
-const ALL_PARADYM_IMAGES = Array.from({ length: 18 }, (_, i) => ({
-  src: `${STORAGE_BASE}/clubs/premium-plus/${i + 1}.png`,
-  alt: `Callaway Paradym Forged Carbon - Photo ${i + 1}`,
-}));
-
 export default function GolfClubRentalPage() {
+  const t = useTranslations('clubRental');
   const [carouselIndex, setCarouselIndex] = useState<number | null>(null);
   usePricingLoader();
   const PREMIUM_CLUB_PRICING = getPremiumClubPricing();
   const PREMIUM_PLUS_CLUB_PRICING = getPremiumPlusClubPricing();
+
+  const HERO_IMAGES = [
+    { src: `${STORAGE_BASE}/clubs/premium-plus/2.png`, alt: t('hero.imgFullSetAlt') },
+    { src: `${STORAGE_BASE}/clubs/premium-plus/4.png`, alt: t('hero.imgDriverAlt') },
+    { src: `${STORAGE_BASE}/clubs/premium-plus/11.png`, alt: t('hero.imgIronsAlt') },
+    { src: `${STORAGE_BASE}/clubs/premium-plus/15.png`, alt: t('hero.imgPutterAlt') },
+  ];
+
+  const ALL_PARADYM_IMAGES = Array.from({ length: 18 }, (_, i) => ({
+    src: `${STORAGE_BASE}/clubs/premium-plus/${i + 1}.png`,
+    alt: t('hero.galleryPhotoAlt', { index: i + 1 }),
+  }));
 
   return (
     <Layout>
@@ -35,14 +37,14 @@ export default function GolfClubRentalPage() {
         {/* Hero Section */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="inline-block bg-green-100 text-green-800 text-xs sm:text-sm font-medium px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-3 sm:mb-4">
-            For use in your LENGOLF bay
+            {t('hero.badge')}
           </div>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">
-            <span className="text-green-700">Premium Clubs,</span>
-            <span className="text-gray-900"> No Commitment</span>
+            <span className="text-green-700">{t('hero.titleGreen')}</span>
+            <span className="text-gray-900">{t('hero.titleBlack')}</span>
           </h1>
           <p className="text-sm sm:text-lg text-gray-600 max-w-3xl mx-auto">
-            Free standard sets with every booking. Upgrade to Callaway Warbird, Majesty Shuttle, or Callaway Paradym for the ultimate simulator experience.
+            {t('hero.subtitle')}
           </p>
         </div>
 
@@ -53,7 +55,7 @@ export default function GolfClubRentalPage() {
             <div className="absolute inset-0">
               <Image
                 src={`${STORAGE_BASE}/golf/hero-course-rental.webp`}
-                alt="Rent premium golf clubs for Bangkok golf courses"
+                alt={t('courseBanner.bgAlt')}
                 fill
                 priority
                 className="object-cover"
@@ -66,13 +68,13 @@ export default function GolfClubRentalPage() {
             <div className="relative p-5 sm:p-7 lg:p-9 flex flex-col md:flex-row md:items-center gap-4 md:gap-6 min-h-[220px] sm:min-h-[240px]">
               <div className="flex-1 min-w-0 max-w-xl">
                 <div className="inline-block bg-white/20 text-white text-[11px] sm:text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full mb-2 sm:mb-3 backdrop-blur-sm">
-                  Playing a real course?
+                  {t('courseBanner.kicker')}
                 </div>
                 <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1.5 sm:mb-2 leading-tight drop-shadow-sm">
-                  Rent Premium Clubs for Your Round
+                  {t('courseBanner.heading')}
                 </h2>
                 <p className="text-sm sm:text-base text-white/90 mb-3 sm:mb-4 drop-shadow-sm">
-                  Warbird, Shuttle &amp; Paradym sets &middot; <span className="font-semibold text-white">From ฿1,200/day</span> &middot; Delivery anywhere in Bangkok
+                  {t('courseBanner.body')}
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   <Link
@@ -80,7 +82,7 @@ export default function GolfClubRentalPage() {
                     className="inline-flex items-center gap-2 bg-white hover:bg-gray-100 px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg font-bold text-sm sm:text-base transition-colors shadow-lg"
                     style={{ color: '#003d1f' }}
                   >
-                    Book Course Rental
+                    {t('courseBanner.primaryCta')}
                     <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                     </svg>
@@ -89,7 +91,7 @@ export default function GolfClubRentalPage() {
                     href="/course-rental"
                     className="inline-flex items-center gap-1.5 text-white/95 hover:text-white px-2 py-2.5 sm:py-3 text-sm sm:text-base font-medium underline underline-offset-4 decoration-white/50 hover:decoration-white transition-colors"
                   >
-                    See pricing &amp; details
+                    {t('courseBanner.secondaryCta')}
                   </Link>
                 </div>
               </div>
@@ -199,15 +201,15 @@ export default function GolfClubRentalPage() {
         {/* Club Upgrade Pricing Table */}
         <div className="mb-8 sm:mb-12">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
-            Club Upgrade Pricing
+            {t('pricingTable.heading')}
           </h2>
           <div className="max-w-3xl mx-auto overflow-hidden rounded-lg sm:rounded-xl border-2 border-gray-200">
             <table className="w-full">
               <thead>
                 <tr>
-                  <th className="py-2.5 sm:py-3 px-3 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 bg-gray-50">Duration</th>
-                  <th className="py-2.5 sm:py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-semibold text-green-700 bg-gray-50">Premium</th>
-                  <th className="py-2.5 sm:py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-semibold text-white" style={{ backgroundColor: '#003d1f' }}>Premium+</th>
+                  <th className="py-2.5 sm:py-3 px-3 sm:px-4 text-left text-xs sm:text-sm font-semibold text-gray-700 bg-gray-50">{t('pricingTable.durationHeader')}</th>
+                  <th className="py-2.5 sm:py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-semibold text-green-700 bg-gray-50">{t('pricingTable.premiumHeader')}</th>
+                  <th className="py-2.5 sm:py-3 px-3 sm:px-4 text-center text-xs sm:text-sm font-semibold text-white" style={{ backgroundColor: '#003d1f' }}>{t('pricingTable.premiumPlusHeader')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -225,95 +227,95 @@ export default function GolfClubRentalPage() {
             </table>
           </div>
           <p className="text-center text-xs sm:text-sm text-gray-600 mt-3 sm:mt-4">
-            Standard clubs are always free with any bay booking. In-bay use only.
+            {t('pricingTable.footnote')}
           </p>
         </div>
 
         {/* Available Golf Club Sets - 3 Tiers */}
         <div className="mb-8 sm:mb-12">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
-            Available Golf Club Sets
+            {t('sets.sectionHeading')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 max-w-6xl mx-auto">
             {/* Standard Clubs */}
             <div className="bg-gray-50 rounded-xl shadow-sm border-2 border-gray-300 p-4 sm:p-6 opacity-75 flex flex-col">
               <h3 className="text-lg sm:text-xl font-bold text-gray-600 mb-1 sm:mb-2">
-                Standard Set
+                {t('sets.standardTitle')}
               </h3>
               <p className="text-base sm:text-lg font-semibold text-gray-500 mb-1 sm:mb-2">
-                House Set
+                {t('sets.standardSubtitle')}
               </p>
               <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
-                Men&apos;s &amp; Ladies&apos; sets included free with every bay booking
+                {t('sets.standardDescription')}
               </p>
 
               <div className="mb-4 sm:mb-6 flex-1">
-                <p className="font-semibold text-gray-600 mb-2 text-sm">Includes:</p>
+                <p className="font-semibold text-gray-600 mb-2 text-sm">{t('sets.includesLabel')}</p>
                 <ul className="space-y-1">
                   <li className="flex items-start text-xs sm:text-sm text-gray-500">
                     <CheckIcon className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-                    <span>Driver</span>
+                    <span>{t('sets.standardItemDriver')}</span>
                   </li>
                   <li className="flex items-start text-xs sm:text-sm text-gray-500">
                     <CheckIcon className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-                    <span>Irons (5&ndash;PW)</span>
+                    <span>{t('sets.standardItemIrons')}</span>
                   </li>
                   <li className="flex items-start text-xs sm:text-sm text-gray-500">
                     <CheckIcon className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-                    <span>Putter</span>
+                    <span>{t('sets.standardItemPutter')}</span>
                   </li>
                   <li className="flex items-start text-xs sm:text-sm text-gray-500">
                     <CheckIcon className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-                    <span>Golf bag included</span>
+                    <span>{t('sets.standardItemBag')}</span>
                   </li>
                 </ul>
               </div>
 
               <div className="text-center py-2.5 sm:py-3 px-4 rounded-lg bg-gray-200 text-gray-500 font-semibold text-sm mt-auto">
-                Free with Booking
+                {t('sets.standardCta')}
               </div>
             </div>
 
             {/* Premium Clubs */}
             <div className="bg-white rounded-xl shadow-lg border-2 border-green-500 p-4 sm:p-6 relative flex flex-col">
               <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-1 rounded-full text-xs sm:text-sm font-semibold">
-                From ฿150/hr
+                {t('sets.premiumBadge')}
               </div>
 
               <h3 className="text-lg sm:text-xl font-bold text-green-800 mb-1 sm:mb-2">
-                Premium Set
+                {t('sets.premiumTitle')}
               </h3>
               <p className="text-base sm:text-lg font-semibold text-gray-700 mb-3 sm:mb-4">
-                Callaway Warbird &amp; Majesty Shuttle
+                {t('sets.premiumSubtitle')}
               </p>
 
               <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6 flex-1">
                 <div className="border-l-4 border-green-500 pl-3 sm:pl-4">
-                  <h4 className="font-semibold text-gray-800 text-sm">Men&apos;s &mdash; Callaway Warbird</h4>
-                  <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">Full set with Uniflex shafts</p>
+                  <h4 className="font-semibold text-gray-800 text-sm">{t('sets.premiumMensTitle')}</h4>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">{t('sets.premiumMensDescription')}</p>
                   <ul className="space-y-1">
                     <li className="flex items-start text-xs sm:text-sm text-gray-600">
                       <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                      <span>Driver, 5-wood, Irons 5-9, PW, SW</span>
+                      <span>{t('sets.premiumMensSpecs')}</span>
                     </li>
                     <li className="flex items-start text-xs sm:text-sm text-gray-600">
                       <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                      <span>Premium Callaway golf bag</span>
+                      <span>{t('sets.premiumMensBag')}</span>
                     </li>
                   </ul>
                 </div>
 
                 <div className="border-l-4 border-green-500 pl-3 sm:pl-4">
-                  <h4 className="font-semibold text-gray-800 text-sm">Women&apos;s &mdash; Majesty Shuttle</h4>
-                  <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">Ladies flex with premium design</p>
+                  <h4 className="font-semibold text-gray-800 text-sm">{t('sets.premiumWomensTitle')}</h4>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2">{t('sets.premiumWomensDescription')}</p>
                   <ul className="space-y-1">
                     <li className="flex items-start text-xs sm:text-sm text-gray-600">
                       <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                      <span>12.5&deg; Driver, Irons 7-9, PW, 56&deg; SW</span>
+                      <span>{t('sets.premiumWomensSpecs')}</span>
                     </li>
                     <li className="flex items-start text-xs sm:text-sm text-gray-600">
                       <CheckIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                      <span>Premium ladies golf bag</span>
+                      <span>{t('sets.premiumWomensBag')}</span>
                     </li>
                   </ul>
                 </div>
@@ -323,21 +325,21 @@ export default function GolfClubRentalPage() {
                 href="/bookings"
                 className="w-full block text-center py-2.5 sm:py-3 px-4 rounded-lg font-semibold transition-colors bg-green-600 hover:bg-green-700 text-white text-sm sm:text-base mt-auto"
               >
-                Book with Premium Clubs
+                {t('sets.premiumCta')}
               </Link>
             </div>
 
             {/* Premium+ Clubs - Standout dark green + white */}
             <div className="rounded-xl shadow-lg border-2 border-white/20 p-4 sm:p-6 relative flex flex-col" style={{ backgroundColor: '#003d1f' }}>
               <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-white px-4 py-1 rounded-full text-xs sm:text-sm font-semibold" style={{ color: '#003d1f' }}>
-                From ฿250/hr
+                {t('sets.premiumPlusBadge')}
               </div>
 
               <h3 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2">
-                Premium+ Set
+                {t('sets.premiumPlusTitle')}
               </h3>
               <p className="text-base sm:text-lg font-semibold text-white/80 mb-3 sm:mb-4">
-                Callaway Paradym Forged Carbon
+                {t('sets.premiumPlusSubtitle')}
               </p>
 
               {/* Paradym images - 3-up grid, opens full carousel */}
@@ -351,7 +353,7 @@ export default function GolfClubRentalPage() {
                   >
                     <Image
                       src={`${STORAGE_BASE}/clubs/premium-plus/${imgNum}.png`}
-                      alt={`Paradym photo ${imgNum}`}
+                      alt={t('sets.premiumPlusParadymAlt', { index: imgNum })}
                       fill
                       className="object-contain p-1"
                       loading="lazy"
@@ -363,24 +365,24 @@ export default function GolfClubRentalPage() {
 
               <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6 flex-1">
                 <div className="border-l-4 border-white/40 pl-3 sm:pl-4">
-                  <h4 className="font-semibold text-white text-sm">Callaway Paradym</h4>
-                  <p className="text-xs sm:text-sm text-white/70 mb-1 sm:mb-2">Tour-level equipment</p>
+                  <h4 className="font-semibold text-white text-sm">{t('sets.premiumPlusCardTitle')}</h4>
+                  <p className="text-xs sm:text-sm text-white/70 mb-1 sm:mb-2">{t('sets.premiumPlusDescription')}</p>
                   <ul className="space-y-1">
                     <li className="flex items-start text-xs sm:text-sm text-white/90">
                       <CheckIcon className="h-4 w-4 text-white mr-2 mt-0.5 flex-shrink-0" />
-                      <span>Driver (10.5&deg;) + 3W + 5W + 4H &mdash; Ventus TR shafts</span>
+                      <span>{t('sets.premiumPlusItem1')}</span>
                     </li>
                     <li className="flex items-start text-xs sm:text-sm text-white/90">
                       <CheckIcon className="h-4 w-4 text-white mr-2 mt-0.5 flex-shrink-0" />
-                      <span>Irons 5&ndash;PW &mdash; Tungsten weighted</span>
+                      <span>{t('sets.premiumPlusItem2')}</span>
                     </li>
                     <li className="flex items-start text-xs sm:text-sm text-white/90">
                       <CheckIcon className="h-4 w-4 text-white mr-2 mt-0.5 flex-shrink-0" />
-                      <span>Jaws Raw Wedges (52&deg;, 56&deg;)</span>
+                      <span>{t('sets.premiumPlusItem3')}</span>
                     </li>
                     <li className="flex items-start text-xs sm:text-sm text-white/90">
                       <CheckIcon className="h-4 w-4 text-white mr-2 mt-0.5 flex-shrink-0" />
-                      <span>Odyssey Putter + Callaway camo bag</span>
+                      <span>{t('sets.premiumPlusItem4')}</span>
                     </li>
                   </ul>
                 </div>
@@ -391,7 +393,7 @@ export default function GolfClubRentalPage() {
                 className="w-full block text-center py-2.5 sm:py-3 px-4 rounded-lg font-semibold transition-colors mt-auto hover:opacity-90 bg-white text-sm sm:text-base"
                 style={{ color: '#003d1f' }}
               >
-                Book with Premium+ Clubs
+                {t('sets.premiumPlusCta')}
               </Link>
             </div>
           </div>
@@ -400,35 +402,31 @@ export default function GolfClubRentalPage() {
         {/* Why Choose LENGOLF Section */}
         <div className="bg-green-50 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-2xl font-bold text-green-800 mb-3 sm:mb-4">
-            Why Choose LENGOLF Golf Club Rental?
+            {t('why.heading')}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Premium Quality Equipment</h3>
+              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">{t('why.feature1Title')}</h3>
               <p className="text-xs sm:text-sm text-gray-700">
-                Our rental clubs are high-quality models from top brands like Callaway and Majesty.
-                All clubs are professionally maintained and cleaned after each use.
+                {t('why.feature1Body')}
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Free Standard Sets</h3>
+              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">{t('why.feature2Title')}</h3>
               <p className="text-xs sm:text-sm text-gray-700">
-                Every bay booking includes complimentary standard clubs at no extra charge.
-                Upgrade to Premium or Premium+ anytime during your session.
+                {t('why.feature2Body')}
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Flexible Duration</h3>
+              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">{t('why.feature3Title')}</h3>
               <p className="text-xs sm:text-sm text-gray-700">
-                Rent premium clubs by the hour &mdash; 1, 2, or 4-hour options available.
-                No minimum commitment, just upgrade any bay session.
+                {t('why.feature3Body')}
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Easy Online Booking</h3>
+              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">{t('why.feature4Title')}</h3>
               <p className="text-xs sm:text-sm text-gray-700">
-                Select your preferred clubs when booking your simulator bay online.
-                No deposits required, just show up and play!
+                {t('why.feature4Body')}
               </p>
             </div>
           </div>
@@ -436,40 +434,37 @@ export default function GolfClubRentalPage() {
 
         {/* FAQ Section */}
         <div className="mb-8 sm:mb-12">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Frequently Asked Questions</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">{t('faq.heading')}</h2>
           <div className="space-y-3 sm:space-y-4 max-w-3xl mx-auto">
             <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">What&apos;s the difference between Standard, Premium, and Premium+?</h3>
+              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">{t('faq.q1Title')}</h3>
               <p className="text-xs sm:text-sm text-gray-700">
-                Standard clubs are house sets included free with every booking. Premium sets feature Callaway Warbird (men&apos;s) and Majesty Shuttle (ladies&apos;) starting from ฿150/hr.
-                Premium+ offers tour-level Callaway Paradym Forged Carbon clubs from ฿250/hr.
+                {t('faq.q1Body')}
               </p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Can tourists rent golf clubs at LENGOLF?</h3>
+              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">{t('faq.q2Title')}</h3>
               <p className="text-xs sm:text-sm text-gray-700">
-                Yes! Our golf club rental service is perfect for tourists visiting Bangkok.
-                No membership required &mdash; just book online and enjoy premium clubs during your visit.
+                {t('faq.q2Body')}
               </p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Do I need to reserve clubs in advance?</h3>
+              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">{t('faq.q3Title')}</h3>
               <p className="text-xs sm:text-sm text-gray-700">
-                You can select your preferred clubs when booking your bay online, or simply request them when you arrive.
-                Premium and Premium+ sets are subject to availability.
+                {t('faq.q3Body')}
               </p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Can I use the rental clubs outside of LENGOLF?</h3>
+              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">{t('faq.q4Title')}</h3>
               <p className="text-xs sm:text-sm text-gray-700">
-                The hourly rates on this page are for in-bay simulator use only. For taking clubs to a Bangkok golf course
-                (daily rates from ฿1,200 with delivery available), see our{' '}
+                {t('faq.q4BodyBefore')}
                 <Link
                   href="/course-rental"
                   className="text-green-600 hover:text-green-700 underline font-medium"
                 >
-                  Golf Course Club Rental
-                </Link> page.
+                  {t('faq.q4Link')}
+                </Link>
+                {t('faq.q4BodyAfter')}
               </p>
             </div>
           </div>
@@ -478,10 +473,10 @@ export default function GolfClubRentalPage() {
         {/* CTA Section */}
         <div className="bg-gray-50 rounded-xl p-4 sm:p-6 text-center">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1 sm:mb-2">
-            Ready to Play with Premium Clubs?
+            {t('cta.heading')}
           </h3>
           <p className="text-xs sm:text-sm text-gray-600 mb-2">
-            Book your simulator session and upgrade to premium clubs at LENGOLF Bangkok.
+            {t('cta.body')}
           </p>
           <a
             href="https://maps.app.goo.gl/pDyzGarizSvYz11G8"
@@ -489,14 +484,14 @@ export default function GolfClubRentalPage() {
             rel="noopener noreferrer"
             className="inline-block text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4 hover:text-green-600 transition-colors"
           >
-            Mercury Ville, Chidlom (Open in Maps)
+            {t('cta.address')}
           </a>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
             <Link
               href="/bookings"
               className="bg-green-600 hover:bg-green-700 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium transition-colors text-sm sm:text-base"
             >
-              Book with Golf Clubs
+              {t('cta.bookCta')}
             </Link>
             <a
               href="https://lin.ee/uxQpIXn"
@@ -504,7 +499,7 @@ export default function GolfClubRentalPage() {
               rel="noopener noreferrer"
               className="bg-gray-600 hover:bg-gray-700 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium transition-colors text-sm sm:text-base"
             >
-              Questions? Contact Us
+              {t('cta.contactCta')}
             </a>
           </div>
         </div>
