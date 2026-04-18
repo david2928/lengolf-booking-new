@@ -26,8 +26,7 @@
       "goBack": "Go back",
       "processing": "Processing...",
       "free": "Free",
-      "perHour": "{hours, plural, =1 {# hour} other {# hours}}",
-      "hoursLabel": "{hours, plural, =1 {hour} other {hours}}"
+      "perHour": "{hours, plural, =1 {# hour} other {# hours}}"
     },
     "layout": {
       "headerBadge": "Booking",
