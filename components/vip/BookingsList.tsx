@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Needs ins
  // Needs install
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination'; // Needs install
 import { Loader2, Edit, XCircle, Info, AlertTriangle, CalendarOff, Clock, InfoIcon, Users, PlusCircle } from 'lucide-react';
-import { useVipContext } from '../../app/(features)/vip/contexts/VipContext';
+import { useVipContext } from '@/app/[locale]/(features)/vip/contexts/VipContext';
 import Link from 'next/link';
 import EmptyState from './EmptyState'; // Import EmptyState
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card imports

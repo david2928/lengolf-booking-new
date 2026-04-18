@@ -67,6 +67,7 @@ export const config = {
      * This eliminates edge function invocations for static assets entirely.
      */
     '/',
+    '/(en|th|ko|ja|zh)/:path*',
     '/bookings/:path*',
     '/vip/:path*',
     '/liff/:path*',

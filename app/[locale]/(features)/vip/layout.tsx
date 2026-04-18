@@ -8,8 +8,8 @@ import { redirect } from 'next/navigation';
 import { ChevronDown, User, Package, Calendar, LogOut, Trophy, LinkIcon, ExternalLink } from 'lucide-react';
 import { XMarkIcon, FireIcon } from '@heroicons/react/24/outline';
 import { VipContextProvider, VipContextType, VipSharedData } from './contexts/VipContext';
-import { getVipStatus } from '../../../lib/vipService'; // Adjusted path
-import { VipStatusResponse, VipApiError } from '../../../types/vip'; // Adjusted path
+import { getVipStatus } from '@/lib/vipService'; // Adjusted path
+import { VipStatusResponse, VipApiError } from '@/types/vip'; // Adjusted path
 import SharedFooter from '@/components/shared/Footer'; // Import the SharedFooter
 import Header from '@/components/shared/Header';
 import PromotionBar from '@/components/shared/PromotionBar';

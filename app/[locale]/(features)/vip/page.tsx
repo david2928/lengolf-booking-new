@@ -3,8 +3,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardView from '@/components/vip/DashboardView';
 import { useVipContext } from './contexts/VipContext';
-import { getVipProfile, getVipBookings, getVipPackages } from '../../../lib/vipService'; // Adjusted path
-import { VipProfileResponse, VipBooking, VipBookingsResponse, VipPackagesResponse, VipApiError } from '../../../types/vip'; // Adjusted path
+import { getVipProfile, getVipBookings, getVipPackages } from '@/lib/vipService'; // Adjusted path
+import { VipProfileResponse, VipBooking, VipBookingsResponse, VipPackagesResponse, VipApiError } from '@/types/vip'; // Adjusted path
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 

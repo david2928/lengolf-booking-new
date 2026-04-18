@@ -48,6 +48,7 @@ export default function QuickLinks({ language }: QuickLinksProps) {
         </div>
 
         <div className="grid grid-cols-3 gap-2">
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- intentional hard navigation from LIFF page to public site */}
           <a
             href="/golf-club-rental"
             onTouchStart={handleTouchStart}

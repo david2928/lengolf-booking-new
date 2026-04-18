@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { getVipProfile, updateVipProfile } from '../../lib/vipService'; // VipApiError removed
 import { VipProfileResponse, UpdateVipProfileRequest, VipApiError } from '../../types/vip'; // VipApiError imported here
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
-import { useVipContext } from '../../app/(features)/vip/contexts/VipContext'; // Corrected path
+import { useVipContext } from '@/app/[locale]/(features)/vip/contexts/VipContext'; // Corrected path
 import { useVipStatus } from '../providers/VipStatusProvider';
 
 const profileFormSchema = z.object({

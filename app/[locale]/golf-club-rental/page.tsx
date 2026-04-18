@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Layout } from '@/app/(features)/bookings/components/booking/Layout';
+import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
 import { getPremiumClubPricing, getPremiumPlusClubPricing } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
 import { CheckIcon } from '@heroicons/react/24/outline';

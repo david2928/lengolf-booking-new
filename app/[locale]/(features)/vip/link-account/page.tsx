@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import ManualLinkAccountForm from '../../../../components/vip/ManualLinkAccountForm';
+import ManualLinkAccountForm from '@/components/vip/ManualLinkAccountForm';
 import { useVipContext } from '../contexts/VipContext'; 
 import { useRouter } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';

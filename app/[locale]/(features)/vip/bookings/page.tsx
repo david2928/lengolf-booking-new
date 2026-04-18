@@ -2,13 +2,13 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import BookingsList from '../../../../components/vip/BookingsList';
+import BookingsList from '@/components/vip/BookingsList';
 import { useVipContext } from '../contexts/VipContext';
 import { Loader2 } from 'lucide-react';
-import BookingModifyModal from '../../../../components/vip/BookingModifyModal';
-import BookingCancelModal from '../../../../components/vip/BookingCancelModal';
-import { getVipBookings } from '../../../../lib/vipService';
-import type { VipBooking } from '../../../../types/vip';
+import BookingModifyModal from '@/components/vip/BookingModifyModal';
+import BookingCancelModal from '@/components/vip/BookingCancelModal';
+import { getVipBookings } from '@/lib/vipService';
+import type { VipBooking } from '@/types/vip';
 
 // Placeholder for Modal components to be added in VIP-FE-007 and VIP-FE-008
 // import ModifyBookingModal from '../../../../components/vip/BookingModifyModal';

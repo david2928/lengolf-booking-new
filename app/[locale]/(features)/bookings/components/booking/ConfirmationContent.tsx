@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Booking } from '@/types';
 import { type ApplicablePromotion } from '@/lib/cost-calculator';
@@ -313,7 +314,7 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
                   </div>
                   <div>
                     <p className="text-green-800 font-medium">Manage Your Bookings Online</p>
-                    <p className="text-green-700 text-sm">Visit your <a href="/vip/bookings" className="underline font-medium">My Bookings</a> page to modify or cancel reservations.</p>
+                    <p className="text-green-700 text-sm">Visit your <Link href="/vip/bookings" className="underline font-medium">My Bookings</Link> page to modify or cancel reservations.</p>
                   </div>
                 </div>
               </div>

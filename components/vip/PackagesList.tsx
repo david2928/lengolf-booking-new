@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { getVipPackages } from '../../lib/vipService';
 import { FaLine } from 'react-icons/fa';
 import { VipPackage, VipApiError } from '../../types/vip';
-import { useVipContext } from '../../app/(features)/vip/contexts/VipContext';
+import { useVipContext } from '@/app/[locale]/(features)/vip/contexts/VipContext';
 import { Loader2, PackageIcon, CalendarDays, CheckCircle, XCircle, Clock, AlertTriangle, Info, Users, Clock3, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

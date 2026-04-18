@@ -11,22 +11,16 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "LENGOLF",
-  description: "LENGOLF LINE Mini App",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-  },
+  title: "LENGOLF Authentication",
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
 };
 
-export default function LiffLayout({
+export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;

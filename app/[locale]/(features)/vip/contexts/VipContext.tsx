@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { Session } from 'next-auth';
-import { VipStatusResponse, VipProfileResponse, VipBooking, VipPackage } from '../../../../types/vip'; // Adjusted path
+import { VipStatusResponse, VipProfileResponse, VipBooking, VipPackage } from '@/types/vip'; // Adjusted path
 
 export interface VipSharedData {
   profile: VipProfileResponse | null;
