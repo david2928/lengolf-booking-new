@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { isValidLanguage } from '@/lib/liff/translations';
 import { appCache } from '@/lib/cache';
+import { persistCustomerLanguage } from '@/lib/i18n/persist-language';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,9 +22,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Look up profile via admin client (LIFF has no NextAuth session).
     const supabase = createAdminClient();
-
-    // Look up profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id, customer_id')
@@ -44,14 +44,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, reason: 'no_customer' });
     }
 
-    // Update customer preferred_language
-    const { error: updateError } = await supabase
-      .from('customers')
-      .update({ preferred_language: language })
-      .eq('id', profile.customer_id);
+    // Shared helper — validates locale + updates customers.preferred_language.
+    const result = await persistCustomerLanguage({
+      customerId: profile.customer_id,
+      locale: language,
+    });
 
-    if (updateError) {
-      console.error('[LIFF Language] Update error:', updateError);
+    if (!result.ok) {
+      console.error('[LIFF Language] Persist error:', result.reason);
       return NextResponse.json(
         { error: 'Failed to update language' },
         { status: 500 }
