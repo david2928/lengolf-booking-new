@@ -38,10 +38,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // /auth/* (e.g. /auth/error registered with OAuth providers) must NOT be
-  // localized — the exact URL is what providers call back to. Skip both
-  // next-intl and the rewrite logic.
-  if (pathname.startsWith('/auth/')) {
+  // /auth/error is outside the [locale] segment (registered as OAuth callback
+  // URL) — the exact URL is what providers call back to. Don't let next-intl
+  // localize it. All other /auth/* paths (login, etc.) live under
+  // app/[locale]/(features)/auth/ and SHOULD be locale-handled.
+  if (pathname === '/auth/error' || pathname.startsWith('/auth/error/')) {
     return NextResponse.next();
   }
 
@@ -58,21 +59,35 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Root URL must serve the bookings page for every locale.
-  // Handle this BEFORE next-intl so we directly rewrite to the locale-prefixed
-  // bookings path. (Inspecting next-intl's `x-middleware-rewrite` header is
-  // brittle; checking the original pathname is cleaner.)
-  const bare = stripLocale(pathname);
-  if (bare === '/') {
-    const localePrefixMatch = pathname.match(/^\/(en|th|ko|ja|zh)(?=\/|$)/);
+  // Let next-intl handle locale resolution + cookie redirects first.
+  const intlResponse = intlMiddleware(request);
+
+  // If next-intl issued a redirect (status 3xx, e.g. cookie-driven `/` → `/th`),
+  // pass it through unchanged. The browser will make a follow-up request to
+  // `/th`, where this middleware fires again, sees a bare locale, and rewrites
+  // to `/th/bookings` below.
+  if (intlResponse.status >= 300 && intlResponse.status < 400) {
+    return intlResponse;
+  }
+
+  // next-intl rewrites locale-prefixed requests internally. Inspect the
+  // rewritten target via the `x-middleware-rewrite` header (set by next-intl).
+  // Fallback to the original pathname if the header is missing.
+  const rewriteHeader = intlResponse.headers.get('x-middleware-rewrite');
+  const effectivePath = rewriteHeader
+    ? new URL(rewriteHeader).pathname
+    : pathname;
+
+  // If the effective path resolves to a bare locale root (`/`, `/th`, etc.),
+  // rewrite it to the bookings page for that locale.
+  const bareEffective = stripLocale(effectivePath);
+  if (bareEffective === '/') {
+    const localePrefixMatch = effectivePath.match(/^\/(en|th|ko|ja|zh)(?=\/|$)/);
     const prefix = localePrefixMatch ? localePrefixMatch[0] : '';
     const url = request.nextUrl.clone();
     url.pathname = `${prefix}/bookings`;
     return NextResponse.rewrite(url);
   }
-
-  // Delegate locale resolution, cookie handling, and redirects to next-intl.
-  const intlResponse = intlMiddleware(request);
 
   // NextAuth session check (best-effort; downstream pages enforce their own auth)
   try {
