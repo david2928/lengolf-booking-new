@@ -59,7 +59,7 @@ const generateBookingId = () => {
 
 
 // Helper function to send notifications
-async function sendNotifications(formattedData: Record<string, unknown>, booking: Record<string, unknown>, bayDisplayName: string, customerCode?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string, channel: string = 'Website') {
+async function sendNotifications(formattedData: Record<string, unknown>, booking: Record<string, unknown>, bayDisplayName: string, customerCode?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string, channel: string = 'Website', language?: string | null) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   // const internalApiBasePath = ''; // No longer using relative paths for internal calls
   
@@ -87,7 +87,8 @@ async function sendNotifications(formattedData: Record<string, unknown>, booking
           packageInfo,
           standardizedData: formattedData,
           customerNotes,
-          bookingId: booking.id
+          bookingId: booking.id,
+          language: language ?? undefined,
         };
 
         console.log('[CreateBooking Email Notify Task] Prepared emailData:', JSON.stringify(emailData, null, 2));
@@ -885,7 +886,8 @@ export async function POST(request: NextRequest) {
       customerCode || customerId || undefined, // Use customer code/ID
       packageInfo,
       notificationNotes || undefined,
-      isLiffContext ? 'LINE' : 'Website'
+      isLiffContext ? 'LINE' : 'Website',
+      booking.language as string | null | undefined
     );
 
     // Log each notification type separately instead of logging them together

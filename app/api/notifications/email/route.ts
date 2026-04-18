@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendConfirmationEmail } from '@/lib/emailService';
+import { sendConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
 
 interface EmailConfirmation {
   userName: string;
@@ -14,6 +14,7 @@ interface EmailConfirmation {
   phoneNumber?: string;
   packageInfo?: string;
   customerNotes?: string;
+  language?: string;
   // Optional standardized data field from the formatter
   standardizedData?: {
     emailData: {
@@ -39,10 +40,12 @@ export async function POST(request: NextRequest) {
   try {
     const { customerNotes, ...bookingData }: EmailConfirmation & { customerNotes?: string } = await request.json();
 
+    const emailLocale = resolveEmailLocale(bookingData.language);
+
     // Check if we have standardized data from the formatter
     if (bookingData.standardizedData) {
       const std = bookingData.standardizedData;
-      
+
       // Send email confirmation with standardized data
       await sendConfirmationEmail({
         userName: bookingData.userName || std.emailData.userDisplayName,
@@ -55,9 +58,10 @@ export async function POST(request: NextRequest) {
         duration: std.duration,
         numberOfPeople: std.numberOfPeople,
         packageInfo: bookingData.packageInfo,
-        customerNotes: customerNotes
+        customerNotes: customerNotes,
+        language: emailLocale,
       });
-      
+
       return NextResponse.json({ success: true });
     }
 
@@ -73,7 +77,8 @@ export async function POST(request: NextRequest) {
       duration: bookingData.duration,
       numberOfPeople: bookingData.numberOfPeople,
       packageInfo: bookingData.packageInfo,
-      customerNotes: customerNotes
+      customerNotes: customerNotes,
+      language: emailLocale,
     });
     
     return NextResponse.json({ success: true });
