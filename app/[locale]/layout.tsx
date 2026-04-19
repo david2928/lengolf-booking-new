@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from 'next';
+import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -7,13 +7,6 @@ import { Analytics } from '@vercel/analytics/next';
 import type { ReactNode } from 'react';
 import { routing, isValidLocale } from '@/i18n/routing';
 import ChatWidgetLoader from '@/components/chat/ChatWidgetLoader';
-import { RootShell } from '@/components/layouts/RootShell';
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 5,
-};
 
 export const metadata: Metadata = {
   title: {
@@ -91,52 +84,55 @@ export const metadata: Metadata = {
     ],
   },
   manifest: '/site.webmanifest',
-  verification: {
-    google: 'your-google-site-verification', // You'll need to add your actual verification code
-  },
 };
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
-function LocaleHeadScripts() {
+export default async function LocaleLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  if (!isValidLocale(locale)) {
+    notFound();
+  }
+  setRequestLocale(locale);
+  // next-intl v3 requires explicit `locale` + `messages` on the client
+  // provider — they are NOT auto-forwarded from the server context.
+  const messages = await getMessages();
+
   return (
     <>
-      {/* Preconnect to third-party origins */}
-      <link rel="preconnect" href="https://www.googletagmanager.com" />
-      <link rel="preconnect" href="https://connect.facebook.net" />
-      {/* Google Tag Manager + gtag config */}
+      {/* GTM + structured-data — scoped to [locale] so LIFF and /auth/error
+          don't pull analytics unnecessarily. */}
       <Script id="google-tag-manager" strategy="afterInteractive">
         {`
-            // Safety check for TikTok Pixel
-            window.ttq = window.ttq || {
-              track: function() {},
-              page: function() {},
-              batch: function() {}
-            };
+          window.ttq = window.ttq || {
+            track: function() {},
+            page: function() {},
+            batch: function() {}
+          };
 
-            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','GTM-MKCHVJKW');
+          (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+          })(window,document,'script','dataLayer','GTM-MKCHVJKW');
 
-            // Initialize dataLayer
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'AW-16456389020');
-            gtag('config', 'GTM-MKCHVJKW', {
-              linker: {
-                domains: ['len.golf'],
-                decorate_forms: false
-              }
-            });
-          `}
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'AW-16456389020');
+          gtag('config', 'GTM-MKCHVJKW', {
+            linker: { domains: ['len.golf'], decorate_forms: false }
+          });
+        `}
       </Script>
-
-      {/* JSON-LD Structured Data */}
       <Script
         id="structured-data"
         type="application/ld+json"
@@ -163,81 +159,32 @@ function LocaleHeadScripts() {
             },
             openingHoursSpecification: {
               '@type': 'OpeningHoursSpecification',
-              dayOfWeek: [
-                'Monday',
-                'Tuesday',
-                'Wednesday',
-                'Thursday',
-                'Friday',
-                'Saturday',
-                'Sunday'
-              ],
+              dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],
               opens: '09:00',
               closes: '23:00'
             },
             priceRange: '฿฿฿',
             amenityFeature: [
-              {
-                '@type': 'LocationFeatureSpecification',
-                name: 'Golf Simulators',
-                value: true
-              },
-              {
-                '@type': 'LocationFeatureSpecification',
-                name: 'Professional Coaching',
-                value: true
-              },
-              {
-                '@type': 'LocationFeatureSpecification',
-                name: 'Equipment Rental',
-                value: true
-              }
+              { '@type': 'LocationFeatureSpecification', name: 'Golf Simulators', value: true },
+              { '@type': 'LocationFeatureSpecification', name: 'Professional Coaching', value: true },
+              { '@type': 'LocationFeatureSpecification', name: 'Equipment Rental', value: true },
             ]
           })
         }}
       />
-    </>
-  );
-}
-
-function GTMNoScript() {
-  return (
-    <noscript>
-      <iframe
-        src="https://www.googletagmanager.com/ns.html?id=GTM-MKCHVJKW"
-        height="0"
-        width="0"
-        style={{ display: 'none', visibility: 'hidden' }}
-      />
-    </noscript>
-  );
-}
-
-export default async function LocaleLayout({
-  children,
-  params,
-}: {
-  children: ReactNode;
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-  if (!isValidLocale(locale)) {
-    notFound();
-  }
-  setRequestLocale(locale);
-  // next-intl v3 requires explicit `locale` + `messages` on the client
-  // provider — they do NOT auto-forward from the server context. Omitting
-  // them makes every client `useTranslations` throw MISSING_MESSAGE, which
-  // cascades to a hydration error and a white screen.
-  const messages = await getMessages();
-
-  return (
-    <RootShell lang={locale} head={<LocaleHeadScripts />} bodyStart={<GTMNoScript />}>
+      <noscript>
+        <iframe
+          src="https://www.googletagmanager.com/ns.html?id=GTM-MKCHVJKW"
+          height="0"
+          width="0"
+          style={{ display: 'none', visibility: 'hidden' }}
+        />
+      </noscript>
       <NextIntlClientProvider locale={locale} messages={messages}>
         {children}
         <ChatWidgetLoader />
         <Analytics />
       </NextIntlClientProvider>
-    </RootShell>
+    </>
   );
 }
