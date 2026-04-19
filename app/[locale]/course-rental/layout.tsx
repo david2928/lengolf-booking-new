@@ -1,30 +1,68 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+import { isValidLocale, type Locale } from '@/i18n/routing';
+import {
+  SITE_URL,
+  buildAlternates,
+  buildOpenGraphLocales,
+} from '@/lib/seo/alternates';
 
-export const metadata: Metadata = {
-  title: 'Golf Course Club Rental Bangkok | Premium Clubs Delivered | LENGOLF',
-  description: 'Rent premium golf clubs for Bangkok golf courses. Callaway Paradym, Warbird & Majesty Shuttle sets. Daily rates from ฿1,200. Delivery within Bangkok ฿500. Call 096-668-2335 or LINE @lengolf. Book online at LENGOLF.',
-  keywords: [
-    'golf club rental Bangkok course',
-    'rent golf clubs Bangkok golf course',
-    'golf equipment rental Thailand',
-    'Callaway golf club rental delivery',
-    'golf club hire Bangkok',
-    'premium golf club rental Thailand',
-    'golf course equipment rental',
-    'LENGOLF course rental',
-  ],
-  openGraph: {
-    title: 'Golf Course Club Rental in Bangkok | LENGOLF',
-    description: 'Rent premium golf clubs for Bangkok golf courses. Callaway Paradym & Warbird sets with delivery. Daily & multi-day rates. Call 096-668-2335 or LINE @lengolf.',
-    type: 'website',
-    locale: 'en_US',
-    siteName: 'LENGOLF Bangkok',
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isValidLocale(locale)) {
+    return {};
+  }
+  const t = await getTranslations({ locale, namespace: 'seo.courseRental' });
+  const alternates = buildAlternates(locale as Locale, '/course-rental');
+  const og = buildOpenGraphLocales(locale as Locale);
+
+  return {
+    title: t('title'),
+    description: t('description'),
+    keywords: [
+      'golf club rental Bangkok course',
+      'rent golf clubs Bangkok golf course',
+      'golf equipment rental Thailand',
+      'Callaway golf club rental delivery',
+      'golf club hire Bangkok',
+      'premium golf club rental Thailand',
+      'golf course equipment rental',
+      'LENGOLF course rental',
+    ],
+    alternates,
+    openGraph: {
+      title: t('ogTitle'),
+      description: t('ogDescription'),
+      type: 'website',
+      locale: og.locale,
+      alternateLocale: og.alternateLocale,
+      siteName: 'LENGOLF Bangkok',
+      url: alternates.canonical,
+      images: [
+        {
+          url: `${SITE_URL}/images/lengolf.jpg`,
+          width: 1200,
+          height: 630,
+          alt: 'LENGOLF Golf Course Club Rental',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t('title'),
+      description: t('ogDescription'),
+      images: [`${SITE_URL}/images/lengolf.jpg`],
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
 
 const jsonLd = {
   '@context': 'https://schema.org',

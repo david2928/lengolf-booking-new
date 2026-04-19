@@ -911,5 +911,32 @@
     "emptyHeading": "How can we help?",
     "emptySubheading": "We usually reply in a few minutes.",
     "inputPlaceholder": "Type your message..."
+  },
+  "seo": {
+    "site": {
+      "title": "LENGOLF - Indoor Golf Simulator in Bangkok | Book Your Bay",
+      "description": "Experience Bangkok's premier indoor golf simulator at LENGOLF. Located at Mercury Ville @ BTS Chidlom. State-of-the-art Korean simulators, professional coaching, and great food & drinks. Book your bay now!",
+      "ogTitle": "LENGOLF - Bangkok's Premier Indoor Golf Simulator Experience",
+      "ogDescription": "Experience Bangkok's top-rated indoor golf simulator in the heart of the city! Located at Mercury Ville @ BTS Chidlom, LENGOLF offers state-of-the-art Korean simulators in a fun, relaxed environment. Perfect for all skill levels with great food & drinks. Book your bay now!",
+      "twitterDescription": "Book your golf simulator bay at LENGOLF Bangkok. Perfect for practice, lessons, or fun with friends. Located at Mercury Ville @ BTS Chidlom."
+    },
+    "playAndFood": {
+      "title": "Play & Food Packages - LENGOLF Golf Entertainment",
+      "description": "Ultimate golf entertainment experience combining simulator play with delicious food. Starting from 240 THB per person. Perfect for groups and families.",
+      "ogDescription": "Ultimate golf entertainment experience combining simulator play with delicious food. Starting from 240 THB per person."
+    },
+    "golfClubRental": {
+      "title": "Golf Club Rental Bangkok | Premium Callaway Clubs | LENGOLF",
+      "description": "Rent premium golf clubs in Bangkok. 2024 Callaway Warbird & Majesty Shuttle sets available. Hourly & daily rates from ฿150. Book online at LENGOLF indoor golf simulator.",
+      "ogTitle": "Premium Golf Club Rental in Bangkok | LENGOLF",
+      "ogDescription": "Rent 2024 Callaway Warbird & premium golf clubs at LENGOLF Bangkok. Flexible hourly & daily rates. Perfect for tourists & locals. Book online now!",
+      "twitterDescription": "Rent premium 2024 golf clubs at LENGOLF. Callaway Warbird & Majesty Shuttle available. Book online!"
+    },
+    "courseRental": {
+      "title": "Golf Course Club Rental Bangkok | Premium Clubs Delivered | LENGOLF",
+      "description": "Rent premium golf clubs for Bangkok golf courses. Callaway Paradym, Warbird & Majesty Shuttle sets. Daily rates from ฿1,200. Delivery within Bangkok ฿500.",
+      "ogTitle": "Golf Course Club Rental in Bangkok | LENGOLF",
+      "ogDescription": "Rent premium golf clubs for Bangkok golf courses. Callaway Paradym & Warbird sets with delivery. Daily & multi-day rates."
+    }
   }
 }

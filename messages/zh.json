@@ -911,5 +911,32 @@
     "emptyHeading": "有什么可以帮您的吗？",
     "emptySubheading": "我们通常会在几分钟内回复。",
     "inputPlaceholder": "输入您的消息..."
+  },
+  "seo": {
+    "site": {
+      "title": "LENGOLF - 曼谷室内高尔夫模拟器 | 预订您的球位",
+      "description": "在 LENGOLF 体验曼谷顶级室内高尔夫模拟器。位于 Mercury Ville @ BTS Chidlom。最先进的韩国模拟器、专业教练和美味餐饮。立即预订您的球位!",
+      "ogTitle": "LENGOLF - 曼谷首屈一指的室内高尔夫模拟器体验",
+      "ogDescription": "在市中心体验曼谷顶级室内高尔夫模拟器!LENGOLF 位于 Mercury Ville @ BTS Chidlom,在轻松愉快的氛围中提供最先进的韩国模拟器。适合各种水平,配有美食和饮品。立即预订您的球位!",
+      "twitterDescription": "在 LENGOLF Bangkok 预订您的高尔夫模拟器球位。非常适合练习、上课或与朋友玩乐。位于 Mercury Ville @ BTS Chidlom。"
+    },
+    "playAndFood": {
+      "title": "Play & Food 套餐 - LENGOLF 高尔夫娱乐",
+      "description": "将模拟器游戏与美食相结合的终极高尔夫娱乐体验。人均 240 泰铢起。非常适合团体和家庭。",
+      "ogDescription": "将模拟器游戏与美食相结合的终极高尔夫娱乐体验。人均 240 泰铢起。"
+    },
+    "golfClubRental": {
+      "title": "曼谷高尔夫球杆租赁 | 高级 Callaway 球杆 | LENGOLF",
+      "description": "在曼谷租赁高级高尔夫球杆。提供 2024 款 Callaway Warbird 和 Majesty Shuttle 套装。小时和日租费从 150 泰铢起。在 LENGOLF 室内高尔夫模拟器在线预订。",
+      "ogTitle": "曼谷高级高尔夫球杆租赁 | LENGOLF",
+      "ogDescription": "在 LENGOLF Bangkok 租赁 2024 款 Callaway Warbird 和高级高尔夫球杆。灵活的小时和日租费率。非常适合游客和当地人。立即在线预订!",
+      "twitterDescription": "在 LENGOLF 租赁高级 2024 款高尔夫球杆。提供 Callaway Warbird 和 Majesty Shuttle。在线预订!"
+    },
+    "courseRental": {
+      "title": "曼谷高尔夫球场球杆租赁 | 高级球杆配送 | LENGOLF",
+      "description": "为曼谷高尔夫球场租赁高级高尔夫球杆。Callaway Paradym、Warbird 和 Majesty Shuttle 套装。日租费从 1,200 泰铢起。曼谷市内配送 500 泰铢。",
+      "ogTitle": "曼谷高尔夫球场球杆租赁 | LENGOLF",
+      "ogDescription": "为曼谷高尔夫球场租赁高级高尔夫球杆。Callaway Paradym 和 Warbird 套装含配送。日租和多日租费率。"
+    }
   }
 }

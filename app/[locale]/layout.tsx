@@ -1,90 +1,111 @@
 import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, setRequestLocale } from 'next-intl/server';
+import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
 import type { ReactNode } from 'react';
-import { routing, isValidLocale } from '@/i18n/routing';
+import { routing, isValidLocale, type Locale } from '@/i18n/routing';
 import ChatWidgetLoader from '@/components/chat/ChatWidgetLoader';
+import {
+  SITE_URL,
+  buildAlternates,
+  buildOpenGraphLocales,
+} from '@/lib/seo/alternates';
 
-export const metadata: Metadata = {
-  title: {
-    default: "LENGOLF - Indoor Golf Simulator in Bangkok | Book Your Bay",
-    template: "%s | LENGOLF Bangkok"
-  },
-  description: "Experience Bangkok's premier indoor golf simulator at LENGOLF. Located at Mercury Ville @ BTS Chidlom. State-of-the-art Korean simulators, professional coaching, and great food & drinks. Book your bay now!",
-  keywords: [
-    "golf simulator bangkok",
-    "indoor golf bangkok",
-    "golf practice bangkok",
-    "golf lessons bangkok",
-    "lengolf",
-    "mercury ville golf",
-    "chidlom golf",
-    "golf booking bangkok",
-    "korean golf simulator",
-    "golf training bangkok"
-  ],
-  authors: [{ name: "LENGOLF" }],
-  creator: "LENGOLF",
-  publisher: "LENGOLF",
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-  metadataBase: new URL('https://booking.len.golf'),
-  openGraph: {
-    title: "LENGOLF - Bangkok's Premier Indoor Golf Simulator Experience",
-    description: "Experience Bangkok's top-rated indoor golf simulator in the heart of the city! Located at Mercury Ville @ BTS Chidlom, LENGOLF offers state-of-the-art Korean simulators in a fun, relaxed environment. Perfect for all skill levels with great food & drinks. Book your bay now! 🏌️‍♂️✨",
-    url: 'https://booking.len.golf',
-    siteName: 'LENGOLF Bangkok',
-    images: [
-      {
-        url: 'https://booking.len.golf/images/lengolf.jpg',
-        width: 1200,
-        height: 630,
-        alt: 'LENGOLF Indoor Golf Simulator Facility',
-      },
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isValidLocale(locale)) {
+    notFound();
+  }
+  const t = await getTranslations({ locale, namespace: 'seo.site' });
+  const alternates = buildAlternates(locale as Locale, '/');
+  const og = buildOpenGraphLocales(locale as Locale);
+
+  return {
+    title: {
+      default: t('title'),
+      template: '%s | LENGOLF Bangkok',
+    },
+    description: t('description'),
+    keywords: [
+      'golf simulator bangkok',
+      'indoor golf bangkok',
+      'golf practice bangkok',
+      'golf lessons bangkok',
+      'lengolf',
+      'mercury ville golf',
+      'chidlom golf',
+      'golf booking bangkok',
+      'korean golf simulator',
+      'golf training bangkok',
     ],
-    locale: 'en_US',
-    type: 'website',
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    authors: [{ name: 'LENGOLF' }],
+    creator: 'LENGOLF',
+    publisher: 'LENGOLF',
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
+    metadataBase: new URL(SITE_URL),
+    alternates,
+    openGraph: {
+      title: t('ogTitle'),
+      description: t('ogDescription'),
+      url: alternates.canonical,
+      siteName: 'LENGOLF Bangkok',
+      images: [
+        {
+          url: `${SITE_URL}/images/lengolf.jpg`,
+          width: 1200,
+          height: 630,
+          alt: 'LENGOLF Indoor Golf Simulator Facility',
+        },
+      ],
+      locale: og.locale,
+      alternateLocale: og.alternateLocale,
+      type: 'website',
+    },
+    robots: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'LENGOLF - Indoor Golf Simulator in Bangkok',
-    description: 'Book your golf simulator bay at LENGOLF Bangkok. Perfect for practice, lessons, or fun with friends. Located at Mercury Ville @ BTS Chidlom.',
-    images: ['https://booking.len.golf/images/lengolf.jpg'],
-  },
-  category: 'sports',
-  icons: {
-    icon: [
-      { url: '/favicon.ico' },
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
-    other: [
-      { url: '/web-app-manifest-192x192.png', sizes: '192x192', type: 'image/png', rel: 'icon' },
-      { url: '/web-app-manifest-512x512.png', sizes: '512x512', type: 'image/png', rel: 'icon' },
-    ],
-  },
-  manifest: '/site.webmanifest',
-};
+    twitter: {
+      card: 'summary_large_image',
+      title: t('title'),
+      description: t('twitterDescription'),
+      images: [`${SITE_URL}/images/lengolf.jpg`],
+    },
+    category: 'sports',
+    icons: {
+      icon: [
+        { url: '/favicon.ico' },
+        { url: '/favicon.svg', type: 'image/svg+xml' },
+        { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
+      ],
+      apple: [
+        { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      ],
+      other: [
+        { url: '/web-app-manifest-192x192.png', sizes: '192x192', type: 'image/png', rel: 'icon' },
+        { url: '/web-app-manifest-512x512.png', sizes: '512x512', type: 'image/png', rel: 'icon' },
+      ],
+    },
+    manifest: '/site.webmanifest',
+  };
+}
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
