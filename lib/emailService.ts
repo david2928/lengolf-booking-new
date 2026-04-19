@@ -3,20 +3,7 @@ import { createTranslator, createFormatter } from 'next-intl';
 import { isAILabBay } from '@/lib/bayConfig';
 import type { Locale } from '@/i18n/routing';
 import { isValidLocale } from '@/i18n/routing';
-import enMessages from '@/messages/en.json';
-import thMessages from '@/messages/th.json';
-import koMessages from '@/messages/ko.json';
-import jaMessages from '@/messages/ja.json';
-import zhMessages from '@/messages/zh.json';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const messagesByLocale: Record<Locale, any> = {
-  en: enMessages,
-  th: thMessages,
-  ko: koMessages,
-  ja: jaMessages,
-  zh: zhMessages,
-};
+import { getEmailMessages, bangkokDateTime } from '@/lib/i18n/email-helpers';
 
 /**
  * Narrow an arbitrary value (e.g. from DB or request body) to a Locale,
@@ -48,14 +35,6 @@ interface EmailConfirmation {
   language?: Locale;
 }
 
-/** Build a UTC-anchored Date for a bay in Asia/Bangkok from a YYYY-MM-DD date + HH:MM local time.
- *  Bangkok has no DST, always UTC+7, so subtracting 7h from the naive UTC stamp is correct. */
-function bangkokDateTime(dateISO: string, time: string): Date {
-  const [y, m, d] = dateISO.split('-').map(Number);
-  const [hh, mm] = time.split(':').map(Number);
-  return new Date(Date.UTC(y, (m || 1) - 1, d || 1, (hh || 0) - 7, mm || 0));
-}
-
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -84,7 +63,7 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
   const locale: Locale = booking.language ?? 'en';
   const t = createTranslator({
     locale,
-    messages: messagesByLocale[locale],
+    messages: getEmailMessages(locale),
     namespace: 'emails.bookingConfirmation',
   });
   const format = createFormatter({ locale });
@@ -305,7 +284,7 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
   const locale: Locale = booking.language ?? 'en';
   const t = createTranslator({
     locale,
-    messages: messagesByLocale[locale],
+    messages: getEmailMessages(locale),
     namespace: 'emails.courseRentalConfirmation',
   });
   const format = createFormatter({ locale });

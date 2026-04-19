@@ -2,21 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { createTranslator } from 'next-intl';
 import { resolveEmailLocale } from '@/lib/emailService';
-import type { Locale } from '@/i18n/routing';
-import enMessages from '@/messages/en.json';
-import thMessages from '@/messages/th.json';
-import koMessages from '@/messages/ko.json';
-import jaMessages from '@/messages/ja.json';
-import zhMessages from '@/messages/zh.json';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const messagesByLocale: Record<Locale, any> = {
-  en: enMessages,
-  th: thMessages,
-  ko: koMessages,
-  ja: jaMessages,
-  zh: zhMessages,
-};
+import { getEmailMessages } from '@/lib/i18n/email-helpers';
 
 function escapeHtml(str: string): string {
   return str
@@ -69,7 +55,7 @@ export async function POST(request: NextRequest) {
     const locale = resolveEmailLocale(language);
     const t = createTranslator({
       locale,
-      messages: messagesByLocale[locale],
+      messages: getEmailMessages(locale),
       namespace: 'emails.reviewRequest',
     });
 

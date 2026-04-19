@@ -253,19 +253,18 @@ cookie-driven root redirect, cookie-driven `/auth/login` redirect,
 `/auth/error` stays English, root rewrite, and `/th` → `/th/bookings`.
 
 ### Known follow-ups (not blocking merge)
-- Full translation of `th/ko/ja/zh` needs native-speaker review (Task 12
-  seeded overlapping keys from `lengolf-website`; the rest are English
-  placeholders).
-- Three near-duplicate `<html>+Providers` shells in `app/[locale]/layout.tsx`,
-  `app/auth/layout.tsx`, `app/liff/layout.tsx` — extract a `RootShell`.
-- `components/vip/ProfileView.tsx` and `ManualLinkAccountForm.tsx` use
-  inline `<p>` for Zod-validated error messages — loses `aria-describedby`
-  from shadcn's `FormMessage`.
-- `components/vip/BookingsList.tsx:formatTime` hard-codes `hh:mm a` 12-hour
-  format; won't localize for ja/ko.
-- Email templates receive pre-formatted date strings — upstream would need
-  to pass ISO values for locale-aware date formatting in emails.
-- `sendCourseRentalConfirmationEmail` in `lib/emailService.ts` still
-  English-only (separate flow that doesn't thread a locale).
-- LIFF pages unchanged in phase 1 — phase 2 migrates them onto the same
-  `messages/` catalog + `persistCustomerLanguage` helper (already shared).
+- **Korean native-speaker review.** `messages/ko.json` was AI-translated
+  with no LIFF source to anchor against. Tone (해요체) and particle usage
+  should be reviewed by a native speaker before promoting `ko` publicly.
+  Thai/Japanese/Chinese were partially seeded from LIFF (human-reviewed)
+  + AI for new keys; lower risk but a review pass is still recommended.
+- **LIFF unification (phase 2).** LIFF pages still use the hand-rolled
+  system in `lib/liff/{translations,booking-translations,membership-translations}.ts`.
+  Phase 2 migrates them onto the same `messages/` catalog. The shared
+  `persistCustomerLanguage` helper is already in place as the stepping
+  stone — `app/api/liff/language/route.ts` already calls it.
+- **Admin/LINE notification date formatting.** `app/api/notifications/line/route.ts`,
+  `app/api/clubs/reserve/route.ts`, `utils/booking-formatter.ts` still use
+  `toLocaleDateString('en-GB', …)` for staff-facing outputs. English-only
+  is fine for now — but if any of these strings later land in a
+  customer-facing translated email, they need migrating to `createFormatter`.

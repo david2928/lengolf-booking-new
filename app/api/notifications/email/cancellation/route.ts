@@ -2,21 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { createTranslator, createFormatter } from 'next-intl';
 import { resolveEmailLocale } from '@/lib/emailService';
-import type { Locale } from '@/i18n/routing';
-import enMessages from '@/messages/en.json';
-import thMessages from '@/messages/th.json';
-import koMessages from '@/messages/ko.json';
-import jaMessages from '@/messages/ja.json';
-import zhMessages from '@/messages/zh.json';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const messagesByLocale: Record<Locale, any> = {
-  en: enMessages,
-  th: thMessages,
-  ko: koMessages,
-  ja: jaMessages,
-  zh: zhMessages,
-};
+import { getEmailMessages, bangkokDateTime } from '@/lib/i18n/email-helpers';
 
 function escapeHtml(str: string): string {
   return str
@@ -49,13 +35,6 @@ interface BookingCancellationBody {
   bayName?: string;
   cancellationReason?: string;
   language?: string;
-}
-
-/** Build a UTC-anchored Date for Asia/Bangkok (UTC+7, no DST) from YYYY-MM-DD + HH:MM. */
-function bangkokDateTime(dateISO: string, time: string): Date {
-  const [y, m, d] = dateISO.split('-').map(Number);
-  const [hh, mm] = time.split(':').map(Number);
-  return new Date(Date.UTC(y, (m || 1) - 1, d || 1, (hh || 0) - 7, mm || 0));
 }
 
 export async function POST(request: NextRequest) {
@@ -96,7 +75,7 @@ export async function POST(request: NextRequest) {
     const locale = resolveEmailLocale(language);
     const t = createTranslator({
       locale,
-      messages: messagesByLocale[locale],
+      messages: getEmailMessages(locale),
       namespace: 'emails.bookingCancellation',
     });
     const format = createFormatter({ locale });
