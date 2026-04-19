@@ -252,6 +252,52 @@ the hand-rolled system in `lib/liff/` (phase 2 will unify them).
 cookie-driven root redirect, cookie-driven `/auth/login` redirect,
 `/auth/error` stays English, root rewrite, and `/th` → `/th/bookings`.
 
+### Non-negotiable gotchas (real bugs we already hit)
+
+- **Root `app/layout.tsx` MUST own `<html>` and `<body>`.** Not a
+  passthrough. Next.js App Router tolerates `return children` in dev and
+  explodes in production with a hydration cascade: React error #418 →
+  `HierarchyRequestError: Only one element on document allowed` →
+  `NotFoundError: removeChild`. Symptom is a white screen on Vercel with
+  local dev appearing to work. The root layout uses `getLocale()` from
+  `next-intl/server` to pick `lang` — this falls back to the default for
+  non-`[locale]` routes (LIFF, `/auth/error`), which is what we want.
+- **`NextIntlClientProvider` in v3 needs explicit `locale` + `messages`.**
+  They do NOT auto-forward from the server context like v4. Every
+  `[locale]/layout.tsx` must `await getMessages()` and pass both props.
+  Missing this makes every client `useTranslations` throw
+  `MISSING_MESSAGE` at hydration time — which cascades into the same
+  white-screen symptom as the root-layout bug above.
+- **`MISSING_MESSAGE` warnings during build are real bugs, not prerender
+  noise.** We dismissed 200 of these as a "known next-intl v3 quirk"
+  and shipped the white-screen bug to Vercel twice. If you see the
+  warning repeat across pages during SSG, investigate the client
+  provider wiring — don't filter it out.
+- **Client hydration is not validated by typecheck + lint + build.**
+  Those exercise the static-rendering path only. For any UI change
+  touching layouts, providers, or i18n, do a real `npm run dev` + page
+  load before declaring done. Build-green + prod-broken is the default
+  outcome if you skip this.
+- **Dev-server staleness with server-only modules.** Changes to
+  `lib/emailService.ts` and other `'server-only'` files occasionally
+  don't pick up via HMR. If email or API behavior looks wrong and the
+  code clearly has the fix, stop dev, `rm -rf .next`, restart.
+- **CJK Han Unification fallback.** See
+  `app/globals.css` — we add `html[lang="ja|ko|zh"] body` font stacks
+  even though we don't load Noto fonts, as a belt-and-suspenders against
+  the kind of bug that hit `lengolf-website` (`fe54c90`). If you ever
+  load `next/font/google` Noto variants here, make sure each locale's
+  native font is FIRST in its own stack.
+
+### Reuse opportunity for LIFF phase 2
+
+`lib/liff/{translations,booking-translations,membership-translations}.ts`
+carries ~1,700 lines of human-reviewed Thai/Japanese/Chinese translations
+covering booking + membership flows. When phase 2 migrates LIFF onto
+`messages/*.json`, harvest these first (keys with semantic matches) and
+only AI-translate the residue. Task 12 on the main-site migration
+originally missed this and we paid for it during the translation pass.
+
 ### Known follow-ups (not blocking merge)
 - **Korean native-speaker review.** `messages/ko.json` was AI-translated
   with no LIFF source to anchor against. Tone (해요체) and particle usage
