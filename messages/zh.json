@@ -889,5 +889,18 @@
       "visitWebsiteCta": "访问我们的网站",
       "copyright": "© {year} LENGOLF 版权所有"
     }
+  },
+  "footer": {
+    "addressLine1": "The Mercury Ville @ BTS奇隆站",
+    "addressLine2": "4楼",
+    "directionsDesktop": "点击查看路线",
+    "directionsMobile": "点击查看路线",
+    "openingHoursHeading": "营业时间",
+    "openingHoursTime": "9:00 - 23:00",
+    "openingHoursDays": "周一 - 周日",
+    "keepInTouchHeading": "联系我们",
+    "privacyPolicy": "隐私政策",
+    "followUsHeading": "关注我们",
+    "logoAlt": "LENGOLF 标志"
   }
 }

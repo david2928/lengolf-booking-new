@@ -889,5 +889,18 @@
       "visitWebsiteCta": "เยี่ยมชมเว็บไซต์ของเรา",
       "copyright": "© {year} LENGOLF สงวนลิขสิทธิ์"
     }
+  },
+  "footer": {
+    "addressLine1": "The Mercury Ville @ BTS ชิดลม",
+    "addressLine2": "ชั้น 4",
+    "directionsDesktop": "คลิกเพื่อดูเส้นทาง",
+    "directionsMobile": "แตะเพื่อดูเส้นทาง",
+    "openingHoursHeading": "เวลาเปิดทำการ",
+    "openingHoursTime": "9:00 - 23:00 น.",
+    "openingHoursDays": "จันทร์ - อาทิตย์",
+    "keepInTouchHeading": "ติดต่อเรา",
+    "privacyPolicy": "นโยบายความเป็นส่วนตัว",
+    "followUsHeading": "ติดตามเรา",
+    "logoAlt": "โลโก้ LENGOLF"
   }
 }

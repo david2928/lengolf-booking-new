@@ -889,5 +889,18 @@
       "visitWebsiteCta": "웹사이트 방문",
       "copyright": "© {year} LENGOLF. All rights reserved."
     }
+  },
+  "footer": {
+    "addressLine1": "The Mercury Ville @ BTS 칫롬",
+    "addressLine2": "4층",
+    "directionsDesktop": "길찾기를 보려면 클릭",
+    "directionsMobile": "길찾기를 보려면 탭",
+    "openingHoursHeading": "영업시간",
+    "openingHoursTime": "9:00 - 23:00",
+    "openingHoursDays": "월요일 - 일요일",
+    "keepInTouchHeading": "문의하기",
+    "privacyPolicy": "개인정보처리방침",
+    "followUsHeading": "팔로우하기",
+    "logoAlt": "LENGOLF 로고"
   }
 }

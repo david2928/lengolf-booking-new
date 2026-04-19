@@ -889,5 +889,18 @@
       "visitWebsiteCta": "ウェブサイトを見る",
       "copyright": "© {year} LENGOLF. All rights reserved."
     }
+  },
+  "footer": {
+    "addressLine1": "The Mercury Ville @ BTSチットロム",
+    "addressLine2": "4階",
+    "directionsDesktop": "クリックで道順を表示",
+    "directionsMobile": "タップで道順を表示",
+    "openingHoursHeading": "営業時間",
+    "openingHoursTime": "9:00 - 23:00",
+    "openingHoursDays": "月曜日 - 日曜日",
+    "keepInTouchHeading": "お問い合わせ",
+    "privacyPolicy": "プライバシーポリシー",
+    "followUsHeading": "フォローする",
+    "logoAlt": "LENGOLFロゴ"
   }
 }

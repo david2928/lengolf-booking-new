@@ -28,18 +28,21 @@ const Header: React.FC<HeaderProps> = ({
     <header className="bg-primary text-primary-foreground py-4 sticky top-0 z-50 shadow-md">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-white">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-shrink">
+            <h1 className="text-2xl font-bold text-white flex-shrink-0">
               {title}
             </h1>
             {badge && (
-              <Link href={badge.href} className="bg-white text-green-700 px-3 py-1.5 rounded-md text-sm font-medium">
+              <Link
+                href={badge.href}
+                className="bg-white text-green-700 px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap flex-shrink-0"
+              >
                 {badge.text}
               </Link>
             )}
           </div>
-          
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             {rightContent}
             
             <button

@@ -889,5 +889,18 @@
       "visitWebsiteCta": "Visit Our Website",
       "copyright": "© {year} LENGOLF. All rights reserved."
     }
+  },
+  "footer": {
+    "addressLine1": "The Mercury Ville @ BTS Chidlom",
+    "addressLine2": "Floor 4",
+    "directionsDesktop": "Click for directions",
+    "directionsMobile": "Tap for directions",
+    "openingHoursHeading": "Opening Hours",
+    "openingHoursTime": "9am - 11pm",
+    "openingHoursDays": "Monday - Sunday",
+    "keepInTouchHeading": "Keep in Touch",
+    "privacyPolicy": "Privacy Policy",
+    "followUsHeading": "Follow Us",
+    "logoAlt": "LENGOLF Logo"
   }
 }
