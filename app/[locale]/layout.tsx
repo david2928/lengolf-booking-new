@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
-import { setRequestLocale } from 'next-intl/server';
+import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
@@ -225,10 +225,15 @@ export default async function LocaleLayout({
     notFound();
   }
   setRequestLocale(locale);
+  // next-intl v3 requires explicit `locale` + `messages` on the client
+  // provider — they do NOT auto-forward from the server context. Omitting
+  // them makes every client `useTranslations` throw MISSING_MESSAGE, which
+  // cascades to a hydration error and a white screen.
+  const messages = await getMessages();
 
   return (
     <RootShell lang={locale} head={<LocaleHeadScripts />} bodyStart={<GTMNoScript />}>
-      <NextIntlClientProvider>
+      <NextIntlClientProvider locale={locale} messages={messages}>
         {children}
         <ChatWidgetLoader />
         <Analytics />
