@@ -911,5 +911,32 @@
     "emptyHeading": "どのようなご用件ですか？",
     "emptySubheading": "通常、数分以内に返信いたします。",
     "inputPlaceholder": "メッセージを入力..."
+  },
+  "seo": {
+    "site": {
+      "title": "LENGOLF - バンコクの屋内ゴルフシミュレーター | ベイを予約",
+      "description": "バンコクの一流屋内ゴルフシミュレーター、LENGOLFを体験してください。Mercury Ville @ BTS Chidlomに位置。最先端の韓国製シミュレーター、プロコーチング、おいしい飲食物を提供。今すぐベイを予約!",
+      "ogTitle": "LENGOLF - バンコク最高級の屋内ゴルフシミュレーター体験",
+      "ogDescription": "バンコクの中心地でトップクラスの屋内ゴルフシミュレーターを体験!Mercury Ville @ BTS Chidlomに位置するLENGOLFは、リラックスした楽しい雰囲気の中で最先端の韓国製シミュレーターを提供。あらゆるレベルに対応、おいしい飲食物もご用意。今すぐベイを予約!",
+      "twitterDescription": "LENGOLFバンコクでゴルフシミュレーターベイを予約。練習、レッスン、友人との時間に最適。Mercury Ville @ BTS Chidlomに位置。"
+    },
+    "playAndFood": {
+      "title": "Play & Foodパッケージ - LENGOLFゴルフエンターテインメント",
+      "description": "シミュレータープレイと美味しい料理を組み合わせた究極のゴルフエンターテインメント。お一人様240バーツから。グループやご家族に最適。",
+      "ogDescription": "シミュレータープレイと美味しい料理を組み合わせた究極のゴルフエンターテインメント。お一人様240バーツから。"
+    },
+    "golfClubRental": {
+      "title": "バンコクゴルフクラブレンタル | プレミアムキャロウェイクラブ | LENGOLF",
+      "description": "バンコクでプレミアムゴルフクラブをレンタル。2024年モデルのCallaway Warbird & Majesty Shuttleセット。時間・1日レンタル150バーツから。LENGOLF屋内ゴルフシミュレーターでオンライン予約。",
+      "ogTitle": "バンコクのプレミアムゴルフクラブレンタル | LENGOLF",
+      "ogDescription": "LENGOLFバンコクで2024年モデルのCallaway Warbird & プレミアムゴルフクラブをレンタル。柔軟な時間・1日レート。観光客にも地元の方にも最適。今すぐオンライン予約!",
+      "twitterDescription": "LENGOLFでプレミアム2024年モデルのゴルフクラブをレンタル。Callaway Warbird & Majesty Shuttleあり。オンライン予約!"
+    },
+    "courseRental": {
+      "title": "バンコクゴルフコース用クラブレンタル | プレミアムクラブを配送 | LENGOLF",
+      "description": "バンコクのゴルフコース用プレミアムゴルフクラブをレンタル。Callaway Paradym, Warbird & Majesty Shuttleセット。1日レンタル1,200バーツから。バンコク市内配送500バーツ。",
+      "ogTitle": "バンコクゴルフコース用クラブレンタル | LENGOLF",
+      "ogDescription": "バンコクのゴルフコース用プレミアムゴルフクラブをレンタル。配送付きのCallaway Paradym & Warbirdセット。1日・複数日レート。"
+    }
   }
 }
