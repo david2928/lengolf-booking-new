@@ -4,23 +4,26 @@ import React, { useState } from 'react';
 import { useForm, ControllerRenderProps } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { TranslatedFormMessage } from '@/components/shared/TranslatedFormMessage';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { linkAccount } from '../../lib/vipService';
 import { VipApiError } from '../../types/vip';
-import { useVipContext } from '../../app/(features)/vip/contexts/VipContext';
+import { useVipContext } from '@/app/[locale]/(features)/vip/contexts/VipContext';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Phone, CheckCircle, AlertCircle } from 'lucide-react';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
+// Messages reference translation keys; UI translates at render time
 const formSchema = z.object({
   phoneNumber: z.string()
-    .min(1, { message: "Phone number is required." })
+    .min(1, { message: "validationRequired" })
     .refine((value) => isValidPhoneNumber(value || ''), {
-      message: "Please enter a valid phone number."
+      message: "validationInvalid"
     }),
 });
 
@@ -29,6 +32,7 @@ interface ManualLinkAccountFormProps {
 }
 
 const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName }) => {
+  const t = useTranslations('vip.linkAccount');
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'success' | 'error'>('success');
@@ -52,27 +56,27 @@ const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName 
     setIsLoading(true);
     try {
       const result = await linkAccount({ phoneNumber: values.phoneNumber });
-      const successMessage = result.message || 'Account linked successfully!';
-      
+      const successMessage = result.message || t('defaultSuccess');
+
       // Show success modal first
       setModalType('success');
       setModalMessage(successMessage);
       setShowModal(true);
-      
+
       // Start background tasks immediately for better UX
       // Update VIP status in background
       if (refetchVipStatus) {
         refetchVipStatus().catch(console.error);
       }
-      
+
       // Start navigation immediately after a short delay for modal to show
       setTimeout(() => {
         router.push('/vip');
       }, 1500); // 1.5 second delay to let user see success modal
-      
+
     } catch (e: unknown) {
       console.error('Link account error:', e);
-      let errorMessage = 'An unexpected error occurred.';
+      let errorMessage = t('unexpectedError');
       if (e instanceof VipApiError) {
         errorMessage = e.payload?.error || e.payload?.message || e.message;
       } else if (e instanceof Error) {
@@ -84,12 +88,12 @@ const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName 
       }
       // Customize error messages for better UX
       if (errorMessage.includes('No matching customer account found')) {
-        errorMessage = "We couldn't find an account with this phone number. Please double-check your number or contact support if you're sure it's correct.";
+        errorMessage = t('noMatchingAccount');
       }
-      
+
       // Show error modal
       setModalType('error');
-      setModalMessage(errorMessage || 'Failed to link account.');
+      setModalMessage(errorMessage || t('defaultError'));
       setShowModal(true);
     } finally {
       setIsLoading(false);
@@ -104,10 +108,10 @@ const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName 
             <Phone className="w-6 h-6 text-green-600" />
           </div>
           <CardTitle className="text-2xl font-bold text-gray-900">
-            Connect Your Account
+            {t('cardTitle')}
           </CardTitle>
           <CardDescription className="text-gray-600">
-            {userName ? `Welcome ${userName}! ` : ''}Enter the phone number from your Lengolf membership to access your VIP features.
+            {userName ? t('cardDescriptionWithName', { name: userName }) : t('cardDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -116,33 +120,37 @@ const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName 
               <FormField
                 control={form.control}
                 name="phoneNumber"
-                render={({ field }: { field: ControllerRenderProps<z.infer<typeof formSchema>, 'phoneNumber'> }) => (
+                render={({ field, fieldState }: { field: ControllerRenderProps<z.infer<typeof formSchema>, 'phoneNumber'>; fieldState: { error?: { message?: string } } }) => (
                   <FormItem>
-                    <FormLabel className="text-gray-700 font-medium">Phone Number</FormLabel>
+                    <FormLabel className="text-gray-700 font-medium">{t('phoneNumber')}</FormLabel>
                     <FormControl>
                       <PhoneInput
                         international
                         defaultCountry="TH"
-                        placeholder="Enter your phone number"
+                        placeholder={t('phonePlaceholder')}
                         value={field.value}
                         onChange={field.onChange}
                         className={`w-full h-12 px-3 py-2 rounded-lg bg-gray-50 focus:outline-none border focus:border-green-500 focus:ring-1 focus:ring-green-500 custom-phone-input ${
-                          form.formState.errors.phoneNumber 
-                            ? 'border-red-500' 
-                            : (field.value && isValidPhoneNumber(field.value || '')) 
-                            ? 'border-green-500' 
+                          form.formState.errors.phoneNumber
+                            ? 'border-red-500'
+                            : (field.value && isValidPhoneNumber(field.value || ''))
+                            ? 'border-green-500'
                             : 'border-gray-200'
                         }`}
                       />
                     </FormControl>
-                    <FormMessage />
+                    <TranslatedFormMessage>
+                      {fieldState.error?.message &&
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        t(fieldState.error.message as any)}
+                    </TranslatedFormMessage>
                   </FormItem>
                 )}
               />
-              
+
               <Button type="submit" className="w-full h-12 bg-green-600 hover:bg-green-700" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? 'Connecting...' : 'Connect Account'}
+                {isLoading ? t('connecting') : t('connectAccount')}
               </Button>
             </form>
           </Form>
@@ -152,12 +160,12 @@ const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName 
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="pt-6">
           <div className="text-center space-y-2">
-            <h3 className="font-medium text-blue-900">Need Help?</h3>
+            <h3 className="font-medium text-blue-900">{t('needHelp')}</h3>
             <p className="text-sm text-blue-700">
-              Use the same phone number you provided when booking lessons or purchasing packages at Lengolf.
+              {t('helpBody')}
             </p>
             <p className="text-xs text-blue-600">
-              Contact support if you continue to experience issues.
+              {t('helpSupport')}
             </p>
           </div>
         </CardContent>
@@ -179,7 +187,7 @@ const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName 
               )}
             </div>
             <DialogTitle className="text-center">
-              {modalType === 'success' ? 'Account Connected!' : 'Connection Failed'}
+              {modalType === 'success' ? t('modalSuccessTitle') : t('modalErrorTitle')}
             </DialogTitle>
             <DialogDescription className="text-center">
               {modalMessage}
@@ -187,7 +195,7 @@ const ManualLinkAccountForm: React.FC<ManualLinkAccountFormProps> = ({ userName 
           </DialogHeader>
           <DialogFooter className="sm:justify-center">
             <Button onClick={handleModalClose} className={modalType === 'success' ? 'bg-green-600 hover:bg-green-700' : ''}>
-              {modalType === 'success' ? 'Continue to VIP Dashboard' : 'Try Again'}
+              {modalType === 'success' ? t('modalSuccessCta') : t('modalErrorCta')}
             </Button>
           </DialogFooter>
         </DialogContent>

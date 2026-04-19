@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
           // Look up the booking and customer information
           const { data: bookingData, error: bookingError } = await supabase
             .from('bookings')
-            .select('id, name, email, user_id')
+            .select('id, name, email, user_id, language')
             .eq('id', request.booking_id)
             .single();
           
@@ -217,7 +217,8 @@ export async function POST(request: NextRequest) {
                 userName: customerName, // Use actual customer name
                 bookingName: bookingData.name,
                 reviewUrl: GOOGLE_REVIEW_URL,
-                voucherImageUrl: emailVoucherUrl
+                voucherImageUrl: emailVoucherUrl,
+                language: bookingData.language ?? undefined
               })
             });
 

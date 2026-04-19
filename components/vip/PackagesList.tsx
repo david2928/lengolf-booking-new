@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
+import { useTranslations, useFormatter } from 'next-intl';
 import { getVipPackages } from '../../lib/vipService';
 import { FaLine } from 'react-icons/fa';
 import { VipPackage, VipApiError } from '../../types/vip';
-import { useVipContext } from '../../app/(features)/vip/contexts/VipContext';
+import { useVipContext } from '@/app/[locale]/(features)/vip/contexts/VipContext';
 import { Loader2, PackageIcon, CalendarDays, CheckCircle, XCircle, Clock, AlertTriangle, Info, Users, Clock3, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,6 +53,7 @@ const FullScreenImageModal: React.FC<{
 
 // Promotional packages view component
 const PromoPackagesView: React.FC = () => {
+  const t = useTranslations('vip.packages');
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   return (
@@ -61,23 +63,22 @@ const PromoPackagesView: React.FC = () => {
           {/* Header */}
           <div className="space-y-2">
             <h2 className="text-2xl font-bold text-green-800">
-              Get Your First Package!
+              {t('promoHeading')}
             </h2>
             <p className="text-green-700 max-w-2xl mx-auto">
-              Ready to take your golf game to the next level? Our monthly packages offer great 
-              value and flexibility for regular practice and lessons.
+              {t('promoBody')}
             </p>
           </div>
 
           {/* Package Pricing Table */}
           <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 md:p-4 shadow-lg max-w-3xl mx-auto">
-            <div 
+            <div
               className="relative cursor-pointer group"
               onClick={() => setIsImageModalOpen(true)}
             >
               <Image
                 src="/images/promotion_2.jpg"
-                alt="Monthly Packages Pricing"
+                alt={t('promoImageAlt')}
                 width={600}
                 height={400}
                 className="w-full h-auto rounded-lg shadow-md transition-transform group-hover:scale-[1.02]"
@@ -88,34 +89,34 @@ const PromoPackagesView: React.FC = () => {
                 </div>
               </div>
             </div>
-            <p className="text-xs text-gray-600 mt-2">Click to view full size</p>
+            <p className="text-xs text-gray-600 mt-2">{t('promoClickToView')}</p>
           </div>
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
-            <a 
+            <a
               href="https://lin.ee/uxQpIXn"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 bg-[#06C755] text-white px-6 py-2.5 rounded-lg hover:bg-[#05b04e] transition-colors font-medium shadow-md hover:shadow-lg transform hover:scale-105 transition-all min-w-[160px]"
             >
               <FaLine className="text-lg" />
-              Contact us via LINE
+              {t('promoContactLine')}
             </a>
             <Button asChild variant="outline" className="border-green-600 text-green-700 hover:bg-green-50 px-6 py-2.5 font-medium shadow-md hover:shadow-lg transform hover:scale-105 transition-all min-w-[160px]">
               <Link href="/bookings">
-                Book a Session
+                {t('promoBookSession')}
               </Link>
             </Button>
           </div>
         </div>
       </div>
 
-      <FullScreenImageModal 
+      <FullScreenImageModal
         isOpen={isImageModalOpen}
         onClose={() => setIsImageModalOpen(false)}
         imageSrc="/images/promotion_2.jpg"
-        imageAlt="Monthly Packages Pricing"
+        imageAlt={t('promoImageAlt')}
       />
     </>
   );
@@ -123,6 +124,9 @@ const PromoPackagesView: React.FC = () => {
 
 const PackagesList: React.FC = () => {
   const { vipStatus, isLoadingVipStatus, sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
+  const t = useTranslations('vip.packages');
+  const tErrors = useTranslations('vip.errors');
+  const formatter = useFormatter();
   const [activePackages, setActivePackages] = useState<VipPackage[]>([]);
   const [pastPackages, setPastPackages] = useState<VipPackage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -189,7 +193,7 @@ const PackagesList: React.FC = () => {
       });
     } catch (err: unknown) {
       console.error('Failed to fetch packages:', err);
-      let errorMessage = 'Could not load packages.';
+      let errorMessage = tErrors('couldNotLoadPackages');
       if (err instanceof VipApiError) {
         errorMessage = err.payload?.message || err.message || errorMessage;
       } else if (err instanceof Error) {
@@ -199,7 +203,7 @@ const PackagesList: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [vipStatus]);
+  }, [vipStatus, tErrors]);
 
   useEffect(() => {
     // Allow both linked_matched and linked_unmatched users to fetch packages
@@ -209,10 +213,10 @@ const PackagesList: React.FC = () => {
   }, [vipStatus, fetchPackages]);
 
   const formatDate = (dateString: string | null | undefined): string => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return t('notAvailableShort');
     try {
         const date = new Date(dateString + (dateString.includes('T') ? '' : 'T00:00:00'));
-        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        return formatter.dateTime(date, { year: 'numeric', month: 'short', day: 'numeric' });
     } catch {
         console.error('Failed to parse date');
         return dateString; // Return original if parsing fails
@@ -229,32 +233,32 @@ const PackagesList: React.FC = () => {
     const isUnlimited = pkg.packageCategory?.toLowerCase().includes('unlimited');
     const isCoaching = pkg.packageCategory?.toLowerCase().includes('coaching');
 
-    let packageTypeBadgeText = pkg.packageCategory || 'Package'; // Default
+    let packageTypeBadgeText = pkg.packageCategory || t('badgePackage'); // Default
 
     if (isCoaching) {
       if (pkg.pax !== undefined && pkg.pax !== null) {
-        packageTypeBadgeText = `${pkg.pax} Pax`;
+        packageTypeBadgeText = t('badgePax', { pax: pkg.pax });
       } else {
-        packageTypeBadgeText = 'Coaching';
+        packageTypeBadgeText = t('badgeCoaching');
       }
     } else if (isUnlimited) {
-      packageTypeBadgeText = 'Unlimited';
+      packageTypeBadgeText = t('badgeUnlimited');
     } else { // Practice packages (non-coaching, non-unlimited)
       if (pkg.totalHours !== undefined && pkg.totalHours !== null) {
-        packageTypeBadgeText = `${pkg.totalHours} Hour${pkg.totalHours === 1 ? '' : 's'}`;
+        packageTypeBadgeText = t('badgeHours', { hours: pkg.totalHours });
       } else if (pkg.packageCategory) {
         packageTypeBadgeText = pkg.packageCategory;
       } else {
-        packageTypeBadgeText = 'Practice'; // Fallback for practice if no hours/category
+        packageTypeBadgeText = t('badgePractice'); // Fallback for practice if no hours/category
       }
     }
 
     if (isUnlimited) {
-      remainingDisplay = "Unlimited Usage";
+      remainingDisplay = t('unlimitedUsage');
     } else if (pkg.remainingHours !== undefined && pkg.remainingHours !== null) {
-      remainingDisplay = `${pkg.remainingHours} hour${pkg.remainingHours === 1 ? '' : 's'} remaining`;
+      remainingDisplay = t('hoursRemaining', { hours: pkg.remainingHours });
     } else {
-      remainingDisplay = "N/A";
+      remainingDisplay = t('notAvailableShort');
     }
 
     let statusColor = 'text-gray-600';
@@ -282,25 +286,25 @@ const PackagesList: React.FC = () => {
     const packageDetailsContent = (
       <div className="space-y-1.5 text-xs">
         {pkg.purchaseDate && (
-          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>Purchased: {formatDate(pkg.purchaseDate)}</p>
+          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>{t('purchased', { date: formatDate(pkg.purchaseDate) })}</p>
         )}
         {pkg.first_use_date && (
-          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>First Used: {formatDate(pkg.first_use_date)}</p>
+          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>{t('firstUsed', { date: formatDate(pkg.first_use_date) })}</p>
         )}
         {!isUnlimited && pkg.totalHours !== undefined && pkg.totalHours !== null && (
-          <p className="flex items-center"><Clock size={14} className="mr-1.5 text-gray-400"/>Total: {pkg.totalHours} hour{pkg.totalHours === 1 ? '' : 's'}</p>
+          <p className="flex items-center"><Clock size={14} className="mr-1.5 text-gray-400"/>{t('totalHours', { hours: pkg.totalHours })}</p>
         )}
         {!isUnlimited && pkg.usedHours !== undefined && pkg.usedHours !== null && (
-           <p className="flex items-center"><Clock3 size={14} className="mr-1.5 text-gray-400"/>Used: {pkg.usedHours} hour{pkg.usedHours === 1 ? '' : 's'}</p>
+           <p className="flex items-center"><Clock3 size={14} className="mr-1.5 text-gray-400"/>{t('usedHours', { hours: pkg.usedHours })}</p>
         )}
         {pkg.pax !== undefined && isCoaching && (
-           <p className="flex items-center"><Users size={14} className="mr-1.5 text-gray-400"/>Pax: {pkg.pax}</p>
+           <p className="flex items-center"><Users size={14} className="mr-1.5 text-gray-400"/>{t('paxLine', { pax: pkg.pax })}</p>
         )}
         {pkg.validityPeriod && !pkg.expiryDate && (
-          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>Validity: {pkg.validityPeriod}</p>
+          <p className="flex items-center"><CalendarDays size={14} className="mr-1.5 text-gray-400"/>{t('validity', { period: pkg.validityPeriod })}</p>
         )}
          {(!pkg.purchaseDate && !pkg.first_use_date && (isUnlimited || pkg.totalHours === undefined || pkg.totalHours === null) && !(pkg.pax !== undefined && isCoaching) && (!pkg.validityPeriod || pkg.expiryDate)) && (
-          <p className="text-gray-400">No additional details available.</p>
+          <p className="text-gray-400">{t('noAdditionalDetails')}</p>
         )}
       </div>
     );
@@ -324,7 +328,10 @@ const PackagesList: React.FC = () => {
                 )}
                 <span className={`px-2.5 py-1 text-xs font-semibold rounded-full flex items-center ${statusBgColor} ${statusColor}`}>
                   <StatusIcon size={14} className="mr-1.5" />
-                  {pkg.status ? pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1) : 'Unknown'}
+                  {pkg.status?.toLowerCase() === 'active' ? t('statusActive') :
+                   pkg.status?.toLowerCase() === 'expired' ? t('statusExpired') :
+                   pkg.status?.toLowerCase() === 'depleted' ? t('statusDepleted') :
+                   t('statusUnknown')}
                 </span>
               </div>
             </div>
@@ -343,8 +350,8 @@ const PackagesList: React.FC = () => {
 
           {pkg.expiryDate && (
             <div className="text-sm text-gray-600 flex items-center">
-              <CalendarDays size={14} className="mr-1.5 text-gray-500" /> 
-              Expires: {formatDate(pkg.expiryDate)}
+              <CalendarDays size={14} className="mr-1.5 text-gray-500" />
+              {t('expires', { date: formatDate(pkg.expiryDate) })}
               { (new Date(pkg.expiryDate) > new Date()) && (pkg.remainingHours === null || (pkg.remainingHours !== undefined && pkg.remainingHours > 0)) &&
                 (() => {
                   const todayDate = new Date();
@@ -353,8 +360,8 @@ const PackagesList: React.FC = () => {
                   expiry.setHours(0, 0, 0, 0);
                   const diffTime = Math.abs(expiry.getTime() - todayDate.getTime());
                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                  if (diffDays >= 0) { 
-                    return <span className="ml-1">({diffDays} day{diffDays !== 1 ? 's' : ''} left)</span>;
+                  if (diffDays >= 0) {
+                    return <span className="ml-1">{t('daysLeft', { days: diffDays })}</span>;
                   }
                   return null;
                 })()
@@ -371,9 +378,9 @@ const PackagesList: React.FC = () => {
               onClick={() => setIsExpanded(!isExpanded)}
             >
               {isExpanded ? (
-                <><ChevronUp size={14} className="mr-1" /> Hide Details</>
+                <><ChevronUp size={14} className="mr-1" /> {t('hideDetails')}</>
               ) : (
-                <><ChevronDown size={14} className="mr-1" /> Show Details</>
+                <><ChevronDown size={14} className="mr-1" /> {t('showDetails')}</>
               )}
             </Button>
             {isExpanded && (
@@ -389,13 +396,13 @@ const PackagesList: React.FC = () => {
             {isCoaching ? (
               <a href="https://lin.ee/uxQpIXn" target="_blank" rel="noopener noreferrer" className="w-full">
                 <Button className="w-full" variant="default">
-                  <Users size={16} className="mr-2" /> Arrange Lesson (LINE)
+                  <Users size={16} className="mr-2" /> {t('arrangeLessonLine')}
                 </Button>
               </a>
             ) : (
               <Link href="/bookings/create" className="w-full">
                 <Button className="w-full" variant="default">
-                  <PackageIcon size={16} className="mr-2" /> Book Now
+                  <PackageIcon size={16} className="mr-2" /> {t('bookNow')}
                 </Button>
               </Link>
             )}
@@ -405,18 +412,18 @@ const PackagesList: React.FC = () => {
     );
   };
 
-  const renderPackageGroup = (packages: VipPackage[], title: string) => {
+  const renderPackageGroup = (packages: VipPackage[], groupKey: 'active' | 'past') => {
     if (packages.length === 0) {
       return (
         <EmptyState
           Icon={PackageIcon}
-          title={`No ${title.toLowerCase()} found`}
-          message={title === 'Active Packages' ? 
-            <>You don&apos;t have any active packages yet. <br />Contact us to purchase a practice or coaching package!</> :
-            <>You haven&apos;t used any packages yet.</>
+          title={groupKey === 'active' ? t('emptyActiveTitle') : t('emptyPastTitle')}
+          message={groupKey === 'active' ?
+            <>{t('emptyActiveBody')} <br />{t('emptyActiveBody2')}</> :
+            <>{t('emptyPastBody')}</>
           }
-          action={title === 'Active Packages' ? {
-            text: "Contact Us",
+          action={groupKey === 'active' ? {
+            text: t('contactUs'),
             href: "https://lin.ee/uxQpIXn"
           } : undefined}
           className="mt-4"
@@ -437,7 +444,7 @@ const PackagesList: React.FC = () => {
     return (
       <div className="flex justify-center items-center py-10">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading packages...</span>
+        <span className="ml-2">{t('loadingPackages')}</span>
       </div>
     );
   }
@@ -446,9 +453,9 @@ const PackagesList: React.FC = () => {
     return (
       <EmptyState
         Icon={AlertTriangle}
-        title="Error Loading Packages"
+        title={t('errorLoadingTitle')}
         message={error}
-        action={{ text: "Try Again", onClick: () => fetchPackages(true) }}
+        action={{ text: t('tryAgain'), onClick: () => fetchPackages(true) }}
         className="mt-4"
       />
     );
@@ -459,12 +466,10 @@ const PackagesList: React.FC = () => {
     return (
       <EmptyState
         Icon={Info}
-        title="Account Linking Required"
-        message={<>
-          Please link your account to view your packages and track usage.
-        </>}
+        title={t('accountLinkingRequiredTitle')}
+        message={t('accountLinkingRequiredBody')}
         action={{
-          text: "Link Account Now",
+          text: t('linkAccountNow'),
           href: "/vip/link-account"
         }}
         className="mt-4"
@@ -486,19 +491,19 @@ const PackagesList: React.FC = () => {
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="active" className="data-[state=active]:bg-green-100 data-[state=active]:text-green-800">
-            Active Packages ({activePackages.length})
+            {t('tabActive', { count: activePackages.length })}
           </TabsTrigger>
           <TabsTrigger value="past" className="data-[state=active]:bg-gray-100 data-[state=active]:text-gray-800">
-            Past Packages ({pastPackages.length})
+            {t('tabPast', { count: pastPackages.length })}
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="active" className="mt-6">
-          {renderPackageGroup(activePackages, 'Active Packages')}
+          {renderPackageGroup(activePackages, 'active')}
         </TabsContent>
-        
+
         <TabsContent value="past" className="mt-6">
-          {renderPackageGroup(pastPackages, 'Past Packages')}
+          {renderPackageGroup(pastPackages, 'past')}
         </TabsContent>
       </Tabs>
     </div>

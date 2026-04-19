@@ -5,6 +5,9 @@
 /.pnp
 .pnp.js
 
+# worktrees
+.worktrees/
+
 # testing
 /coverage
 

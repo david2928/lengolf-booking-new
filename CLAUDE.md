@@ -201,3 +201,70 @@ the call to an API route using `createServerClient()` instead.
 - A migration that does `GRANT ALL ... TO anon` on anything in `public` or
   on any of the admin schemas (accounting, finance, marketing, products,
   simulator, ai_eval) — these are locked
+
+---
+
+## 🌐 Main-site i18n (non-LIFF)
+
+The customer-facing non-LIFF surface (`/bookings`, `/vip`, `/play-and-food`,
+`/golf-club-rental`, `/auth/login`) uses `next-intl@^3` with 5 locales:
+`en` (default, unprefixed), `th`, `ko`, `ja`, `zh`. LIFF pages still use
+the hand-rolled system in `lib/liff/` (phase 2 will unify them).
+
+### Key files
+- `i18n/routing.ts` — locale config, `Locale` type, `localeNativeName`,
+  `isValidLocale` guard. `localePrefix: 'as-needed'` with `NEXT_LOCALE`
+  cookie (1-year).
+- `i18n/request.ts` — message loader. Uses `isValidLocale` instead of v4's
+  `hasLocale`.
+- `i18n/navigation.ts` — typed `Link`, `redirect`, `usePathname`,
+  `useRouter` re-exports. **Use these, not `next/navigation`, for
+  locale-aware routing.**
+- `messages/{en,th,ko,ja,zh}.json` — message catalogs. `en.json` is
+  source-of-truth; `types/messages.d.ts` types the shape so missing keys
+  in other locales become TS errors.
+- `middleware.ts` — composes LIFF redirect → `/auth/error` skip → LINE-UA
+  detection → `next-intl` middleware → root `/{locale}` → `/{locale}/bookings`
+  rewrite → NextAuth token check. Don't reorder without re-reading.
+- `lib/i18n/persist-language.ts` — shared helper that writes
+  `customers.preferred_language`. Used by `/api/user/language` (NextAuth
+  users) and `/api/liff/language` (LIFF users).
+- `components/shared/LanguageSwitcher.tsx` — dropdown. `variant='dark'`
+  (default, booking header) or `'light'` (auth login card). Writes the
+  cookie + mirrors to DB for logged-in users.
+
+### Translation conventions
+- Client: `useTranslations('ns.sub')` + `useFormatter()`. Server:
+  `getTranslations('ns.sub')` + `getFormatter()`.
+- Top-level namespaces: `common`, `nav`, `auth`, `bookings`, `vip`,
+  `playAndFood`, `clubRental`, `errors`, `emails`. `bookings` and `vip`
+  use sub-namespaces per page/step (`bookings.dateStep`, `vip.dashboard`,
+  etc.). Don't create `misc`/`other` buckets.
+- ICU named placeholders (`{name}`, `{date}`) and ICU plural syntax for
+  counts (`{hours, plural, =1 {# hour} other {# hours}}`).
+- DB seed data (bay names, CRM package names) stays untranslated.
+- Emails: `lib/emailService.ts` takes `language: Locale`. Booking-derived
+  emails resolve from `bookings.language`; account emails from
+  `customers.preferred_language`. Uses `createTranslator` / `createFormatter`.
+
+### Middleware smoke tests
+`npm run test:middleware` (requires `npm run dev` running). Covers
+cookie-driven root redirect, cookie-driven `/auth/login` redirect,
+`/auth/error` stays English, root rewrite, and `/th` → `/th/bookings`.
+
+### Known follow-ups (not blocking merge)
+- **Korean native-speaker review.** `messages/ko.json` was AI-translated
+  with no LIFF source to anchor against. Tone (해요체) and particle usage
+  should be reviewed by a native speaker before promoting `ko` publicly.
+  Thai/Japanese/Chinese were partially seeded from LIFF (human-reviewed)
+  + AI for new keys; lower risk but a review pass is still recommended.
+- **LIFF unification (phase 2).** LIFF pages still use the hand-rolled
+  system in `lib/liff/{translations,booking-translations,membership-translations}.ts`.
+  Phase 2 migrates them onto the same `messages/` catalog. The shared
+  `persistCustomerLanguage` helper is already in place as the stepping
+  stone — `app/api/liff/language/route.ts` already calls it.
+- **Admin/LINE notification date formatting.** `app/api/notifications/line/route.ts`,
+  `app/api/clubs/reserve/route.ts`, `utils/booking-formatter.ts` still use
+  `toLocaleDateString('en-GB', …)` for staff-facing outputs. English-only
+  is fine for now — but if any of these strings later land in a
+  customer-facing translated email, they need migrating to `createFormatter`.

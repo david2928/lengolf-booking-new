@@ -37,8 +37,14 @@ export interface CostLineItem {
   id: string;
   label: string;
   labelTh?: string;
+  labelJa?: string;
+  labelKo?: string;
+  labelZh?: string;
   detail?: string;
   detailTh?: string;
+  detailJa?: string;
+  detailKo?: string;
+  detailZh?: string;
   amount: number;
   isCoveredByPackage?: boolean;
   packageName?: string;
@@ -49,6 +55,9 @@ export interface CostDiscount {
   id: string;
   label: string;
   labelTh?: string;
+  labelJa?: string;
+  labelKo?: string;
+  labelZh?: string;
   amount: number; // negative value
   promotionId?: string;
 }
@@ -64,18 +73,64 @@ export interface CostBreakdown {
   hourlyRate: number;
   notes: string[];
   notesTh: string[];
+  notesJa: string[];
+  notesKo: string[];
+  notesZh: string[];
 }
 
 // --- Helpers ---
 
-function getTimeSlotLabel(hour: number): string {
+function getTimeSlotLabel(hour: number, lang: 'en' | 'th' | 'ja' | 'ko' | 'zh' = 'en'): string {
   const slot = timeSlots.find(s => hour >= s.startHour && hour < s.endHour);
-  return slot?.label.en ?? 'Custom';
+  const fallback: Record<'en' | 'th' | 'ja' | 'ko' | 'zh', string> = {
+    en: 'Custom', th: 'อื่นๆ', ja: 'その他', ko: '기타', zh: '其他',
+  };
+  return slot?.label[lang] ?? fallback[lang];
 }
 
-function getTimeSlotLabelTh(hour: number): string {
-  const slot = timeSlots.find(s => hour >= s.startHour && hour < s.endHour);
-  return slot?.label.th ?? 'อื่นๆ';
+const WEEKEND_LABEL = { en: 'Weekend', th: 'สุดสัปดาห์', ja: '週末', ko: '주말', zh: '周末' };
+const WEEKDAY_LABEL = { en: 'Weekday', th: 'วันธรรมดา', ja: '平日', ko: '평일', zh: '工作日' };
+const BAY_RATE_LABEL = { en: 'Bay Rate', th: 'ค่าเบย์', ja: 'ベイ料金', ko: '베이 요금', zh: '球位费用' };
+const CLUB_RENTAL_PREFIX = {
+  en: 'Club Rental', th: 'เช่าไม้กอล์ฟ', ja: 'クラブレンタル', ko: '클럽 렌탈', zh: '球杆租赁',
+};
+const STANDARD_SET_LABEL = {
+  en: 'Standard Set', th: 'ชุดมาตรฐาน', ja: 'スタンダードセット', ko: '스탠다드 세트', zh: '标准套装',
+};
+const COMPLIMENTARY_LABEL = { en: 'Complimentary', th: 'ฟรี', ja: '無料', ko: '무료', zh: '免费' };
+
+function buildBayRateDetail(
+  lang: 'en' | 'th' | 'ja' | 'ko' | 'zh',
+  duration: number,
+  hourlyRate: number,
+  isWeekend: boolean,
+  startHour: number,
+): string {
+  const rate = `฿${hourlyRate.toLocaleString()}`;
+  const dayLabel = isWeekend ? WEEKEND_LABEL[lang] : WEEKDAY_LABEL[lang];
+  const slot = getTimeSlotLabel(startHour, lang);
+  switch (lang) {
+    case 'th':
+      return `${duration} ชม. × ${rate}/ชม. (${dayLabel}, ${slot})`;
+    case 'ja':
+      return `${duration}時間 × ${rate}/時間 (${dayLabel}、${slot})`;
+    case 'ko':
+      return `${duration}시간 × ${rate}/시간 (${dayLabel}, ${slot})`;
+    case 'zh':
+      return `${duration}小时 × ${rate}/小时 (${dayLabel}, ${slot})`;
+    default:
+      return `${duration}hr × ${rate}/hr (${dayLabel}, ${slot})`;
+  }
+}
+
+function buildDurationDetail(lang: 'en' | 'th' | 'ja' | 'ko' | 'zh', duration: number): string {
+  switch (lang) {
+    case 'th': return `${duration} ชม.`;
+    case 'ja': return `${duration}時間`;
+    case 'ko': return `${duration}시간`;
+    case 'zh': return `${duration}小时`;
+    default: return `${duration}hr`;
+  }
 }
 
 function getClubRentalCost(clubId: string, duration: number): number {
@@ -117,13 +172,16 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   const discounts: CostDiscount[] = [];
   const notes: string[] = ['Estimate only — payment at venue'];
   const notesTh: string[] = ['ราคาประมาณการ — ชำระที่สถานที่'];
+  const notesJa: string[] = ['ご予約時の見積もり — 会場でお支払い'];
+  const notesKo: string[] = ['예상 금액 — 현장에서 결제'];
+  const notesZh: string[] = ['预估价格 — 现场付款'];
 
   const startHour = parseInt(startTime?.split(':')[0], 10);
   if (isNaN(startHour) || duration <= 0) {
     return {
       lineItems: [], discounts: [], subtotal: 0, totalDiscount: 0,
       estimatedTotal: 0, isWeekend: false, timeSlotLabel: '', hourlyRate: 0,
-      notes, notesTh,
+      notes, notesTh, notesJa, notesKo, notesZh,
     };
   }
   const isWeekend = isWeekendDate(date);
@@ -144,23 +202,35 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   const packageCoversThisSlot = hasActivePackage && (!isEarlyBirdPackage || startHour < 14);
 
   if (playFoodPkg) {
-    // Play & Food package replaces bay rate
+    // Play & Food package replaces bay rate. Package name is brand data;
+    // keep it untranslated across locales.
     lineItems.push({
       id: 'play-food',
       label: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
       labelTh: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
+      labelJa: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
+      labelKo: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
+      labelZh: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
       detail: `${playFoodPkg.duration}hr bay time + food & drinks`,
       detailTh: `${playFoodPkg.duration} ชม. + อาหารและเครื่องดื่ม`,
+      detailJa: `${playFoodPkg.duration}時間のベイ利用 + お食事とドリンク`,
+      detailKo: `${playFoodPkg.duration}시간 베이 이용 + 식사와 음료`,
+      detailZh: `${playFoodPkg.duration}小时球位使用 + 餐饮`,
       amount: playFoodPkg.price,
     });
   } else if (packageCoversThisSlot) {
-    // Package covers bay rate
     lineItems.push({
       id: 'bay-rate',
-      label: 'Bay Rate',
-      labelTh: 'ค่าเบย์',
-      detail: `${duration}hr × ฿${hourlyRate.toLocaleString()}/hr (${isWeekend ? 'Weekend' : 'Weekday'}, ${timeSlotLabel})`,
-      detailTh: `${duration} ชม. × ฿${hourlyRate.toLocaleString()}/ชม. (${isWeekend ? 'สุดสัปดาห์' : 'วันธรรมดา'}, ${getTimeSlotLabelTh(startHour)})`,
+      label: BAY_RATE_LABEL.en,
+      labelTh: BAY_RATE_LABEL.th,
+      labelJa: BAY_RATE_LABEL.ja,
+      labelKo: BAY_RATE_LABEL.ko,
+      labelZh: BAY_RATE_LABEL.zh,
+      detail: buildBayRateDetail('en', duration, hourlyRate, isWeekend, startHour),
+      detailTh: buildBayRateDetail('th', duration, hourlyRate, isWeekend, startHour),
+      detailJa: buildBayRateDetail('ja', duration, hourlyRate, isWeekend, startHour),
+      detailKo: buildBayRateDetail('ko', duration, hourlyRate, isWeekend, startHour),
+      detailZh: buildBayRateDetail('zh', duration, hourlyRate, isWeekend, startHour),
       amount: 0,
       isCoveredByPackage: true,
       packageName: packageDisplayName,
@@ -168,8 +238,10 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     });
     notes.push(`Bay rate covered by ${packageDisplayName ?? 'your package'}`);
     notesTh.push(`ค่าเบย์รวมอยู่ในแพ็กเกจ ${packageDisplayName ?? 'ของคุณ'}`);
+    notesJa.push(`ベイ料金は${packageDisplayName ?? 'お客様のパッケージ'}に含まれています`);
+    notesKo.push(`베이 요금은 ${packageDisplayName ?? '회원님의 패키지'}에 포함되어 있습니다`);
+    notesZh.push(`球位费用已包含在${packageDisplayName ?? '您的套餐'}中`);
   } else {
-    // Normal bay rate (or Early Bird package that doesn't cover this slot)
     const bayTotal = hourlyRate * duration;
     const originalRate = rate
       ? (isWeekend ? rate.originalWeekendPrice : rate.originalWeekdayPrice)
@@ -178,38 +250,61 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
 
     lineItems.push({
       id: 'bay-rate',
-      label: 'Bay Rate',
-      labelTh: 'ค่าเบย์',
-      detail: `${duration}hr × ฿${hourlyRate.toLocaleString()}/hr (${isWeekend ? 'Weekend' : 'Weekday'}, ${timeSlotLabel})`,
-      detailTh: `${duration} ชม. × ฿${hourlyRate.toLocaleString()}/ชม. (${isWeekend ? 'สุดสัปดาห์' : 'วันธรรมดา'}, ${getTimeSlotLabelTh(startHour)})`,
+      label: BAY_RATE_LABEL.en,
+      labelTh: BAY_RATE_LABEL.th,
+      labelJa: BAY_RATE_LABEL.ja,
+      labelKo: BAY_RATE_LABEL.ko,
+      labelZh: BAY_RATE_LABEL.zh,
+      detail: buildBayRateDetail('en', duration, hourlyRate, isWeekend, startHour),
+      detailTh: buildBayRateDetail('th', duration, hourlyRate, isWeekend, startHour),
+      detailJa: buildBayRateDetail('ja', duration, hourlyRate, isWeekend, startHour),
+      detailKo: buildBayRateDetail('ko', duration, hourlyRate, isWeekend, startHour),
+      detailZh: buildBayRateDetail('zh', duration, hourlyRate, isWeekend, startHour),
       amount: bayTotal,
       originalAmount: originalTotal,
     });
 
     if (hasActivePackage && isEarlyBirdPackage && startHour >= 14) {
-      notes.push(`${packageDisplayName ?? 'Your package'} covers morning hours only (before 14:00)`);
-      notesTh.push(`${packageDisplayName ?? 'แพ็กเกจของคุณ'} ใช้ได้เฉพาะช่วงเช้า (ก่อน 14:00) เท่านั้น`);
+      const pkg = packageDisplayName;
+      notes.push(`${pkg ?? 'Your package'} covers morning hours only (before 14:00)`);
+      notesTh.push(`${pkg ?? 'แพ็กเกจของคุณ'} ใช้ได้เฉพาะช่วงเช้า (ก่อน 14:00) เท่านั้น`);
+      notesJa.push(`${pkg ?? 'お客様のパッケージ'}は午前の時間帯のみご利用いただけます（14:00前）`);
+      notesKo.push(`${pkg ?? '회원님의 패키지'}는 오전 시간대에만 이용 가능합니다 (14:00 이전)`);
+      notesZh.push(`${pkg ?? '您的套餐'}仅在上午时段有效（14:00之前）`);
     }
   }
 
-  // 2. Club Rental
+  // 2. Club Rental — club display name is brand data, kept untranslated.
   if (clubRentalId && clubRentalId !== 'none' && clubRentalId !== 'standard') {
     const rentalCost = getClubRentalCost(clubRentalId, duration);
+    const clubName = getClubDisplayName(clubRentalId);
     lineItems.push({
       id: 'club-rental',
-      label: `Club Rental — ${getClubDisplayName(clubRentalId)}`,
-      labelTh: `เช่าไม้กอล์ฟ — ${getClubDisplayName(clubRentalId)}`,
-      detail: `${duration}hr`,
-      detailTh: `${duration} ชม.`,
+      label: `${CLUB_RENTAL_PREFIX.en} — ${clubName}`,
+      labelTh: `${CLUB_RENTAL_PREFIX.th} — ${clubName}`,
+      labelJa: `${CLUB_RENTAL_PREFIX.ja} — ${clubName}`,
+      labelKo: `${CLUB_RENTAL_PREFIX.ko} — ${clubName}`,
+      labelZh: `${CLUB_RENTAL_PREFIX.zh} — ${clubName}`,
+      detail: buildDurationDetail('en', duration),
+      detailTh: buildDurationDetail('th', duration),
+      detailJa: buildDurationDetail('ja', duration),
+      detailKo: buildDurationDetail('ko', duration),
+      detailZh: buildDurationDetail('zh', duration),
       amount: rentalCost,
     });
   } else if (clubRentalId === 'standard') {
     lineItems.push({
       id: 'club-rental',
-      label: 'Club Rental — Standard Set',
-      labelTh: 'เช่าไม้กอล์ฟ — ชุดมาตรฐาน',
-      detail: 'Complimentary',
-      detailTh: 'ฟรี',
+      label: `${CLUB_RENTAL_PREFIX.en} — ${STANDARD_SET_LABEL.en}`,
+      labelTh: `${CLUB_RENTAL_PREFIX.th} — ${STANDARD_SET_LABEL.th}`,
+      labelJa: `${CLUB_RENTAL_PREFIX.ja} — ${STANDARD_SET_LABEL.ja}`,
+      labelKo: `${CLUB_RENTAL_PREFIX.ko} — ${STANDARD_SET_LABEL.ko}`,
+      labelZh: `${CLUB_RENTAL_PREFIX.zh} — ${STANDARD_SET_LABEL.zh}`,
+      detail: COMPLIMENTARY_LABEL.en,
+      detailTh: COMPLIMENTARY_LABEL.th,
+      detailJa: COMPLIMENTARY_LABEL.ja,
+      detailKo: COMPLIMENTARY_LABEL.ko,
+      detailZh: COMPLIMENTARY_LABEL.zh,
       amount: 0,
     });
   }
@@ -234,14 +329,22 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
             id: `promo-${promo.id}`,
             label: promo.title_en,
             labelTh: promo.title_th,
+            // promo titles only carry title_en/title_th from the DB — fall
+            // back to the English title for other locales until the promo
+            // schema supports more.
+            labelJa: promo.title_en,
+            labelKo: promo.title_en,
+            labelZh: promo.title_en,
             amount: -discountAmount,
             promotionId: promo.id,
           });
         }
       } else {
-        // 1-hour booking: hint about the free hour they can redeem within 7 days
         notes.push(`🎉 ${promo.title_en} — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
         notesTh.push(`🎉 ${promo.title_th} — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
+        notesJa.push(`🎉 ${promo.title_en} — 2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください`);
+        notesKo.push(`🎉 ${promo.title_en} — 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요`);
+        notesZh.push(`🎉 ${promo.title_en} — 预订2小时即获1小时免费！或在7天内兑换您的免费时段`);
       }
     }
 
@@ -255,10 +358,14 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       if (bayItem) {
         const discountAmount = Math.round(bayItem.amount * (promo.discount_value / 100));
         if (discountAmount > 0) {
+          const pct = promo.discount_value;
           discounts.push({
             id: `promo-${promo.id}`,
-            label: `${promo.title_en} (${promo.discount_value}% off)`,
-            labelTh: `${promo.title_th} (ลด ${promo.discount_value}%)`,
+            label: `${promo.title_en} (${pct}% off)`,
+            labelTh: `${promo.title_th} (ลด ${pct}%)`,
+            labelJa: `${promo.title_en} (${pct}%オフ)`,
+            labelKo: `${promo.title_en} (${pct}% 할인)`,
+            labelZh: `${promo.title_en} (${pct}% 折扣)`,
             amount: -discountAmount,
             promotionId: promo.id,
           });
@@ -276,6 +383,9 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         id: `promo-${promo.id}`,
         label: promo.title_en,
         labelTh: promo.title_th,
+        labelJa: promo.title_en,
+        labelKo: promo.title_en,
+        labelZh: promo.title_en,
         amount: -promo.discount_value,
         promotionId: promo.id,
       });
@@ -296,5 +406,8 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     hourlyRate,
     notes,
     notesTh,
+    notesJa,
+    notesKo,
+    notesZh,
   };
 }

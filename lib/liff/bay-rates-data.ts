@@ -10,7 +10,7 @@ export interface TimeSlot {
   id: string;
   startHour: number;        // 0-23 format
   endHour: number;          // 0-23 format
-  label: { en: string; th: string; ja: string; zh: string };
+  label: { en: string; th: string; ja: string; ko: string; zh: string };
   isPromo?: boolean;
 }
 
@@ -25,18 +25,18 @@ export interface Rate {
 export interface Amenity {
   id: string;
   icon: 'clubs' | 'storage' | 'gloves';
-  title: { en: string; th: string; ja: string; zh: string };
-  description: { en: string; th: string; ja: string; zh: string };
+  title: { en: string; th: string; ja: string; ko: string; zh: string };
+  description: { en: string; th: string; ja: string; ko: string; zh: string };
   type: 'free' | 'paid' | 'available';
 }
 
 export interface BayRatesConfig {
   operatingHours: {
-    weekday: { days: { en: string; th: string; ja: string; zh: string }; open: string; close: string };
-    weekend: { days: { en: string; th: string; ja: string; zh: string }; open: string; close: string };
+    weekday: { days: { en: string; th: string; ja: string; ko: string; zh: string }; open: string; close: string };
+    weekend: { days: { en: string; th: string; ja: string; ko: string; zh: string }; open: string; close: string };
   };
-  appointmentNote: { en: string; th: string; ja: string; zh: string };
-  rateNote: { en: string; th: string; ja: string; zh: string };
+  appointmentNote: { en: string; th: string; ja: string; ko: string; zh: string };
+  rateNote: { en: string; th: string; ja: string; ko: string; zh: string };
 }
 
 export const timeSlots: TimeSlot[] = [
@@ -44,19 +44,19 @@ export const timeSlots: TimeSlot[] = [
     id: 'morning',
     startHour: 9,
     endHour: 14,
-    label: { en: 'Before 14:00', th: 'ก่อน 14:00', ja: '14:00前', zh: '14:00前' },
+    label: { en: 'Before 14:00', th: 'ก่อน 14:00', ja: '14:00前', ko: '14:00 이전', zh: '14:00前' },
   },
   {
     id: 'afternoon',
     startHour: 14,
     endHour: 17,
-    label: { en: '14:00 - 17:00', th: '14:00 - 17:00', ja: '14:00 - 17:00', zh: '14:00 - 17:00' },
+    label: { en: '14:00 - 17:00', th: '14:00 - 17:00', ja: '14:00 - 17:00', ko: '14:00 - 17:00', zh: '14:00 - 17:00' },
   },
   {
     id: 'evening',
     startHour: 17,
     endHour: 23,
-    label: { en: '17:00 - 23:00', th: '17:00 - 23:00', ja: '17:00 - 23:00', zh: '17:00 - 23:00' },
+    label: { en: '17:00 - 23:00', th: '17:00 - 23:00', ja: '17:00 - 23:00', ko: '17:00 - 23:00', zh: '17:00 - 23:00' },
     isPromo: true,
   },
 ];
@@ -121,22 +121,22 @@ export const amenities: Amenity[] = [
   {
     id: 'rental',
     icon: 'clubs',
-    title: { en: 'Golf Club Rental', th: 'เช่าไม้กอล์ฟ', ja: 'ゴルフクラブレンタル', zh: '高尔夫球杆租赁' },
-    description: { en: 'Free', th: 'ฟรี', ja: '無料', zh: '免费' },
+    title: { en: 'Golf Club Rental', th: 'เช่าไม้กอล์ฟ', ja: 'ゴルフクラブレンタル', ko: '골프 클럽 렌탈', zh: '高尔夫球杆租赁' },
+    description: { en: 'Free', th: 'ฟรี', ja: '無料', ko: '무료', zh: '免费' },
     type: 'free',
   },
   {
     id: 'storage',
     icon: 'storage',
-    title: { en: 'Golf Club Storage', th: 'ฝากไม้กอล์ฟ', ja: 'クラブ保管', zh: '球杆寄存' },
-    description: { en: 'Available', th: 'มีบริการ', ja: '利用可能', zh: '可用' },
+    title: { en: 'Golf Club Storage', th: 'ฝากไม้กอล์ฟ', ja: 'クラブ保管', ko: '골프 클럽 보관', zh: '球杆寄存' },
+    description: { en: 'Available', th: 'มีบริการ', ja: '利用可能', ko: '이용 가능', zh: '可用' },
     type: 'available',
   },
   {
     id: 'gloves',
     icon: 'gloves',
-    title: { en: 'Golf Gloves', th: 'ถุงมือกอล์ฟ', ja: 'ゴルフグローブ', zh: '高尔夫手套' },
-    description: { en: 'For Purchase', th: 'มีจำหน่าย', ja: '販売あり', zh: '可购买' },
+    title: { en: 'Golf Gloves', th: 'ถุงมือกอล์ฟ', ja: 'ゴルフグローブ', ko: '골프 장갑', zh: '高尔夫手套' },
+    description: { en: 'For Purchase', th: 'มีจำหน่าย', ja: '販売あり', ko: '판매 중', zh: '可购买' },
     type: 'paid',
   },
 ];
@@ -144,12 +144,12 @@ export const amenities: Amenity[] = [
 export const bayRatesConfig: BayRatesConfig = {
   operatingHours: {
     weekday: {
-      days: { en: 'Mon - Sun', th: 'จันทร์ - อาทิตย์', ja: '月〜日', zh: '周一至周日' },
+      days: { en: 'Mon - Sun', th: 'จันทร์ - อาทิตย์', ja: '月〜日', ko: '월 - 일', zh: '周一至周日' },
       open: '09:00',
       close: '23:00',
     },
     weekend: {
-      days: { en: 'Fri - Sun', th: 'ศุกร์ - อาทิตย์', ja: '金〜日', zh: '周五至周日' },
+      days: { en: 'Fri - Sun', th: 'ศุกร์ - อาทิตย์', ja: '金〜日', ko: '금 - 일', zh: '周五至周日' },
       open: '09:00',
       close: '23:00',
     },
@@ -158,12 +158,14 @@ export const bayRatesConfig: BayRatesConfig = {
     en: '*After 23:00 or before 09:00 only via appointment',
     th: '*หลัง 23:00 หรือก่อน 09:00 กรุณานัดหมายล่วงหน้า',
     ja: '*23:00以降または09:00前は要予約',
+    ko: '*23:00 이후 또는 09:00 이전은 예약 필수',
     zh: '*23:00后或09:00前需提前预约',
   },
   rateNote: {
     en: 'Rates are per bay and per hour',
     th: 'ราคาต่อเบย์ ต่อชั่วโมง',
     ja: '料金はベイごと・1時間あたり',
+    ko: '요금은 베이당/시간당 기준입니다',
     zh: '价格按球位/小时计',
   },
 };

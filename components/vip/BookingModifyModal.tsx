@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
-  Dialog, 
+  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -29,6 +30,7 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
   onClose,
   onBookingCancelledAndRedirect
 }) => {
+  const t = useTranslations('vip.bookings');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -44,7 +46,7 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
       onClose(); // Close the modal
     } catch (e: unknown) {
       console.error('Failed to cancel booking for modification:', e);
-      let errorMessage = 'Could not cancel the booking. Please try again.';
+      let errorMessage = t('modifyErrorDefault');
       if (e instanceof VipApiError) {
         errorMessage = e.payload?.message || e.message || errorMessage;
       } else if (e instanceof Error) {
@@ -74,9 +76,9 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Modify Booking</DialogTitle>
+          <DialogTitle>{t('modifyTitle')}</DialogTitle>
           <DialogDescription className="mt-2">
-            To modify this booking, you&apos;ll first need to cancel it. You will then be redirected to make a new booking with your desired changes.
+            {t('modifyBody')}
           </DialogDescription>
         </DialogHeader>
 
@@ -88,21 +90,21 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
         )}
 
         <DialogFooter className="mt-6 sm:flex-col sm:space-y-2">
-          <Button 
+          <Button
             variant="default"
-            onClick={handleConfirmModify} 
-            disabled={isLoading} 
+            onClick={handleConfirmModify}
+            disabled={isLoading}
             className="w-full sm:w-auto"
           >
             {isLoading ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cancelling...</>
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('cancelling')}</>
             ) : (
-              'Cancel & Rebook'
+              t('cancelAndRebook')
             )}
           </Button>
           <DialogClose asChild>
             <Button variant="outline" onClick={() => {/* onOpenChange handles error reset */}} className="w-full sm:w-auto">
-              Keep Booking
+              {t('keepBooking')}
             </Button>
           </DialogClose>
         </DialogFooter>

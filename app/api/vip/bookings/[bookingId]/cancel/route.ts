@@ -302,18 +302,31 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       // Format date to match booking confirmation email format (e.g., "May 26, 2025")
       const formattedDate = format(new Date(cancelledBooking.date), 'MMMM d, yyyy');
       
+      // Resolve language: booking.language (set at creation) -> customers.preferred_language -> 'en'
+      let cancellationLanguage: string | null = (cancelledBooking as { language?: string | null }).language ?? null;
+      if (!cancellationLanguage && bookingCustomerId) {
+        const { data: customerLang } = await adminSupabase
+          .from('customers')
+          .select('preferred_language')
+          .eq('id', bookingCustomerId)
+          .single();
+        cancellationLanguage = customerLang?.preferred_language ?? null;
+      }
+
       const emailPayload = { // Renamed for clarity
         email: finalEmail,
         userName,
         subjectName: userName, // subjectName will be the same as userName
         bookingId: cancelledBooking.id,
-        bookingDate: formattedDate, // Use formatted date to match booking confirmation
+        bookingDate: formattedDate, // Pre-formatted date (legacy fallback)
+        bookingDateISO: cancelledBooking.date, // Raw YYYY-MM-DD for locale-aware formatting
         startTime: cancelledBooking.start_time,
         endTime: endTimeCalc,
         duration: cancelledBooking.duration,
         numberOfPeople: cancelledBooking.number_of_people || 1,
         bayName: cancelledBooking.bay, // Ensure bayName is populated correctly
-        cancellationReason: cancelledBooking.cancellation_reason
+        cancellationReason: cancelledBooking.cancellation_reason,
+        language: cancellationLanguage ?? undefined,
       };
       
       const emailUrl = `${baseUrl}/api/notifications/email/cancellation`;

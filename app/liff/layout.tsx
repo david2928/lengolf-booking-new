@@ -1,4 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
+
+// LIFF pages sit outside [locale] because their URLs are registered with
+// the LINE console. The root layout owns <html> + <body> + Providers, so
+// this layout only sets LIFF-specific metadata and the WebView-tuned
+// viewport (no user scaling, for the LIFF in-app browser).
 
 export const metadata: Metadata = {
   title: "LENGOLF",
@@ -16,10 +22,6 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default function LiffLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function LiffLayout({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }

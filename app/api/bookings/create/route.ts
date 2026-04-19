@@ -9,6 +9,13 @@ import { findOrCreateCustomer, getPackageInfoForCustomer } from '@/utils/custome
 import { BAY_DISPLAY_NAMES } from '@/lib/bayConfig';
 import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
 import { isValidLanguage } from '@/lib/liff/translations';
+import { isValidLocale } from '@/i18n/routing';
+
+// Accept any LIFF Language (en/th/ja/zh) OR any main-site Locale (en/th/ko/ja/zh).
+// LIFF's isValidLanguage doesn't include 'ko', but the main flow can produce it.
+function isAcceptableBookingLanguage(value: unknown): value is string {
+  return typeof value === 'string' && (isValidLanguage(value) || isValidLocale(value));
+}
 import { appCache } from '@/lib/cache';
 
 const supabase = createAdminClient();
@@ -52,7 +59,7 @@ const generateBookingId = () => {
 
 
 // Helper function to send notifications
-async function sendNotifications(formattedData: Record<string, unknown>, booking: Record<string, unknown>, bayDisplayName: string, customerCode?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string, channel: string = 'Website') {
+async function sendNotifications(formattedData: Record<string, unknown>, booking: Record<string, unknown>, bayDisplayName: string, customerCode?: string, packageInfo: string = 'Normal Bay Rate', customerNotes?: string, channel: string = 'Website', language?: string | null) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   // const internalApiBasePath = ''; // No longer using relative paths for internal calls
   
@@ -80,7 +87,8 @@ async function sendNotifications(formattedData: Record<string, unknown>, booking
           packageInfo,
           standardizedData: formattedData,
           customerNotes,
-          bookingId: booking.id
+          bookingId: booking.id,
+          language: language ?? undefined,
         };
 
         console.log('[CreateBooking Email Notify Task] Prepared emailData:', JSON.stringify(emailData, null, 2));
@@ -664,7 +672,7 @@ export async function POST(request: NextRequest) {
         booking_type: derivedBookingType, // NEW: Include booking_type from the start
         package_name: derivedPackageName, // NEW: Include package_name from the start
         package_id: derivedPackageId, // NEW: Include package_id from the start (undefined for non-simulator packages)
-        language: (language && isValidLanguage(language)) ? language : null
+        language: isAcceptableBookingLanguage(language) ? language : null
         // REMOVED: stable_hash_id (deprecated)
       })
       .select()
@@ -680,7 +688,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fire-and-forget: update customer preferred_language if valid language provided
-    if (language && isValidLanguage(language) && customerId) {
+    if (isAcceptableBookingLanguage(language) && customerId) {
       supabase
         .from('customers')
         .update({ preferred_language: language })
@@ -878,7 +886,8 @@ export async function POST(request: NextRequest) {
       customerCode || customerId || undefined, // Use customer code/ID
       packageInfo,
       notificationNotes || undefined,
-      isLiffContext ? 'LINE' : 'Website'
+      isLiffContext ? 'LINE' : 'Website',
+      booking.language as string | null | undefined
     );
 
     // Log each notification type separately instead of logging them together

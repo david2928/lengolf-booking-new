@@ -4,26 +4,30 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useForm, ControllerRenderProps } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox'; // Assuming checkbox.tsx
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { TranslatedFormMessage } from '@/components/shared/TranslatedFormMessage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { getVipProfile, updateVipProfile } from '../../lib/vipService'; // VipApiError removed
 import { VipProfileResponse, UpdateVipProfileRequest, VipApiError } from '../../types/vip'; // VipApiError imported here
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
-import { useVipContext } from '../../app/(features)/vip/contexts/VipContext'; // Corrected path
+import { useVipContext } from '@/app/[locale]/(features)/vip/contexts/VipContext'; // Corrected path
 import { useVipStatus } from '../providers/VipStatusProvider';
 
+// Schema uses message keys that get translated at display time via FormMessage + i18n hook
 const profileFormSchema = z.object({
-  display_name: z.string().min(2, { message: "Name must be at least 2 characters." }).max(100).optional(),
-  email: z.string().email({ message: "Invalid email address." }).optional(),
+  display_name: z.string().min(2, { message: 'validationNameMin' }).max(100).optional(),
+  email: z.string().email({ message: 'validationInvalidEmail' }).optional(),
   marketingPreference: z.boolean().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const ProfileView = () => {
+  const t = useTranslations('vip.profile');
   const { sharedData, updateSharedData, isSharedDataFresh } = useVipContext();
   const { refetchVipProfile } = useVipStatus();
   const [profile, setProfile] = useState<VipProfileResponse | null>(null);
@@ -83,11 +87,11 @@ const ProfileView = () => {
     } catch (err) {
       console.error("Failed to fetch profile", err);
       const typedError = err as VipApiError; // Use VipApiError type
-      setError(typedError.payload?.message || typedError.message || 'Could not load profile data.');
+      setError(typedError.payload?.message || typedError.message || t('couldNotLoad'));
     } finally {
       setIsLoading(false);
     }
-  }, [form]);
+  }, [form, t]);
 
   useEffect(() => {
     fetchProfile();
@@ -106,41 +110,41 @@ const ProfileView = () => {
     }
 
     if (Object.keys(payload).length === 0) {
-      setSubmitStatus({ type: 'success', message: 'No changes to save.'});
+      setSubmitStatus({ type: 'success', message: t('noChanges')});
       setIsSubmitting(false);
       return;
     }
 
     try {
       const response = await updateVipProfile(payload);
-      setSubmitStatus({ type: 'success', message: response.message || 'Profile updated successfully!' });
+      setSubmitStatus({ type: 'success', message: response.message || t('updateSuccess') });
       await fetchProfile(true); // Force refresh to show updated data and update shared context
-      if(refetchVipProfile) await refetchVipProfile(); 
+      if(refetchVipProfile) await refetchVipProfile();
     } catch (err) {
       const typedError = err as VipApiError; // Use VipApiError type
-      setSubmitStatus({ type: 'error', message: typedError.payload?.message || typedError.message || 'Failed to update profile.' });
+      setSubmitStatus({ type: 'error', message: typedError.payload?.message || typedError.message || t('updateFailed') });
     } finally {
       setIsSubmitting(false);
     }
   }
 
   if (isLoading) {
-    return <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading profile...</span></div>;
+    return <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">{t('loadingProfile')}</span></div>;
   }
 
   if (error) {
-    return <div className="text-center py-10 text-destructive"><AlertTriangle className="inline-block mr-2"/>{error} <Button onClick={() => fetchProfile(true)} variant="outline" className="ml-2">Try Again</Button></div>;
+    return <div className="text-center py-10 text-destructive"><AlertTriangle className="inline-block mr-2"/>{error} <Button onClick={() => fetchProfile(true)} variant="outline" className="ml-2">{t('tryAgain')}</Button></div>;
   }
 
   if (!profile) {
-    return <div className="text-center py-10">No profile data found.</div>;
+    return <div className="text-center py-10">{t('noProfileData')}</div>;
   }
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="text-2xl">My Profile</CardTitle>
-        <CardDescription>View and update your personal information and preferences.</CardDescription>
+        <CardTitle className="text-2xl">{t('heading')}</CardTitle>
+        <CardDescription>{t('subheading')}</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -148,30 +152,38 @@ const ProfileView = () => {
             <FormField
               control={form.control}
               name="display_name"
-              render={({ field }: { field: ControllerRenderProps<ProfileFormValues, 'display_name'> }) => (
+              render={({ field, fieldState }: { field: ControllerRenderProps<ProfileFormValues, 'display_name'>; fieldState: { error?: { message?: string } } }) => (
                 <FormItem>
-                  <FormLabel>Display Name</FormLabel>
-                  <FormControl><Input placeholder="Your display name" {...field} /></FormControl>
-                  <FormMessage />
+                  <FormLabel>{t('displayName')}</FormLabel>
+                  <FormControl><Input placeholder={t('displayNamePlaceholder')} {...field} /></FormControl>
+                  <TranslatedFormMessage>
+                    {fieldState.error?.message &&
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      t(fieldState.error.message as any)}
+                  </TranslatedFormMessage>
                 </FormItem>
               )}
             />
             <FormField
               control={form.control}
               name="email"
-              render={({ field }: { field: ControllerRenderProps<ProfileFormValues, 'email'> }) => (
+              render={({ field, fieldState }: { field: ControllerRenderProps<ProfileFormValues, 'email'>; fieldState: { error?: { message?: string } } }) => (
                 <FormItem>
-                  <FormLabel>Email Address</FormLabel>
-                  <FormControl><Input type="email" placeholder="your@email.com" {...field} /></FormControl>
-                  <FormMessage />
+                  <FormLabel>{t('emailAddress')}</FormLabel>
+                  <FormControl><Input type="email" placeholder={t('emailPlaceholder')} {...field} /></FormControl>
+                  <TranslatedFormMessage>
+                    {fieldState.error?.message &&
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      t(fieldState.error.message as any)}
+                  </TranslatedFormMessage>
                 </FormItem>
               )}
             />
              <div>
-                <FormLabel>Phone Number</FormLabel>
-                <Input value={profile.phoneNumber || 'Not provided'} readOnly disabled className="mt-1 bg-muted/50"/>
+                <FormLabel>{t('phoneNumber')}</FormLabel>
+                <Input value={profile.phoneNumber || t('phoneNotProvided')} readOnly disabled className="mt-1 bg-muted/50"/>
                 <FormDescription className="mt-1 text-sm text-gray-600">
-                    To update your phone number, please contact our staff.
+                    {t('phoneHelper')}
                 </FormDescription>
             </div>
 
@@ -187,9 +199,9 @@ const ProfileView = () => {
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>Marketing Preferences</FormLabel>
+                    <FormLabel>{t('marketingPreferences')}</FormLabel>
                     <FormDescription>
-                      Receive emails about new promotions, events, and updates.
+                      {t('marketingDescription')}
                     </FormDescription>
                   </div>
                 </FormItem>
@@ -205,7 +217,7 @@ const ProfileView = () => {
             )}
             <Button type="submit" disabled={isSubmitting || isLoading}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
+              {isSubmitting ? t('saving') : t('saveChanges')}
             </Button>
           </CardFooter>
         </form>

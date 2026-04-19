@@ -1,11 +1,29 @@
 import nodemailer from 'nodemailer';
+import { createTranslator, createFormatter } from 'next-intl';
 import { isAILabBay } from '@/lib/bayConfig';
+import type { Locale } from '@/i18n/routing';
+import { isValidLocale } from '@/i18n/routing';
+import { getEmailMessages, bangkokDateTime } from '@/lib/i18n/email-helpers';
+
+/**
+ * Narrow an arbitrary value (e.g. from DB or request body) to a Locale,
+ * falling back to 'en' if not a valid locale.
+ */
+export function resolveEmailLocale(value: unknown): Locale {
+  if (typeof value === 'string' && isValidLocale(value)) {
+    return value;
+  }
+  return 'en';
+}
 
 interface EmailConfirmation {
   userName: string;
   subjectName?: string; // Name to use in email subject
   email: string;
+  /** Display-formatted date string (legacy, used as fallback if dateISO absent). */
   date: string;
+  /** Raw booking date in YYYY-MM-DD form for locale-aware formatting. */
+  dateISO?: string;
   startTime: string;
   endTime: string;
   duration: number;
@@ -14,6 +32,7 @@ interface EmailConfirmation {
   phoneNumber?: string;
   packageInfo?: string;
   customerNotes?: string;
+  language?: Locale;
 }
 
 function escapeHtml(str: string): string {
@@ -41,15 +60,44 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function sendConfirmationEmail(booking: EmailConfirmation) {
-  // Create the email subject without the name
-  const emailSubject = `LENGOLF Booking Confirmation - ${booking.date} at ${booking.startTime}`;
-  
+  const locale: Locale = booking.language ?? 'en';
+  const t = createTranslator({
+    locale,
+    messages: getEmailMessages(locale),
+    namespace: 'emails.bookingConfirmation',
+  });
+  const format = createFormatter({ locale });
+
+  // If a raw ISO date is provided, render date/time in the recipient's locale
+  // anchored to the venue's timezone (Asia/Bangkok). Otherwise fall back to the
+  // upstream pre-formatted strings for backward compatibility.
+  const dateDisplay = booking.dateISO
+    ? format.dateTime(bangkokDateTime(booking.dateISO, booking.startTime), {
+        dateStyle: 'long',
+        timeZone: 'Asia/Bangkok',
+      })
+    : booking.date;
+  const startTimeDisplay = booking.dateISO
+    ? format.dateTime(bangkokDateTime(booking.dateISO, booking.startTime), {
+        timeStyle: 'short',
+        timeZone: 'Asia/Bangkok',
+      })
+    : booking.startTime;
+  const endTimeDisplay = booking.dateISO
+    ? format.dateTime(bangkokDateTime(booking.dateISO, booking.endTime), {
+        timeStyle: 'short',
+        timeZone: 'Asia/Bangkok',
+      })
+    : booking.endTime;
+
+  const emailSubject = t('subject', { date: dateDisplay, time: startTimeDisplay });
+
   // Construct VIP bookings URL
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://booking.len.golf';
   const vipBookingsUrl = `${baseUrl}/vip/bookings`;
-  
+
   // Extract club rental info from customer notes
-  let clubRentalInfo = null;
+  let clubRentalInfo: { setName: string } | null = null;
   if (booking.customerNotes) {
     const clubRentalMatch = booking.customerNotes.match(/Golf Club Rental: ([^\n]+)/);
     if (clubRentalMatch) {
@@ -58,110 +106,120 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
     }
   }
 
+  const bayRowHtml = booking.bayNumber
+    ? `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('bayLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">
+                    <strong style="color: ${isAILabBay(booking.bayNumber) ? '#8B5CF6' : '#10B981'};">
+                        ${isAILabBay(booking.bayNumber) ? t('bayAi') : t('baySocial')}
+                    </strong>
+                </td>
+            </tr>
+            `
+    : '';
+
+  const clubRentalRowHtml = clubRentalInfo
+    ? `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('clubRentalLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">
+                    <strong>${escapeHtml(clubRentalInfo.setName)}</strong>
+                    ${
+                      clubRentalInfo.setName === 'Standard Set'
+                        ? `<br><span style="font-size: 14px; color: #10B981;">${t('clubRentalComplimentary')}</span>`
+                        : `<br><span style="font-size: 14px; color: #666;">${t('clubRentalCharged')}</span>`
+                    }
+                </td>
+            </tr>
+            `
+    : '';
+
+  let notesRowHtml = '';
+  if (booking.customerNotes) {
+    const cleanedNotes = booking.customerNotes.replace(/Golf Club Rental: [^\n]+/g, '').trim();
+    if (cleanedNotes) {
+      notesRowHtml = `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('notesLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; white-space: pre-wrap;">${escapeHtml(cleanedNotes)}</td>
+            </tr>
+                `;
+    }
+  }
+
   const emailContent = `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
         <!-- Logo Section -->
         <div style="text-align: center; margin-bottom: 20px;">
-            <img src="https://booking.len.golf/images/logo_v1.png" alt="LENGOLF Logo" style="max-width: 200px;">
+            <img src="https://booking.len.golf/images/logo_v1.png" alt="${t('logoAlt')}" style="max-width: 200px;">
         </div>
 
         <!-- Header -->
-        <h2 style="color: #1a3308; text-align: center; margin-bottom: 20px;">Booking Confirmed!</h2>
+        <h2 style="color: #1a3308; text-align: center; margin-bottom: 20px;">${t('heading')}</h2>
 
         <!-- Greeting -->
         <p style="font-size: 16px; line-height: 1.5; color: #1a3308; margin-bottom: 20px;">
-            Dear <strong>${booking.userName}</strong>,
+            <strong>${t('greeting', { name: escapeHtml(booking.userName) })}</strong>
         </p>
         <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
-            Thank you for your booking. Here are your booking details:
+            ${t('intro')}
         </p>
 
         <!-- Booking Details Table -->
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 15px;">
             <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Date</th>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.date}</td>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('dateLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${escapeHtml(dateDisplay)}</td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Time</th>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.startTime} - ${booking.endTime} (${booking.duration}h)</td>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('timeLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${t('timeValue', {
+                  startTime: startTimeDisplay,
+                  endTime: endTimeDisplay,
+                  hours: booking.duration,
+                })}</td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Number of People</th>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('peopleLabel')}</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${booking.numberOfPeople}</td>
             </tr>
-            ${booking.bayNumber ? `
-            <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Bay Type</th>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd;">
-                    <strong style="color: ${isAILabBay(booking.bayNumber) ? '#8B5CF6' : '#10B981'};">
-                        ${isAILabBay(booking.bayNumber) ? 'AI Bay' : 'Social Bay'}
-                    </strong>
-                </td>
-            </tr>
-            ` : ''}
-            ${clubRentalInfo ? `
-            <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Golf Club Rental</th>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd;">
-                    <strong>${clubRentalInfo.setName}</strong>
-                    ${clubRentalInfo.setName === 'Standard Set' 
-                      ? '<br><span style="font-size: 14px; color: #10B981;">Complimentary - included with your booking</span>'
-                      : '<br><span style="font-size: 14px; color: #666;">Rental charges will be added based on duration</span>'
-                    }
-                </td>
-            </tr>
-            ` : ''}
-            ${(() => {
-              if (!booking.customerNotes) return '';
-              
-              // Remove golf club rental info from notes since it's already shown in its own section
-              const cleanedNotes = booking.customerNotes.replace(/Golf Club Rental: [^\n]+/g, '').trim();
-              
-              // Only show notes section if there are actual notes remaining after removing club rental info
-              if (cleanedNotes) {
-                return `
-            <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Notes/Requests</th>
-                <td style="padding: 10px; border-bottom: 1px solid #ddd; white-space: pre-wrap;">${cleanedNotes}</td>
-            </tr>
-                `;
-              }
-              return '';
-            })()}
+            ${bayRowHtml}
+            ${clubRentalRowHtml}
+            ${notesRowHtml}
         </table>
 
         <!-- Closing Message -->
         <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
-            We look forward to seeing you! If you have any questions, feel free to reach out to us.
+            ${t('closing')}
         </p>
 
         <!-- Booking Modification Disclaimer -->
         <p style="font-size: 14px; line-height: 1.5; color: #777; margin-bottom: 20px;">
-            <em>Need to modify or cancel your booking? Visit your <a href="${vipBookingsUrl}" style="color: #8dc743; text-decoration: none;">My Bookings</a> page to manage your reservations online.</em>
+            <em>${t('manageDisclaimerBefore')}<a href="${escapeHtml(vipBookingsUrl)}" style="color: #8dc743; text-decoration: none;">${t('manageDisclaimerLink')}</a>${t('manageDisclaimerAfter')}</em>
         </p>
 
         <!-- Footer -->
         <div style="font-size: 14px; color: #777; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
             <p style="margin: 5px 0; text-align: center;">
-                <strong>Phone Number:</strong> <a href="tel:+66966682335" style="color: #8dc743; text-decoration: none;">+66 96 668 2335</a>
+                <strong>${t('footerPhoneLabel')}</strong> <a href="tel:+66966682335" style="color: #8dc743; text-decoration: none;">+66 96 668 2335</a>
             </p>
             <p style="margin: 5px 0; text-align: center;">
-                <strong>LINE:</strong> <a href="https://lin.ee/UwwOr84" style="color: #8dc743; text-decoration: none;">@lengolf</a>
+                <strong>${t('footerLineLabel')}</strong> <a href="https://lin.ee/UwwOr84" style="color: #8dc743; text-decoration: none;">@lengolf</a>
             </p>
             <p style="margin: 5px 0; text-align: center;">
-                <strong>Maps Link:</strong> <a href="https://maps.app.goo.gl/U6rgZyjCwC46dABy6" style="color: #8dc743; text-decoration: none;">How to find us</a>
+                <strong>${t('footerMapsLabel')}</strong> <a href="https://maps.app.goo.gl/U6rgZyjCwC46dABy6" style="color: #8dc743; text-decoration: none;">${t('footerMapsValue')}</a>
             </p>
             <p style="margin: 5px 0; text-align: center;">
-                <strong>Address:</strong> 4th Floor, Mercury Ville at BTS Chidlom
+                <strong>${t('footerAddressLabel')}</strong> ${t('footerAddressValue')}
             </p>
             <div style="text-align: center; margin-top: 20px;">
                 <a href="https://len.golf" style="text-decoration: none; color: white; background-color: #1a3308; padding: 8px 15px; border-radius: 5px; font-size: 14px;">
-                    Visit Our Website
+                    ${t('visitWebsiteCta')}
                 </a>
             </div>
             <p style="font-size: 12px; margin-top: 15px; color: #777; text-align: center;">
-                &copy; ${new Date().getFullYear()} LENGOLF. All rights reserved.
+                ${t('copyright', { year: new Date().getFullYear() })}
             </p>
         </div>
     </div>
@@ -181,7 +239,7 @@ export async function sendConfirmationEmail(booking: EmailConfirmation) {
       secure: process.env.EMAIL_SECURE === 'true',
       rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false'
     });
-    
+
     await transporter.sendMail(mailOptions);
     console.log('Email sent successfully to:', booking.email);
     return true;
@@ -206,7 +264,9 @@ interface CourseRentalEmailConfirmation {
   clubSetName: string;
   clubSetTier: string;
   clubSetGender: string;
+  /** YYYY-MM-DD */
   startDate: string;
+  /** YYYY-MM-DD */
   endDate: string;
   durationDays: number;
   deliveryRequested: boolean;
@@ -217,20 +277,33 @@ interface CourseRentalEmailConfirmation {
   deliveryFee: number;
   totalPrice: number;
   notes?: string;
+  language?: Locale;
 }
 
 export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEmailConfirmation) {
-  const emailSubject = `LENGOLF Course Rental Confirmation - ${booking.rentalCode}`;
+  const locale: Locale = booking.language ?? 'en';
+  const t = createTranslator({
+    locale,
+    messages: getEmailMessages(locale),
+    namespace: 'emails.courseRentalConfirmation',
+  });
+  const format = createFormatter({ locale });
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
-      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+  // Anchor dates to Asia/Bangkok (venue timezone) and format by locale.
+  const formatDate = (dateStr: string) =>
+    format.dateTime(bangkokDateTime(dateStr, '00:00'), {
+      dateStyle: 'full',
+      timeZone: 'Asia/Bangkok',
     });
-  };
 
-  const dateDisplay = booking.durationDays > 1
-    ? `${formatDate(booking.startDate)} &rarr; ${formatDate(booking.endDate)} (${booking.durationDays} days)`
-    : formatDate(booking.startDate);
+  const dateDisplay =
+    booking.durationDays > 1
+      ? t('rentalPeriodRange', {
+          startDate: formatDate(booking.startDate),
+          endDate: formatDate(booking.endDate),
+          days: booking.durationDays,
+        })
+      : t('rentalPeriodSingle', { date: formatDate(booking.startDate) });
 
   const safeName = escapeHtml(booking.customerName);
   const safeAddress = booking.deliveryAddress ? escapeHtml(booking.deliveryAddress) : '';
@@ -248,51 +321,60 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
     `).join('')
     : '';
 
+  const tierLabel = booking.clubSetTier === 'premium-plus'
+    ? t('clubSetTierPremiumPlus')
+    : t('clubSetTierPremium');
+  const genderLabel = booking.clubSetGender === 'mens'
+    ? t('clubSetGenderMens')
+    : t('clubSetGenderWomens');
+
+  const emailSubject = t('subject', { rentalCode: booking.rentalCode });
+
   const emailContent = `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
         <div style="text-align: center; margin-bottom: 20px;">
-            <img src="https://booking.len.golf/images/logo_v1.png" alt="LENGOLF Logo" style="max-width: 200px;">
+            <img src="https://booking.len.golf/images/logo_v1.png" alt="${t('logoAlt')}" style="max-width: 200px;">
         </div>
 
-        <h2 style="color: #1a3308; text-align: center; margin-bottom: 20px;">Course Rental Reservation Confirmed!</h2>
+        <h2 style="color: #1a3308; text-align: center; margin-bottom: 20px;">${t('heading')}</h2>
 
         <p style="font-size: 16px; line-height: 1.5; color: #1a3308; margin-bottom: 5px;">
-            Dear <strong>${safeName}</strong>,
+            <strong>${t('greeting', { name: safeName })}</strong>
         </p>
         <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
-            Thank you for your golf club rental reservation. Here are your details:
+            ${t('intro')}
         </p>
 
         <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 15px; text-align: center; margin-bottom: 20px;">
-            <p style="font-size: 14px; color: #555; margin: 0 0 5px;">Your Rental Code</p>
+            <p style="font-size: 14px; color: #555; margin: 0 0 5px;">${t('rentalCodeLabel')}</p>
             <p style="font-size: 24px; font-weight: bold; color: #15803d; margin: 0; letter-spacing: 2px; font-family: monospace;">${safeRentalCode}</p>
         </div>
 
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 15px;">
             <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Club Set</th>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('clubSetLabel')}</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">
                     <strong>${safeClubSetName}</strong>
-                    <br><span style="font-size: 13px; color: #666;">${booking.clubSetTier === 'premium-plus' ? 'Premium+' : 'Premium'} &middot; ${booking.clubSetGender === 'mens' ? "Men's" : "Women's"}</span>
+                    <br><span style="font-size: 13px; color: #666;">${t('clubSetMeta', { tier: tierLabel, gender: genderLabel })}</span>
                 </td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Rental Period</th>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('rentalPeriodLabel')}</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">${dateDisplay}</td>
             </tr>
             <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${booking.deliveryRequested ? 'Delivery' : 'Pickup'}</th>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${booking.deliveryRequested ? t('deliveryLabelDelivery') : t('deliveryLabelPickup')}</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd;">
                     ${booking.deliveryRequested
-                      ? `Delivery & Return<br><span style="font-size: 13px; color: #666;">${safeAddress}</span>`
-                      : 'Pickup at LENGOLF<br><span style="font-size: 13px; color: #666;">Mercury Ville @ BTS Chidlom, Floor 4</span>'
+                      ? `${t('deliveryValueDelivery')}<br><span style="font-size: 13px; color: #666;">${safeAddress}</span>`
+                      : `${t('deliveryValuePickup')}<br><span style="font-size: 13px; color: #666;">${t('deliveryPickupAddress')}</span>`
                     }
-                    ${safeDeliveryTime ? `<br><span style="font-size: 13px; color: #666;">Preferred time: ${safeDeliveryTime}</span>` : ''}
+                    ${safeDeliveryTime ? `<br><span style="font-size: 13px; color: #666;">${t('deliveryPreferredTime', { time: safeDeliveryTime })}</span>` : ''}
                 </td>
             </tr>
             ${safeNotes ? `
             <tr>
-                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">Notes</th>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('notesLabel')}</th>
                 <td style="padding: 10px; border-bottom: 1px solid #ddd; white-space: pre-wrap;">${safeNotes}</td>
             </tr>
             ` : ''}
@@ -300,44 +382,44 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
 
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 15px;">
             <tr>
-                <td style="padding: 8px 10px; border-bottom: 1px solid #eee; color: #555;">Club Rental (${booking.durationDays}d)</td>
+                <td style="padding: 8px 10px; border-bottom: 1px solid #eee; color: #555;">${t('rentalFeeLabel', { days: booking.durationDays })}</td>
                 <td style="padding: 8px 10px; border-bottom: 1px solid #eee; text-align: right;">฿${booking.rentalPrice.toLocaleString()}</td>
             </tr>
             ${booking.deliveryRequested ? `
             <tr>
-                <td style="padding: 8px 10px; border-bottom: 1px solid #eee; color: #555;">Delivery & Return</td>
+                <td style="padding: 8px 10px; border-bottom: 1px solid #eee; color: #555;">${t('deliveryFeeLabel')}</td>
                 <td style="padding: 8px 10px; border-bottom: 1px solid #eee; text-align: right;">฿${booking.deliveryFee.toLocaleString()}</td>
             </tr>
             ` : ''}
             ${addOnsHtml}
             <tr style="font-weight: bold; font-size: 16px;">
-                <td style="padding: 12px 10px; border-top: 2px solid #15803d; color: #15803d;">Total</td>
+                <td style="padding: 12px 10px; border-top: 2px solid #15803d; color: #15803d;">${t('totalLabel')}</td>
                 <td style="padding: 12px 10px; border-top: 2px solid #15803d; text-align: right; color: #15803d;">฿${booking.totalPrice.toLocaleString()}</td>
             </tr>
         </table>
 
         <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-            <p style="font-weight: bold; color: #1e40af; margin: 0 0 5px;">What happens next?</p>
-            <p style="color: #1e40af; margin: 0; font-size: 14px;">Our team will contact you within 2 hours via LINE to confirm availability and send a payment link. You can pay by credit/debit card or Shopee wallet.</p>
+            <p style="font-weight: bold; color: #1e40af; margin: 0 0 5px;">${t('whatsNextHeading')}</p>
+            <p style="color: #1e40af; margin: 0; font-size: 14px;">${t('whatsNextBody')}</p>
         </div>
 
         <div style="font-size: 14px; color: #777; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
             <p style="margin: 5px 0; text-align: center;">
-                <strong>Phone Number:</strong> <a href="tel:+66966682335" style="color: #8dc743; text-decoration: none;">+66 96 668 2335</a>
+                <strong>${t('footerPhoneLabel')}</strong> <a href="tel:+66966682335" style="color: #8dc743; text-decoration: none;">+66 96 668 2335</a>
             </p>
             <p style="margin: 5px 0; text-align: center;">
-                <strong>LINE:</strong> <a href="https://lin.ee/UwwOr84" style="color: #8dc743; text-decoration: none;">@lengolf</a>
+                <strong>${t('footerLineLabel')}</strong> <a href="https://lin.ee/UwwOr84" style="color: #8dc743; text-decoration: none;">@lengolf</a>
             </p>
             <p style="margin: 5px 0; text-align: center;">
-                <strong>Address:</strong> 4th Floor, Mercury Ville at BTS Chidlom
+                <strong>${t('footerAddressLabel')}</strong> ${t('footerAddressValue')}
             </p>
             <div style="text-align: center; margin-top: 20px;">
                 <a href="https://len.golf" style="text-decoration: none; color: white; background-color: #1a3308; padding: 8px 15px; border-radius: 5px; font-size: 14px;">
-                    Visit Our Website
+                    ${t('visitWebsiteCta')}
                 </a>
             </div>
             <p style="font-size: 12px; margin-top: 15px; color: #777; text-align: center;">
-                &copy; ${new Date().getFullYear()} LENGOLF. All rights reserved.
+                ${t('copyright', { year: new Date().getFullYear() })}
             </p>
         </div>
     </div>

@@ -1,10 +1,12 @@
 'use client';
 
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { PhoneIcon, EnvelopeIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { FaFacebookF, FaLine, FaInstagram } from 'react-icons/fa';
 
 const SharedFooter = () => {
+  const t = useTranslations('footer');
   return (
     <footer className="bg-white border-t mt-auto">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -15,7 +17,7 @@ const SharedFooter = () => {
             <a href="https://www.len.golf" className="mb-4">
               <Image
                 src="/images/logo_v1.png"
-                alt="LENGOLF Logo"
+                alt={t('logoAlt')}
                 width={150}
                 height={50}
                 className="w-auto h-auto"
@@ -33,26 +35,26 @@ const SharedFooter = () => {
               </svg>
               <div>
                 <span className="underline decoration-dotted underline-offset-2 group-hover:decoration-solid">
-                  The Mercury Ville @ BTS Chidlom<br />
-                  Floor 4
+                  {t('addressLine1')}<br />
+                  {t('addressLine2')}
                 </span>
-                <span className="block text-xs mt-1 text-gray-500">Click for directions</span>
+                <span className="block text-xs mt-1 text-gray-500">{t('directionsDesktop')}</span>
               </div>
             </a>
           </div>
 
           {/* Opening Hours */}
           <div>
-            <p className="text-[#005a32] font-semibold mb-3">Opening Hours</p>
+            <p className="text-[#005a32] font-semibold mb-3">{t('openingHoursHeading')}</p>
             <p className="text-gray-600">
-              9am - 11pm<br />
-              Monday - Sunday
+              {t('openingHoursTime')}<br />
+              {t('openingHoursDays')}
             </p>
           </div>
 
           {/* Keep in Touch */}
           <div>
-            <p className="text-[#005a32] font-semibold mb-3">Keep in Touch</p>
+            <p className="text-[#005a32] font-semibold mb-3">{t('keepInTouchHeading')}</p>
             <div className="text-gray-600 space-y-2">
               <a
                 href="https://www.len.golf"
@@ -78,14 +80,14 @@ const SharedFooter = () => {
                 className="flex items-center hover:text-gray-800"
               >
                 <DocumentTextIcon className="h-4 w-4 mr-2 text-[#005a32]" />
-                Privacy Policy
+                {t('privacyPolicy')}
               </a>
             </div>
           </div>
 
           {/* Social Media */}
           <div>
-            <p className="text-[#005a32] font-semibold mb-3">Follow Us</p>
+            <p className="text-[#005a32] font-semibold mb-3">{t('followUsHeading')}</p>
             <div className="flex space-x-4">
               <a
                 href="https://www.facebook.com/lengolf.bkk"
@@ -124,7 +126,7 @@ const SharedFooter = () => {
           <div className="flex justify-center">
             <Image
               src="/images/logo_v1.png"
-              alt="LENGOLF Logo"
+              alt={t('logoAlt')}
               width={120}
               height={40}
               className="w-auto h-auto"
@@ -145,26 +147,26 @@ const SharedFooter = () => {
               </svg>
               <div className="text-left">
                 <span className="underline decoration-dotted underline-offset-2 group-hover:decoration-solid">
-                  The Mercury Ville @ BTS Chidlom<br />
-                  Floor 4
+                  {t('addressLine1')}<br />
+                  {t('addressLine2')}
                 </span>
-                <span className="block text-xs mt-1 text-gray-500">Tap for directions</span>
+                <span className="block text-xs mt-1 text-gray-500">{t('directionsMobile')}</span>
               </div>
             </a>
           </div>
 
           {/* Opening Hours */}
           <div className="text-center">
-            <p className="text-[#005a32] font-semibold mb-2">Opening Hours</p>
+            <p className="text-[#005a32] font-semibold mb-2">{t('openingHoursHeading')}</p>
             <p className="text-gray-600">
-              9am - 11pm<br />
-              Monday - Sunday
+              {t('openingHoursTime')}<br />
+              {t('openingHoursDays')}
             </p>
           </div>
 
           {/* Contact Info */}
           <div className="text-center space-y-2">
-            <p className="text-[#005a32] font-semibold mb-2">Keep in Touch</p>
+            <p className="text-[#005a32] font-semibold mb-2">{t('keepInTouchHeading')}</p>
             <a
               href="https://www.len.golf"
               className="block text-gray-600"
