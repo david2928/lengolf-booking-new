@@ -28,11 +28,12 @@ export function buildOpenGraphLocales(currentLocale: Locale): {
 }
 
 // Resolves an absolute URL for a given path + locale under our routing rules
-// (`localePrefix: 'as-needed'` — English is unprefixed).
+// (`localePrefix: 'as-needed'` — English is unprefixed). Root always returns
+// a path starting with `/` so canonical URLs never end up as bare origin.
 export function localePath(locale: Locale, path: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   if (locale === routing.defaultLocale) {
-    return normalizedPath === '/' ? '' : normalizedPath;
+    return normalizedPath;
   }
   return normalizedPath === '/' ? `/${locale}` : `/${locale}${normalizedPath}`;
 }

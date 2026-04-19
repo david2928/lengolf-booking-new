@@ -20,7 +20,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   if (!isValidLocale(locale)) {
-    return {};
+    notFound();
   }
   const t = await getTranslations({ locale, namespace: 'seo.site' });
   const alternates = buildAlternates(locale as Locale, '/');

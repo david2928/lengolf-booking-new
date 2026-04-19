@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { isValidLocale, type Locale } from '@/i18n/routing';
 import {
+  SITE_URL,
   buildAlternates,
   buildOpenGraphLocales,
 } from '@/lib/seo/alternates';
@@ -41,6 +42,20 @@ export async function generateMetadata({
       alternateLocale: og.alternateLocale,
       siteName: 'LENGOLF Bangkok',
       url: alternates.canonical,
+      images: [
+        {
+          url: `${SITE_URL}/images/lengolf.jpg`,
+          width: 1200,
+          height: 630,
+          alt: 'LENGOLF Golf Course Club Rental',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t('title'),
+      description: t('ogDescription'),
+      images: [`${SITE_URL}/images/lengolf.jpg`],
     },
     robots: {
       index: true,
