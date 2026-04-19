@@ -134,28 +134,12 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
         onToggleMobileMenu={toggleMobileMenu}
         rightContent={
           <>
-            {!hideNav && (
-            <div className="header-desktop:hidden flex gap-1 items-center">
-              <button
-                onClick={() => setShowBayRates(true)}
-                className="p-2 text-white hover:bg-white/10 rounded-md"
-                aria-label={t('bayRates')}
-              >
-                <CurrencyDollarIcon className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => setShowPromotions(true)}
-                className="p-2 text-white hover:bg-white/10 rounded-md"
-                aria-label={t('promotions')}
-              >
-                <FireIcon className="h-5 w-5" />
-              </button>
-              {/* Lessons moved to the burger menu's SERVICES section —
-                  the icon row was overlapping the language switcher on
-                  non-English locales where pill labels are wider. */}
+            <div className="header-desktop:hidden flex items-center">
+              {/* Mobile: only LanguageSwitcher + burger (rendered by Header).
+                  Bay Rates, Promotions, and Lessons moved into the burger menu
+                  to prevent overlap on non-English locales with wider pills. */}
               <LanguageSwitcher />
             </div>
-            )}
 
             <nav className="hidden header-desktop:flex gap-4 items-center">
               {!hideNav && (
@@ -368,6 +352,24 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
               <li className="border-t border-primary-foreground/20 pt-2 mt-2">
                 <p className="px-3 text-sm text-primary-foreground/60 uppercase font-medium">{t('sectionServices')}</p>
                 <ul className="mt-1 space-y-1">
+                  <li>
+                    <button
+                      onClick={() => { toggleMobileMenu(); setShowBayRates(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"
+                    >
+                      <CurrencyDollarIcon className="h-4 w-4" />
+                      {t('bayRates')}
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => { toggleMobileMenu(); setShowPromotions(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"
+                    >
+                      <FireIcon className="h-4 w-4" />
+                      {t('promotions')}
+                    </button>
+                  </li>
                   <li><Link href="/golf-club-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><ShoppingBagIcon className="h-4 w-4" />{t('clubRental')}</Link></li>
                   <li><Link href="/course-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TruckIcon className="h-4 w-4" />{t('courseRental')}</Link></li>
                   <li><Link href="/play-and-food" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><GiftIcon className="h-4 w-4" />{t('playAndFood')}</Link></li>
