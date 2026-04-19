@@ -148,9 +148,9 @@ export function BookingDetails({
   const tErrors = useTranslations('bookings.errors');
   const formatter = useFormatter();
   const locale = useLocale();
-  // ProjectedCostBreakdown is shared with LIFF, which only supports
-  // en/th/ja/zh. Fall back to 'en' for 'ko' (and any unknown locales).
-  const costLanguage = (locale === 'th' || locale === 'ja' || locale === 'zh') ? locale : 'en';
+  // ProjectedCostBreakdown supports all 5 main-site locales.
+  const costLanguage: 'en' | 'th' | 'ja' | 'ko' | 'zh' =
+    (locale === 'th' || locale === 'ja' || locale === 'ko' || locale === 'zh') ? locale : 'en';
   const router = useRouter();
   const { data: session, status } = useSession() as { data: ExtendedSession | null, status: 'loading' | 'authenticated' | 'unauthenticated' };
   usePricingLoader();
