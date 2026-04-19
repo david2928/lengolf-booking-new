@@ -150,13 +150,9 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
               >
                 <FireIcon className="h-5 w-5" />
               </button>
-              <button
-                onClick={() => setShowLessons(true)}
-                className="p-2 text-white hover:bg-white/10 rounded-md"
-                aria-label={t('golfLessons')}
-              >
-                <AcademicCapIcon className="h-5 w-5" />
-              </button>
+              {/* Lessons moved to the burger menu's SERVICES section —
+                  the icon row was overlapping the language switcher on
+                  non-English locales where pill labels are wider. */}
               <LanguageSwitcher />
             </div>
             )}
@@ -375,6 +371,15 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
                   <li><Link href="/golf-club-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><ShoppingBagIcon className="h-4 w-4" />{t('clubRental')}</Link></li>
                   <li><Link href="/course-rental" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><TruckIcon className="h-4 w-4" />{t('courseRental')}</Link></li>
                   <li><Link href="/play-and-food" className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10" onClick={toggleMobileMenu}><GiftIcon className="h-4 w-4" />{t('playAndFood')}</Link></li>
+                  <li>
+                    <button
+                      onClick={() => { toggleMobileMenu(); setShowLessons(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-primary-foreground/10 text-left"
+                    >
+                      <AcademicCapIcon className="h-4 w-4" />
+                      {t('golfLessons')}
+                    </button>
+                  </li>
                 </ul>
               </li>
 
