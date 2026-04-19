@@ -699,7 +699,8 @@
       "durationHeader": "이용 시간",
       "premiumHeader": "프리미엄",
       "premiumPlusHeader": "프리미엄+",
-      "footnote": "스탠다드 클럽은 모든 베이 예약에 항상 무료입니다. 베이 내 사용만 가능."
+      "footnote": "스탠다드 클럽은 모든 베이 예약에 항상 무료입니다. 베이 내 사용만 가능.",
+      "durationValue": "{hours, plural, =1 {#시간} other {#시간}}"
     },
     "sets": {
       "sectionHeading": "이용 가능한 골프 클럽 세트",
@@ -902,5 +903,13 @@
     "privacyPolicy": "개인정보처리방침",
     "followUsHeading": "팔로우하기",
     "logoAlt": "LENGOLF 로고"
+  },
+  "chat": {
+    "brandName": "LENGOLF Booking",
+    "headerReplyWithin": "보통 몇 분 이내에 답변드립니다",
+    "headerBusinessHours": "영업시간: 오전 9시 - 오후 11시 (방콕 시간)",
+    "emptyHeading": "무엇을 도와드릴까요?",
+    "emptySubheading": "보통 몇 분 이내에 답변드립니다.",
+    "inputPlaceholder": "메시지를 입력하세요..."
   }
 }

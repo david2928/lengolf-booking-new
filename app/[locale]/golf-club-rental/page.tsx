@@ -217,7 +217,7 @@ export default function GolfClubRentalPage() {
                   const premiumPlus = PREMIUM_PLUS_CLUB_PRICING[i];
                   return (
                     <tr key={premium.duration}>
-                      <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-gray-900">{premium.displayText}</td>
+                      <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm font-medium text-gray-900">{t('pricingTable.durationValue', { hours: premium.duration })}</td>
                       <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-center text-base sm:text-lg font-bold text-green-600">฿{premium.price.toLocaleString()}</td>
                       <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-center text-base sm:text-lg font-bold" style={{ color: '#003d1f', backgroundColor: 'rgba(0,61,31,0.05)' }}>฿{premiumPlus.price.toLocaleString()}</td>
                     </tr>

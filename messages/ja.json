@@ -699,7 +699,8 @@
       "durationHeader": "利用時間",
       "premiumHeader": "プレミアム",
       "premiumPlusHeader": "プレミアム+",
-      "footnote": "スタンダードクラブはすべてのベイ予約で無料。ベイ内利用のみ。"
+      "footnote": "スタンダードクラブはすべてのベイ予約で無料。ベイ内利用のみ。",
+      "durationValue": "{hours, plural, =1 {#時間} other {#時間}}"
     },
     "sets": {
       "sectionHeading": "ご利用いただけるゴルフクラブセット",
@@ -902,5 +903,13 @@
     "privacyPolicy": "プライバシーポリシー",
     "followUsHeading": "フォローする",
     "logoAlt": "LENGOLFロゴ"
+  },
+  "chat": {
+    "brandName": "LENGOLF Booking",
+    "headerReplyWithin": "通常、数分以内に返信いたします",
+    "headerBusinessHours": "営業時間：9:00 - 23:00（バンコク時間）",
+    "emptyHeading": "どのようなご用件ですか？",
+    "emptySubheading": "通常、数分以内に返信いたします。",
+    "inputPlaceholder": "メッセージを入力..."
   }
 }

@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, KeyboardEvent } from 'react';
+import { useTranslations } from 'next-intl';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
+  const t = useTranslations('chat');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
 
@@ -48,7 +50,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Type your message..."
+          placeholder={t('inputPlaceholder')}
           disabled={disabled || isSending}
           className="flex-1 border-gray-300 focus:border-primary focus:ring-primary h-12 md:h-10 text-base md:text-sm"
           maxLength={1000}

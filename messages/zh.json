@@ -699,7 +699,8 @@
       "durationHeader": "时长",
       "premiumHeader": "高级",
       "premiumPlusHeader": "高级+",
-      "footnote": "标准球杆在任何球位预约中均免费。仅限球位内使用。"
+      "footnote": "标准球杆在任何球位预约中均免费。仅限球位内使用。",
+      "durationValue": "{hours, plural, =1 {#小时} other {#小时}}"
     },
     "sets": {
       "sectionHeading": "可用的高尔夫球杆套装",
@@ -902,5 +903,13 @@
     "privacyPolicy": "隐私政策",
     "followUsHeading": "关注我们",
     "logoAlt": "LENGOLF 标志"
+  },
+  "chat": {
+    "brandName": "LENGOLF Booking",
+    "headerReplyWithin": "我们通常会在几分钟内回复",
+    "headerBusinessHours": "营业时间：上午9点 - 晚上11点（曼谷时间）",
+    "emptyHeading": "有什么可以帮您的吗？",
+    "emptySubheading": "我们通常会在几分钟内回复。",
+    "inputPlaceholder": "输入您的消息..."
   }
 }

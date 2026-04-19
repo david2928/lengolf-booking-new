@@ -6,12 +6,13 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { X, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatMessages } from './ChatMessages';
 import { ChatInput } from './ChatInput';
 import type { ChatMessage, ChatSession } from '@/hooks/useChatSession';
-import { getChatHeaderMessage } from '@/lib/businessHours';
+import { getBusinessHoursStatus } from '@/lib/businessHours';
 
 interface ChatWindowProps {
   onClose: () => void;
@@ -36,6 +37,9 @@ export function ChatWindow({
   markAsRead,
   initializeChat,
 }: ChatWindowProps) {
+  const t = useTranslations('chat');
+  const isBusinessHours = getBusinessHoursStatus().isOpen;
+  const headerSubtitle = isBusinessHours ? t('headerReplyWithin') : t('headerBusinessHours');
   // Ensure session is ready as soon as the window opens
   useEffect(() => {
     void initializeChat();
@@ -93,8 +97,8 @@ export function ChatWindow({
               <MessageCircle className="h-6 w-6 md:h-5 md:w-5 text-primary" />
             </div>
             <div>
-              <h3 className="text-base md:text-sm font-semibold">LENGOLF Booking</h3>
-              <p className="text-sm md:text-xs opacity-90">{getChatHeaderMessage()}</p>
+              <h3 className="text-base md:text-sm font-semibold">{t('brandName')}</h3>
+              <p className="text-sm md:text-xs opacity-90">{headerSubtitle}</p>
             </div>
           </div>
           <Button

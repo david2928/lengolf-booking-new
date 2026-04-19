@@ -699,7 +699,8 @@
       "durationHeader": "ระยะเวลา",
       "premiumHeader": "พรีเมียม",
       "premiumPlusHeader": "พรีเมียม+",
-      "footnote": "ไม้มาตรฐานฟรีกับทุกการจองเบย์ ใช้ในเบย์เท่านั้น"
+      "footnote": "ไม้มาตรฐานฟรีกับทุกการจองเบย์ ใช้ในเบย์เท่านั้น",
+      "durationValue": "{hours, plural, =1 {# ชั่วโมง} other {# ชั่วโมง}}"
     },
     "sets": {
       "sectionHeading": "ชุดไม้กอล์ฟที่มีให้บริการ",
@@ -902,5 +903,13 @@
     "privacyPolicy": "นโยบายความเป็นส่วนตัว",
     "followUsHeading": "ติดตามเรา",
     "logoAlt": "โลโก้ LENGOLF"
+  },
+  "chat": {
+    "brandName": "LENGOLF Booking",
+    "headerReplyWithin": "เรามักตอบกลับภายในไม่กี่นาที",
+    "headerBusinessHours": "เวลาทำการ: 9:00 - 23:00 น. (เวลากรุงเทพฯ)",
+    "emptyHeading": "ให้เราช่วยอะไรคุณได้บ้าง?",
+    "emptySubheading": "เรามักตอบกลับภายในไม่กี่นาที",
+    "inputPlaceholder": "พิมพ์ข้อความของคุณ..."
   }
 }

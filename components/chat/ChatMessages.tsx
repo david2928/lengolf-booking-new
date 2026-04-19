@@ -6,6 +6,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { MessageCircle, Bot, User, X } from 'lucide-react';
 import Image from 'next/image';
 import type { ChatMessage } from '@/hooks/useChatSession';
@@ -18,6 +19,7 @@ interface ChatMessagesProps {
 }
 
 export function ChatMessages({ messages, isLoading, isTyping, error }: ChatMessagesProps) {
+  const t = useTranslations('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -59,8 +61,8 @@ export function ChatMessages({ messages, isLoading, isTyping, error }: ChatMessa
             <MessageCircle className="h-7 w-7 text-primary" />
           </div>
           <div className="space-y-1">
-            <p className="text-sm font-medium text-gray-900">How can we help?</p>
-            <p className="text-xs text-gray-500">We usually reply in a few minutes.</p>
+            <p className="text-sm font-medium text-gray-900">{t('emptyHeading')}</p>
+            <p className="text-xs text-gray-500">{t('emptySubheading')}</p>
           </div>
         </div>
       )}

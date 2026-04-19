@@ -699,7 +699,8 @@
       "durationHeader": "Duration",
       "premiumHeader": "Premium",
       "premiumPlusHeader": "Premium+",
-      "footnote": "Standard clubs are always free with any bay booking. In-bay use only."
+      "footnote": "Standard clubs are always free with any bay booking. In-bay use only.",
+      "durationValue": "{hours, plural, =1 {# hour} other {# hours}}"
     },
     "sets": {
       "sectionHeading": "Available Golf Club Sets",
@@ -902,5 +903,13 @@
     "privacyPolicy": "Privacy Policy",
     "followUsHeading": "Follow Us",
     "logoAlt": "LENGOLF Logo"
+  },
+  "chat": {
+    "brandName": "LENGOLF Booking",
+    "headerReplyWithin": "We usually reply within a few minutes",
+    "headerBusinessHours": "Business hours: 9 AM - 11 PM Bangkok time",
+    "emptyHeading": "How can we help?",
+    "emptySubheading": "We usually reply in a few minutes.",
+    "inputPlaceholder": "Type your message..."
   }
 }
