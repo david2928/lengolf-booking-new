@@ -72,6 +72,18 @@ rewrite=$(header_of "x-middleware-rewrite" "$BASE/th")
 assert_status "status" "200" "$status"
 assert_header "x-middleware-rewrite" "/th/bookings" "$rewrite"
 
+# Test 6+: every unprefixed customer route must be matched by middleware and
+# rewritten to its /en/* equivalent. Regression guard for the /course-rental
+# 404 where the page was moved under [locale]/ but the matcher wasn't updated —
+# a live Google Ads landing page silently broke.
+for route in bookings vip play-and-food golf-club-rental course-rental; do
+  echo "Test: /$route -> 200 (rewritten to /en/$route)"
+  status=$(status_of "$BASE/$route")
+  rewrite=$(header_of "x-middleware-rewrite" "$BASE/$route")
+  assert_status "status" "200" "$status"
+  assert_header "x-middleware-rewrite" "/en/$route" "$rewrite"
+done
+
 if [ "$fail" -eq 0 ]; then
   echo ""
   echo "All middleware smoke tests passed."
