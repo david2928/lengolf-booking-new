@@ -160,10 +160,15 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
               <div className="min-w-0">
                 <h3 className="text-sm font-medium text-gray-600">{t('timePeriod')}</h3>
                 <p className="text-lg sm:text-xl font-bold text-green-700 whitespace-nowrap">
-                  {booking.start_time} - {format.dateTime(
-                    new Date(new Date(`2000-01-01T${booking.start_time}`).getTime() + booking.duration * 60 * 60 * 1000),
-                    { hour: '2-digit', minute: '2-digit', hour12: false }
-                  )}
+                  {(() => {
+                    const [h, m] = booking.start_time.split(':').map(Number);
+                    const total = h * 60 + m + booking.duration * 60;
+                    const eh = Math.floor(total / 60) % 24;
+                    const em = total % 60;
+                    const start = booking.start_time.slice(0, 5);
+                    const end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+                    return `${start} - ${end}`;
+                  })()}
                 </p>
               </div>
             </div>
