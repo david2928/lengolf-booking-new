@@ -107,8 +107,12 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
   };
 
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString + 'T00:00:00'); // Ensure correct date parsing
+    // booking.date (YYYY-MM-DD) is an Asia/Bangkok wall-clock value (see
+    // bookings/create/route.ts). Anchor to +07:00 and format in Bangkok so
+    // SSR and client agree and the day never shifts by a timezone offset.
+    const date = new Date(`${dateString}T00:00:00+07:00`);
     return formatter.dateTime(date, {
+      timeZone: 'Asia/Bangkok',
       weekday: "short",
       month: "short",
       day: "numeric",
