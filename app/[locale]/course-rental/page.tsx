@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
+import { useTranslations, useFormatter } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
@@ -42,11 +43,12 @@ function getSetImageKey(set: { tier: string; gender: string }): string {
 // Preview sets shown on Step 1 (dates) as orientation - not a selection UI.
 // Real availability-filtered selection happens on Step 2.
 // Image URLs come from getSetThumbnailUrl() so they stay in sync with the
-// booking selector and the rental-options modal.
+// booking selector and the rental-options modal. Set names are brand names
+// kept untranslated; meta strings resolve via i18n at render time.
 const PREVIEW_SETS = [
-  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'mens' }), name: 'Callaway Warbird', meta: "Men's · Premium" },
-  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'womens' }), name: 'Majesty Shuttle', meta: "Ladies' · Premium" },
-  { img: getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' }), name: 'Callaway Paradym', meta: "Men's · Premium+" },
+  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'mens' }), name: 'Callaway Warbird', metaKey: 'metaMensPremium' as const },
+  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'womens' }), name: 'Majesty Shuttle', metaKey: 'metaLadiesPremium' as const },
+  { img: getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' }), name: 'Callaway Paradym', metaKey: 'metaMensPremiumPlus' as const },
 ];
 
 const TIME_OPTIONS = [
@@ -59,18 +61,12 @@ type Step = 'dates' | 'set' | 'delivery' | 'contact' | 'review' | 'confirmation'
 
 const STEP_ORDER: Step[] = ['dates', 'set', 'delivery', 'contact', 'review'];
 
-const STEP_LABELS: Record<Step, string> = {
-  dates: 'Dates & Duration',
-  set: 'Select Clubs',
-  delivery: 'Delivery & Add-ons',
-  contact: 'Your Details',
-  review: 'Review & Confirm',
-  confirmation: 'Confirmed',
-};
-
 export default function CourseRentalPage() {
   usePricingLoader();
   const { data: session, status: authStatus } = useSession();
+  const t = useTranslations('courseRental');
+  const tClubRental = useTranslations('clubRental');
+  const format = useFormatter();
   const GEAR_UP_ITEMS = getGearUpItems();
   const [step, setStep] = useState<Step>('dates');
   const [availableSets, setAvailableSets] = useState<RentalClubSetWithAvailability[]>([]);
@@ -259,7 +255,7 @@ export default function CourseRentalPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Failed to create reservation');
+        setError(data.error || t('errors.failedToCreate'));
         return;
       }
 
@@ -281,7 +277,7 @@ export default function CourseRentalPage() {
 
       setStep('confirmation');
     } catch {
-      setError('Something went wrong. Please try again.');
+      setError(t('errors.generic'));
     } finally {
       setSubmitting(false);
     }
@@ -299,22 +295,22 @@ export default function CourseRentalPage() {
             <button
               onClick={goBack}
               className="mr-4 p-2 rounded-lg hover:bg-gray-100"
-              aria-label="Go back"
+              aria-label={t('page.backAriaLabel')}
             >
               <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
             </button>
           )}
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
-              {isConfirmation ? 'Booking Confirmed!' : STEP_LABELS[step]}
+              {isConfirmation ? t('page.headingConfirmed') : t(`stepLabels.${step}`)}
             </h2>
             <p className="text-gray-600 mt-1 text-sm">
-              {step === 'dates' && 'Select your rental dates and times.'}
-              {step === 'set' && 'Choose which premium club set to rent for the golf course.'}
-              {step === 'delivery' && 'Choose pickup or delivery, and optional add-ons.'}
-              {step === 'contact' && 'We need your details to confirm the reservation.'}
-              {step === 'review' && 'Review your rental details before confirming.'}
-              {isConfirmation && 'Your club rental reservation has been submitted.'}
+              {step === 'dates' && t('page.subtitleDates')}
+              {step === 'set' && t('page.subtitleSet')}
+              {step === 'delivery' && t('page.subtitleDelivery')}
+              {step === 'contact' && t('page.subtitleContact')}
+              {step === 'review' && t('page.subtitleReview')}
+              {isConfirmation && t('page.subtitleConfirmation')}
             </p>
           </div>
         </div>
@@ -325,23 +321,18 @@ export default function CourseRentalPage() {
             {/* Selected dates summary */}
             <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between text-sm">
               <span className="text-gray-600">
-                {durationDays} {durationDays === 1 ? 'day' : 'days'}
+                {t('set.daysCount', { count: durationDays })}
                 <span className="mx-1.5">&middot;</span>
-                {new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                {format.dateTime(new Date(`${startDate}T00:00:00+07:00`), { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })}
                 {' '}-{' '}
-                {new Date(endDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                {format.dateTime(new Date(`${endDate}T00:00:00+07:00`), { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })}
               </span>
             </div>
 
             {/* Handedness note */}
             <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-xs sm:text-sm">
-              <p className="font-semibold text-green-800">All sets shown are right-handed</p>
-              <p className="mt-0.5 text-gray-700">
-                We have one left-handed Premium set available on request. Please contact us on{' '}
-                <a href="https://lin.ee/uxQpIXn" target="_blank" rel="noopener noreferrer" className="font-semibold text-green-700 underline">
-                  LINE @lengolf
-                </a>{' '}before booking to confirm availability.
-              </p>
+              <p className="font-semibold text-green-800">{tClubRental('sets.handednessNoteTitle')}</p>
+              <p className="mt-0.5 text-gray-700">{tClubRental('sets.handednessNote')}</p>
             </div>
 
             {setsLoading ? (
@@ -350,8 +341,8 @@ export default function CourseRentalPage() {
               </div>
             ) : availableSets.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
-                <p className="text-lg font-medium mb-2">No club sets available</p>
-                <p className="text-sm">Please try different dates or contact us directly.</p>
+                <p className="text-lg font-medium mb-2">{t('set.noSetsTitle')}</p>
+                <p className="text-sm">{t('set.noSetsBody')}</p>
               </div>
             ) : (
               availableSets.map(set => {
@@ -407,18 +398,18 @@ export default function CourseRentalPage() {
                                 ? 'bg-green-800 text-white'
                                 : 'bg-green-100 text-green-800'
                             }`}>
-                              {set.tier === 'premium-plus' ? 'Premium+' : 'Premium'}
+                              {set.tier === 'premium-plus' ? t('set.tierPremiumPlus') : t('set.tierPremium')}
                             </span>
                             <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full font-medium ${
                               set.gender === 'mens'
                                 ? 'bg-blue-50 text-blue-700'
                                 : 'bg-pink-50 text-pink-700'
                             }`}>
-                              {set.gender === 'mens' ? "Men's" : "Women's"}
+                              {set.gender === 'mens' ? t('set.genderMens') : t('set.genderWomens')}
                             </span>
                             {!isAvailable && (
                               <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
-                                Unavailable
+                                {t('set.unavailable')}
                               </span>
                             )}
                           </div>
@@ -436,11 +427,11 @@ export default function CourseRentalPage() {
                             return (
                               <div className="mt-1">
                                 <p className="text-sm font-bold text-green-700">
-                                  ฿{bd.total.toLocaleString('en-US')}
+                                  ฿{format.number(bd.total)}
                                 </p>
                                 {bd.savings > 0 && (
                                   <p className="text-[10px] text-green-600 font-medium">
-                                    Save ฿{bd.savings.toLocaleString('en-US')} vs daily rate
+                                    {t('set.savings', { amount: format.number(bd.savings) })}
                                   </p>
                                 )}
                                 <p className="text-[10px] text-gray-400">
@@ -452,7 +443,7 @@ export default function CourseRentalPage() {
                           {isSelected && (
                             <div className="mt-1.5">
                               <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
-                                <CheckIcon className="w-3.5 h-3.5" /> Selected
+                                <CheckIcon className="w-3.5 h-3.5" /> {t('set.selected')}
                               </span>
                             </div>
                           )}
@@ -490,7 +481,7 @@ export default function CourseRentalPage() {
               rel="noopener noreferrer"
               className="block text-center text-sm text-green-700 hover:text-green-800 underline underline-offset-2"
             >
-              View full club details on len.golf
+              {t('set.fullDetailsLink')}
             </a>
 
             <button
@@ -498,7 +489,7 @@ export default function CourseRentalPage() {
               disabled={!selectedSet}
               className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
-              Continue
+              {t('set.continue')}
             </button>
           </div>
         )}
@@ -509,7 +500,7 @@ export default function CourseRentalPage() {
             {/* Date pickers */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('dates.startDateLabel')}</label>
                 <input
                   type="date"
                   value={startDate}
@@ -523,7 +514,7 @@ export default function CourseRentalPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('dates.endDateLabel')}</label>
                 <input
                   type="date"
                   value={endDate}
@@ -541,7 +532,7 @@ export default function CourseRentalPage() {
             {/* Time pickers */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Pickup Time <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('dates.pickupTimeLabel')} <span className="text-red-500">*</span></label>
                 <select
                   value={pickupTime}
                   onChange={e => {
@@ -550,19 +541,19 @@ export default function CourseRentalPage() {
                   }}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
                 >
-                  <option value="">Select</option>
-                  {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                  <option value="">{t('dates.timeSelectPlaceholder')}</option>
+                  {TIME_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Return Time <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('dates.returnTimeLabel')} <span className="text-red-500">*</span></label>
                 <select
                   value={returnTime}
                   onChange={e => setReturnTime(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
                 >
-                  <option value="">Select</option>
-                  {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                  <option value="">{t('dates.timeSelectPlaceholder')}</option>
+                  {TIME_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
               </div>
             </div>
@@ -571,43 +562,43 @@ export default function CourseRentalPage() {
             <details className="group">
               <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
                 <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                View pricing guide
+                {t('dates.pricingGuideToggle')}
               </summary>
               <div className="mt-3 overflow-hidden rounded-xl border border-gray-200/60">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-[#1B5E20] text-white">
-                      <th className="px-5 py-3 text-sm font-semibold">Duration</th>
-                      <th className="px-5 py-3 text-sm font-semibold text-center">Premium</th>
-                      <th className="px-5 py-3 text-sm font-semibold text-center">Premium+</th>
+                      <th className="px-5 py-3 text-sm font-semibold">{t('dates.pricingTable.durationHeader')}</th>
+                      <th className="px-5 py-3 text-sm font-semibold text-center">{t('dates.pricingTable.premiumHeader')}</th>
+                      <th className="px-5 py-3 text-sm font-semibold text-center">{t('dates.pricingTable.premiumPlusHeader')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr className="bg-white">
-                      <td className="px-5 py-4 text-sm font-medium text-gray-900">1 Day</td>
+                      <td className="px-5 py-4 text-sm font-medium text-gray-900">{t('dates.pricingTable.oneDay')}</td>
                       <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>1,200 THB</td>
                       <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>1,800 THB</td>
                     </tr>
                     <tr className="bg-gray-50/50">
                       <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">3 Days</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">Pay 2, get 1 free</span>
+                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.threeDays')}</span>
+                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay2Get1')}</span>
                       </td>
                       <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>2,400 THB</td>
                       <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>3,600 THB</td>
                     </tr>
                     <tr className="bg-white">
                       <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">7 Days</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">Pay 4, get 3 free</span>
+                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.sevenDays')}</span>
+                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay4Get3')}</span>
                       </td>
                       <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>4,800 THB</td>
                       <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>7,200 THB</td>
                     </tr>
                     <tr className="bg-gray-50/50">
                       <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">14 Days</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">Pay 7, get 7 free</span>
+                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.fourteenDays')}</span>
+                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay7Get7')}</span>
                       </td>
                       <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>8,400 THB</td>
                       <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>12,600 THB</td>
@@ -615,7 +606,7 @@ export default function CourseRentalPage() {
                   </tbody>
                 </table>
                 <p className="text-xs text-gray-400 italic px-5 py-2.5">
-                  For other durations, we automatically find the best price combination.
+                  {t('dates.pricingTable.footnote')}
                 </p>
               </div>
             </details>
@@ -624,7 +615,7 @@ export default function CourseRentalPage() {
             <div>
               <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
                 <InformationCircleIcon className="w-3.5 h-3.5" />
-                <span>Clubs you can rent</span>
+                <span>{t('dates.preview.label')}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {PREVIEW_SETS.map((s) => (
@@ -641,13 +632,13 @@ export default function CourseRentalPage() {
                     </div>
                     <div className="text-center mt-1.5">
                       <div className="text-[10px] sm:text-[11px] font-medium text-gray-700 leading-tight">{s.name}</div>
-                      <div className="text-[9px] sm:text-[10px] text-gray-400">{s.meta}</div>
+                      <div className="text-[9px] sm:text-[10px] text-gray-400">{t(`dates.preview.${s.metaKey}`)}</div>
                     </div>
                   </div>
                 ))}
               </div>
               <p className="text-[11px] text-gray-400 mt-2 text-center">
-                Pick your set in the next step once we check availability for these dates.
+                {t('dates.preview.helper')}
               </p>
             </div>
 
@@ -656,7 +647,7 @@ export default function CourseRentalPage() {
               disabled={!startDate || !endDate || !pickupTime || !returnTime}
               className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
-              Continue
+              {t('dates.continue')}
             </button>
           </div>
         )}
@@ -665,7 +656,7 @@ export default function CourseRentalPage() {
         {step === 'delivery' && (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">How would you like to get the clubs?</label>
+              <label className="block text-sm font-medium text-gray-700 mb-3">{t('delivery.methodLabel')}</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -677,9 +668,9 @@ export default function CourseRentalPage() {
                   }`}
                 >
                   <MapPinIcon className="h-6 w-6 text-green-600 mb-2" />
-                  <p className="font-semibold text-gray-900">Pickup at LENGOLF</p>
-                  <p className="text-xs text-gray-500 mt-1">Mercury Ville @ BTS Chidlom, Floor 4</p>
-                  <p className="text-sm font-bold text-green-700 mt-2">Free</p>
+                  <p className="font-semibold text-gray-900">{t('delivery.pickupTitle')}</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('delivery.pickupAddress')}</p>
+                  <p className="text-sm font-bold text-green-700 mt-2">{t('delivery.pickupPriceFree')}</p>
                 </button>
                 <button
                   type="button"
@@ -691,9 +682,9 @@ export default function CourseRentalPage() {
                   }`}
                 >
                   <TruckIcon className="h-6 w-6 text-green-600 mb-2" />
-                  <p className="font-semibold text-gray-900">Delivery & Return</p>
-                  <p className="text-xs text-gray-500 mt-1">Delivered to your hotel or location in Bangkok</p>
-                  <p className="text-sm font-bold text-green-700 mt-2">฿500</p>
+                  <p className="font-semibold text-gray-900">{t('delivery.deliveryTitle')}</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('delivery.deliveryDescription')}</p>
+                  <p className="text-sm font-bold text-green-700 mt-2">{t('delivery.deliveryPrice')}</p>
                 </button>
               </div>
             </div>
@@ -702,12 +693,12 @@ export default function CourseRentalPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Delivery Address <span className="text-red-500">*</span>
+                    {t('delivery.addressLabel')} <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     value={deliveryAddress}
                     onChange={e => setDeliveryAddress(e.target.value)}
-                    placeholder="Hotel name, street address, district..."
+                    placeholder={t('delivery.addressPlaceholder')}
                     rows={3}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
                   />
@@ -716,7 +707,7 @@ export default function CourseRentalPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Optional Add-ons</label>
+              <label className="block text-sm font-medium text-gray-700 mb-3">{t('delivery.addOnsLabel')}</label>
               <div className="space-y-3">
                 {GEAR_UP_ITEMS.filter(item => item.id !== 'delivery').map(item => {
                   const isSelected = addOns.some(a => a.key === item.id);
@@ -738,7 +729,7 @@ export default function CourseRentalPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-3">
-                        <p className="text-sm font-bold text-green-700">฿{item.price.toLocaleString('en-US')}</p>
+                        <p className="text-sm font-bold text-green-700">฿{format.number(item.price)}</p>
                         <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
                           isSelected ? 'bg-green-600 border-green-600' : 'border-gray-300'
                         }`}>
@@ -753,7 +744,7 @@ export default function CourseRentalPage() {
 
             {/* Payment method */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Payment Method</label>
+              <label className="block text-sm font-medium text-gray-700 mb-3">{t('delivery.paymentLabel')}</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {!deliveryRequested && (
                   <button
@@ -765,8 +756,8 @@ export default function CourseRentalPage() {
                         : 'border-gray-200 hover:border-green-300'
                     }`}
                   >
-                    <p className="font-semibold text-gray-900">Cash</p>
-                    <p className="text-xs text-gray-500 mt-1">Pay when you pick up at LENGOLF</p>
+                    <p className="font-semibold text-gray-900">{t('delivery.paymentCashTitle')}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('delivery.paymentCashHint')}</p>
                   </button>
                 )}
                 <button
@@ -778,14 +769,14 @@ export default function CourseRentalPage() {
                       : 'border-gray-200 hover:border-green-300'
                   }`}
                 >
-                  <p className="font-semibold text-gray-900">Payment Link</p>
-                  <p className="text-xs text-gray-500 mt-1">We&apos;ll send you a payment link</p>
+                  <p className="font-semibold text-gray-900">{t('delivery.paymentLinkTitle')}</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('delivery.paymentLinkHint')}</p>
                 </button>
               </div>
             </div>
 
             {deliveryRequested && !deliveryAddress.trim() && (
-              <p className="text-sm text-amber-600 text-center">Please enter a delivery address above to continue</p>
+              <p className="text-sm text-amber-600 text-center">{t('delivery.addressRequiredHint')}</p>
             )}
 
             <button
@@ -793,7 +784,7 @@ export default function CourseRentalPage() {
               disabled={deliveryRequested && !deliveryAddress.trim()}
               className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
-              Continue
+              {t('delivery.continue')}
             </button>
           </div>
         )}
@@ -803,25 +794,25 @@ export default function CourseRentalPage() {
           <div className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name <span className="text-red-500">*</span>
+                {t('contact.nameLabel')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={contactName}
                 onChange={e => setContactName(e.target.value)}
-                placeholder="Your full name"
+                placeholder={t('contact.namePlaceholder')}
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number <span className="text-red-500">*</span>
+                {t('contact.phoneLabel')} <span className="text-red-500">*</span>
               </label>
               <PhoneInput
                 international
                 defaultCountry="TH"
-                placeholder="Enter phone number"
+                placeholder={t('contact.phonePlaceholder')}
                 value={contactPhone}
                 onChange={setContactPhone}
                 aria-invalid={!!contactPhone && !isValidPhoneNumber(contactPhone)}
@@ -834,47 +825,47 @@ export default function CourseRentalPage() {
               />
               {!contactPhone && (
                 <p id="course-rental-phone-hint" className="mt-1 text-xs text-gray-500">
-                  Please select your country code and enter your phone number.
+                  {t('contact.phoneCountryHelper')}
                 </p>
               )}
               {contactPhone && !isValidPhoneNumber(contactPhone) && (
                 <p id="course-rental-phone-hint" className="mt-1 text-xs text-red-600" role="alert">
-                  Please enter a valid phone number.
+                  {t('contact.phoneInvalid')}
                 </p>
               )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email <span className="text-gray-400 text-xs font-normal">(for confirmation)</span>
+                {t('contact.emailLabel')} <span className="text-gray-400 text-xs font-normal">{t('contact.emailHint')}</span>
               </label>
               <input
                 type="email"
                 value={contactEmail}
                 onChange={e => setContactEmail(e.target.value)}
-                placeholder="your@email.com"
+                placeholder={t('contact.emailPlaceholder')}
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('contact.notesLabel')}</label>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Any special requests (left-handed, specific clubs needed, etc.)"
+                placeholder={t('contact.notesPlaceholder')}
                 rows={3}
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Contact Method</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('contact.preferredContactLabel')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { key: 'line' as const, label: 'LINE' },
-                  { key: 'email' as const, label: 'Email' },
-                  { key: 'whatsapp' as const, label: 'WhatsApp' },
+                  { key: 'line' as const, labelKey: 'preferredContactLine' as const },
+                  { key: 'email' as const, labelKey: 'preferredContactEmail' as const },
+                  { key: 'whatsapp' as const, labelKey: 'preferredContactWhatsApp' as const },
                 ]).map(opt => (
                   <button
                     key={opt.key}
@@ -886,7 +877,7 @@ export default function CourseRentalPage() {
                         : 'border-gray-200 text-gray-600 hover:border-green-300'
                     }`}
                   >
-                    {opt.label}
+                    {t(`contact.${opt.labelKey}`)}
                   </button>
                 ))}
               </div>
@@ -897,7 +888,7 @@ export default function CourseRentalPage() {
               disabled={!contactName.trim() || !contactPhone || !isValidPhoneNumber(contactPhone)}
               className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
-              Review Booking
+              {t('contact.reviewBooking')}
             </button>
           </div>
         )}
@@ -907,58 +898,60 @@ export default function CourseRentalPage() {
           <div className="space-y-5">
             {/* Club set */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Club Set</h3>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">{t('review.clubSetHeading')}</h3>
               <p className="font-semibold text-gray-900">{selectedSet.name}</p>
               <div className="flex gap-2 mt-1">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                   selectedSet.tier === 'premium-plus' ? 'bg-green-800 text-white' : 'bg-green-100 text-green-800'
                 }`}>
-                  {selectedSet.tier === 'premium-plus' ? 'Premium+' : 'Premium'}
+                  {selectedSet.tier === 'premium-plus' ? t('review.tierPremiumPlus') : t('review.tierPremium')}
                 </span>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                   selectedSet.gender === 'mens'
                     ? 'bg-blue-50 text-blue-700'
                     : 'bg-pink-50 text-pink-700'
                 }`}>
-                  {selectedSet.gender === 'mens' ? "Men's" : "Women's"}
+                  {selectedSet.gender === 'mens' ? t('review.genderMens') : t('review.genderWomens')}
                 </span>
               </div>
             </div>
 
             {/* Dates */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Rental Period</h3>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">{t('review.rentalPeriodHeading')}</h3>
               <p className="font-semibold text-gray-900">
-                {new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                {format.dateTime(new Date(`${startDate}T00:00:00+07:00`), { timeZone: 'Asia/Bangkok', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                 {pickupTime && ` ${pickupTime}`}
                 {' '}&rarr;{' '}
-                {new Date(endDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                {format.dateTime(new Date(`${endDate}T00:00:00+07:00`), { timeZone: 'Asia/Bangkok', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                 {returnTime && ` ${returnTime}`}
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                {durationDays} {durationDays === 1 ? 'day' : 'days'}
+                {t('review.daysCount', { count: durationDays })}
               </p>
             </div>
 
             {/* Delivery */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <h3 className="text-sm font-medium text-gray-500 mb-2">
-                {deliveryRequested ? 'Delivery' : 'Pickup'}
+                {deliveryRequested ? t('review.deliveryHeading') : t('review.pickupHeading')}
               </h3>
               {deliveryRequested ? (
                 <>
-                  <p className="font-semibold text-gray-900">Delivery & Return</p>
+                  <p className="font-semibold text-gray-900">{t('review.deliveryTitle')}</p>
                   <p className="text-sm text-gray-500 mt-1">{deliveryAddress}</p>
                 </>
               ) : (
                 <>
-                  <p className="font-semibold text-gray-900">Pickup at LENGOLF</p>
-                  <p className="text-sm text-gray-500 mt-1">Mercury Ville @ BTS Chidlom, Floor 4</p>
+                  <p className="font-semibold text-gray-900">{t('review.pickupTitle')}</p>
+                  <p className="text-sm text-gray-500 mt-1">{t('review.pickupAddress')}</p>
                 </>
               )}
               {(pickupTime || returnTime) && (
                 <p className="text-sm text-gray-500 mt-1">
-                  {deliveryRequested ? 'Delivery' : 'Pickup'}: {pickupTime} · Return: {returnTime}
+                  {deliveryRequested
+                    ? t('review.deliveryTimeSummary', { delivery: pickupTime, return: returnTime })
+                    : t('review.pickupTimeSummary', { pickup: pickupTime, return: returnTime })}
                 </p>
               )}
             </div>
@@ -966,11 +959,11 @@ export default function CourseRentalPage() {
             {/* Add-ons */}
             {addOns.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Add-ons</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">{t('review.addOnsHeading')}</h3>
                 {addOns.map(a => (
                   <div key={a.key} className="flex justify-between text-sm">
                     <span className="text-gray-900">{a.label}</span>
-                    <span className="text-gray-600">฿{a.price.toLocaleString('en-US')}</span>
+                    <span className="text-gray-600">฿{format.number(a.price)}</span>
                   </div>
                 ))}
               </div>
@@ -978,57 +971,63 @@ export default function CourseRentalPage() {
 
             {/* Contact */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Contact</h3>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">{t('review.contactHeading')}</h3>
               <p className="font-semibold text-gray-900">{contactName}</p>
               <p className="text-sm text-gray-500">{contactPhone}</p>
               {contactEmail && <p className="text-sm text-gray-500">{contactEmail}</p>}
               <p className="text-sm text-gray-500 mt-1">
-                Preferred contact: {preferredContact === 'line' ? 'LINE' : preferredContact === 'email' ? 'Email' : 'WhatsApp'}
+                {t('review.preferredContact', {
+                  method: preferredContact === 'line'
+                    ? t('contact.preferredContactLine')
+                    : preferredContact === 'email'
+                    ? t('contact.preferredContactEmail')
+                    : t('contact.preferredContactWhatsApp'),
+                })}
               </p>
               {notes && <p className="text-sm text-gray-400 mt-1 italic">{notes}</p>}
             </div>
 
             {/* Pricing breakdown */}
             <div className="bg-green-50 rounded-xl border border-green-200 p-4">
-              <h3 className="text-sm font-medium text-green-800 mb-3">Pricing</h3>
+              <h3 className="text-sm font-medium text-green-800 mb-3">{t('review.pricingHeading')}</h3>
               <div className="space-y-1 text-sm">
                 {breakdown && breakdown.packs.map((pack, i) => (
                   <div key={i} className="flex justify-between">
                     <span className="text-gray-700">{pack.label}</span>
-                    <span className="text-gray-900">฿{pack.price.toLocaleString('en-US')}</span>
+                    <span className="text-gray-900">฿{format.number(pack.price)}</span>
                   </div>
                 ))}
                 {deliveryRequested && (
                   <div className="flex justify-between">
-                    <span className="text-gray-700">Delivery & return</span>
-                    <span className="text-gray-900">฿{deliveryFee.toLocaleString('en-US')}</span>
+                    <span className="text-gray-700">{t('review.deliveryAndReturn')}</span>
+                    <span className="text-gray-900">฿{format.number(deliveryFee)}</span>
                   </div>
                 )}
                 {addOns.map(a => (
                   <div key={a.key} className="flex justify-between">
                     <span className="text-gray-700">{a.label}</span>
-                    <span className="text-gray-900">฿{a.price.toLocaleString('en-US')}</span>
+                    <span className="text-gray-900">฿{format.number(a.price)}</span>
                   </div>
                 ))}
                 {breakdown && breakdown.savings > 0 && (
                   <div className="flex justify-between text-green-600 text-xs">
-                    <span>You save ฿{breakdown.savings.toLocaleString('en-US')} vs daily rate</span>
+                    <span>{t('review.savings', { amount: format.number(breakdown.savings) })}</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-2 border-t border-green-300 font-bold text-base">
-                  <span className="text-green-800">Total</span>
-                  <span className="text-green-800">฿{totalPrice.toLocaleString('en-US')}</span>
+                  <span className="text-green-800">{t('review.totalLabel')}</span>
+                  <span className="text-green-800">฿{format.number(totalPrice)}</span>
                 </div>
               </div>
             </div>
 
             {/* Payment info */}
             <div className="bg-blue-50 rounded-xl border border-blue-200 p-4 text-sm text-blue-800">
-              <p className="font-medium mb-1">Payment</p>
+              <p className="font-medium mb-1">{t('review.paymentHeading')}</p>
               {paymentMethod === 'cash' ? (
-                <p>Pay with cash when you pick up the clubs at LENGOLF.</p>
+                <p>{t('review.paymentCashBody')}</p>
               ) : (
-                <p>Our team will send you a payment link within 2 hours. You can pay by credit/debit card or Shopee wallet.</p>
+                <p>{t('review.paymentLinkBody')}</p>
               )}
             </div>
 
@@ -1046,10 +1045,10 @@ export default function CourseRentalPage() {
               {submitting ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Submitting...
+                  {t('review.submitting')}
                 </>
               ) : (
-                'Confirm Reservation'
+                t('review.confirmReservation')
               )}
             </button>
           </div>
@@ -1063,53 +1062,55 @@ export default function CourseRentalPage() {
             </div>
 
             <div>
-              <p className="text-sm text-gray-500 mb-1">Your rental code</p>
+              <p className="text-sm text-gray-500 mb-1">{t('confirmation.rentalCodeLabel')}</p>
               <p className="text-2xl font-bold text-green-700 font-mono tracking-wider">{rentalCode}</p>
             </div>
 
             <div className="bg-white rounded-xl border border-gray-200 p-5 text-left space-y-3">
               <div>
-                <p className="text-xs text-gray-500">Club Set</p>
+                <p className="text-xs text-gray-500">{t('confirmation.clubSetLabel')}</p>
                 <p className="font-semibold text-gray-900">{selectedSet?.name}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Dates</p>
+                <p className="text-xs text-gray-500">{t('confirmation.datesLabel')}</p>
                 <p className="font-medium text-gray-900">
-                  {new Date(startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {format.dateTime(new Date(`${startDate}T00:00:00+07:00`), { timeZone: 'Asia/Bangkok', month: 'short', day: 'numeric' })}
                   {' → '}
-                  {new Date(endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  {' '}({durationDays}d)
+                  {format.dateTime(new Date(`${endDate}T00:00:00+07:00`), { timeZone: 'Asia/Bangkok', month: 'short', day: 'numeric' })}
+                  {' '}{t('confirmation.daysSuffix', { count: durationDays })}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">{deliveryRequested ? 'Delivery' : 'Pickup'}</p>
+                <p className="text-xs text-gray-500">{deliveryRequested ? t('confirmation.deliveryHeading') : t('confirmation.pickupHeading')}</p>
                 <p className="font-medium text-gray-900">
-                  {deliveryRequested ? deliveryAddress : 'LENGOLF, Mercury Ville, Chidlom'}
+                  {deliveryRequested ? deliveryAddress : t('confirmation.pickupAddressShort')}
                 </p>
                 {(pickupTime || returnTime) && (
                   <p className="text-sm text-gray-500">
-                    {deliveryRequested ? 'Delivery' : 'Pickup'}: {pickupTime} · Return: {returnTime}
+                    {deliveryRequested
+                      ? t('confirmation.deliveryTimeSummary', { delivery: pickupTime, return: returnTime })
+                      : t('confirmation.pickupTimeSummary', { pickup: pickupTime, return: returnTime })}
                   </p>
                 )}
               </div>
               <div>
-                <p className="text-xs text-gray-500">Payment</p>
+                <p className="text-xs text-gray-500">{t('confirmation.paymentHeading')}</p>
                 <p className="font-medium text-gray-900">
-                  {paymentMethod === 'cash' ? 'Cash (at LENGOLF)' : 'Credit Card / QR (payment link)'}
+                  {paymentMethod === 'cash' ? t('confirmation.paymentCash') : t('confirmation.paymentLink')}
                 </p>
               </div>
               <div className="pt-2 border-t border-gray-100">
-                <p className="text-xs text-gray-500">Total</p>
-                <p className="text-xl font-bold text-green-700">฿{totalPrice.toLocaleString('en-US')}</p>
+                <p className="text-xs text-gray-500">{t('confirmation.totalLabel')}</p>
+                <p className="text-xl font-bold text-green-700">฿{format.number(totalPrice)}</p>
               </div>
             </div>
 
             <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
-              <p className="font-medium mb-1">What happens next?</p>
+              <p className="font-medium mb-1">{t('confirmation.nextHeading')}</p>
               {paymentMethod === 'cash' ? (
-                <p>Our team will contact you within 2 hours to confirm your reservation. Pay with cash when you pick up the clubs.</p>
+                <p>{t('confirmation.nextCashBody')}</p>
               ) : (
-                <p>Our team will contact you within 2 hours to confirm your reservation and send a payment link.</p>
+                <p>{t('confirmation.nextLinkBody')}</p>
               )}
             </div>
 
@@ -1121,14 +1122,14 @@ export default function CourseRentalPage() {
                 className="flex-1 flex items-center justify-center gap-2 bg-[#06C755] text-white px-4 py-3 rounded-xl font-medium hover:bg-[#05b04e] transition-colors"
               >
                 <FaLine className="text-xl" />
-                Contact via LINE
+                {t('confirmation.contactLineCta')}
               </a>
               <a
                 href="tel:0966682335"
                 className="flex-1 flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-3 rounded-xl font-medium hover:bg-gray-700 transition-colors"
               >
                 <PhoneIcon className="h-5 w-5" />
-                Call 096-668-2335
+                {t('confirmation.callCta')}
               </a>
             </div>
           </div>
@@ -1151,7 +1152,7 @@ export default function CourseRentalPage() {
           </button>
 
           <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-xs sm:text-sm font-medium">
-            {lightboxIndex + 1} / {lightboxImages.length}
+            {t('lightbox.indexCounter', { current: lightboxIndex + 1, total: lightboxImages.length })}
           </div>
 
           <div className="flex-1 flex items-center justify-center w-full px-12 sm:px-20" onClick={e => e.stopPropagation()}>
