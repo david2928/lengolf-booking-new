@@ -397,6 +397,12 @@ export default function GolfClubRentalPage() {
               </Link>
             </div>
           </div>
+
+          {/* Handedness note */}
+          <div className="mx-auto mt-6 max-w-4xl rounded-lg border border-green-200 bg-green-50 px-4 sm:px-5 py-3 sm:py-4 text-sm">
+            <p className="font-semibold text-green-800">{t('sets.handednessNoteTitle')}</p>
+            <p className="mt-1 text-gray-700">{t('sets.handednessNote')}</p>
+          </div>
         </div>
 
         {/* Why Choose LENGOLF Section */}
@@ -465,6 +471,12 @@ export default function GolfClubRentalPage() {
                   {t('faq.q4Link')}
                 </Link>
                 {t('faq.q4BodyAfter')}
+              </p>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+              <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">{t('faq.q5Title')}</h3>
+              <p className="text-xs sm:text-sm text-gray-700">
+                {t('faq.q5Body')}
               </p>
             </div>
           </div>

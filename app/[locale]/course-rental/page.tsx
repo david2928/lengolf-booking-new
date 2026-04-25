@@ -333,6 +333,17 @@ export default function CourseRentalPage() {
               </span>
             </div>
 
+            {/* Handedness note */}
+            <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-xs sm:text-sm">
+              <p className="font-semibold text-green-800">All sets shown are right-handed</p>
+              <p className="mt-0.5 text-gray-700">
+                We have one left-handed Premium set available on request. Please contact us on{' '}
+                <a href="https://lin.ee/uxQpIXn" target="_blank" rel="noopener noreferrer" className="font-semibold text-green-700 underline">
+                  LINE @lengolf
+                </a>{' '}before booking to confirm availability.
+              </p>
+            </div>
+
             {setsLoading ? (
               <div className="flex justify-center py-12">
                 <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />

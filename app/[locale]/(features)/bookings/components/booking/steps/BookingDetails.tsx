@@ -1556,6 +1556,7 @@ export function BookingDetails({
                     </table>
                   </div>
                   <p className="text-center text-xs text-gray-500 mt-2">{t('clubRentalStandardFreeNote')}</p>
+                  <p className="text-center text-xs text-gray-500 mt-1 italic">{t('clubRentalHandednessNote')}</p>
                 </div>
 
                 {/* Club Options - flex col on mobile, 3-col on desktop, all cards stretch to equal height */}

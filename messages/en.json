@@ -255,6 +255,7 @@
       "clubRentalTablePremium": "Premium",
       "clubRentalTablePremiumPlus": "Premium+",
       "clubRentalStandardFreeNote": "Standard clubs are always free with any bay booking",
+      "clubRentalHandednessNote": "Premium sets shown are right-handed. Need a left-handed Premium set? Contact us on LINE @lengolf to reserve.",
       "clubRentalStandardCardTitle": "Standard Set",
       "clubRentalStandardCardSubtitle": "Quality house set — great for casual play",
       "clubRentalStandardCardSubtitle2": "House Set — Men's & Ladies'",
@@ -735,7 +736,9 @@
       "premiumPlusItem2": "Irons 5–PW — Tungsten weighted",
       "premiumPlusItem3": "Jaws Raw Wedges (52°, 56°)",
       "premiumPlusItem4": "Odyssey Putter + Callaway camo bag",
-      "premiumPlusCta": "Book with Premium+ Clubs"
+      "premiumPlusCta": "Book with Premium+ Clubs",
+      "handednessNoteTitle": "Right-handed by default",
+      "handednessNote": "All Premium and Premium+ sets shown are right-handed. Free standard left-handed clubs are available with every bay booking, and we keep one left-handed Premium rental set available on request — contact us on LINE @lengolf to reserve."
     },
     "why": {
       "heading": "Why Choose LENGOLF Golf Club Rental?",
@@ -759,7 +762,9 @@
       "q4Title": "Can I use the rental clubs outside of LENGOLF?",
       "q4BodyBefore": "The hourly rates on this page are for in-bay simulator use only. For taking clubs to a Bangkok golf course (daily rates from ฿1,200 with delivery available), see our ",
       "q4Link": "Golf Course Club Rental",
-      "q4BodyAfter": " page."
+      "q4BodyAfter": " page.",
+      "q5Title": "Do you have left-handed clubs?",
+      "q5Body": "Yes — free standard left-handed clubs are included with any bay booking. We also have one left-handed Premium rental set available on request, charged at our regular Premium rates. The Premium+ Paradym is right-handed only. Message us on LINE @lengolf to reserve a left-handed Premium set in advance."
     },
     "cta": {
       "heading": "Ready to Play with Premium Clubs?",

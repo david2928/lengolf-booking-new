@@ -255,6 +255,7 @@
       "clubRentalTablePremium": "프리미엄",
       "clubRentalTablePremiumPlus": "프리미엄+",
       "clubRentalStandardFreeNote": "스탠다드 클럽은 모든 베이 예약에 무료로 제공됩니다",
+      "clubRentalHandednessNote": "표시된 프리미엄 세트는 오른손잡이용입니다. 왼손잡이용 프리미엄 세트가 필요하신가요? LINE @lengolf으로 연락 주세요.",
       "clubRentalStandardCardTitle": "스탠다드 세트",
       "clubRentalStandardCardSubtitle": "고품질 하우스 세트 — 캐주얼한 플레이에 적합",
       "clubRentalStandardCardSubtitle2": "하우스 세트 — 남성용 & 여성용",
@@ -735,7 +736,9 @@
       "premiumPlusItem2": "아이언 5–PW — 텅스텐 웨이트",
       "premiumPlusItem3": "Jaws Raw 웨지 (52°, 56°)",
       "premiumPlusItem4": "Odyssey 퍼터 + Callaway 카모 백",
-      "premiumPlusCta": "프리미엄+ 클럽으로 예약"
+      "premiumPlusCta": "프리미엄+ 클럽으로 예약",
+      "handednessNoteTitle": "표시된 세트는 모두 오른손잡이용",
+      "handednessNote": "표시된 모든 프리미엄 및 프리미엄+ 세트는 오른손잡이용입니다. 베이 예약 시 표준 왼손잡이용 클럽은 무료로 이용 가능합니다. 또한 왼손잡이용 프리미엄 렌탈 세트가 1개 있어 요청 시 이용 가능합니다 — LINE @lengolf으로 연락하여 예약해 주세요."
     },
     "why": {
       "heading": "왜 LENGOLF 골프 클럽 렌탈을 선택해야 할까요?",
@@ -759,7 +762,9 @@
       "q4Title": "렌탈 클럽을 LENGOLF 외부에서 사용할 수 있나요?",
       "q4BodyBefore": "이 페이지의 시간 요금은 베이 시뮬레이터 사용에만 해당됩니다. 방콕 골프 코스로 클럽을 가져가시려면(฿1,200부터 일일 요금, 배송 가능), ",
       "q4Link": "골프 코스 클럽 렌탈",
-      "q4BodyAfter": " 페이지를 참조해 주세요."
+      "q4BodyAfter": " 페이지를 참조해 주세요.",
+      "q5Title": "왼손잡이용 클럽이 있나요?",
+      "q5Body": "네 — 베이 예약 시 표준 왼손잡이용 클럽은 무료로 제공됩니다. 또한 왼손잡이용 프리미엄 렌탈 세트가 1개 있으며, 일반 프리미엄 요금으로 요청 가능합니다. 프리미엄+ Paradym은 오른손잡이 전용입니다. LINE @lengolf으로 미리 연락하여 왼손잡이용 프리미엄 세트를 예약해 주세요."
     },
     "cta": {
       "heading": "프리미엄 클럽으로 플레이할 준비가 되셨나요?",

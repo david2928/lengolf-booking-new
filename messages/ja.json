@@ -255,6 +255,7 @@
       "clubRentalTablePremium": "プレミアム",
       "clubRentalTablePremiumPlus": "プレミアム+",
       "clubRentalStandardFreeNote": "スタンダードクラブはすべてのベイ予約で無料",
+      "clubRentalHandednessNote": "表示されているプレミアムセットは右利き用です。左利き用のプレミアムセットをご希望ですか？LINE @lengolfまでご連絡ください。",
       "clubRentalStandardCardTitle": "スタンダードセット",
       "clubRentalStandardCardSubtitle": "高品質ハウスセット — カジュアルなプレーに最適",
       "clubRentalStandardCardSubtitle2": "ハウスセット — メンズ＆レディース",
@@ -735,7 +736,9 @@
       "premiumPlusItem2": "アイアン 5–PW — タングステンウェイト搭載",
       "premiumPlusItem3": "Jaws Raw ウェッジ (52°、56°)",
       "premiumPlusItem4": "Odyssey パター + Callaway カモバッグ",
-      "premiumPlusCta": "プレミアム+ クラブで予約"
+      "premiumPlusCta": "プレミアム+ クラブで予約",
+      "handednessNoteTitle": "表示はすべて右利き用",
+      "handednessNote": "表示されているプレミアムおよびプレミアム+セットはすべて右利き用です。スタンダードの左利き用クラブはベイご予約時に無料でご利用いただけます。また、左利き用プレミアムレンタルセットを1セットご用意しておりますので、ご希望の方はLINE @lengolfまでご連絡ください。"
     },
     "why": {
       "heading": "LENGOLF ゴルフクラブレンタルを選ぶ理由",
@@ -759,7 +762,9 @@
       "q4Title": "レンタルクラブを LENGOLF 外で使用できますか？",
       "q4BodyBefore": "このページの時間料金はベイ内シミュレーター利用のみ対象です。バンコクのゴルフコースへのクラブ持ち出し（฿1,200〜の日料金、配送あり）については、",
       "q4Link": "ゴルフコース用クラブレンタル",
-      "q4BodyAfter": " ページをご覧ください。"
+      "q4BodyAfter": " ページをご覧ください。",
+      "q5Title": "左利き用のクラブはありますか？",
+      "q5Body": "はい — スタンダードの左利き用クラブはベイ予約時に無料でご利用いただけます。さらに左利き用プレミアムレンタルセットを1セットご用意しており、通常のプレミアム料金でリクエスト可能です。プレミアム+ Paradymは右利き専用です。LINE @lengolfまで事前にご連絡いただければ、左利き用プレミアムセットをお取り置きいたします。"
     },
     "cta": {
       "heading": "プレミアムクラブでプレーする準備はできましたか？",

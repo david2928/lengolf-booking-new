@@ -255,6 +255,7 @@
       "clubRentalTablePremium": "พรีเมียม",
       "clubRentalTablePremiumPlus": "พรีเมียม+",
       "clubRentalStandardFreeNote": "ไม้มาตรฐานฟรีกับทุกการจองเบย์",
+      "clubRentalHandednessNote": "เซ็ต Premium ที่แสดงเป็นไม้สำหรับมือขวา ต้องการเซ็ต Premium มือซ้าย? ติดต่อเราทาง LINE @lengolf เพื่อสำรอง",
       "clubRentalStandardCardTitle": "ชุดมาตรฐาน",
       "clubRentalStandardCardSubtitle": "ชุดของร้านคุณภาพดี — เหมาะกับการเล่นทั่วไป",
       "clubRentalStandardCardSubtitle2": "ชุดของร้าน — ผู้ชายและผู้หญิง",
@@ -735,7 +736,9 @@
       "premiumPlusItem2": "ไอรอน 5–PW — ถ่วงน้ำหนักทังสเตน",
       "premiumPlusItem3": "Jaws Raw Wedges (52°, 56°)",
       "premiumPlusItem4": "พัตเตอร์ Odyssey + ถุงลายพราง Callaway",
-      "premiumPlusCta": "จองพร้อมไม้พรีเมียม+"
+      "premiumPlusCta": "จองพร้อมไม้พรีเมียม+",
+      "handednessNoteTitle": "ไม้แสดงทั้งหมดสำหรับมือขวา",
+      "handednessNote": "เซ็ต Premium และ Premium+ ที่แสดงทั้งหมดเป็นไม้สำหรับมือขวา ไม้กอล์ฟมาตรฐานสำหรับมือซ้ายมีให้บริการฟรีทุกการจองเบย์ และเรามีเซ็ต Premium มือซ้าย 1 ชุดให้เช่าตามคำขอ — ติดต่อเราทาง LINE @lengolf เพื่อสำรอง"
     },
     "why": {
       "heading": "ทำไมเลือกเช่าไม้กอล์ฟ LENGOLF?",
@@ -759,7 +762,9 @@
       "q4Title": "สามารถใช้ไม้เช่านอก LENGOLF ได้หรือไม่?",
       "q4BodyBefore": "ราคารายชั่วโมงในหน้านี้สำหรับใช้ในเบย์ซิมูเลเตอร์เท่านั้น สำหรับการนำไม้ไปสนามกอล์ฟในกรุงเทพฯ (ราคารายวันเริ่มต้น ฿1,200 พร้อมบริการจัดส่ง) โปรดดูที่หน้า ",
       "q4Link": "เช่าไม้กอล์ฟสำหรับสนาม",
-      "q4BodyAfter": " ของเรา"
+      "q4BodyAfter": " ของเรา",
+      "q5Title": "มีไม้กอล์ฟสำหรับมือซ้ายไหม?",
+      "q5Body": "มีค่ะ — ไม้กอล์ฟมาตรฐานมือซ้ายฟรีทุกการจองเบย์ และเรามีเซ็ต Premium มือซ้าย 1 ชุดให้เช่าตามคำขอ ราคาเดียวกับ Premium ปกติ ส่วน Premium+ Paradym มีเฉพาะสำหรับมือขวาเท่านั้น ส่งข้อความทาง LINE @lengolf เพื่อสำรองเซ็ต Premium มือซ้ายล่วงหน้า"
     },
     "cta": {
       "heading": "พร้อมเล่นกับไม้พรีเมียมแล้วหรือยัง?",
