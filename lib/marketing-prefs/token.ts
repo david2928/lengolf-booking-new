@@ -23,10 +23,16 @@ import { createHmac, timingSafeEqual } from 'crypto';
  */
 
 const SECRET_ENV = process.env.MARKETING_PREFS_SECRET;
-if (!SECRET_ENV || SECRET_ENV.length < 32) {
+// Floor of 64 characters. The expected format is `openssl rand -hex 32`
+// (64 hex chars = 32 bytes of entropy). Base64-encoded 32 bytes = ~44
+// chars and would be rejected — operators must use hex or pad. Assuming
+// hex encoding, this guards against the "32 chars looks like 32 bytes
+// but is only 16 bytes of entropy" misconfiguration.
+if (!SECRET_ENV || SECRET_ENV.length < 64) {
   throw new Error(
-    'MARKETING_PREFS_SECRET is required and must be at least 32 bytes. ' +
-      'Generate with `openssl rand -hex 32` and set in .env.local plus all Vercel environments.'
+    'MARKETING_PREFS_SECRET is required and must be at least 64 hex characters ' +
+      '(32 bytes of entropy). Generate with `openssl rand -hex 32` and set in ' +
+      '.env.local plus all Vercel environments.'
   );
 }
 const SECRET = SECRET_ENV;
@@ -55,7 +61,8 @@ function hmac(customerId: string): Buffer {
 
 export function signCustomerToken(customerId: string): string {
   if (!UUID_RE.test(customerId)) {
-    throw new Error(`signCustomerToken: customerId must be a UUID, got: ${customerId}`);
+    // Avoid echoing the input back into the error — it might land in logs.
+    throw new Error('signCustomerToken: customerId must be a UUID');
   }
   return `${customerId}.${base64url(hmac(customerId))}`;
 }

@@ -730,24 +730,36 @@ export async function POST(request: NextRequest) {
         const matchedCustomer = (customerResult as CustomerResult).customer as
           { id: string; customer_code: string; customer_name: string; email?: string | null };
 
+        // The form checkbox always wins. Profile carry-over from GuestForm
+        // signup only applies for first-time customers AND only when the
+        // booking form was unticked (so we don't override a deliberate
+        // un-tick — note: we only carry-over upward from false→true, never
+        // the other direction).
         let shouldOptIn = marketingOptInForm;
         if (!shouldOptIn && isNewCustomer) {
-          // Carry GuestForm consent from profiles into the new customer record.
-          const { data: profileRow } = await supabase
+          const { data: profileRow, error: profileLookupError } = await supabase
             .from('profiles')
             .select('marketing_preference')
             .eq('id', userId)
             .maybeSingle();
-          if (profileRow?.marketing_preference === true) {
+          if (profileLookupError) {
+            console.warn(
+              '[Booking] profiles.marketing_preference lookup failed; skipping carry-over.',
+              profileLookupError
+            );
+          } else if (profileRow?.marketing_preference === true) {
             shouldOptIn = true;
           }
         }
 
         if (shouldOptIn) {
-          const matchedEmail = (matchedCustomer.email ?? '').trim().toLowerCase();
-          const formEmail = (email ?? '').trim().toLowerCase();
+          // Normalize emails for the household-phone identity guard. A
+          // whitespace-only matched email collapses to null (treated as
+          // "no email on record"); same for missing/undefined.
+          const matchedEmail = matchedCustomer.email?.trim().toLowerCase() || null;
+          const formEmail = (email ?? '').trim().toLowerCase() || null;
           const identityOk =
-            isNewCustomer || !matchedEmail || matchedEmail === formEmail;
+            isNewCustomer || matchedEmail === null || matchedEmail === formEmail;
 
           if (!identityOk) {
             console.info(
@@ -757,9 +769,11 @@ export async function POST(request: NextRequest) {
           } else {
             const source = isNewCustomer ? 'guest_signup' : 'booking_form';
             // Fire-and-forget; never block the booking response on consent
-            // persistence. WHERE filter is the upgrade-only guard at the DB
-            // level — if the row is already opt-in=true we don't overwrite the
-            // earlier `_changed_at` / `_source`.
+            // persistence. We deliberately UPDATE on every positive consent
+            // signal (no `.neq` filter) so `_changed_at` reflects the most
+            // recent affirmation — that's what compliance audits want to see.
+            // The upgrade-only invariant lives in the value (`true`); we
+            // never write `false` from this path.
             supabase
               .from('customers')
               .update({
@@ -768,7 +782,6 @@ export async function POST(request: NextRequest) {
                 marketing_opt_in_source: source,
               })
               .eq('id', customerId)
-              .neq('marketing_opt_in', true)
               .then(({ error: optInError }) => {
                 if (optInError) {
                   console.warn('[Booking] Failed to update marketing_opt_in:', optInError);

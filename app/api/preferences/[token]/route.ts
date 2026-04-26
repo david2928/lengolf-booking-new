@@ -52,6 +52,17 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     );
   }
 
+  // Belt-and-suspenders: if Origin is sent, it must match our app origin.
+  // Same-origin browser requests omit Origin or set it to NEXT_PUBLIC_APP_URL.
+  // This blocks cross-site fetch calls even if a future config relaxes CORS.
+  const origin = req.headers.get('origin');
+  if (origin) {
+    const expected = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '');
+    if (expected && origin.replace(/\/+$/, '') !== expected) {
+      return NextResponse.json({ error: 'Forbidden origin' }, { status: 403 });
+    }
+  }
+
   let body: unknown;
   try {
     body = await req.json();
