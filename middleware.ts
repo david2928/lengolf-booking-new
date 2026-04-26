@@ -44,6 +44,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Customer preference center: public + tokenized, lives outside [locale].
+  // Must bypass NextAuth + next-intl entirely so the unsubscribe link in any
+  // future email keeps working without a session and without locale rewrites.
+  if (
+    pathname === '/preferences' ||
+    pathname.startsWith('/preferences/') ||
+    pathname.startsWith('/api/preferences/')
+  ) {
+    return NextResponse.next();
+  }
+
   // /auth/error is outside the [locale] segment (registered as OAuth callback
   // URL) — the exact URL is what providers call back to. Don't let next-intl
   // localize it. All other /auth/* paths (login, etc.) live under
@@ -128,5 +139,7 @@ export const config = {
     '/course-rental/:path*',
     '/auth/:path*',
     '/liff/:path*',
+    '/preferences/:path*',
+    '/api/preferences/:path*',
   ],
 };

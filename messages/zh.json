@@ -51,7 +51,9 @@
       "guestProcessing": "处理中...",
       "guestAllFieldsRequired": "所有字段都是必填的。",
       "guestInvalidPhone": "请输入有效的电话号码。",
-      "guestSessionFailed": "创建访客会话失败。请重试。"
+      "guestSessionFailed": "创建访客会话失败。请重试。",
+      "marketingOptInLabel": "向我发送 LENGOLF 资讯与优惠",
+      "marketingOptInDescription": "球道优惠、教练促销、会员活动。您可以随时从任何邮件中取消订阅。"
     }
   },
   "bookings": {
@@ -223,7 +225,9 @@
       "back": "返回",
       "confirmBooking": "确认预约",
       "processing": "处理中...",
-      "consentNote": "通过预约，您同意接收预约状态更新和到访后的评价请求。",
+      "consentNote": "通过预约，您同意接收预约状态更新和到访后的评价请求邮件。营销邮件是单独的 — 请参阅上方的选项。",
+      "marketingOptInLabel": "向我发送 LENGOLF 资讯与优惠",
+      "marketingOptInDescription": "球道优惠、教练促销、会员活动。您可以随时从任何邮件中取消订阅。",
       "loadingOverlayTitle": "正在确认您的预约",
       "loadingOverlaySubtitle": "请稍候，我们正在处理您的预约",
       "loadingStepCheckingAvailability": "检查可用性",

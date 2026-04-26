@@ -282,7 +282,12 @@ export async function POST(request: NextRequest) {
       language,
       club_set_id,
       club_rental_type,
+      marketing_opt_in: rawMarketingOptIn,
     } = await request.json();
+
+    // Coerce to a strict boolean — only the explicit value `true` is consent.
+    // Anything else (missing field, null, 'true' string, etc.) is no consent.
+    const marketingOptInForm: boolean = rawMarketingOptIn === true;
 
     // 2. Authenticate user - support both NextAuth and LIFF context
     const lineUserId = request.headers.get('x-line-user-id');
@@ -702,6 +707,79 @@ export async function POST(request: NextRequest) {
             appCache.del(`membership_data_${lineUserId}`);
           }
         });
+    }
+
+    // Marketing opt-in propagation (PDPA-aligned, upgrade-only).
+    //
+    // Sources of consent at this point:
+    //   1. The BookingDetails checkbox (`marketingOptInForm`).
+    //   2. For new customers, a prior GuestForm signup may have stored consent
+    //      on `profiles.marketing_preference`.
+    //
+    // Rules:
+    //   - Upgrade-only: we only ever flip `customers.marketing_opt_in` to TRUE.
+    //     An unticked checkbox NEVER silently revokes a prior opt-in. Customers
+    //     revoke deliberately via the preference center.
+    //   - Identity guard: when matching an existing customer (typically by
+    //     phone), the booking's email may not match the matched customer's
+    //     email — household-shared phone scenario. In that case we don't write
+    //     consent against the matched record (which may belong to a different
+    //     person).
+    if (customerId && customerResult) {
+      try {
+        const matchedCustomer = (customerResult as CustomerResult).customer as
+          { id: string; customer_code: string; customer_name: string; email?: string | null };
+
+        let shouldOptIn = marketingOptInForm;
+        if (!shouldOptIn && isNewCustomer) {
+          // Carry GuestForm consent from profiles into the new customer record.
+          const { data: profileRow } = await supabase
+            .from('profiles')
+            .select('marketing_preference')
+            .eq('id', userId)
+            .maybeSingle();
+          if (profileRow?.marketing_preference === true) {
+            shouldOptIn = true;
+          }
+        }
+
+        if (shouldOptIn) {
+          const matchedEmail = (matchedCustomer.email ?? '').trim().toLowerCase();
+          const formEmail = (email ?? '').trim().toLowerCase();
+          const identityOk =
+            isNewCustomer || !matchedEmail || matchedEmail === formEmail;
+
+          if (!identityOk) {
+            console.info(
+              '[Booking] Marketing opt-in skipped — email mismatch on existing customer (household-phone guard).',
+              { customerId, isNewCustomer }
+            );
+          } else {
+            const source = isNewCustomer ? 'guest_signup' : 'booking_form';
+            // Fire-and-forget; never block the booking response on consent
+            // persistence. WHERE filter is the upgrade-only guard at the DB
+            // level — if the row is already opt-in=true we don't overwrite the
+            // earlier `_changed_at` / `_source`.
+            supabase
+              .from('customers')
+              .update({
+                marketing_opt_in: true,
+                marketing_opt_in_changed_at: new Date().toISOString(),
+                marketing_opt_in_source: source,
+              })
+              .eq('id', customerId)
+              .neq('marketing_opt_in', true)
+              .then(({ error: optInError }) => {
+                if (optInError) {
+                  console.warn('[Booking] Failed to update marketing_opt_in:', optInError);
+                }
+              });
+          }
+        }
+      } catch (optInErr) {
+        // Non-critical — never fail the booking on a consent-write error.
+        console.warn('[Booking] Marketing opt-in propagation error:', optInErr);
+      }
     }
 
     // Update bookingId once we have it

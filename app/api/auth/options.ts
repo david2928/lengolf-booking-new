@@ -115,15 +115,21 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         name: { label: 'Name', type: 'text' },
         email: { label: 'Email', type: 'email' },
-        phone: { label: 'Phone', type: 'tel' }
+        phone: { label: 'Phone', type: 'tel' },
+        marketing_preference: { label: 'Marketing preference', type: 'text' }
       },
       async authorize(credentials) {
         if (!credentials?.name || !credentials?.email || !credentials?.phone) {
           return null;
         }
 
+        // NextAuth credentials are always strings — coerce to boolean.
+        // Only an explicit 'true' opts the guest in; anything else (missing,
+        // 'false', 'null', empty) is treated as no consent.
+        const marketingOptIn = credentials.marketing_preference === 'true';
+
         const supabase = supabaseAdminClient;
-        
+
         const { data: existingProfile } = await supabase
           .from('profiles')
           .select('*')
@@ -132,13 +138,26 @@ export const authOptions: NextAuthOptions = {
           .single();
 
         if (existingProfile) {
+          // Upgrade-only: ticking the box re-affirms consent on the existing
+          // profile, but unticking it never silently revokes a prior opt-in.
+          // Customers revoke deliberately via the preference center.
+          const updatePayload: {
+            display_name: string;
+            phone_number: string;
+            updated_at: string;
+            marketing_preference?: boolean;
+          } = {
+            display_name: credentials.name,
+            phone_number: credentials.phone,
+            updated_at: new Date().toISOString()
+          };
+          if (marketingOptIn) {
+            updatePayload.marketing_preference = true;
+          }
+
           const { data: profile } = await supabase
             .from('profiles')
-            .update({
-              display_name: credentials.name,
-              phone_number: credentials.phone,
-              updated_at: new Date().toISOString()
-            })
+            .update(updatePayload)
             .eq('id', existingProfile.id)
             .select()
             .single();
@@ -163,6 +182,7 @@ export const authOptions: NextAuthOptions = {
             display_name: credentials.name,
             phone_number: credentials.phone,
             provider: 'guest',
+            marketing_preference: marketingOptIn,
             updated_at: new Date().toISOString()
           })
           .select()

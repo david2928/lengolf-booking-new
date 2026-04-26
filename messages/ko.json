@@ -51,7 +51,9 @@
       "guestProcessing": "처리 중...",
       "guestAllFieldsRequired": "모든 항목은 필수입니다.",
       "guestInvalidPhone": "올바른 전화번호를 입력해 주세요.",
-      "guestSessionFailed": "게스트 세션 생성에 실패했습니다. 다시 시도해 주세요."
+      "guestSessionFailed": "게스트 세션 생성에 실패했습니다. 다시 시도해 주세요.",
+      "marketingOptInLabel": "LENGOLF 소식 및 프로모션 받기",
+      "marketingOptInDescription": "베이 할인, 코칭 프로모션, 멤버 이벤트. 언제든지 이메일에서 수신 거부할 수 있습니다."
     }
   },
   "bookings": {
@@ -223,7 +225,9 @@
       "back": "뒤로",
       "confirmBooking": "예약 확정",
       "processing": "처리 중...",
-      "consentNote": "예약하시면 예약 상태 업데이트 및 방문 후 리뷰 요청 수신에 동의하는 것으로 간주됩니다.",
+      "consentNote": "예약하시면 예약 상태 업데이트 및 방문 후 리뷰 요청 이메일 수신에 동의하는 것으로 간주됩니다. 마케팅 이메일은 별도로 위의 옵션을 확인해 주세요.",
+      "marketingOptInLabel": "LENGOLF 소식 및 프로모션 받기",
+      "marketingOptInDescription": "베이 할인, 코칭 프로모션, 멤버 이벤트. 언제든지 이메일에서 수신 거부할 수 있습니다.",
       "loadingOverlayTitle": "예약을 확정하고 있습니다",
       "loadingOverlaySubtitle": "예약을 처리하는 동안 잠시만 기다려 주세요",
       "loadingStepCheckingAvailability": "이용 가능 여부 확인 중",

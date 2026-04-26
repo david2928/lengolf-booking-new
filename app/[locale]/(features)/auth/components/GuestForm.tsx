@@ -23,6 +23,7 @@ export default function GuestForm({ onClose }: GuestFormProps) {
     email: '',
     phone: undefined,
   });
+  const [marketingOptIn, setMarketingOptIn] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -49,6 +50,7 @@ export default function GuestForm({ onClose }: GuestFormProps) {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        marketing_preference: marketingOptIn ? 'true' : 'false',
         redirect: false
       });
 
@@ -107,6 +109,31 @@ export default function GuestForm({ onClose }: GuestFormProps) {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
+
+          {/* Marketing opt-in: only meaningful once an email is entered. */}
+          {formData.email.trim().length > 0 && (
+            <label
+              htmlFor="guest-marketing-opt-in"
+              className="flex items-start gap-3 p-3 rounded-md cursor-pointer"
+              style={{
+                backgroundColor: 'rgba(0, 90, 50, 0.08)',
+                border: '1px solid rgba(0, 90, 50, 0.4)',
+              }}
+            >
+              <input
+                id="guest-marketing-opt-in"
+                type="checkbox"
+                className="mt-1 h-4 w-4 accent-[#005a32]"
+                checked={marketingOptIn}
+                onChange={(e) => setMarketingOptIn(e.target.checked)}
+                disabled={isSubmitting}
+              />
+              <span className="text-sm text-gray-800">
+                <span className="font-medium block">{t('marketingOptInLabel')}</span>
+                <span className="text-gray-600">{t('marketingOptInDescription')}</span>
+              </span>
+            </label>
+          )}
 
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700">

@@ -51,7 +51,9 @@
       "guestProcessing": "Processing...",
       "guestAllFieldsRequired": "All fields are required.",
       "guestInvalidPhone": "Please enter a valid phone number.",
-      "guestSessionFailed": "Failed to create guest session. Please try again."
+      "guestSessionFailed": "Failed to create guest session. Please try again.",
+      "marketingOptInLabel": "Send me LENGOLF news & offers",
+      "marketingOptInDescription": "Bay deals, coaching promos, member events. You can unsubscribe any time from any email."
     }
   },
   "bookings": {
@@ -223,7 +225,9 @@
       "back": "Back",
       "confirmBooking": "Confirm Booking",
       "processing": "Processing...",
-      "consentNote": "By booking, you agree to receive booking status updates and a post-visit review request.",
+      "consentNote": "By booking, you agree to receive booking status updates and a post-visit review email. Marketing emails are separate — see the opt-in above.",
+      "marketingOptInLabel": "Send me LENGOLF news & offers",
+      "marketingOptInDescription": "Bay deals, coaching promos, member events. You can unsubscribe any time from any email.",
       "loadingOverlayTitle": "Confirming Your Booking",
       "loadingOverlaySubtitle": "Please wait while we process your reservation",
       "loadingStepCheckingAvailability": "Checking availability",
