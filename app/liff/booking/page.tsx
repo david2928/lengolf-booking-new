@@ -25,6 +25,11 @@ interface BookingResult {
   bookingId: string;
   bay: string;
   bayDisplayName: string;
+  // Authoritative new-customer flag from the server (set by the
+  // check_new_customer trigger when the booking row was inserted). Used by
+  // the success screen so the post-confirm cost matches the DB row, not
+  // whatever stale value the pre-confirm preview had.
+  isNewCustomer: boolean;
 }
 
 interface UserDataResponse {
@@ -93,6 +98,34 @@ export default function LiffBookingPage() {
     setLanguage(resolveLanguage());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-evaluate new-customer status whenever the phone field changes.
+  // Uses the canonical public.is_phone_new_customer predicate via
+  // /api/user/has-bookings?phone=… so that an existing customer logging in
+  // through a fresh LINE LIFF profile (or any unlinked auth) is correctly
+  // identified before they confirm — preventing B1G1 from being shown to
+  // returning customers in the cost preview.
+  useEffect(() => {
+    const phone = formData.phone?.trim();
+    if (!phone || phone.length < 8) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/api/user/has-bookings?phone=${encodeURIComponent(phone)}`, {
+        signal: controller.signal,
+      })
+        .then(res => res.json())
+        .then(hbData => setIsNewCustomer(hbData.hasBookings === false))
+        .catch((err) => {
+          if (err?.name !== 'AbortError') {
+            // Conservative: leave whatever state we had
+          }
+        });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [formData.phone]);
 
   const initializeLiff = async () => {
     try {
@@ -389,7 +422,12 @@ export default function LiffBookingPage() {
       setBookingResult({
         bookingId: result.bookingId,
         bay: result.bay,
-        bayDisplayName: result.bayDisplayName
+        bayDisplayName: result.bayDisplayName,
+        // Pull the trigger-set authoritative flag from the booking row that
+        // the API echoes back. Used by the success-screen cost calc instead
+        // of the local isNewCustomer state, which can be stale (it was set
+        // earlier in the session before customer-matching ran).
+        isNewCustomer: result.booking?.is_new_customer === true,
       });
 
       setViewState('success');
@@ -503,7 +541,12 @@ export default function LiffBookingPage() {
       return { en: 'Social Bay', th: 'Social Bay', ja: 'ソーシャルベイ', zh: 'Social Bay' }[language];
     };
 
-    // Compute cost breakdown for success screen (same as pre-confirm)
+    // Compute cost breakdown for success screen.
+    // Use the server-authoritative isNewCustomer from the booking row
+    // (set by the check_new_customer trigger via is_phone_new_customer),
+    // NOT the local state — local state may have been computed before
+    // customer-matching ran and could falsely show B1G1 to a returning
+    // customer logging in via a fresh auth profile.
     const successCostBreakdown = calculateCost({
       date: format(selectedDate, 'yyyy-MM-dd'),
       startTime: selectedSlot.time,
@@ -512,7 +555,7 @@ export default function LiffBookingPage() {
       playFoodPackageId: formData.playFoodPackage?.id ?? null,
       hasActivePackage: !!activePackage,
       packageDisplayName: activePackage?.displayName,
-      isNewCustomer,
+      isNewCustomer: bookingResult.isNewCustomer,
       applicablePromotions,
     });
 

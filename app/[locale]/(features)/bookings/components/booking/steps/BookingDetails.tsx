@@ -237,6 +237,34 @@ export function BookingDetails({
     return () => { cancelled = true; };
   }, [status]);
 
+  // Re-evaluate new-customer status whenever the phone field changes.
+  // Uses the canonical public.is_phone_new_customer predicate via
+  // /api/user/has-bookings?phone=… so that an existing customer logging in
+  // through a fresh auth profile (or guest flow) is correctly identified
+  // before they confirm — preventing B1G1 from being shown to returning
+  // customers in the cost preview.
+  useEffect(() => {
+    const phone = phoneNumber?.trim();
+    if (!phone || phone.length < 8) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/api/user/has-bookings?phone=${encodeURIComponent(phone)}`, {
+        signal: controller.signal,
+      })
+        .then(res => res.json())
+        .then(hbData => setIsNewCustomer(hbData.hasBookings === false))
+        .catch((err) => {
+          if (err?.name !== 'AbortError') {
+            // Conservative: leave whatever state we had
+          }
+        });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [phoneNumber]);
+
   // Helper function to get bay availability for a specific duration
   const getBayAvailabilityForDuration = useCallback((dur: number) => {
     if (!slotData?.bayAvailabilityByDuration) {
