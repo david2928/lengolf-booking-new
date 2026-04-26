@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
 import { createAdminClient } from '@/utils/supabase/admin';
@@ -12,12 +12,48 @@ interface HasBookingsSession extends NextAuthSession {
   user: HasBookingsSessionUser;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions) as HasBookingsSession | null;
+  const phone = request.nextUrl.searchParams.get('phone');
 
-  // If not authenticated, return false (treat as new customer)
+  // Both paths require a session. The phone-based path in particular MUST be
+  // gated: without auth it would be an enumeration oracle on customer
+  // existence (anon could probe arbitrary phone numbers and learn whether
+  // each has any prior bookings or POS sales). All legitimate callers
+  // (LIFF, NextAuth web flow, guest provider) have a session by the time
+  // they reach the cost preview, so requiring one is non-disruptive.
   if (!session?.user?.id) {
     return NextResponse.json({ hasBookings: false });
+  }
+
+  // Phone-based path uses the canonical predicate (public.is_phone_new_customer)
+  // that the check_new_customer trigger uses to set bookings.is_new_customer
+  // at insert time — single source of truth.
+  if (phone) {
+    const supabase = createAdminClient();
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('customer_id')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    const customerId = profileData?.customer_id ?? null;
+
+    const { data: isNew, error } = await supabase.rpc('is_phone_new_customer', {
+      p_phone: phone,
+      p_customer_id: customerId,
+    });
+
+    if (error) {
+      console.error('[Has Bookings API] is_phone_new_customer RPC error:', error);
+      // On error, assume user has bookings so we don't incorrectly show promos
+      return NextResponse.json({ hasBookings: true });
+    }
+
+    // RPC returns NULL when phone is unusable and no customer_id signal exists.
+    // Default to "treat as new" in that case so we don't block legitimate B1G1
+    // for genuine new customers who haven't typed enough yet.
+    const hasBookings = isNew === false;
+    return NextResponse.json({ hasBookings });
   }
 
   const profileId = session.user.id;

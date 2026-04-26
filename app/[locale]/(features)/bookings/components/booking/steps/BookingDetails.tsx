@@ -207,25 +207,22 @@ export function BookingDetails({
     let cancelled = false;
     async function fetchCostData() {
       try {
-        const [pkgRes, bookingsRes] = await Promise.all([
+        // Eligibility (isNewCustomer) is computed phone-aware in the effect
+        // watching `phoneNumber`; we deliberately do NOT call the legacy
+        // profile-only /api/user/has-bookings here because it can race the
+        // phone-aware fetch (slower of the two wins) and re-introduce the
+        // bait-and-switch bug.
+        const [pkgRes, promoRes] = await Promise.all([
           fetch('/api/user/active-packages'),
-          fetch('/api/user/has-bookings'),
+          fetch('/api/promotions/applicable'),
         ]);
         if (cancelled) return;
 
         const pkgData = await pkgRes.json();
-        const bookingsData = await bookingsRes.json();
+        const promoData = await promoRes.json();
 
         setHasActivePackage(pkgData.hasPackage ?? false);
         setPackageDisplayName(pkgData.packageDisplayName);
-
-        const newCust = bookingsData.hasBookings === false;
-        setIsNewCustomer(newCust);
-
-        // Fetch applicable promotions
-        const promoRes = await fetch('/api/promotions/applicable');
-        if (cancelled) return;
-        const promoData = await promoRes.json();
         setApplicablePromotions(promoData.promotions ?? []);
       } catch (err) {
         console.error('[CostEstimate] Failed to fetch cost data:', err);
@@ -236,6 +233,40 @@ export function BookingDetails({
     fetchCostData();
     return () => { cancelled = true; };
   }, [status]);
+
+  // Re-evaluate new-customer status whenever the phone field changes.
+  // Uses the canonical public.is_phone_new_customer predicate via
+  // /api/user/has-bookings?phone=… so that an existing customer logging in
+  // through a fresh auth profile (or guest flow) is correctly identified
+  // before they confirm — preventing B1G1 from being shown to returning
+  // customers in the cost preview.
+  //
+  // Uses a `cancelled` flag rather than AbortController because aborting
+  // the fetch doesn't stop a response that has already arrived from
+  // resolving its .then chain — meaning a slower in-flight call could
+  // overwrite a faster newer one. The flag guarantees only the latest
+  // invocation can call setState.
+  useEffect(() => {
+    const phone = phoneNumber?.trim();
+    if (!phone || phone.length < 8) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      fetch(`/api/user/has-bookings?phone=${encodeURIComponent(phone)}`)
+        .then(res => res.json())
+        .then(hbData => {
+          if (cancelled) return;
+          setIsNewCustomer(hbData.hasBookings === false);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          console.warn('[has-bookings] phone-aware fetch failed:', err);
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [phoneNumber]);
 
   // Helper function to get bay availability for a specific duration
   const getBayAvailabilityForDuration = useCallback((dur: number) => {
