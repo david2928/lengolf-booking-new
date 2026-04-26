@@ -169,6 +169,7 @@ export function BookingDetails({
   const [loadingStep, setLoadingStep] = useState(0);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
   const [customerNotes, setCustomerNotes] = useState('');
+  const [marketingOptIn, setMarketingOptIn] = useState<boolean>(false);
   const [vipDataPrepopulated, setVipDataPrepopulated] = useState(false);
 
   // Club rental availability state
@@ -661,6 +662,7 @@ export function BookingDetails({
           club_set_id: selectedClubSetId || null,
           club_rental_type: selectedClubRental,
           language: locale,
+          marketing_opt_in: marketingOptIn,
         })
       });
       
@@ -1324,6 +1326,31 @@ export function BookingDetails({
             {isSubmitting ? t('processing') : t('confirmBooking')}
           </button>
         </div>
+
+        {/* Marketing opt-in: only meaningful once an email is entered. */}
+        {email.trim().length > 0 && (
+          <label
+            htmlFor="booking-marketing-opt-in"
+            className="mt-4 flex items-start gap-3 p-3 rounded-md cursor-pointer"
+            style={{
+              backgroundColor: 'rgba(0, 90, 50, 0.08)',
+              border: '1px solid rgba(0, 90, 50, 0.4)',
+            }}
+          >
+            <input
+              id="booking-marketing-opt-in"
+              type="checkbox"
+              className="mt-1 h-4 w-4 accent-[#005a32]"
+              checked={marketingOptIn}
+              onChange={(e) => setMarketingOptIn(e.target.checked)}
+              disabled={isSubmitting}
+            />
+            <span className="text-sm text-gray-800">
+              <span className="font-medium block">{t('marketingOptInLabel')}</span>
+              <span className="text-gray-600">{t('marketingOptInDescription')}</span>
+            </span>
+          </label>
+        )}
 
         <p className="text-xs text-gray-400 text-center mt-3">
           {t('consentNote')}

@@ -51,7 +51,9 @@
       "guestProcessing": "処理中...",
       "guestAllFieldsRequired": "すべての項目が必要です。",
       "guestInvalidPhone": "正しい電話番号を入力してください。",
-      "guestSessionFailed": "ゲストセッションの作成に失敗しました。もう一度お試しください。"
+      "guestSessionFailed": "ゲストセッションの作成に失敗しました。もう一度お試しください。",
+      "marketingOptInLabel": "LENGOLFのお知らせとお得な情報を受け取る",
+      "marketingOptInDescription": "ベイ特典、コーチングのプロモーション、メンバーイベント。いつでもメールから配信停止できます。"
     }
   },
   "bookings": {
@@ -223,7 +225,9 @@
       "back": "戻る",
       "confirmBooking": "予約を確定",
       "processing": "処理中...",
-      "consentNote": "ご予約により、予約ステータス更新および来店後のレビュー依頼の受信に同意されたものとみなします。",
+      "consentNote": "ご予約により、予約ステータス更新および来店後のレビュー依頼メールの受信に同意されたものとみなします。マーケティングメールは別途、上記のオプションをご確認ください。",
+      "marketingOptInLabel": "LENGOLFのお知らせとお得な情報を受け取る",
+      "marketingOptInDescription": "ベイ特典、コーチングのプロモーション、メンバーイベント。いつでもメールから配信停止できます。",
       "loadingOverlayTitle": "予約を確定しています",
       "loadingOverlaySubtitle": "予約処理中です、少々お待ちください",
       "loadingStepCheckingAvailability": "空き状況を確認中",

@@ -282,7 +282,12 @@ export async function POST(request: NextRequest) {
       language,
       club_set_id,
       club_rental_type,
+      marketing_opt_in: rawMarketingOptIn,
     } = await request.json();
+
+    // Coerce to a strict boolean — only the explicit value `true` is consent.
+    // Anything else (missing field, null, 'true' string, etc.) is no consent.
+    const marketingOptInForm: boolean = rawMarketingOptIn === true;
 
     // 2. Authenticate user - support both NextAuth and LIFF context
     const lineUserId = request.headers.get('x-line-user-id');
@@ -702,6 +707,92 @@ export async function POST(request: NextRequest) {
             appCache.del(`membership_data_${lineUserId}`);
           }
         });
+    }
+
+    // Marketing opt-in propagation (PDPA-aligned, upgrade-only).
+    //
+    // Sources of consent at this point:
+    //   1. The BookingDetails checkbox (`marketingOptInForm`).
+    //   2. For new customers, a prior GuestForm signup may have stored consent
+    //      on `profiles.marketing_preference`.
+    //
+    // Rules:
+    //   - Upgrade-only: we only ever flip `customers.marketing_opt_in` to TRUE.
+    //     An unticked checkbox NEVER silently revokes a prior opt-in. Customers
+    //     revoke deliberately via the preference center.
+    //   - Identity guard: when matching an existing customer (typically by
+    //     phone), the booking's email may not match the matched customer's
+    //     email — household-shared phone scenario. In that case we don't write
+    //     consent against the matched record (which may belong to a different
+    //     person).
+    if (customerId && customerResult) {
+      try {
+        const matchedCustomer = (customerResult as CustomerResult).customer as
+          { id: string; customer_code: string; customer_name: string; email?: string | null };
+
+        // The form checkbox always wins. Profile carry-over from GuestForm
+        // signup only applies for first-time customers AND only when the
+        // booking form was unticked (so we don't override a deliberate
+        // un-tick — note: we only carry-over upward from false→true, never
+        // the other direction).
+        let shouldOptIn = marketingOptInForm;
+        if (!shouldOptIn && isNewCustomer) {
+          const { data: profileRow, error: profileLookupError } = await supabase
+            .from('profiles')
+            .select('marketing_preference')
+            .eq('id', userId)
+            .maybeSingle();
+          if (profileLookupError) {
+            console.warn(
+              '[Booking] profiles.marketing_preference lookup failed; skipping carry-over.',
+              profileLookupError
+            );
+          } else if (profileRow?.marketing_preference === true) {
+            shouldOptIn = true;
+          }
+        }
+
+        if (shouldOptIn) {
+          // Normalize emails for the household-phone identity guard. A
+          // whitespace-only matched email collapses to null (treated as
+          // "no email on record"); same for missing/undefined.
+          const matchedEmail = matchedCustomer.email?.trim().toLowerCase() || null;
+          const formEmail = (email ?? '').trim().toLowerCase() || null;
+          const identityOk =
+            isNewCustomer || matchedEmail === null || matchedEmail === formEmail;
+
+          if (!identityOk) {
+            console.info(
+              '[Booking] Marketing opt-in skipped — email mismatch on existing customer (household-phone guard).',
+              { customerId, isNewCustomer }
+            );
+          } else {
+            const source = isNewCustomer ? 'guest_signup' : 'booking_form';
+            // Fire-and-forget; never block the booking response on consent
+            // persistence. We deliberately UPDATE on every positive consent
+            // signal (no `.neq` filter) so `_changed_at` reflects the most
+            // recent affirmation — that's what compliance audits want to see.
+            // The upgrade-only invariant lives in the value (`true`); we
+            // never write `false` from this path.
+            supabase
+              .from('customers')
+              .update({
+                marketing_opt_in: true,
+                marketing_opt_in_changed_at: new Date().toISOString(),
+                marketing_opt_in_source: source,
+              })
+              .eq('id', customerId)
+              .then(({ error: optInError }) => {
+                if (optInError) {
+                  console.warn('[Booking] Failed to update marketing_opt_in:', optInError);
+                }
+              });
+          }
+        }
+      } catch (optInErr) {
+        // Non-critical — never fail the booking on a consent-write error.
+        console.warn('[Booking] Marketing opt-in propagation error:', optInErr);
+      }
     }
 
     // Update bookingId once we have it

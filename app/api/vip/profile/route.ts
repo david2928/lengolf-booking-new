@@ -140,7 +140,13 @@ export async function PUT(request: Request) {
       updatedFields.push('email');
     }
     if (marketingPreference !== undefined) {
+      // Customer-driven explicit toggle on the VIP profile page.
+      // Downgrades ARE legitimate here (the customer is operating their own
+      // switch), but we must record when and where the change happened so
+      // the audit trail can distinguish "never set" from "explicit opt-out".
       updatePayload.marketing_opt_in = marketingPreference;
+      updatePayload.marketing_opt_in_changed_at = new Date().toISOString();
+      updatePayload.marketing_opt_in_source = 'vip_profile';
       updatedFields.push('marketing_preference');
     }
 
