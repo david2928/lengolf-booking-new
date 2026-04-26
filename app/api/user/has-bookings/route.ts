@@ -16,19 +16,27 @@ export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions) as HasBookingsSession | null;
   const phone = request.nextUrl.searchParams.get('phone');
 
-  // Phone-based path: works even without an authenticated session and uses the
-  // same canonical predicate (public.is_phone_new_customer) that the
-  // check_new_customer trigger uses to set bookings.is_new_customer at insert time.
+  // Both paths require a session. The phone-based path in particular MUST be
+  // gated: without auth it would be an enumeration oracle on customer
+  // existence (anon could probe arbitrary phone numbers and learn whether
+  // each has any prior bookings or POS sales). All legitimate callers
+  // (LIFF, NextAuth web flow, guest provider) have a session by the time
+  // they reach the cost preview, so requiring one is non-disruptive.
+  if (!session?.user?.id) {
+    return NextResponse.json({ hasBookings: false });
+  }
+
+  // Phone-based path uses the canonical predicate (public.is_phone_new_customer)
+  // that the check_new_customer trigger uses to set bookings.is_new_customer
+  // at insert time — single source of truth.
   if (phone) {
     const supabase = createAdminClient();
-    const customerId = session?.user?.id
-      ? (await supabase
-          .from('profiles')
-          .select('customer_id')
-          .eq('id', session.user.id)
-          .maybeSingle()
-        ).data?.customer_id ?? null
-      : null;
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('customer_id')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    const customerId = profileData?.customer_id ?? null;
 
     const { data: isNew, error } = await supabase.rpc('is_phone_new_customer', {
       p_phone: phone,
@@ -46,11 +54,6 @@ export async function GET(request: NextRequest) {
     // for genuine new customers who haven't typed enough yet.
     const hasBookings = isNew === false;
     return NextResponse.json({ hasBookings });
-  }
-
-  // Profile-only path (legacy callers): unauthenticated → treat as new
-  if (!session?.user?.id) {
-    return NextResponse.json({ hasBookings: false });
   }
 
   const profileId = session.user.id;

@@ -105,25 +105,31 @@ export default function LiffBookingPage() {
   // through a fresh LINE LIFF profile (or any unlinked auth) is correctly
   // identified before they confirm — preventing B1G1 from being shown to
   // returning customers in the cost preview.
+  //
+  // Uses a `cancelled` flag rather than AbortController because aborting
+  // the fetch doesn't stop a response that has already arrived from
+  // resolving its .then chain — meaning a slower in-flight call could
+  // overwrite a faster newer one. The flag pattern guarantees only the
+  // latest invocation can call setState.
   useEffect(() => {
     const phone = formData.phone?.trim();
     if (!phone || phone.length < 8) return;
-    const controller = new AbortController();
+    let cancelled = false;
     const timer = setTimeout(() => {
-      fetch(`/api/user/has-bookings?phone=${encodeURIComponent(phone)}`, {
-        signal: controller.signal,
-      })
+      fetch(`/api/user/has-bookings?phone=${encodeURIComponent(phone)}`)
         .then(res => res.json())
-        .then(hbData => setIsNewCustomer(hbData.hasBookings === false))
+        .then(hbData => {
+          if (cancelled) return;
+          setIsNewCustomer(hbData.hasBookings === false);
+        })
         .catch((err) => {
-          if (err?.name !== 'AbortError') {
-            // Conservative: leave whatever state we had
-          }
+          if (cancelled) return;
+          console.warn('[has-bookings] phone-aware fetch failed:', err);
         });
     }, 400);
     return () => {
+      cancelled = true;
       clearTimeout(timer);
-      controller.abort();
     };
   }, [formData.phone]);
 
@@ -213,11 +219,13 @@ export default function LiffBookingPage() {
       // Always proceed to booking - customer matching happens at booking time
       setViewState('booking');
 
-      // Check if new customer for promotions (non-blocking)
-      fetch('/api/user/has-bookings')
-        .then(res => res.json())
-        .then(hbData => setIsNewCustomer(hbData.hasBookings === false))
-        .catch(() => setIsNewCustomer(false));
+      // Promotions are static — fetch once on mount.
+      // Eligibility (isNewCustomer) is computed phone-aware in the effect
+      // watching formData.phone; we deliberately do NOT call the legacy
+      // profile-only /api/user/has-bookings here because it can race the
+      // phone-aware fetch (slower of the two wins) and re-introduce the
+      // bait-and-switch bug. The trigger-set isNewCustomer on the booking
+      // row is the authoritative value at confirmation time.
       fetch('/api/promotions/applicable')
         .then(res => res.json())
         .then(promoData => setApplicablePromotions(promoData.promotions ?? []))
