@@ -96,6 +96,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 NEXTAUTH_SECRET=
 NEXTAUTH_URL=
 LINE_CHANNEL_ACCESS_TOKEN=
+MARKETING_PREFS_SECRET=   # 64 hex chars (`openssl rand -hex 32`) — see Marketing-consent deploy notes below
 EMAIL_HOST=               # SMTP server hostname or IP
 EMAIL_PORT=               # SMTP port (default: 587)
 EMAIL_SECURE=             # Use SSL/TLS (default: false)
@@ -103,6 +104,17 @@ EMAIL_USER=               # SMTP username
 EMAIL_PASSWORD=           # SMTP password
 EMAIL_TLS_REJECT_UNAUTHORIZED=false  # Set to false to allow self-signed certificates (default: true)
 ```
+
+## Marketing-consent deploy notes (PR #18, merged 2026-04-26)
+
+The marketing-consent feature (`/preferences/[token]`, GuestForm + BookingDetails opt-in checkboxes) ships a **build-time env-var assertion** in `lib/marketing-prefs/token.ts` that throws if `MARKETING_PREFS_SECRET` is missing or under 64 chars. The assertion fires during Next.js's `Collecting page data` phase, which means:
+
+- **Every Vercel environment must have the secret set BEFORE merging** any code that imports `lib/marketing-prefs/token.ts`. Set it across Production + Preview + Development. Otherwise every PR's preview deploy will fail with `Failed to collect page data for /api/preferences/[token]`. (We learned this the hard way — the merge of PR #18 errored three times until the secret landed.)
+- **Use the same value across all three environments** so preference-center URLs minted in dev/preview verify correctly against prod.
+- **`vercel redeploy <id>` does NOT pick up newly-set env vars** — it reuses the prior build config. To force a fresh build with current env vars, push an empty commit: `git commit --allow-empty -m "trigger redeploy"` && `git push`.
+- **Don't `echo "$SECRET" | vercel env add` from PowerShell.** PowerShell's pipe semantics differ from bash; in practice it stored the literal string `\r\n` (4 chars) as the value, breaking the assertion. Use the Vercel dashboard, or run `vercel env add` interactively and paste when prompted.
+
+If you rotate `MARKETING_PREFS_SECRET`, every previously-minted preference URL stops verifying. That's intended (it's the kill-switch for emails containing leaked links). Compose a fresh batch of preference URLs for any subsequent email send.
 
 ## Common Gotchas
 
