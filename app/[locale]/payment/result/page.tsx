@@ -42,7 +42,7 @@ interface StatusResponse {
 }
 
 const POLL_INTERVAL_MS = 2500;
-const MAX_POLLS = 12;
+const MAX_POLLS = 6;  // 15s total — after that, user almost certainly cancelled
 const LATE_THRESHOLD = 3; // after 3 attempts (~7.5s), surface "still confirming" copy
 
 type ViewState =
@@ -114,8 +114,10 @@ export default function PaymentResultPage() {
         if (pollCount < MAX_POLLS) {
           timeoutId = setTimeout(poll, POLL_INTERVAL_MS);
         } else {
-          // Polling budget exhausted — likely a real timeout.
-          setState({ kind: 'failed', reason: 'expired' });
+          // Polling budget exhausted. The most common cause is the user
+          // closing ShopeePay before completing payment — show "cancelled"
+          // rather than "expired" since that's more accurate and less alarming.
+          setState({ kind: 'failed', reason: 'cancelled' });
         }
       } catch {
         if (cancelled) return;
