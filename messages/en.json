@@ -854,8 +854,8 @@
       "paymentLabel": "Payment Method",
       "paymentCashTitle": "Cash",
       "paymentCashHint": "Pay when you pick up at LENGOLF",
-      "paymentLinkTitle": "Payment Link",
-      "paymentLinkHint": "We'll send you a payment link",
+      "paymentLinkTitle": "Pay Online",
+      "paymentLinkHint": "Pay now with credit/debit card or ShopeePay wallet",
       "addressRequiredHint": "Please enter a delivery address above to continue",
       "continue": "Continue"
     },
@@ -901,7 +901,7 @@
       "totalLabel": "Total",
       "paymentHeading": "Payment",
       "paymentCashBody": "Pay with cash when you pick up the clubs at LENGOLF.",
-      "paymentLinkBody": "Our team will send you a payment link within 2 hours. You can pay by credit/debit card or Shopee wallet.",
+      "paymentLinkBody": "After you confirm, you'll be redirected to ShopeePay to pay by credit/debit card or ShopeePay wallet. Your reservation is held while you complete payment.",
       "submitting": "Submitting...",
       "confirmReservation": "Confirm Reservation"
     },
@@ -917,11 +917,11 @@
       "deliveryTimeSummary": "Delivery: {delivery} · Return: {return}",
       "paymentHeading": "Payment",
       "paymentCash": "Cash (at LENGOLF)",
-      "paymentLink": "Credit Card / QR (payment link)",
+      "paymentLink": "Online (Credit Card / ShopeePay)",
       "totalLabel": "Total",
       "nextHeading": "What happens next?",
       "nextCashBody": "Our team will contact you within 2 hours to confirm your reservation. Pay with cash when you pick up the clubs.",
-      "nextLinkBody": "Our team will contact you within 2 hours to confirm your reservation and send a payment link.",
+      "nextLinkBody": "Your payment is being processed. We'll send a confirmation email as soon as it's received.",
       "contactLineCta": "Contact via LINE",
       "callCta": "Call 096-668-2335"
     },

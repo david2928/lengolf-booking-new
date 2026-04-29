@@ -854,8 +854,8 @@
       "paymentLabel": "お支払い方法",
       "paymentCashTitle": "現金",
       "paymentCashHint": "LENGOLFでクラブを受け取る際にお支払いください",
-      "paymentLinkTitle": "決済リンク",
-      "paymentLinkHint": "決済リンクをお送りします",
+      "paymentLinkTitle": "オンライン決済",
+      "paymentLinkHint": "クレジット/デビットカード、または ShopeePay ウォレットで今すぐお支払い",
       "addressRequiredHint": "続行するには配送先住所をご入力ください",
       "continue": "次へ"
     },
@@ -901,7 +901,7 @@
       "totalLabel": "合計",
       "paymentHeading": "お支払い",
       "paymentCashBody": "LENGOLFでクラブを受け取る際に現金でお支払いください。",
-      "paymentLinkBody": "弊社チームより2時間以内に決済リンクをお送りします。クレジット/デビットカードまたはShopeeウォレットでお支払いいただけます。",
+      "paymentLinkBody": "ご確認後、ShopeePay にリダイレクトしてクレジット/デビットカードまたは ShopeePay ウォレットでお支払いいただけます。お支払い完了までご予約をお預かりいたします。",
       "submitting": "送信中...",
       "confirmReservation": "予約を確定する"
     },
@@ -917,11 +917,11 @@
       "deliveryTimeSummary": "配送：{delivery} · 返却：{return}",
       "paymentHeading": "お支払い",
       "paymentCash": "現金（LENGOLFにて）",
-      "paymentLink": "クレジットカード / QR（決済リンク）",
+      "paymentLink": "オンライン（クレジットカード / ShopeePay）",
       "totalLabel": "合計",
       "nextHeading": "次のステップ",
       "nextCashBody": "弊社チームより2時間以内にご予約確認のご連絡をいたします。クラブをお受け取りの際に現金でお支払いください。",
-      "nextLinkBody": "弊社チームより2時間以内にご予約確認のご連絡と決済リンクをお送りいたします。",
+      "nextLinkBody": "お支払いを処理しております。受領が確認でき次第、確認メールをお送りいたします。",
       "contactLineCta": "LINEで問い合わせ",
       "callCta": "電話する 096-668-2335"
     },

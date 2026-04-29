@@ -854,8 +854,8 @@
       "paymentLabel": "支付方式",
       "paymentCashTitle": "现金",
       "paymentCashHint": "在 LENGOLF 取件时支付",
-      "paymentLinkTitle": "支付链接",
-      "paymentLinkHint": "我们将向您发送支付链接",
+      "paymentLinkTitle": "在线支付",
+      "paymentLinkHint": "立即使用信用卡/借记卡或 ShopeePay 钱包支付",
       "addressRequiredHint": "请在上方填写配送地址以继续",
       "continue": "继续"
     },
@@ -901,7 +901,7 @@
       "totalLabel": "总计",
       "paymentHeading": "支付",
       "paymentCashBody": "在 LENGOLF 取件时使用现金支付。",
-      "paymentLinkBody": "我们的团队将在 2 小时内向您发送支付链接。您可使用信用卡 / 借记卡或 Shopee 钱包支付。",
+      "paymentLinkBody": "确认后，您将被引导至 ShopeePay 使用信用卡/借记卡或 ShopeePay 钱包付款。在您完成付款前，我们会为您保留预订。",
       "submitting": "提交中...",
       "confirmReservation": "确认预订"
     },
@@ -917,11 +917,11 @@
       "deliveryTimeSummary": "配送：{delivery} · 归还：{return}",
       "paymentHeading": "支付",
       "paymentCash": "现金（在 LENGOLF）",
-      "paymentLink": "信用卡 / QR（支付链接）",
+      "paymentLink": "在线（信用卡 / ShopeePay）",
       "totalLabel": "总计",
       "nextHeading": "接下来会怎样？",
       "nextCashBody": "我们的团队将在 2 小时内联系您确认预订。请在取件时使用现金支付。",
-      "nextLinkBody": "我们的团队将在 2 小时内联系您确认预订并发送支付链接。",
+      "nextLinkBody": "我们正在处理您的付款。一旦收到付款，我们会立即向您发送确认邮件。",
       "contactLineCta": "通过 LINE 联系",
       "callCta": "拨打 096-668-2335"
     },

@@ -854,8 +854,8 @@
       "paymentLabel": "วิธีการชำระเงิน",
       "paymentCashTitle": "เงินสด",
       "paymentCashHint": "ชำระเมื่อรับไม้กอล์ฟที่ LENGOLF",
-      "paymentLinkTitle": "ลิงก์ชำระเงิน",
-      "paymentLinkHint": "เราจะส่งลิงก์ชำระเงินให้คุณ",
+      "paymentLinkTitle": "ชำระเงินออนไลน์",
+      "paymentLinkHint": "ชำระตอนนี้ด้วยบัตรเครดิต/เดบิต หรือกระเป๋าเงิน ShopeePay",
       "addressRequiredHint": "กรุณากรอกที่อยู่จัดส่งด้านบนเพื่อดำเนินการต่อ",
       "continue": "ดำเนินการต่อ"
     },
@@ -901,7 +901,7 @@
       "totalLabel": "รวม",
       "paymentHeading": "การชำระเงิน",
       "paymentCashBody": "ชำระด้วยเงินสดเมื่อรับไม้กอล์ฟที่ LENGOLF",
-      "paymentLinkBody": "ทีมของเราจะส่งลิงก์ชำระเงินให้คุณภายใน 2 ชั่วโมง คุณสามารถชำระด้วยบัตรเครดิต/เดบิต หรือ Shopee wallet",
+      "paymentLinkBody": "หลังจากกดยืนยัน คุณจะถูกนำไปยังหน้า ShopeePay เพื่อชำระเงินด้วยบัตรเครดิต/เดบิต หรือกระเป๋าเงิน ShopeePay เราจะสำรองการจองของคุณไว้ระหว่างการชำระเงิน",
       "submitting": "กำลังส่ง...",
       "confirmReservation": "ยืนยันการจอง"
     },
@@ -917,11 +917,11 @@
       "deliveryTimeSummary": "จัดส่ง: {delivery} · คืน: {return}",
       "paymentHeading": "การชำระเงิน",
       "paymentCash": "เงินสด (ที่ LENGOLF)",
-      "paymentLink": "บัตรเครดิต / QR (ลิงก์ชำระเงิน)",
+      "paymentLink": "ออนไลน์ (บัตรเครดิต / ShopeePay)",
       "totalLabel": "รวม",
       "nextHeading": "ขั้นตอนต่อไป",
       "nextCashBody": "ทีมของเราจะติดต่อคุณภายใน 2 ชั่วโมงเพื่อยืนยันการจอง ชำระด้วยเงินสดเมื่อคุณมารับไม้กอล์ฟ",
-      "nextLinkBody": "ทีมของเราจะติดต่อคุณภายใน 2 ชั่วโมงเพื่อยืนยันการจองและส่งลิงก์ชำระเงิน",
+      "nextLinkBody": "เรากำลังประมวลผลการชำระเงินของคุณ เราจะส่งอีเมลยืนยันให้คุณทันทีที่ได้รับการชำระเงิน",
       "contactLineCta": "ติดต่อผ่าน LINE",
       "callCta": "โทร 096-668-2335"
     },
