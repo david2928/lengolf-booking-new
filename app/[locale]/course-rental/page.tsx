@@ -280,10 +280,32 @@ export default function CourseRentalPage() {
       // hand off to the ShopeePay flow. Otherwise stay on the in-page
       // confirmation step as today.
       if (data.requires_prepay) {
-        // Use locale-aware navigation so /th/course-rental → /th/payment/start
-        // rather than the unprefixed root.
+        // Call ShopeePay create while the submit spinner is still showing,
+        // then navigate directly to ShopeePay — no intermediate /payment/start
+        // page. /payment/start still handles direct URL access (recovery links).
         const localePrefix = window.location.pathname.match(/^\/(en|th|ko|ja|zh)(\/|$)/)?.[1];
         const prefix = localePrefix ? `/${localePrefix}` : '';
+        const platformType: 'mweb' | 'pc' =
+          typeof window !== 'undefined' && window.innerWidth < 768 ? 'mweb' : 'pc';
+        try {
+          const payRes = await fetch('/api/payments/shopeepay/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              rental_code: data.rental_code,
+              platform_type: platformType,
+              return_path: `${prefix}/payment/result`,
+            }),
+          });
+          const payData = await payRes.json();
+          if (payRes.ok && payData?.redirect_url) {
+            window.location.href = payData.redirect_url;
+            return;
+          }
+        } catch {
+          // Fall through to /payment/start on network error — it will retry.
+        }
+        // Fallback: navigate to /payment/start which has its own retry logic.
         window.location.href = `${prefix}/payment/start?ref=${encodeURIComponent(data.rental_code)}`;
         return;
       }

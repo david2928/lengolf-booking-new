@@ -59,7 +59,7 @@ export function HandoffClient({ rentalCode }: { rentalCode: string }) {
         setState({ kind: 'redirecting' });
         setTimeout(() => {
           window.location.href = data.redirect_url;
-        }, 600);
+        }, 200);
       })
       .catch(() => {
         if (cancelled) return;
