@@ -244,7 +244,7 @@ export default function CourseRentalPage() {
           delivery_time: pickupTime || undefined,
           return_time: returnTime || undefined,
           notes: [
-            `Payment: ${paymentMethod === 'cash' ? 'Cash (at LENGOLF)' : 'Payment link (credit/debit card or Shopee wallet)'}`,
+            `Payment: ${paymentMethod === 'cash' ? 'Cash (at LENGOLF)' : 'Online (ShopeePay — credit/debit card or wallet)'}`,
             `Contact via: ${preferredContact === 'line' ? 'LINE' : preferredContact === 'email' ? 'Email' : 'WhatsApp'}`,
             notes,
           ].filter(Boolean).join('\n') || undefined,
