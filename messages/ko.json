@@ -966,7 +966,7 @@
       "checkingTitle": "결제 확인 중",
       "checkingBody": "ShopeePay에서 결제를 확인하고 있습니다. 보통 몇 초밖에 걸리지 않습니다.",
       "confirmingLateTitle": "ShopeePay에서 확인 중",
-      "confirmingLateBody": "평소보다 시간이 조금 더 걸리고 있습니다. 결제가 여기서 확인되지 않으면 청구되지 않습니다. 이 페이지를 열어두시거나 나중에 다시 확인하셔도 됩니다 — 어느 쪽이든 이메일로 영수증을 보내드립니다.",
+      "confirmingLateBody": "평소보다 시간이 조금 더 걸리고 있습니다. 결제가 여기서 확인되지 않으면 청구되지 않습니다. 이 페이지를 열어두세요 — 결제가 완료되면 이메일로 확인서를 보내드립니다.",
       "successTitle": "결제가 완료되었습니다",
       "successBody": "감사합니다! 예약이 확정되었습니다. 영수증을 이메일로 보내드렸습니다.",
       "successRentalCodeLabel": "대여 코드",

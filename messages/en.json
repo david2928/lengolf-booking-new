@@ -966,7 +966,7 @@
       "checkingTitle": "Checking your payment",
       "checkingBody": "We're confirming the payment with ShopeePay. This usually takes just a few seconds.",
       "confirmingLateTitle": "Still confirming with ShopeePay",
-      "confirmingLateBody": "It's taking a little longer than usual. No charge has been made unless we confirm payment here. You can keep this page open or check back later — we'll email you the receipt either way.",
+      "confirmingLateBody": "It's taking a little longer than usual. No charge has been made unless we confirm payment here. You can keep this page open — we'll email you a confirmation if payment goes through.",
       "successTitle": "Payment received",
       "successBody": "Thank you! Your reservation is now confirmed. We've sent a receipt to your email.",
       "successRentalCodeLabel": "Rental code",

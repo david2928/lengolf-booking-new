@@ -966,7 +966,7 @@
       "checkingTitle": "正在确认付款",
       "checkingBody": "我们正在通过 ShopeePay 确认您的付款，通常只需几秒钟。",
       "confirmingLateTitle": "正在 ShopeePay 确认中",
-      "confirmingLateBody": "比平常稍慢一些。除非我们在此处确认付款，否则不会扣款。您可以保持此页面打开或稍后再回来查看 — 无论如何我们都会通过邮件发送收据。",
+      "confirmingLateBody": "比平常稍慢一些。除非我们在此处确认付款，否则不会扣款。请保持此页面打开 — 如果付款成功，我们将通过邮件发送确认信息。",
       "successTitle": "已收到付款",
       "successBody": "感谢您！您的预订已确认，收据已发送到您的邮箱。",
       "successRentalCodeLabel": "租赁编号",
