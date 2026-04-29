@@ -278,6 +278,18 @@ interface CourseRentalEmailConfirmation {
   totalPrice: number;
   notes?: string;
   language?: Locale;
+  /**
+   * Payment lifecycle marker for the course rental.
+   * - 'paid': renders a "Payment received" line with transactionSn.
+   * - 'awaiting_payment': renders a "Complete payment via the link
+   *   we'll send" line. Used when the customer chose online pay
+   *   but hasn't completed the ShopeePay flow yet.
+   * - 'pay_at_pickup' (default): existing behavior — instructions
+   *   to settle on arrival.
+   */
+  paymentStatus?: 'paid' | 'awaiting_payment' | 'pay_at_pickup';
+  /** ShopeePay transaction reference, only meaningful when paymentStatus='paid'. */
+  transactionSn?: string;
 }
 
 export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEmailConfirmation) {
@@ -397,6 +409,25 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
                 <td style="padding: 12px 10px; border-top: 2px solid #15803d; text-align: right; color: #15803d;">฿${booking.totalPrice.toLocaleString()}</td>
             </tr>
         </table>
+
+        ${booking.paymentStatus === 'paid'
+          ? `
+        <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <p style="font-weight: bold; color: #15803d; margin: 0 0 5px;">${t('paymentReceivedHeading')}</p>
+            <p style="color: #166534; margin: 0; font-size: 14px;">${t('paymentReceivedBody', { amount: booking.totalPrice.toLocaleString() })}</p>
+            ${booking.transactionSn
+              ? `<p style="color: #166534; margin: 8px 0 0; font-size: 12px;"><strong>${t('paymentReceivedTransactionLabel')}:</strong> <span style="font-family: monospace;">${escapeHtml(booking.transactionSn)}</span></p>`
+              : ''}
+        </div>
+        `
+          : booking.paymentStatus === 'awaiting_payment'
+          ? `
+        <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <p style="font-weight: bold; color: #b45309; margin: 0 0 5px;">${t('paymentAwaitingHeading')}</p>
+            <p style="color: #92400e; margin: 0; font-size: 14px;">${t('paymentAwaitingBody')}</p>
+        </div>
+        `
+          : ''}
 
         <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
             <p style="font-weight: bold; color: #1e40af; margin: 0 0 5px;">${t('whatsNextHeading')}</p>

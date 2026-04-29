@@ -939,6 +939,33 @@
     "slotUnavailable": "That time slot is no longer available.",
     "network": "Network error. Please check your connection."
   },
+  "payment": {
+    "start": {
+      "preparingTitle": "Preparing your payment",
+      "preparingBody": "Connecting to ShopeePay. Please don't close this window.",
+      "redirectingBody": "Redirecting you to ShopeePay…",
+      "errorTitle": "Couldn't start payment",
+      "errorBody": "We couldn't reach the payment gateway. Please try again, or contact us via LINE if the problem continues.",
+      "missingRefBody": "We couldn't find that reservation. Please return to the course rental page and try again.",
+      "retryCta": "Try again",
+      "backCta": "Back to course rental"
+    },
+    "result": {
+      "checkingTitle": "Checking your payment",
+      "checkingBody": "We're confirming the payment with ShopeePay. This usually takes just a few seconds.",
+      "successTitle": "Payment received",
+      "successBody": "Thank you! Your reservation is now confirmed. We've sent a receipt to your email.",
+      "successRentalCodeLabel": "Rental code",
+      "successTransactionLabel": "ShopeePay transaction",
+      "failedTitle": "Payment didn't go through",
+      "failedBody": "Your payment wasn't completed. No money has been taken. You can try again or pay another way.",
+      "expiredTitle": "Reservation expired",
+      "expiredBody": "This reservation has expired. Please return to the course rental page to start a new booking.",
+      "retryCta": "Try payment again",
+      "newBookingCta": "Start a new booking",
+      "homeCta": "Go to homepage"
+    }
+  },
   "emails": {
     "bookingConfirmation": {
       "subject": "LENGOLF Booking Confirmation - {date} at {time}",
@@ -1047,6 +1074,11 @@
       "totalLabel": "Total",
       "whatsNextHeading": "What happens next?",
       "whatsNextBody": "Our team will contact you within 2 hours via LINE to confirm availability and send a payment link. You can pay by credit/debit card or Shopee wallet.",
+      "paymentReceivedHeading": "Payment received",
+      "paymentReceivedBody": "Thank you! We've received your payment of ฿{amount}. Your reservation is now confirmed.",
+      "paymentReceivedTransactionLabel": "Transaction reference",
+      "paymentAwaitingHeading": "Complete your payment",
+      "paymentAwaitingBody": "Your reservation is being held. Please complete payment via the link we'll send to confirm your booking.",
       "footerPhoneLabel": "Phone Number:",
       "footerLineLabel": "LINE:",
       "footerAddressLabel": "Address:",

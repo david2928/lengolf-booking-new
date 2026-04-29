@@ -249,6 +249,7 @@ export default function CourseRentalPage() {
             notes,
           ].filter(Boolean).join('\n') || undefined,
           source: 'website' as const,
+          payment_method: paymentMethod,
         }),
       });
 
@@ -274,6 +275,18 @@ export default function CourseRentalPage() {
         duration_days: durationDays,
         delivery_requested: deliveryRequested,
       });
+
+      // If the customer chose card (and for delivery, this is forced),
+      // hand off to the ShopeePay flow. Otherwise stay on the in-page
+      // confirmation step as today.
+      if (data.requires_prepay) {
+        // Use locale-aware navigation so /th/course-rental → /th/payment/start
+        // rather than the unprefixed root.
+        const localePrefix = window.location.pathname.match(/^\/(en|th|ko|ja|zh)(\/|$)/)?.[1];
+        const prefix = localePrefix ? `/${localePrefix}` : '';
+        window.location.href = `${prefix}/payment/start?ref=${encodeURIComponent(data.rental_code)}`;
+        return;
+      }
 
       setStep('confirmation');
     } catch {

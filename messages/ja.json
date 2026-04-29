@@ -939,6 +939,33 @@
     "slotUnavailable": "その時間帯はもう利用できません。",
     "network": "ネットワークエラー。接続をご確認ください。"
   },
+  "payment": {
+    "start": {
+      "preparingTitle": "お支払いの準備中",
+      "preparingBody": "ShopeePay に接続しています。このウィンドウを閉じないでください。",
+      "redirectingBody": "ShopeePay に移動しています…",
+      "errorTitle": "お支払いを開始できませんでした",
+      "errorBody": "決済ゲートウェイに接続できませんでした。もう一度お試しいただくか、問題が続く場合は LINE でお問い合わせください。",
+      "missingRefBody": "予約が見つかりませんでした。コースレンタルページに戻り、もう一度お試しください。",
+      "retryCta": "再試行",
+      "backCta": "コースレンタルに戻る"
+    },
+    "result": {
+      "checkingTitle": "お支払いを確認中",
+      "checkingBody": "ShopeePay でお支払いの確認を行っています。通常数秒で完了します。",
+      "successTitle": "お支払いを受領しました",
+      "successBody": "ありがとうございます。ご予約が確定しました。レシートをメールでお送りしました。",
+      "successRentalCodeLabel": "レンタルコード",
+      "successTransactionLabel": "ShopeePay 取引番号",
+      "failedTitle": "お支払いが完了しませんでした",
+      "failedBody": "お支払いが完了していません。料金は引き落とされていません。再試行するか、別の方法でお支払いいただけます。",
+      "expiredTitle": "予約の有効期限が切れました",
+      "expiredBody": "この予約は有効期限が切れました。コースレンタルページから新しい予約を開始してください。",
+      "retryCta": "もう一度お支払い",
+      "newBookingCta": "新しい予約を開始",
+      "homeCta": "ホームに戻る"
+    }
+  },
   "emails": {
     "bookingConfirmation": {
       "subject": "LENGOLF 予約確認 - {date} {time}",
@@ -1047,6 +1074,11 @@
       "totalLabel": "合計",
       "whatsNextHeading": "次のステップ",
       "whatsNextBody": "スタッフが2時間以内に LINE でご連絡し、在庫状況を確認のうえお支払いリンクをお送りします。クレジット/デビットカードまたは Shopee ウォレットでお支払いいただけます。",
+      "paymentReceivedHeading": "お支払いを受領しました",
+      "paymentReceivedBody": "ありがとうございます。¥{amount} のお支払いを受領いたしました。ご予約が確定しました。",
+      "paymentReceivedTransactionLabel": "取引番号",
+      "paymentAwaitingHeading": "お支払いをお願いします",
+      "paymentAwaitingBody": "ご予約をお預かりしております。お送りするリンクからお支払いいただくとご予約が確定します。",
       "footerPhoneLabel": "電話番号：",
       "footerLineLabel": "LINE：",
       "footerAddressLabel": "住所：",

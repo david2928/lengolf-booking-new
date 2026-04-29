@@ -939,6 +939,33 @@
     "slotUnavailable": "该时段已不可用。",
     "network": "网络错误。请检查您的连接。"
   },
+  "payment": {
+    "start": {
+      "preparingTitle": "正在准备付款",
+      "preparingBody": "正在连接 ShopeePay，请勿关闭此窗口。",
+      "redirectingBody": "正在跳转至 ShopeePay…",
+      "errorTitle": "无法启动付款",
+      "errorBody": "无法连接到支付网关，请重试。如问题持续，请通过 LINE 联系我们。",
+      "missingRefBody": "未找到该预订。请返回租赁页面重新开始。",
+      "retryCta": "重试",
+      "backCta": "返回球杆租赁"
+    },
+    "result": {
+      "checkingTitle": "正在确认付款",
+      "checkingBody": "我们正在通过 ShopeePay 确认您的付款，通常只需几秒钟。",
+      "successTitle": "已收到付款",
+      "successBody": "感谢您！您的预订已确认，收据已发送到您的邮箱。",
+      "successRentalCodeLabel": "租赁编号",
+      "successTransactionLabel": "ShopeePay 交易号",
+      "failedTitle": "付款未完成",
+      "failedBody": "您的付款未完成，未扣款。您可以重试或选择其他付款方式。",
+      "expiredTitle": "预订已过期",
+      "expiredBody": "此预订已过期。请返回球杆租赁页面开始新的预订。",
+      "retryCta": "重新付款",
+      "newBookingCta": "开始新预订",
+      "homeCta": "返回首页"
+    }
+  },
   "emails": {
     "bookingConfirmation": {
       "subject": "LENGOLF 预约确认 - {date} {time}",
@@ -1047,6 +1074,11 @@
       "totalLabel": "总计",
       "whatsNextHeading": "接下来会发生什么？",
       "whatsNextBody": "我们的团队将在 2 小时内通过 LINE 与您联系，确认可用性并发送付款链接。您可以使用信用卡/借记卡或 Shopee 钱包付款。",
+      "paymentReceivedHeading": "已收到付款",
+      "paymentReceivedBody": "感谢您！我们已收到您 ฿{amount} 的付款，预订已确认。",
+      "paymentReceivedTransactionLabel": "交易参考编号",
+      "paymentAwaitingHeading": "请完成付款",
+      "paymentAwaitingBody": "我们已为您保留预订，请通过我们发送的链接完成付款以确认预订。",
       "footerPhoneLabel": "电话号码：",
       "footerLineLabel": "LINE：",
       "footerAddressLabel": "地址：",
