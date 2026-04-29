@@ -1073,7 +1073,7 @@
       "deliveryFeeLabel": "配送与归还",
       "totalLabel": "总计",
       "whatsNextHeading": "接下来会发生什么？",
-      "whatsNextBody": "我们的团队将在 2 小时内通过 LINE 与您联系，确认可用性并发送付款链接。您可以使用信用卡/借记卡或 Shopee 钱包付款。",
+      "whatsNextBody": "我们的团队将在 2 小时内通过 LINE 与您联系，确认预订并安排取件或配送事宜。",
       "paymentReceivedHeading": "已收到付款",
       "paymentReceivedBody": "感谢您！我们已收到您 ฿{amount} 的付款，预订已确认。",
       "paymentReceivedTransactionLabel": "交易参考编号",

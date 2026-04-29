@@ -1073,7 +1073,7 @@
       "deliveryFeeLabel": "Delivery & Return",
       "totalLabel": "Total",
       "whatsNextHeading": "What happens next?",
-      "whatsNextBody": "Our team will contact you within 2 hours via LINE to confirm availability and send a payment link. You can pay by credit/debit card or Shopee wallet.",
+      "whatsNextBody": "Our team will contact you via LINE within 2 hours to confirm your reservation and arrange pickup or delivery details.",
       "paymentReceivedHeading": "Payment received",
       "paymentReceivedBody": "Thank you! We've received your payment of ฿{amount}. Your reservation is now confirmed.",
       "paymentReceivedTransactionLabel": "Transaction reference",

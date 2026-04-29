@@ -1073,7 +1073,7 @@
       "deliveryFeeLabel": "配送＆返却",
       "totalLabel": "合計",
       "whatsNextHeading": "次のステップ",
-      "whatsNextBody": "スタッフが2時間以内に LINE でご連絡し、在庫状況を確認のうえお支払いリンクをお送りします。クレジット/デビットカードまたは Shopee ウォレットでお支払いいただけます。",
+      "whatsNextBody": "スタッフが2時間以内に LINE でご連絡し、ご予約の確認と受け取り/配送のご案内をいたします。",
       "paymentReceivedHeading": "お支払いを受領しました",
       "paymentReceivedBody": "ありがとうございます。¥{amount} のお支払いを受領いたしました。ご予約が確定しました。",
       "paymentReceivedTransactionLabel": "取引番号",
