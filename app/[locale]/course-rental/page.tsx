@@ -1050,20 +1050,32 @@ export default function CourseRentalPage() {
               </div>
             )}
 
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 transition-colors flex items-center justify-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {t('review.submitting')}
-                </>
-              ) : (
-                t('review.confirmReservation')
+            <div className="space-y-2">
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 transition-colors flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {t('review.submitting')}
+                  </>
+                ) : paymentMethod === 'card' ? (
+                  t('review.payWithShopeepay', { total: format.number(totalPrice) })
+                ) : (
+                  t('review.confirmReservation')
+                )}
+              </button>
+              {paymentMethod === 'card' && !submitting && (
+                <p className="flex items-center justify-center gap-1.5 text-xs text-gray-500">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  {t('review.securedByShopeepay')}
+                </p>
               )}
-            </button>
+            </div>
           </div>
         )}
 

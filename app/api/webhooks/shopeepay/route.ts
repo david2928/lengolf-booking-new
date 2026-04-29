@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { verifySignature } from '@/lib/shopeepay/client';
 import { isFinalSuccess, type NotifyTransactionPayload } from '@/lib/shopeepay/types';
-import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
+import { claimAndSendConfirmationEmail } from '@/lib/shopeepay/markRentalAsPaid';
 
 /**
  * POST /api/webhooks/shopeepay
@@ -177,64 +177,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 
-  // Resolve locale: customer profile preferred_language → fallback English.
-  let language: string | null = null;
-  if (rental.customer_id) {
-    const { data: customerLang } = await supabase
-      .from('customers')
-      .select('preferred_language')
-      .eq('id', rental.customer_id)
-      .single();
-    language = customerLang?.preferred_language ?? null;
-  }
-  const emailLocale = resolveEmailLocale(language);
-
-  // Look up the club set for the email body.
-  const { data: clubSet } = await supabase
-    .from('rental_club_sets')
-    .select('name, tier, gender')
-    .eq('id', rental.rental_club_set_id)
-    .single();
-
-  if (rental.customer_email && clubSet) {
-    const addOns = Array.isArray(rental.add_ons)
-      ? (rental.add_ons as Array<{ label: string; price: number }>).map(a => ({
-          label: a.label,
-          price: a.price,
-        }))
-      : [];
-    const deliveryTimeStr = [
-      rental.delivery_time
-        ? `${rental.delivery_requested ? 'Delivery' : 'Pickup'}: ${rental.delivery_time}`
-        : '',
-      rental.return_time ? `Return: ${rental.return_time}` : '',
-    ]
-      .filter(Boolean)
-      .join(', ');
-
-    sendCourseRentalConfirmationEmail({
-      customerName: rental.customer_name,
-      email: rental.customer_email,
-      rentalCode: rental.rental_code,
-      clubSetName: clubSet.name,
-      clubSetTier: clubSet.tier,
-      clubSetGender: clubSet.gender,
-      startDate: rental.start_date,
-      endDate: rental.end_date,
-      durationDays: rental.duration_days || 1,
-      deliveryRequested: !!rental.delivery_requested,
-      deliveryAddress: rental.delivery_address ?? undefined,
-      deliveryTime: deliveryTimeStr || undefined,
-      addOns,
-      rentalPrice: Number(rental.rental_price),
-      deliveryFee: Number(rental.delivery_fee || 0),
-      totalPrice: Number(rental.total_price),
-      notes: rental.notes ?? undefined,
-      language: emailLocale,
-      paymentStatus: 'paid',
-      transactionSn: transaction_sn ?? undefined,
-    }).catch(err => console.error('[ShopeePay/webhook] email send error:', err));
-  }
+  // Customer confirmation email — uses the shared dedup helper so the
+  // polling status route doesn't re-send if it claimed the email first
+  // (and vice versa). Fire-and-forget; the helper handles its own
+  // logging.
+  void claimAndSendConfirmationEmail(supabase, txnRow.id, txnRow.club_rental_id, {
+    transactionSn: transaction_sn,
+  });
 
   // Staff LINE notification. Fire-and-forget.
   const baseUrl = getBaseUrl();
