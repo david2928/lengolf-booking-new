@@ -66,7 +66,7 @@ export default async function PaymentStartPage({
           <ShopeepayWordmark className="text-sm" />
         </div>
 
-        <HandoffClient ref={ref} />
+        <HandoffClient rentalCode={ref} />
 
         <p className="text-xs text-gray-500 text-center px-2">{t('handoffNote')}</p>
       </div>

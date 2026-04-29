@@ -24,7 +24,7 @@ type HandoffState =
   | { kind: 'redirecting' }
   | { kind: 'error' };
 
-export function HandoffClient({ ref }: { ref: string }) {
+export function HandoffClient({ rentalCode }: { rentalCode: string }) {
   const t = useTranslations('payment.start');
   const [state, setState] = useState<HandoffState>({ kind: 'connecting' });
   const [attempt, setAttempt] = useState(0);
@@ -44,7 +44,7 @@ export function HandoffClient({ ref }: { ref: string }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        rental_code: ref,
+        rental_code: rentalCode,
         platform_type: platformType,
         return_path: returnPath,
       }),
@@ -69,7 +69,7 @@ export function HandoffClient({ ref }: { ref: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ref, attempt]);
+  }, [rentalCode, attempt]);
 
   if (state.kind === 'error') {
     return (
