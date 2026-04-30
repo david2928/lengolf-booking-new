@@ -1109,6 +1109,27 @@
       "footerAddressValue": "ชั้น 4 Mercury Ville ที่ BTS ชิดลม",
       "visitWebsiteCta": "เยี่ยมชมเว็บไซต์ของเรา",
       "copyright": "© {year} LENGOLF สงวนลิขสิทธิ์"
+    },
+    "courseRentalRefund": {
+      "subject": "LENGOLF การคืนเงิน - {rentalCode}",
+      "logoAlt": "LENGOLF Logo",
+      "heading": "ดำเนินการคืนเงินแล้ว",
+      "greeting": "เรียนคุณ {name}",
+      "intro": "เราได้ดำเนินการคืนเงินสำหรับการเช่าไม้กอล์ฟของคุณแล้ว รายละเอียดมีดังนี้",
+      "rentalCodeLabel": "รหัสการเช่า",
+      "originalAmountLabel": "ยอดชำระเดิม",
+      "refundAmountLabel": "ยอดคืนเงิน",
+      "partialRefundNote": "นี่เป็นการคืนเงินบางส่วน รวมยอดที่คืนแล้วทั้งหมด: ฿{totalRefunded}",
+      "refundDateLabel": "วันที่คืนเงิน",
+      "refundReferenceLabel": "หมายเลขอ้างอิงการคืนเงิน",
+      "whatsNextHeading": "จะเห็นยอดคืนเงินเมื่อไหร่?",
+      "whatsNextBody": "ยอดคืนเงินจะปรากฏในบัญชี ShopeePay ของคุณภายใน 5-7 วันทำการ หากเลยกำหนดแล้วยังไม่เห็น กรุณาติดต่อเราตามช่องทางด้านล่าง",
+      "footerPhoneLabel": "เบอร์โทรศัพท์:",
+      "footerLineLabel": "LINE:",
+      "footerAddressLabel": "ที่อยู่:",
+      "footerAddressValue": "ชั้น 4 Mercury Ville ที่ BTS ชิดลม",
+      "visitWebsiteCta": "เยี่ยมชมเว็บไซต์ของเรา",
+      "copyright": "© {year} LENGOLF สงวนลิขสิทธิ์"
     }
   },
   "footer": {

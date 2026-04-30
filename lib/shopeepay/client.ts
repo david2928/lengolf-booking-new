@@ -6,6 +6,8 @@ import type {
   CheckTransactionResponse,
   CreateOrderRequest,
   CreateOrderResponse,
+  CreateRefundRequest,
+  CreateRefundResponse,
 } from './types';
 import { TRANSACTION_TYPE_CHECKOUT } from './types';
 
@@ -119,4 +121,30 @@ export async function checkTransaction(
     store_ext_id: shopeepayConfig.storeExtId,
   };
   return postSigned<CheckTransactionResponse>('/v3/merchant-host/transaction/check', body);
+}
+
+/**
+ * Issue a refund against a previously-successful payment. Called by
+ * the back-office (lengolf-forms) refund route. ShopeePay returns
+ * synchronously with `errcode=0` on accepted refunds; the final
+ * terminal status arrives via the same notify webhook that handles
+ * payment notifications, distinguished by the presence of
+ * `refund_reference_id` in the payload.
+ *
+ * Idempotency: the caller MUST insert the payment_refunds row
+ * (with a unique refund_reference_id and a stable request_id) BEFORE
+ * calling this. A network failure mid-call can then be reconciled
+ * either by retrying with the same refund_reference_id or by waiting
+ * for the webhook.
+ */
+export async function createRefund(
+  input: Omit<CreateRefundRequest, 'merchant_ext_id' | 'store_ext_id' | 'currency'>
+): Promise<CreateRefundResponse> {
+  const body: CreateRefundRequest = {
+    ...input,
+    merchant_ext_id: shopeepayConfig.merchantExtId,
+    store_ext_id: shopeepayConfig.storeExtId,
+    currency: 'THB',
+  };
+  return postSigned<CreateRefundResponse>('/v3/merchant-host/refund/create', body);
 }

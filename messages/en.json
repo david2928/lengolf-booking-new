@@ -1109,6 +1109,27 @@
       "footerAddressValue": "4th Floor, Mercury Ville at BTS Chidlom",
       "visitWebsiteCta": "Visit Our Website",
       "copyright": "© {year} LENGOLF. All rights reserved."
+    },
+    "courseRentalRefund": {
+      "subject": "LENGOLF Refund Processed - {rentalCode}",
+      "logoAlt": "LENGOLF Logo",
+      "heading": "Refund Processed",
+      "greeting": "Dear {name},",
+      "intro": "We've processed a refund for your golf club rental. The details are below.",
+      "rentalCodeLabel": "Rental Code",
+      "originalAmountLabel": "Original Payment",
+      "refundAmountLabel": "Refund Amount",
+      "partialRefundNote": "This is a partial refund. Total refunded so far: ฿{totalRefunded}.",
+      "refundDateLabel": "Refund Date",
+      "refundReferenceLabel": "Refund Reference",
+      "whatsNextHeading": "When will I see the refund?",
+      "whatsNextBody": "The refund should appear in your ShopeePay account within 5-7 business days. If you don't see it after that, please contact us using the details below.",
+      "footerPhoneLabel": "Phone Number:",
+      "footerLineLabel": "LINE:",
+      "footerAddressLabel": "Address:",
+      "footerAddressValue": "4th Floor, Mercury Ville at BTS Chidlom",
+      "visitWebsiteCta": "Visit Our Website",
+      "copyright": "© {year} LENGOLF. All rights reserved."
     }
   },
   "footer": {

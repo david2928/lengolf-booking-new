@@ -3,6 +3,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { verifySignature } from '@/lib/shopeepay/client';
 import { isFinalSuccess, type NotifyTransactionPayload } from '@/lib/shopeepay/types';
 import { claimAndSendConfirmationEmail } from '@/lib/shopeepay/markRentalAsPaid';
+import { handleRefundNotify } from '@/lib/shopeepay/handleRefundNotify';
 
 /**
  * POST /api/webhooks/shopeepay
@@ -62,6 +63,14 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
+
+  // Branch: refund notification. ShopeePay routes both payment and
+  // refund notify-transaction-status callbacks to the same registered
+  // endpoint. The presence of refund_reference_id is the only signal —
+  // see lib/shopeepay/types.ts NotifyTransactionPayload.
+  if (payload.refund_reference_id) {
+    return handleRefundNotify(supabase, payload, { baseUrl: getBaseUrl() });
+  }
 
   const { data: txnRow, error: txnError } = await supabase
     .from('payment_transactions')

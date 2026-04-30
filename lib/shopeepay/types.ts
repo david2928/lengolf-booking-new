@@ -107,6 +107,33 @@ export interface CheckTransactionResponse {
 }
 
 // ---------------------------------------------------------------------
+// Create Refund — POST /v3/merchant-host/refund/create
+// ---------------------------------------------------------------------
+
+export interface CreateRefundRequest {
+  /** Caller-generated unique request ID. We use `lengolf-rfd-{rental_code}-{epoch_ms}`. */
+  request_id: string;
+  /** The parent payment's merchant reference. Same value used at order/create time. */
+  payment_reference_id: string;
+  /** Per-refund unique reference. We use `${payment_reference_id}-R<n>`. */
+  refund_reference_id: string;
+  merchant_ext_id: string;
+  store_ext_id: string;
+  /** Refund amount in satang. Must be <= remaining (amount - already-refunded). */
+  amount: number;
+  currency: 'THB';
+  /** Optional reason surfaced in ShopeePay's merchant dashboard. */
+  reason?: string;
+}
+
+export interface CreateRefundResponse {
+  errcode: number;
+  debug_msg?: string;
+  /** ShopeePay's serial number for this refund. May be absent on async-queued refunds. */
+  refund_sn?: string;
+}
+
+// ---------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------
 
