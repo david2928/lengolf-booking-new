@@ -255,6 +255,14 @@ export interface ClubReserveRequest {
   source?: 'website' | 'booking_app' | 'liff' | 'staff' | 'line';
   /** Customer locale for localized email/notifications (e.g. 'en', 'th', 'ja'). */
   language?: string;
+  /**
+   * Course rentals only. 'card' triggers the ShopeePay prepay flow
+   * (frontend redirects to /payment/start after a successful reserve).
+   * 'cash' = pay at pickup (the existing manual flow). Forced to 'card'
+   * by the UI when delivery_requested=true.
+   * Indoor rentals ignore this field.
+   */
+  payment_method?: 'cash' | 'card';
 }
 
 /** Get the indoor price for a given duration from a RentalClubSet */

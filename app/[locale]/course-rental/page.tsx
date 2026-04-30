@@ -244,11 +244,12 @@ export default function CourseRentalPage() {
           delivery_time: pickupTime || undefined,
           return_time: returnTime || undefined,
           notes: [
-            `Payment: ${paymentMethod === 'cash' ? 'Cash (at LENGOLF)' : 'Payment link (credit/debit card or Shopee wallet)'}`,
+            `Payment: ${paymentMethod === 'cash' ? 'Cash (at LENGOLF)' : 'Online (ShopeePay — credit/debit card or wallet)'}`,
             `Contact via: ${preferredContact === 'line' ? 'LINE' : preferredContact === 'email' ? 'Email' : 'WhatsApp'}`,
             notes,
           ].filter(Boolean).join('\n') || undefined,
           source: 'website' as const,
+          payment_method: paymentMethod,
         }),
       });
 
@@ -274,6 +275,40 @@ export default function CourseRentalPage() {
         duration_days: durationDays,
         delivery_requested: deliveryRequested,
       });
+
+      // If the customer chose card (and for delivery, this is forced),
+      // hand off to the ShopeePay flow. Otherwise stay on the in-page
+      // confirmation step as today.
+      if (data.requires_prepay) {
+        // Call ShopeePay create while the submit spinner is still showing,
+        // then navigate directly to ShopeePay — no intermediate /payment/start
+        // page. /payment/start still handles direct URL access (recovery links).
+        const localePrefix = window.location.pathname.match(/^\/(en|th|ko|ja|zh)(\/|$)/)?.[1];
+        const prefix = localePrefix ? `/${localePrefix}` : '';
+        const platformType: 'mweb' | 'pc' =
+          typeof window !== 'undefined' && window.innerWidth < 768 ? 'mweb' : 'pc';
+        try {
+          const payRes = await fetch('/api/payments/shopeepay/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              rental_code: data.rental_code,
+              platform_type: platformType,
+              return_path: `${prefix}/payment/result`,
+            }),
+          });
+          const payData = await payRes.json();
+          if (payRes.ok && payData?.redirect_url) {
+            window.location.href = payData.redirect_url;
+            return;
+          }
+        } catch {
+          // Fall through to /payment/start on network error — it will retry.
+        }
+        // Fallback: navigate to /payment/start which has its own retry logic.
+        window.location.href = `${prefix}/payment/start?ref=${encodeURIComponent(data.rental_code)}`;
+        return;
+      }
 
       setStep('confirmation');
     } catch {
@@ -1037,20 +1072,32 @@ export default function CourseRentalPage() {
               </div>
             )}
 
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 transition-colors flex items-center justify-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {t('review.submitting')}
-                </>
-              ) : (
-                t('review.confirmReservation')
+            <div className="space-y-2">
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 transition-colors flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {t('review.submitting')}
+                  </>
+                ) : paymentMethod === 'card' ? (
+                  t('review.payWithShopeepay', { total: format.number(totalPrice) })
+                ) : (
+                  t('review.confirmReservation')
+                )}
+              </button>
+              {paymentMethod === 'card' && !submitting && (
+                <p className="flex items-center justify-center gap-1.5 text-xs text-gray-500">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  {t('review.securedByShopeepay')}
+                </p>
               )}
-            </button>
+            </div>
           </div>
         )}
 

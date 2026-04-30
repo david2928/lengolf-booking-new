@@ -54,7 +54,20 @@ export async function POST(request: NextRequest) {
       notes: customerNotes,
       source = 'booking_app',
       language: bodyLanguage,
+      payment_method: rawPaymentMethod,
     } = body;
+
+    // Normalize / validate the payment method. Course rentals branch
+    // on this; indoor rentals ignore it. Server-side guard: delivery
+    // forces card (frontend already enforces this; defense in depth).
+    const paymentMethod: 'cash' | 'card' = rawPaymentMethod === 'cash' ? 'cash' : 'card';
+    if (delivery_requested && paymentMethod === 'cash') {
+      return NextResponse.json(
+        { error: 'Delivery requires online payment (card / ShopeePay).' },
+        { status: 400 }
+      );
+    }
+    const requiresPrepay = rental_type === 'course' && paymentMethod === 'card';
 
     // Only accept customer_id/user_id from trusted internal sources (booking_app with booking_id)
     const customer_id = booking_id ? (body.customer_id || null) : null;
@@ -261,8 +274,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`[ClubReserve] Created rental ${rentalCode} for ${clubSet.name}, total: ฿${total_price}`);
 
-    // Send confirmation email for course rentals
-    if (rental_type === 'course' && customer_email) {
+    // Send confirmation email for course rentals.
+    // Skip when prepay is required — the ShopeePay webhook will send
+    // the confirmation email on payment success (with paymentStatus='paid'
+    // and the transaction reference). For abandoned-payment cases the
+    // cleanup cron expires the rental without an email; staff are
+    // already aware via the LINE notification below.
+    if (rental_type === 'course' && customer_email && !requiresPrepay) {
       // Resolve locale: explicit body param first, then fall back to
       // customers.preferred_language if we know the customer.
       let resolvedLanguage: string | null = typeof bodyLanguage === 'string' ? bodyLanguage : null;
@@ -334,7 +352,14 @@ export async function POST(request: NextRequest) {
         `Source: ${source}`,
         customerNotes ? `Notes: ${customerNotes}` : null,
         ``,
-        `Please contact the customer to confirm availability and arrange payment.`,
+        // Branch the staff CTA on the payment path:
+        //  - Prepay (ShopeePay): a "Payment Received" follow-up will fire
+        //    on success, or the rental will auto-cancel if abandoned.
+        //  - Pay-at-pickup (cash, self-pickup only): existing manual flow.
+        //  - Indoor rentals are unchanged.
+        rental_type === 'course' && requiresPrepay
+          ? `Awaiting ShopeePay payment — you'll receive a "Payment Received" notification on success, or the reservation auto-cancels if not paid within 30 min.`
+          : `Please contact the customer to confirm availability and arrange payment.`,
       ].filter(Boolean).join('\n');
 
       fetch(`${baseUrl}/api/notifications/line`, {
@@ -361,6 +386,9 @@ export async function POST(request: NextRequest) {
         delivery_fee,
         total_price,
       },
+      // Frontend uses this to decide whether to redirect to /payment/start
+      // (course + card) or stay on the in-page confirmation step (cash, indoor).
+      requires_prepay: requiresPrepay,
     });
   } catch (error) {
     console.error('[ClubReserve] Error:', error);
