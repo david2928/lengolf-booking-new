@@ -276,29 +276,33 @@ export async function POST(request: NextRequest) {
       }
       const emailLocale = resolveEmailLocale(resolvedLanguage);
 
-      sendCourseRentalConfirmationEmail({
-        customerName: customer_name,
-        email: customer_email,
-        rentalCode,
-        clubSetName: clubSet.name,
-        clubSetTier: clubSet.tier,
-        clubSetGender: clubSet.gender,
-        startDate: start_date,
-        endDate: end_date,
-        durationDays: duration_days || 1,
-        deliveryRequested: delivery_requested,
-        deliveryAddress: delivery_address,
-        deliveryTime: [
-          delivery_time ? `${delivery_requested ? 'Delivery' : 'Pickup'}: ${delivery_time}` : '',
-          return_time ? `Return: ${return_time}` : '',
-        ].filter(Boolean).join(', ') || undefined,
-        addOns: validatedAddOns.map((a: ClubRentalAddOn) => ({ label: a.label, price: a.price })),
-        rentalPrice: rental_price,
-        deliveryFee: delivery_fee,
-        totalPrice: total_price,
-        notes: customerNotes || undefined,
-        language: emailLocale,
-      }).catch(err => console.error('[ClubReserve] Email send error:', err));
+      try {
+        await sendCourseRentalConfirmationEmail({
+          customerName: customer_name,
+          email: customer_email,
+          rentalCode,
+          clubSetName: clubSet.name,
+          clubSetTier: clubSet.tier,
+          clubSetGender: clubSet.gender,
+          startDate: start_date,
+          endDate: end_date,
+          durationDays: duration_days || 1,
+          deliveryRequested: delivery_requested,
+          deliveryAddress: delivery_address,
+          deliveryTime: [
+            delivery_time ? `${delivery_requested ? 'Delivery' : 'Pickup'}: ${delivery_time}` : '',
+            return_time ? `Return: ${return_time}` : '',
+          ].filter(Boolean).join(', ') || undefined,
+          addOns: validatedAddOns.map((a: ClubRentalAddOn) => ({ label: a.label, price: a.price })),
+          rentalPrice: rental_price,
+          deliveryFee: delivery_fee,
+          totalPrice: total_price,
+          notes: customerNotes || undefined,
+          language: emailLocale,
+        });
+      } catch (err) {
+        console.error('[ClubReserve] Email send error:', err);
+      }
     }
 
     // Send LINE notification for staff
@@ -337,11 +341,19 @@ export async function POST(request: NextRequest) {
         `Please contact the customer to confirm availability and arrange payment.`,
       ].filter(Boolean).join('\n');
 
-      fetch(`${baseUrl}/api/notifications/line`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: lineMessage }),
-      }).catch(err => console.error('[ClubReserve] LINE notification error:', err));
+      try {
+        const lineRes = await fetch(`${baseUrl}/api/notifications/line`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: lineMessage }),
+        });
+        if (!lineRes.ok) {
+          const errBody = await lineRes.text().catch(() => '');
+          console.error(`[ClubReserve] LINE notification failed: ${lineRes.status}`, errBody);
+        }
+      } catch (err) {
+        console.error('[ClubReserve] LINE notification error:', err);
+      }
     }
 
     return NextResponse.json({
