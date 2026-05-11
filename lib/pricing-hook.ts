@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, startTransition } from 'react';
 import { getCachedPricing, loadPricing } from '@/lib/pricing';
 
 /**
@@ -13,6 +13,8 @@ export function usePricingLoader(): void {
 
   useEffect(() => {
     if (getCachedPricing()) return;
-    loadPricing().then(() => setLoaded(true));
+    // startTransition marks the post-fetch re-render as non-urgent so it
+    // can't block initial paint or user input on slow mobile CPUs.
+    loadPricing().then(() => startTransition(() => setLoaded(true)));
   }, []);
 }
