@@ -7,16 +7,6 @@ const nextConfig = {
   reactStrictMode: true,
   // Fix for ngrok/tunnel asset loading
   assetPrefix: process.env.NEXT_PUBLIC_ASSET_PREFIX || undefined,
-  experimental: {
-    // Tree-shake barrel imports so customer routes don't ship every icon
-    // in @heroicons/react and react-icons/fa. The course-rental page uses
-    // only 6 heroicons and 1 FaLine; without this, the whole barrels ship.
-    optimizePackageImports: [
-      '@heroicons/react/24/outline',
-      '@heroicons/react/24/solid',
-      'react-icons/fa',
-    ],
-  },
   async headers() {
     return [
       {
