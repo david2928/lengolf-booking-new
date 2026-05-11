@@ -618,7 +618,7 @@ export default function CourseRentalPage() {
                 <span>{t('dates.preview.label')}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {PREVIEW_SETS.map((s) => (
+                {PREVIEW_SETS.map((s, idx) => (
                   <div key={s.name} className="flex flex-col items-center">
                     <div className="relative h-16 sm:h-20 w-full bg-white rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
                       <Image
@@ -626,7 +626,8 @@ export default function CourseRentalPage() {
                         alt={s.name}
                         fill
                         className="object-contain p-1"
-                        loading="lazy"
+                        priority={idx === 0}
+                        fetchPriority={idx === 0 ? 'high' : 'auto'}
                         sizes="(max-width: 640px) 33vw, 200px"
                       />
                     </div>
