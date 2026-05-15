@@ -104,7 +104,13 @@ export async function GET(request: NextRequest) {
         if (typeof probe.payment_channel === 'number') {
           updates.payment_channel = probe.payment_channel;
         }
-        if (probe.payment_method) updates.payment_method = probe.payment_method;
+        // ShopeePay's notify webhook delivered payment_method as a number
+        // (16) in UAT 2026-05-15 even though the docs type it as a string.
+        // The /transaction/check response uses the same shape, so apply
+        // the same defensive coercion here — DB column is TEXT.
+        if (probe.payment_method !== undefined && probe.payment_method !== null) {
+          updates.payment_method = String(probe.payment_method);
+        }
 
         await supabase.from('payment_transactions').update(updates).eq('id', txn.id);
         await supabase

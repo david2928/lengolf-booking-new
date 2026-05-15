@@ -70,6 +70,14 @@ export async function POST(request: NextRequest) {
   // extractReferenceId in lib/shopeepay/types.ts.
   const referenceId = extractReferenceId(payload);
   if (!referenceId) {
+    // Log the payload keys (NOT values — may contain PII or sig data) so
+    // a future ShopeePay-side wire-name change surfaces from logs alone.
+    // The 2026-05-15 outage would have been a 5-minute fix if this log
+    // had been here from day one.
+    console.warn(
+      '[ShopeePay/webhook] no reference field — payload keys:',
+      Object.keys(payload as unknown as Record<string, unknown>)
+    );
     return NextResponse.json({ error: 'Missing reference_id' }, { status: 400 });
   }
 

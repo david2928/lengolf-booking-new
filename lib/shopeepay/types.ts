@@ -134,7 +134,8 @@ export interface CheckTransactionResponse {
   amount?: number;
   transaction_sn?: string;
   payment_channel?: number;
-  payment_method?: string;
+  /** Widened to `string | number` for symmetry with the notify webhook (UAT 2026-05-15). */
+  payment_method?: string | number;
 }
 
 // ---------------------------------------------------------------------
