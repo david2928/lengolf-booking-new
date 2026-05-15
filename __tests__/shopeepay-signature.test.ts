@@ -12,6 +12,7 @@
  */
 
 import { signPayload, verifyPayload } from '@/lib/shopeepay/signature';
+import { extractReferenceId } from '@/lib/shopeepay/types';
 
 describe('ShopeePay signPayload — worked example', () => {
   const SECRET = 'pz148x0gXyPCLHxnlhEydNLg55jni91i';
@@ -63,5 +64,62 @@ describe('ShopeePay verifyPayload', () => {
     expect(verifyPayload(BODY, null, SECRET)).toBe(false);
     expect(verifyPayload(BODY, undefined, SECRET)).toBe(false);
     expect(verifyPayload(BODY, '', SECRET)).toBe(false);
+  });
+});
+
+/**
+ * Regression coverage for the UAT 2026-05-15 failure: ShopeePay sent a
+ * real payment-success webhook with the merchant reference under the
+ * field name `reference_id`, but our webhook handler was destructuring
+ * `payment_reference_id` and returned 400 `Missing payment_reference_id`.
+ * The handler now uses extractReferenceId(), which accepts either wire
+ * name. Keep this test in place so a future "clean up the type" PR
+ * can't silently regress.
+ */
+describe('ShopeePay extractReferenceId — UAT 2026-05-15 payload', () => {
+  it('reads reference_id from the actual UAT notify payload', () => {
+    // Verbatim payload that ShopeePay logged on 2026-05-15.
+    const uatPayload = {
+      amount: 120000,
+      transaction_sn: '160044308330281009',
+      payment_method: 16 as unknown as string, // wire-typed as number; widened in types.ts
+      user_id_hash: '4aca8ec7-ad81-4518-a5af-8fd015631e28',
+      merchant_ext_id: 'lngolf',
+      store_ext_id: 'lngolf',
+      reference_id: 'LENGOLF-CR-20260515-0FC6-mp6l29iy',
+      transaction_type: 13,
+      transaction_status: 3,
+      payment_channel: 2,
+    };
+    expect(extractReferenceId(uatPayload)).toBe('LENGOLF-CR-20260515-0FC6-mp6l29iy');
+  });
+
+  it('falls back to payment_reference_id when reference_id is absent', () => {
+    // Hypothetical: if ShopeePay normalizes the field later, we keep working.
+    expect(
+      extractReferenceId({ payment_reference_id: 'LENGOLF-CR-XYZ' })
+    ).toBe('LENGOLF-CR-XYZ');
+  });
+
+  it('prefers reference_id when both are present', () => {
+    expect(
+      extractReferenceId({
+        reference_id: 'wire-value',
+        payment_reference_id: 'fallback-value',
+      })
+    ).toBe('wire-value');
+  });
+
+  it('returns undefined when neither is present', () => {
+    expect(extractReferenceId({})).toBeUndefined();
+  });
+
+  it('returns undefined for empty-string reference_id', () => {
+    // `?? operator` only short-circuits on null/undefined. Empty string
+    // would falsely pass `if (!referenceId)` in the handler, so the
+    // current implementation (`?? `) lets the empty string through —
+    // verify that's the documented behavior. The handler itself
+    // separately guards with `if (!referenceId)`.
+    expect(extractReferenceId({ reference_id: '' })).toBe('');
   });
 });

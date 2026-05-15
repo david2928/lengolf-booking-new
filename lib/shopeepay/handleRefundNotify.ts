@@ -47,6 +47,11 @@ export async function handleRefundNotify(
   payload: NotifyTransactionPayload,
   opts: RefundNotifyOptions
 ): Promise<NextResponse> {
+  // TODO(refund-uat): confirm ShopeePay actually transmits the field as
+  // `refund_reference_id`. The payment-notify path was observed in UAT
+  // 2026-05-15 sending `reference_id` instead of `payment_reference_id`,
+  // so a similar mismatch on the refund branch is plausible. Capture the
+  // first real refund webhook payload and reconcile before Phase 2 UAT.
   const refundReferenceId = payload.refund_reference_id;
   if (!refundReferenceId) {
     // Defensive — caller should have checked, but never trust the input.

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { verifySignature } from '@/lib/shopeepay/client';
-import { isFinalSuccess, type NotifyTransactionPayload } from '@/lib/shopeepay/types';
+import {
+  extractReferenceId,
+  isFinalSuccess,
+  type NotifyTransactionPayload,
+} from '@/lib/shopeepay/types';
 import { claimAndSendConfirmationEmail } from '@/lib/shopeepay/markRentalAsPaid';
 import { handleRefundNotify } from '@/lib/shopeepay/handleRefundNotify';
 
@@ -57,9 +61,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { payment_reference_id, transaction_sn, amount } = payload;
-  if (!payment_reference_id) {
-    return NextResponse.json({ error: 'Missing payment_reference_id' }, { status: 400 });
+  const { transaction_sn, amount } = payload;
+  // ShopeePay's notify webhook sends `reference_id` (matches the
+  // transaction/check request shape), NOT `payment_reference_id`
+  // (which the order/create request uses). Observed in UAT
+  // 2026-05-15 — a real successful payment was logged on their side
+  // but we returned 400 `Missing payment_reference_id`. See
+  // extractReferenceId in lib/shopeepay/types.ts.
+  const referenceId = extractReferenceId(payload);
+  if (!referenceId) {
+    return NextResponse.json({ error: 'Missing reference_id' }, { status: 400 });
   }
 
   const supabase = createAdminClient();
@@ -77,7 +88,7 @@ export async function POST(request: NextRequest) {
     .select(
       'id, club_rental_id, amount, status, transaction_sn, payment_reference_id, raw_webhook_payload'
     )
-    .eq('payment_reference_id', payment_reference_id)
+    .eq('payment_reference_id', referenceId)
     .maybeSingle();
 
   if (txnError) {
@@ -87,7 +98,7 @@ export async function POST(request: NextRequest) {
   }
   if (!txnRow) {
     console.warn(
-      `[ShopeePay/webhook] no transaction found for ${payment_reference_id} — ignoring`
+      `[ShopeePay/webhook] no transaction found for ${referenceId} — ignoring`
     );
     // Don't surface this as a non-zero — if it's a stale/replayed
     // webhook for a deleted record, we don't want infinite retries.
@@ -97,7 +108,7 @@ export async function POST(request: NextRequest) {
   // Amount tampering check.
   if (typeof amount !== 'number' || amount !== txnRow.amount) {
     console.error(
-      `[ShopeePay/webhook] amount mismatch for ${payment_reference_id}: ` +
+      `[ShopeePay/webhook] amount mismatch for ${referenceId}: ` +
         `expected ${txnRow.amount}, got ${amount}`
     );
     return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 });
@@ -129,7 +140,11 @@ export async function POST(request: NextRequest) {
   if (typeof payload.payment_channel === 'number') {
     txnUpdates.payment_channel = payload.payment_channel;
   }
-  if (payload.payment_method) txnUpdates.payment_method = payload.payment_method;
+  // UAT delivered payment_method as a number (16); coerce to string
+  // since the DB column is TEXT.
+  if (payload.payment_method !== undefined && payload.payment_method !== null) {
+    txnUpdates.payment_method = String(payload.payment_method);
+  }
   if (payload.user_id_hash) txnUpdates.user_id_hash = payload.user_id_hash;
   if (isSuccess) txnUpdates.paid_at = new Date().toISOString();
 
@@ -160,7 +175,7 @@ export async function POST(request: NextRequest) {
 
   if (!txnRow.club_rental_id) {
     console.warn(
-      `[ShopeePay/webhook] success but no club_rental_id linked for ${payment_reference_id}`
+      `[ShopeePay/webhook] success but no club_rental_id linked for ${referenceId}`
     );
     return NextResponse.json(ACK_OK);
   }

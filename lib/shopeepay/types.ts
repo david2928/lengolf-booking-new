@@ -48,8 +48,25 @@ export interface CreateOrderResponse {
 // Notify Transaction Status — webhook FROM ShopeePay TO our endpoint
 // ---------------------------------------------------------------------
 
+/**
+ * Inbound notify payload from ShopeePay.
+ *
+ * Wire-name caveat (observed during UAT 2026-05-15): the CwS APIs are
+ * internally inconsistent on the merchant-reference field name. The
+ * order/create REQUEST uses `payment_reference_id`, but the notify
+ * webhook and the transaction/check request use `reference_id`. Live
+ * UAT traffic transmits `reference_id` only — `payment_reference_id`
+ * is absent. Both are typed optional so the webhook handler can read
+ * whichever is present (preferring `reference_id`).
+ *
+ * `payment_method` is also looser than the docs imply: UAT delivered
+ * an integer (`16`), so we widen to `string | number`.
+ */
 export interface NotifyTransactionPayload {
-  payment_reference_id: string;
+  /** Wire field on the actual notify webhook + transaction/check. */
+  reference_id?: string;
+  /** Docs-promised field name; kept as a fallback in case ShopeePay normalizes later. */
+  payment_reference_id?: string;
   /**
    * CwS uses `status` / `transaction_status`. 3 = success.
    * The CsB flow uses `payment_status: 1` instead — different field, different value.
@@ -63,10 +80,24 @@ export interface NotifyTransactionPayload {
   user_id_hash?: string;
   merchant_ext_id?: string;
   store_ext_id?: string;
+  /** Present on the wire as `13` for Checkout-with-Shopee. We don't branch on it. */
+  transaction_type?: number;
   payment_channel?: number;
-  payment_method?: string;
+  payment_method?: string | number;
   /** Present on refund notifications (phase 2). */
   refund_reference_id?: string;
+}
+
+/**
+ * Read the merchant-reference id from a notify webhook payload,
+ * accepting either wire name. Prefers `reference_id` (what UAT
+ * actually sends) and falls back to `payment_reference_id` (the
+ * docs-promised name) so we stay forward-compatible.
+ */
+export function extractReferenceId(
+  payload: Pick<NotifyTransactionPayload, 'reference_id' | 'payment_reference_id'>
+): string | undefined {
+  return payload.reference_id ?? payload.payment_reference_id ?? undefined;
 }
 
 export interface NotifyAck {
