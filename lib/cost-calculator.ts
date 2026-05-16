@@ -5,7 +5,7 @@
  */
 
 import { isWeekendDate, getRateForTime, timeSlots } from '@/lib/liff/bay-rates-data';
-import { getClubPricing, GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
+import { getClubPricing, GOLF_CLUB_OPTIONS, getGearUpItems } from '@/types/golf-club-rental';
 import { getPackageById } from '@/types/play-food-packages';
 
 // --- Types ---
@@ -26,6 +26,12 @@ export interface CostCalculationInput {
   startTime: string;          // HH:mm
   duration: number;           // hours
   clubRentalId: string;       // 'none' | 'standard' | 'premium' | 'premium-plus'
+  /**
+   * Gear-up items the customer added at booking (e.g. glove sale).
+   * Map of gear-up item id -> selected. Item details (label, price) are
+   * resolved via getGearUpItems() so DB-driven price changes flow through.
+   */
+  addOns?: Record<string, boolean>;
   playFoodPackageId?: string | null;
   hasActivePackage: boolean;
   packageDisplayName?: string;
@@ -98,6 +104,7 @@ const STANDARD_SET_LABEL = {
   en: 'Standard Set', th: 'ชุดมาตรฐาน', ja: 'スタンダードセット', ko: '스탠다드 세트', zh: '标准套装',
 };
 const COMPLIMENTARY_LABEL = { en: 'Complimentary', th: 'ฟรี', ja: '無料', ko: '무료', zh: '免费' };
+const ADD_ON_PREFIX = { en: 'Add-on', th: 'เพิ่ม', ja: 'アドオン', ko: '추가 상품', zh: '加购' };
 
 function buildBayRateDetail(
   lang: 'en' | 'th' | 'ja' | 'ko' | 'zh',
@@ -161,6 +168,7 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     startTime,
     duration,
     clubRentalId,
+    addOns,
     playFoodPackageId,
     hasActivePackage,
     packageDisplayName,
@@ -307,6 +315,26 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       detailZh: COMPLIMENTARY_LABEL.zh,
       amount: 0,
     });
+  }
+
+  // 2b. Gear-up add-ons (e.g. Cabretta glove sale).
+  // Resolved from getGearUpItems() so DB-driven price changes flow through;
+  // product label itself is brand data and stays untranslated, matching the
+  // club-rental treatment above.
+  if (addOns) {
+    const gearUpItems = getGearUpItems();
+    for (const item of gearUpItems) {
+      if (!addOns[item.id]) continue;
+      lineItems.push({
+        id: `addon-${item.id}`,
+        label: `${ADD_ON_PREFIX.en} — ${item.name}`,
+        labelTh: `${ADD_ON_PREFIX.th} — ${item.name}`,
+        labelJa: `${ADD_ON_PREFIX.ja} — ${item.name}`,
+        labelKo: `${ADD_ON_PREFIX.ko} — ${item.name}`,
+        labelZh: `${ADD_ON_PREFIX.zh} — ${item.name}`,
+        amount: item.price,
+      });
+    }
   }
 
   // 3. Calculate subtotal before discounts

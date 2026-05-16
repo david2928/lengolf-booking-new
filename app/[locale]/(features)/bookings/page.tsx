@@ -38,9 +38,11 @@ export default function BookingsPage() {
     selectedPackage,
     selectedClubRental,
     selectedClubSetId,
+    selectedAddOns,
     selectedSlotData,
     setSelectedClubRental,
     setSelectedClubSetId,
+    setSelectedAddOns,
     handleDateSelect,
     handleTimeSelect,
     handleBack,
@@ -118,6 +120,8 @@ export default function BookingsPage() {
             onClubRentalChange={setSelectedClubRental}
             selectedClubSetId={selectedClubSetId}
             onClubSetIdChange={setSelectedClubSetId}
+            selectedAddOns={selectedAddOns}
+            onAddOnsChange={setSelectedAddOns}
           />
         )}
       </div>

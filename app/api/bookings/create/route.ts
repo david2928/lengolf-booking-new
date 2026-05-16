@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { createAdminClient } from '@/utils/supabase/admin';
+import type { Json } from '@/types/supabase';
+import { getGearUpItems } from '@/types/golf-club-rental';
 import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
 
@@ -282,12 +284,32 @@ export async function POST(request: NextRequest) {
       language,
       club_set_id,
       club_rental_type,
+      add_ons: rawAddOns,
       marketing_opt_in: rawMarketingOptIn,
     } = await request.json();
 
     // Coerce to a strict boolean — only the explicit value `true` is consent.
     // Anything else (missing field, null, 'true' string, etc.) is no consent.
     const marketingOptInForm: boolean = rawMarketingOptIn === true;
+
+    // Resolve gear-up add-ons (e.g. glove sale) from the canonical catalog.
+    // We deliberately ignore client-supplied label/price — the request only
+    // selects items by key, and the server fills in the authoritative name +
+    // price. This prevents a forged "Add-ons: Cabretta Glove (฿1)" row landing
+    // in customer_notes / LINE staff notification.
+    const gearUpCatalog = getGearUpItems();
+    const seenAddOnKeys = new Set<string>();
+    const validatedAddOns = Array.isArray(rawAddOns)
+      ? rawAddOns
+          .slice(0, 5)
+          .flatMap((item: { key?: unknown }) => {
+            if (typeof item?.key !== 'string') return [];
+            const canonical = gearUpCatalog.find((g) => g.id === item.key && g.id !== 'delivery');
+            if (!canonical || seenAddOnKeys.has(canonical.id)) return [];
+            seenAddOnKeys.add(canonical.id);
+            return [{ key: canonical.id, label: canonical.name, price: canonical.price }];
+          })
+      : null;
 
     // 2. Authenticate user - support both NextAuth and LIFF context
     const lineUserId = request.headers.get('x-line-user-id');
@@ -677,6 +699,9 @@ export async function POST(request: NextRequest) {
         booking_type: derivedBookingType, // NEW: Include booking_type from the start
         package_name: derivedPackageName, // NEW: Include package_name from the start
         package_id: derivedPackageId, // NEW: Include package_id from the start (undefined for non-simulator packages)
+        add_ons: validatedAddOns && validatedAddOns.length > 0
+          ? (validatedAddOns as unknown as Json)
+          : null,
         language: isAcceptableBookingLanguage(language) ? language : null
         // REMOVED: stable_hash_id (deprecated)
       })

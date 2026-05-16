@@ -709,7 +709,7 @@ export default function CourseRentalPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">{t('delivery.addOnsLabel')}</label>
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {GEAR_UP_ITEMS.filter(item => item.id !== 'delivery').map(item => {
                   const isSelected = addOns.some(a => a.key === item.id);
                   return (
@@ -717,25 +717,37 @@ export default function CourseRentalPage() {
                       key={item.id}
                       type="button"
                       onClick={() => toggleAddOn(item.id, item.name, item.price)}
-                      className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${
+                      aria-pressed={isSelected}
+                      className={`group relative flex flex-col overflow-hidden rounded-xl border-2 text-left transition-all ${
                         isSelected
-                          ? 'border-green-600 bg-green-50'
-                          : 'border-gray-200 hover:border-green-300'
+                          ? 'border-green-600 bg-green-50 shadow-md'
+                          : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
                       }`}
                     >
-                      <div>
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        {item.description && (
-                          <p className="text-xs text-gray-500">{item.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <p className="text-sm font-bold text-green-700">฿{format.number(item.price)}</p>
-                        <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
-                          isSelected ? 'bg-green-600 border-green-600' : 'border-gray-300'
+                      <div className={`relative h-36 w-full overflow-hidden ${
+                        isSelected ? 'bg-white' : 'bg-gray-50'
+                      }`}>
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="(max-width: 640px) 100vw, 50vw"
+                          className="object-contain p-3 transition-transform duration-200 group-hover:scale-105"
+                        />
+                        <div className={`absolute top-2 right-2 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
+                          isSelected ? 'bg-green-600 border-green-600' : 'bg-white border-gray-300'
                         }`}>
                           {isSelected && <CheckIcon className="h-4 w-4 text-white stroke-[3]" />}
                         </div>
+                      </div>
+                      <div className="flex items-start justify-between gap-2 px-4 py-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm text-gray-900 leading-tight">{item.name}</p>
+                          {item.description && (
+                            <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{item.description}</p>
+                          )}
+                        </div>
+                        <p className="text-sm font-bold text-green-700 whitespace-nowrap">฿{format.number(item.price)}</p>
                       </div>
                     </button>
                   );
