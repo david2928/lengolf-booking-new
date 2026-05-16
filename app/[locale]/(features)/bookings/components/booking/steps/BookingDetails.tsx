@@ -618,29 +618,23 @@ export function BookingDetails({
         throw new Error(tErrors('userNotAuthenticated'));
       }
       
-      // Prepare customer notes with club rental info
-      let finalCustomerNotes = customerNotes;
-      const clubRentalInfo = formatClubRentalInfo(selectedClubRental);
-      if (clubRentalInfo) {
-        finalCustomerNotes = finalCustomerNotes
-          ? `${finalCustomerNotes}\n${clubRentalInfo}`
-          : clubRentalInfo;
-      }
-
-      // Resolve gear-up add-ons selected by the customer (e.g. glove sale).
-      // Stored as a structured array for downstream tooling (DB column + admin
-      // views), AND echoed into customer_notes so staff scanning the LINE
-      // notification see the items at a glance.
+      // Build customer_notes with system-generated lines (club rental, add-ons)
+      // PREPENDED so a long user note can never push them past column limits or
+      // out of view in the LINE staff notification. User text always lands last.
       const gearUpItems = getGearUpItems();
       const addOnsPayload = gearUpItems
         .filter((g) => g.id !== 'delivery' && selectedAddOns[g.id])
         .map((g) => ({ key: g.id, label: g.name, price: g.price }));
+
+      const systemLines: string[] = [];
+      const clubRentalInfo = formatClubRentalInfo(selectedClubRental);
+      if (clubRentalInfo) systemLines.push(clubRentalInfo);
       if (addOnsPayload.length > 0) {
-        const summary = `Add-ons: ${addOnsPayload.map((a) => `${a.label} (฿${a.price})`).join(', ')}`;
-        finalCustomerNotes = finalCustomerNotes
-          ? `${finalCustomerNotes}\n${summary}`
-          : summary;
+        systemLines.push(`Add-ons: ${addOnsPayload.map((a) => `${a.label} (฿${a.price})`).join(', ')}`);
       }
+      const finalCustomerNotes = systemLines.length > 0
+        ? (customerNotes ? `${systemLines.join('\n')}\n${customerNotes}` : systemLines.join('\n'))
+        : customerNotes;
       
       // Check if we need to update the user profile
       const profileNeedsUpdate = 

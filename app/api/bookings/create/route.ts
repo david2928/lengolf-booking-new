@@ -3,6 +3,7 @@ import { getToken } from 'next-auth/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { createAdminClient } from '@/utils/supabase/admin';
 import type { Json } from '@/types/supabase';
+import { getGearUpItems } from '@/types/golf-club-rental';
 import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
 
@@ -291,18 +292,23 @@ export async function POST(request: NextRequest) {
     // Anything else (missing field, null, 'true' string, etc.) is no consent.
     const marketingOptInForm: boolean = rawMarketingOptIn === true;
 
-    // Validate gear-up add-ons (e.g. glove sale). Defensive: never trust
-    // client. Cap shape so an attacker can't shove arbitrary JSONB at the row.
-    type RawAddOn = { key?: unknown; label?: unknown; price?: unknown };
+    // Resolve gear-up add-ons (e.g. glove sale) from the canonical catalog.
+    // We deliberately ignore client-supplied label/price — the request only
+    // selects items by key, and the server fills in the authoritative name +
+    // price. This prevents a forged "Add-ons: Cabretta Glove (฿1)" row landing
+    // in customer_notes / LINE staff notification.
+    const gearUpCatalog = getGearUpItems();
+    const seenAddOnKeys = new Set<string>();
     const validatedAddOns = Array.isArray(rawAddOns)
       ? rawAddOns
           .slice(0, 5)
-          .filter((item: RawAddOn): item is { key: string; label: string; price: number } =>
-            typeof item?.key === 'string' && item.key.length > 0 && item.key.length <= 50 &&
-            typeof item?.label === 'string' && item.label.length > 0 && item.label.length <= 100 &&
-            typeof item?.price === 'number' && Number.isFinite(item.price) && item.price >= 0 && item.price <= 10000
-          )
-          .map((item) => ({ key: item.key, label: item.label, price: item.price }))
+          .flatMap((item: { key?: unknown }) => {
+            if (typeof item?.key !== 'string') return [];
+            const canonical = gearUpCatalog.find((g) => g.id === item.key && g.id !== 'delivery');
+            if (!canonical || seenAddOnKeys.has(canonical.id)) return [];
+            seenAddOnKeys.add(canonical.id);
+            return [{ key: canonical.id, label: canonical.name, price: canonical.price }];
+          })
       : null;
 
     // 2. Authenticate user - support both NextAuth and LIFF context
