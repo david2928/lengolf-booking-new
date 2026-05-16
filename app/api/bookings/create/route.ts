@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { createAdminClient } from '@/utils/supabase/admin';
+import type { Json } from '@/types/supabase';
 import { formatBookingData } from '@/utils/booking-formatter';
 import { executeParallel } from '@/utils/parallel-processing';
 
@@ -282,12 +283,27 @@ export async function POST(request: NextRequest) {
       language,
       club_set_id,
       club_rental_type,
+      add_ons: rawAddOns,
       marketing_opt_in: rawMarketingOptIn,
     } = await request.json();
 
     // Coerce to a strict boolean — only the explicit value `true` is consent.
     // Anything else (missing field, null, 'true' string, etc.) is no consent.
     const marketingOptInForm: boolean = rawMarketingOptIn === true;
+
+    // Validate gear-up add-ons (e.g. glove sale). Defensive: never trust
+    // client. Cap shape so an attacker can't shove arbitrary JSONB at the row.
+    type RawAddOn = { key?: unknown; label?: unknown; price?: unknown };
+    const validatedAddOns = Array.isArray(rawAddOns)
+      ? rawAddOns
+          .slice(0, 5)
+          .filter((item: RawAddOn): item is { key: string; label: string; price: number } =>
+            typeof item?.key === 'string' && item.key.length > 0 && item.key.length <= 50 &&
+            typeof item?.label === 'string' && item.label.length > 0 && item.label.length <= 100 &&
+            typeof item?.price === 'number' && Number.isFinite(item.price) && item.price >= 0 && item.price <= 10000
+          )
+          .map((item) => ({ key: item.key, label: item.label, price: item.price }))
+      : null;
 
     // 2. Authenticate user - support both NextAuth and LIFF context
     const lineUserId = request.headers.get('x-line-user-id');
@@ -677,6 +693,9 @@ export async function POST(request: NextRequest) {
         booking_type: derivedBookingType, // NEW: Include booking_type from the start
         package_name: derivedPackageName, // NEW: Include package_name from the start
         package_id: derivedPackageId, // NEW: Include package_id from the start (undefined for non-simulator packages)
+        add_ons: validatedAddOns && validatedAddOns.length > 0
+          ? (validatedAddOns as unknown as Json)
+          : null,
         language: isAcceptableBookingLanguage(language) ? language : null
         // REMOVED: stable_hash_id (deprecated)
       })

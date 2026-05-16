@@ -24,7 +24,7 @@ import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { getPlayFoodPackages } from '@/types/play-food-packages';
-import { getPremiumClubPricing, getPremiumPlusClubPricing, formatClubRentalInfo, getIndoorPrice, getSetThumbnailUrl } from '@/types/golf-club-rental';
+import { getPremiumClubPricing, getPremiumPlusClubPricing, formatClubRentalInfo, getIndoorPrice, getSetThumbnailUrl, getGearUpItems } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
 import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
@@ -70,6 +70,8 @@ interface BookingDetailsProps {
   onClubRentalChange?: (clubId: string) => void;
   selectedClubSetId?: string | null;
   onClubSetIdChange?: (id: string | null) => void;
+  selectedAddOns?: Record<string, boolean>;
+  onAddOnsChange?: (addOns: Record<string, boolean>) => void;
 }
 
 // Add loading animation components
@@ -142,6 +144,8 @@ export function BookingDetails({
   onClubRentalChange,
   selectedClubSetId,
   onClubSetIdChange,
+  selectedAddOns = {},
+  onAddOnsChange,
 }: BookingDetailsProps) {
   const t = useTranslations('bookings.detailsStep');
   const tCommon = useTranslations('common');
@@ -495,6 +499,7 @@ export function BookingDetails({
       startTime: selectedTime,
       duration,
       clubRentalId: selectedClubRental,
+      addOns: selectedAddOns,
       playFoodPackageId: localSelectedPackage?.id ?? null,
       hasActivePackage,
       packageDisplayName,
@@ -617,9 +622,24 @@ export function BookingDetails({
       let finalCustomerNotes = customerNotes;
       const clubRentalInfo = formatClubRentalInfo(selectedClubRental);
       if (clubRentalInfo) {
-        finalCustomerNotes = finalCustomerNotes 
+        finalCustomerNotes = finalCustomerNotes
           ? `${finalCustomerNotes}\n${clubRentalInfo}`
           : clubRentalInfo;
+      }
+
+      // Resolve gear-up add-ons selected by the customer (e.g. glove sale).
+      // Stored as a structured array for downstream tooling (DB column + admin
+      // views), AND echoed into customer_notes so staff scanning the LINE
+      // notification see the items at a glance.
+      const gearUpItems = getGearUpItems();
+      const addOnsPayload = gearUpItems
+        .filter((g) => g.id !== 'delivery' && selectedAddOns[g.id])
+        .map((g) => ({ key: g.id, label: g.name, price: g.price }));
+      if (addOnsPayload.length > 0) {
+        const summary = `Add-ons: ${addOnsPayload.map((a) => `${a.label} (฿${a.price})`).join(', ')}`;
+        finalCustomerNotes = finalCustomerNotes
+          ? `${finalCustomerNotes}\n${summary}`
+          : summary;
       }
       
       // Check if we need to update the user profile
@@ -692,6 +712,7 @@ export function BookingDetails({
           preferred_bay_type: selectedBayType || selectedBay,
           club_set_id: selectedClubSetId || null,
           club_rental_type: selectedClubRental,
+          add_ons: addOnsPayload.length > 0 ? addOnsPayload : null,
           language: locale,
           marketing_opt_in: marketingOptIn,
         })
@@ -1214,6 +1235,63 @@ export function BookingDetails({
           )}
 
         </div>
+
+        {/* Gear Up — optional add-on items sold at booking time (e.g. glove). */}
+        {(() => {
+          const gearUpItems = getGearUpItems().filter((g) => g.id === 'gloves');
+          if (gearUpItems.length === 0) return null;
+          return (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                {t('gearUpLabel')}
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {gearUpItems.map((item) => {
+                  const isSelected = !!selectedAddOns[item.id];
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => onAddOnsChange?.({ ...selectedAddOns, [item.id]: !isSelected })}
+                      className={`group flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
+                        isSelected
+                          ? 'border-green-600 bg-green-50 shadow-sm'
+                          : 'border-gray-200 bg-white hover:border-green-300'
+                      }`}
+                    >
+                      <div className={`relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0 border ${
+                        isSelected ? 'bg-white border-green-200' : 'bg-gray-50 border-gray-200'
+                      }`}>
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="64px"
+                          className="object-contain p-1"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-gray-900 leading-tight">{item.name}</p>
+                        {item.description && (
+                          <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{item.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <p className="text-sm font-bold text-green-700">฿{formatter.number(item.price)}</p>
+                        <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
+                          isSelected ? 'bg-green-600 border-green-600' : 'border-gray-300 bg-white'
+                        }`}>
+                          {isSelected && <CheckIcon className="h-4 w-4 text-white stroke-[3]" />}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Contact Information Section */}
         <div className="pt-4 border-t border-gray-200">
