@@ -75,8 +75,27 @@ export function LanguageSwitcher({ variant = 'dark' }: LanguageSwitcherProps = {
   function handleSelect(next: Locale) {
     setOpen(false);
     if (next === locale) return;
+
+    // Write NEXT_LOCALE BEFORE navigating. next-intl v3's `router.replace`
+    // does NOT manage the cookie — the server middleware sets it only when
+    // a locale-prefixed URL is visited (`/th/...`). Switching TO the default
+    // locale (`en`) navigates to an unprefixed URL like `/bookings`, which
+    // the middleware sees alongside the stale cookie and 307-redirects BACK
+    // to `/{stale-locale}/bookings`. The user is then trapped: every "switch
+    // to English" click bounces them to their old locale.
+    //
+    // Match the attributes from i18n/routing.ts → localeCookie EXACTLY so
+    // this cookie shadows (not duplicates) the server-set one. Use the same
+    // `process.env.NODE_ENV === 'production'` predicate as routing.ts —
+    // anything else (e.g. hostname check) drifts on Vercel preview deploys
+    // and any future *.len.golf staging subdomain. Next.js inlines
+    // `process.env.NODE_ENV` for client components at build time.
+    const maxAge = 60 * 60 * 24 * 365; // 1 year, matches routing.ts
+    const domainAttr =
+      process.env.NODE_ENV === 'production' ? '; Domain=.len.golf' : '';
+    document.cookie = `NEXT_LOCALE=${next}; Path=/; Max-Age=${maxAge}; SameSite=lax${domainAttr}`;
+
     startTransition(() => {
-      // next-intl writes the NEXT_LOCALE cookie + swaps the URL prefix.
       router.replace(pathname, { locale: next });
       // Best-effort server-side persistence for logged-in users so the
       // preference survives on a different device / browser.
