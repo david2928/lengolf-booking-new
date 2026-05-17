@@ -84,12 +84,15 @@ export function LanguageSwitcher({ variant = 'dark' }: LanguageSwitcherProps = {
     // to `/{stale-locale}/bookings`. The user is then trapped: every "switch
     // to English" click bounces them to their old locale.
     //
-    // Match the attributes from i18n/routing.ts → localeCookie so this
-    // cookie shadows (not duplicates) the server-set one. In particular,
-    // Domain=.len.golf in production so it shares with the marketing site.
-    const isProd = window.location.hostname.endsWith('.len.golf');
+    // Match the attributes from i18n/routing.ts → localeCookie EXACTLY so
+    // this cookie shadows (not duplicates) the server-set one. Use the same
+    // `process.env.NODE_ENV === 'production'` predicate as routing.ts —
+    // anything else (e.g. hostname check) drifts on Vercel preview deploys
+    // and any future *.len.golf staging subdomain. Next.js inlines
+    // `process.env.NODE_ENV` for client components at build time.
     const maxAge = 60 * 60 * 24 * 365; // 1 year, matches routing.ts
-    const domainAttr = isProd ? '; Domain=.len.golf' : '';
+    const domainAttr =
+      process.env.NODE_ENV === 'production' ? '; Domain=.len.golf' : '';
     document.cookie = `NEXT_LOCALE=${next}; Path=/; Max-Age=${maxAge}; SameSite=lax${domainAttr}`;
 
     startTransition(() => {
