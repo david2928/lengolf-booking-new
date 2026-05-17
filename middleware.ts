@@ -84,8 +84,8 @@ export async function middleware(request: NextRequest) {
 
   // If next-intl issued a redirect (status 3xx, e.g. cookie-driven `/` → `/th`),
   // pass it through unchanged. The browser will make a follow-up request to
-  // `/th`, where this middleware fires again, sees a bare locale, and rewrites
-  // to `/th/bookings` below.
+  // `/th`, where this middleware fires again, sees a bare non-default locale,
+  // and issues a second 308 to `/th/bookings` (handled by the block below).
   if (intlResponse.status >= 300 && intlResponse.status < 400) {
     return intlResponse;
   }
@@ -99,13 +99,31 @@ export async function middleware(request: NextRequest) {
     : pathname;
 
   // If the effective path resolves to a bare locale root (`/`, `/th`, etc.),
-  // rewrite it to the bookings page for that locale.
+  // route it to the bookings page for that locale. Two behaviors:
+  //
+  // - `/` (default locale): internal rewrite so the URL bar stays `/`. This
+  //   is the long-standing root-rewrite behavior and works correctly because
+  //   the default locale needs no prefix under `localePrefix: 'as-needed'`.
+  //
+  // - `/{locale}` (bare non-default locale, e.g. `/th`, `/ko`): 308 redirect
+  //   to `/{locale}/bookings`. A rewrite here silently collapses the locale
+  //   back to `en` downstream — bare-locale URLs rendered with
+  //   `<html lang="en">` and English content. The redirect forces the browser
+  //   to refetch the canonical `/{locale}/bookings` URL, which next-intl
+  //   resolves correctly. Bonus: the URL bar becomes canonical and matches
+  //   the hreflang alternates emitted for that locale.
   const bareEffective = stripLocale(effectivePath);
   if (bareEffective === '/') {
     const prefix = localePrefix(effectivePath);
     const url = request.nextUrl.clone();
     url.pathname = `${prefix}/bookings`;
-    return NextResponse.rewrite(url);
+
+    const originalIsBareNonDefaultLocale = routing.locales.some(
+      (l) => l !== routing.defaultLocale && pathname === `/${l}`,
+    );
+    return originalIsBareNonDefaultLocale
+      ? NextResponse.redirect(url, 308)
+      : NextResponse.rewrite(url);
   }
 
   // NextAuth session check. A malformed/corrupted JWT cookie throws here —
