@@ -36,6 +36,22 @@ assert_header() {
   fi
 }
 
+# Like assert_header but tolerates an absolute-URL form. Next.js dev emits
+# relative `Location: /foo`, but Vercel's edge runtime sometimes emits
+# `Location: https://host/foo`. Both are valid for a same-origin redirect.
+assert_location() {
+  local label="$1" expected_path="$2" actual="$3"
+  case "$actual" in
+    "$expected_path"|*"://"*"$expected_path")
+      echo "  PASS [$label] = $actual"
+      ;;
+    *)
+      echo "  FAIL [$label] expected=$expected_path (or absolute form) actual=$actual"
+      fail=1
+      ;;
+  esac
+}
+
 # Helper: returns HTTP status code from HEAD request
 status_of() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 # Helper: extracts a header value (case-insensitive) from HEAD response
@@ -66,11 +82,22 @@ rewrite=$(header_of "x-middleware-rewrite" "$BASE/")
 assert_status "status" "200" "$status"
 assert_header "x-middleware-rewrite" "/en/bookings" "$rewrite"
 
-echo "Test 5: /th -> 200 (rewritten to /th/bookings)"
+echo "Test 5: /th -> 308 redirect to /th/bookings (canonical localized URL)"
+# Previously this rewrote to /th/bookings, but next-intl's middleware silently
+# collapsed the locale back to `en` downstream — bare-locale URLs rendered
+# with `<html lang="en">` and English content. A 308 forces the browser to
+# fetch the canonical /th/bookings, where the locale resolves correctly.
+# Next.js dev returns Location as a same-origin path; Vercel may emit absolute.
 status=$(status_of "$BASE/th")
-rewrite=$(header_of "x-middleware-rewrite" "$BASE/th")
-assert_status "status" "200" "$status"
-assert_header "x-middleware-rewrite" "/th/bookings" "$rewrite"
+loc=$(header_of "location" "$BASE/th")
+assert_status "status" "308" "$status"
+assert_location "location" "/th/bookings" "$loc"
+
+echo "Test 5b: /ko -> 308 redirect to /ko/bookings (same fix, all locales)"
+status=$(status_of "$BASE/ko")
+loc=$(header_of "location" "$BASE/ko")
+assert_status "status" "308" "$status"
+assert_location "location" "/ko/bookings" "$loc"
 
 # Test 6+: every unprefixed customer route must be matched by middleware and
 # rewritten to its /en/* equivalent. Regression guard for the /course-rental
