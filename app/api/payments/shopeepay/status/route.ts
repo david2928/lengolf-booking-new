@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
         // arrival later will see the email already claimed and skip).
         // Don't await — keep the polling response fast.
         void claimAndSendConfirmationEmail(supabase, txn.id, rental.id, {
-          transactionSn: transactionSn,
+          transactionRef: transactionSn,
         });
       } else if (probe.errcode === 0 && (probe.status !== undefined || probe.transaction_status !== undefined)) {
         // Terminal non-success.

@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
   // (and vice versa). Fire-and-forget; the helper handles its own
   // logging.
   void claimAndSendConfirmationEmail(supabase, txnRow.id, txnRow.club_rental_id, {
-    transactionSn: transaction_sn,
+    transactionRef: transaction_sn,
   });
 
   // Staff LINE notification. Fire-and-forget.
