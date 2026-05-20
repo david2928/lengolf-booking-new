@@ -121,4 +121,12 @@ if (typeof global.URL === 'undefined') {
       this.href = url;
     }
   };
-} 
+}
+
+// Opn Payments — inject test-shape env vars so lib/opn/config.ts
+// module-load assertions don't crash the test runner. These are NOT
+// real keys; they're shape-correct strings to satisfy the assertion.
+process.env.OPN_PUBLIC_KEY = process.env.OPN_PUBLIC_KEY || 'pkey_test_jest_fixture';
+process.env.OPN_SECRET_KEY = process.env.OPN_SECRET_KEY || 'skey_test_jest_fixture';
+process.env.OPN_WEBHOOK_SECRET = process.env.OPN_WEBHOOK_SECRET || 'whsec_test_jest_fixture_32_chars_abc';
+process.env.OPN_API_VERSION = process.env.OPN_API_VERSION || '2019-05-29';
