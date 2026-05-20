@@ -20,6 +20,10 @@ export interface RentalOrderSummary {
   delivery_fee: number;
   total_price: number;
   currency: 'THB';
+  /** e.g. 'pending' | 'paid' | 'refunded' — used by checkout preflight */
+  payment_status: string | null;
+  /** ISO-8601 timestamp; null if the rental has no expiry */
+  expires_at: string | null;
 }
 
 /**
@@ -64,5 +68,7 @@ export async function loadRentalOrderSummary(
     delivery_fee: Number(rental.delivery_fee || 0),
     total_price: Number(rental.total_price),
     currency: 'THB',
+    payment_status: rental.payment_status ?? null,
+    expires_at: rental.expires_at ?? null,
   };
 }
