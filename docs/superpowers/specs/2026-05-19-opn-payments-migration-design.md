@@ -42,6 +42,7 @@ The reverted ShopeePay code lives on `origin/claude/admiring-ride-526456` (HEAD 
 - **Manual capture (auth+capture split)** — v1 auto-captures; payment is the trigger for staff prep, so no business reason to delay.
 - **Inline 3DS iframe** — most issuer banks forbid iframe embedding; same-tab redirect to `authorize_uri` only.
 - **Reconciliation cron** — log + alert in v1 (`SELECT … WHERE status='pending' AND created_at < now() - interval '30 min'`), build the cron in v1.1 only if real data shows it's needed.
+- **Admin-initiated refund endpoint** (`/api/payments/opn/refund`) — deferred to v1.1. v1 handles refunds the same way ShopeePay does: staff issue them from the Opn merchant dashboard, and our `refund.create` webhook updates `payment_transactions` + sends the refund email. The ShopeePay branch has no `/api/payments/shopeepay/refund` route either — refund initiation has never been in-app. Deferring avoids designing admin-auth from scratch in v1 (this app has no staff-role precedent — NextAuth is configured for customers/VIP only). v1.1 builds the endpoint once the admin-UI surface is settled.
 - **ShopeePay decommission** — separate PR, 60 days post-cutover.
 - **Setting `OPN_*` in Vercel Production env** — user action at cutover.
 - **Merging to `main`** — gated on user cutover approval after live keys arrive (~15 business days for KYC).
@@ -135,10 +136,13 @@ All routes live under `app/api/payments/opn/*` and `app/api/webhooks/opn/route.t
 |---|---|---|---|---|
 | `/api/payments/opn/intent` | POST | implicit-via-`rental_code` (matches ShopeePay's `/create` capability model) | `{ rental_code: string, token: 'tokn_*' }` | One of three terminal cases:<br>`{ status: 'requires_3ds', authorize_uri }`<br>`{ status: 'success', ref }`<br>`{ status: 'failed', failure_reason }`<br>Idempotency-Key header to Omise = `SHA256(rental_code + token)` so a double-click can't double-charge. |
 | `/api/payments/opn/return` | GET | implicit-via-`ref` | `?ref=CRYYMMDDXXX` | `StatusResponse` shape from the ShopeePay branch's `/status` (status, total_price, paid_at, failure_reason, summary). `transaction_sn` → `gateway_charge_id`. Reads txn row → if pending, calls `omise.charges.retrieve(chrg_*)` → if terminal, flips row and fires `claimAndSendConfirmationEmail` async. |
-| `/api/payments/opn/refund` | POST | **admin-only** (predicate: copy from existing ShopeePay refund route — verify on day one of implementation; if no existing pattern, stop and ask) | `{ rental_code, amount?: number_in_satang, reason?: string }` | Calls `omise.charges.createRefund(chrg, { amount })`. Omit `amount` for full refund. Inserts a refund row (shape mirrors ShopeePay's `handleRefundNotify`). Async completion via `refund.create` webhook. |
-| `/api/webhooks/opn` | POST | HMAC signature verify on raw body | Opn webhook payload | Branches on `event.key`: `charge.complete` → flip rental + email; `charge.create` → log only; `refund.create` → mark refund row terminal + send refund email. 200 OK on rows we recognize incl. idempotent replays. 401 on bad signature so Opn retries. |
+| `/api/webhooks/opn` | POST | HMAC signature verify on raw body | Opn webhook payload | Branches on `event.key`: `charge.complete` → flip rental + email; `charge.create` → log only; `refund.create` → mirror ShopeePay's `handleRefundNotify` pattern (`lib/opn/handleRefundNotify.ts`) — mark refund row terminal + send refund email. 200 OK on rows we recognize incl. idempotent replays. 401 on bad signature so Opn retries. |
+
+**Refund initiation is OUT OF SCOPE for v1** (see Non-Goals). Staff issue refunds from Opn's merchant dashboard; our webhook reacts. No `/api/payments/opn/refund` route is built in this PR. v1.1 picks it up once the admin-UI pattern is settled.
 
 **Folded into `/return`:** the original brief listed a separate `/api/payments/opn/summary` route. The data overlaps with what `/return` already returns; folding keeps the API surface smaller. Will re-split if `/payment/checkout` later needs summary without invoking gateway-probe side-effects.
+
+**Dropped from v1:** the original brief also listed `/api/payments/opn/refund`. The ShopeePay branch has no in-app refund route either — the existing pattern is dashboard-initiated refunds processed via webhook. Deferred to v1.1 once admin-UI lands.
 
 **`/intent` write order:** insert pending `payment_transactions` row BEFORE calling Omise, UPDATE with `chrg_*` and result after. Same pattern as ShopeePay's `/create`. Guarantees a paper trail even on gateway timeout.
 
@@ -314,13 +318,12 @@ Stored verbatim in `payment_transactions.failure_code` + `.failure_message` for 
 - Polling endpoint calls `omise.charges.retrieve(chrg_*)` if local row is still `pending` (mirrors ShopeePay's `/transaction/check` fallback).
 - **Stored**: `is_3ds = (authorize_uri != null)` so reporting can distinguish 3DS conversion impact.
 
-## 9. Refund flow
+## 9. Refund flow (v1: dashboard-initiated, webhook-reactive)
 
-- **Admin-only**. Predicate copied from the existing ShopeePay refund route (`app/api/payments/shopeepay/refund/route.ts`) on day one. If no existing admin-auth pattern, stop and ask before implementing.
-- Body: `{ rental_code, amount?: number_in_satang, reason?: string }`. Omit `amount` for full refund.
-- Calls `omise.charges.createRefund(chrg_*, { amount })`. Inserts a refund row mirroring the ShopeePay branch's shape.
-- Async completion: same webhook arrives with `event.key = 'refund.create'`, flips the refund row to terminal, sends refund email.
-- **Enforce client-side**: max 15 partial refunds per charge, must be within 365 days of capture (matches Opn's limits).
+- **Initiation**: staff use Opn's merchant dashboard to issue full or partial refunds. No in-app admin endpoint in v1.
+- **Reaction**: Opn sends `refund.create` webhook → `/api/webhooks/opn` routes to `lib/opn/handleRefundNotify.ts` → mirrors ShopeePay's `handleRefundNotify` pattern: locate the original `payment_transactions` row by `gateway_charge_id`, insert/update a child refund row, flip `club_rentals.payment_status = 'refunded'` if fully refunded, send refund email via the shared `claimAndSendRefundEmail` helper (to be lifted analogously to `claimAndSendConfirmationEmail`).
+- **Opn limits to be aware of**: max 15 partial refunds per charge, must be within 365 days of capture. Our webhook handler reflects whatever Opn allows; we don't pre-validate.
+- **v1.1**: build `/api/payments/opn/refund` POST endpoint with admin-auth once the admin-UI pattern is settled. Both initiation paths produce the same `refund.create` webhook, so the v1 webhook handler is forward-compatible.
 
 ---
 
@@ -405,8 +408,8 @@ After Opn is live 60 days with healthy metrics, a separate clean-delete PR:
 
 ## Open at implementation time (not blocking design approval)
 
-1. **Admin-auth predicate** for `/api/payments/opn/refund`. Day-one task: grep the ShopeePay refund route for its auth check and copy. If no existing pattern, stop and ask.
-2. **Manual UAT alias creation timing**. User creates `lengolf-opn-uat.vercel.app` against the first preview deployment of `feat/opn-payments`. Not blocking design; blocking first webhook UAT.
+1. **Manual UAT alias creation timing**. User creates `lengolf-opn-uat.vercel.app` against the first preview deployment of `feat/opn-payments`. Not blocking design; blocking first webhook UAT.
+2. **Opn API version pin**. The spec sets `OPN_API_VERSION` (e.g. `2019-05-29`) but the exact version to pin should be the latest stable as of integration day, confirmed from Opn dashboard. Pin in the env-vars table before merging.
 
 ---
 
@@ -418,4 +421,5 @@ After Opn is live 60 days with healthy metrics, a separate clean-delete PR:
 - **Paid-status writer**: webhook + polling fallback (both can flip `rental.payment_status='paid'`; email-claim dedup prevents double-sends). Matches existing ShopeePay pattern.
 - **UAT alias name**: `lengolf-opn-uat.vercel.app`. Existing `lengolf-shopeepay-uat.vercel.app` preserved unchanged during parallel-run window.
 - **`/summary` route**: folded into `/return` (data overlap; can re-split later if needed).
+- **`/refund` admin endpoint**: deferred to v1.1 (discovered during planning that the ShopeePay branch never built one either — refund initiation has always been dashboard-only; webhook handles the reaction).
 - **Reconciliation cron**: deferred to v1.1; v1 ships with a logging+alert query only.
