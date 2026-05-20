@@ -51,10 +51,7 @@ type ViewState =
   | { kind: 'tokenize-error'; code: string };
 
 export function PayElement({ rentalCode, amount, publicKey }: PayElementProps) {
-  // T18 adds payment.checkout keys to the message catalog; cast avoids
-  // "not assignable to parameter of type never" until that task runs.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const t = useTranslations('payment.checkout' as any) as (key: string, values?: Record<string, unknown>) => string;
+  const t = useTranslations('payment.checkout');
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [name, setName] = useState('');

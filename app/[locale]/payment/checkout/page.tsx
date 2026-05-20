@@ -31,10 +31,7 @@ export default async function CheckoutPage({
 }) {
   const { locale } = await params;
   const { ref } = await searchParams;
-  // T18 adds payment.checkout keys to the message catalog.
-  // Cast avoids "not assignable to parameter of type never" until that task runs.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const t = await getTranslations('payment.checkout' as any) as (key: string) => string;
+  const t = await getTranslations('payment.checkout');
 
   if (!ref) return <MissingRefView />;
 
@@ -64,8 +61,7 @@ export default async function CheckoutPage({
 }
 
 async function MissingRefView() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const t = await getTranslations('payment.checkout' as any) as (key: string) => string;
+  const t = await getTranslations('payment.checkout');
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
@@ -83,8 +79,7 @@ async function MissingRefView() {
 }
 
 async function AlreadyPaidView({ ref }: { ref: string }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const t = await getTranslations('payment.checkout' as any) as (key: string) => string;
+  const t = await getTranslations('payment.checkout');
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
@@ -102,8 +97,7 @@ async function AlreadyPaidView({ ref }: { ref: string }) {
 }
 
 async function ExpiredView() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const t = await getTranslations('payment.checkout' as any) as (key: string) => string;
+  const t = await getTranslations('payment.checkout');
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">

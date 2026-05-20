@@ -52,10 +52,7 @@ type ViewState =
   | { kind: 'missing-ref' };
 
 export default function PaymentReturnPage() {
-  // T18 adds payment.return keys to the message catalog.
-  // Cast avoids "not assignable to parameter of type never" until that task runs.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const t = useTranslations('payment.return' as any) as (key: string, values?: Record<string, unknown>) => string;
+  const t = useTranslations('payment.return');
   const format = useFormatter();
   const params = useSearchParams();
   const ref = params?.get('ref') ?? null;
@@ -175,7 +172,7 @@ function CheckingView({
   t,
 }: {
   state: { kind: 'checking' | 'confirming-late'; attempt: number };
-  t: (key: string) => string;
+  t: ReturnType<typeof useTranslations<'payment.return'>>;
 }) {
   const isLate = state.kind === 'confirming-late';
   return (
@@ -201,7 +198,7 @@ function SuccessView({
   format,
 }: {
   data: StatusResponse;
-  t: (key: string, values?: Record<string, unknown>) => string;
+  t: ReturnType<typeof useTranslations<'payment.return'>>;
   format: ReturnType<typeof useFormatter>;
 }) {
   const formatDate = (iso: string) =>
@@ -355,7 +352,7 @@ function FailedView({
   reason: 'declined' | 'cancelled' | 'expired' | 'unknown';
   ref: string | null;
   retryHref: { pathname: '/payment/checkout'; query: { ref: string } } | string;
-  t: (key: string) => string;
+  t: ReturnType<typeof useTranslations<'payment.return'>>;
 }) {
   const titles = {
     declined: t('declinedTitle'),
@@ -439,7 +436,7 @@ function FailedView({
   );
 }
 
-function MissingRefView({ t }: { t: (key: string) => string }) {
+function MissingRefView({ t }: { t: ReturnType<typeof useTranslations<'payment.return'>> }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
       <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('expiredTitle')}</h1>

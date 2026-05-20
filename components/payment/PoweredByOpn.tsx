@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
  * lock glyph so we never break on Opn's brand-asset CDN.
  */
 export function PoweredByOpn() {
-  const t = useTranslations('payment.start');
+  const t = useTranslations('payment.checkout');
   return (
     <div className="flex items-center justify-center gap-2 text-xs text-gray-500 py-1">
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
