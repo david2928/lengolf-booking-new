@@ -123,6 +123,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid return time format' }, { status: 400 });
     }
 
+    // Course rentals must carry pickup + return time. Without them the server
+    // can't authoritatively compute billable days (see effective_duration_days
+    // below) and would have to trust the client — that was the original bug.
+    if (rental_type === 'course' && (!start_time || !return_time)) {
+      return NextResponse.json(
+        { error: 'Pickup time and return time are required for course rentals' },
+        { status: 400 }
+      );
+    }
+
     // Validate add-ons: use trusted server-side prices AND labels
     // Exclude 'delivery' add-on to prevent double-charging with delivery_fee
     const trustedAddons = getTrustedAddons();
@@ -140,7 +150,10 @@ export async function POST(request: NextRequest) {
         price: trustedAddons[addon.key].price,
       }));
 
-    // Calculate end_date: "1 day" means return next day, so end = start + duration
+    // Calculate end_date: "1 day" means return next day, so end = start + duration.
+    // Contract: an explicit body.end_date wins over duration_days-derived end_date.
+    // The time-aware recompute below is what actually determines billing duration,
+    // so the only role of end_date here is the date range for the availability check.
     let end_date = body.end_date || start_date;
     if (rental_type === 'course' && duration_days && !body.end_date) {
       const start = new Date(start_date);
