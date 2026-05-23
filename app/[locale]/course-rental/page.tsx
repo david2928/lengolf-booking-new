@@ -97,10 +97,19 @@ export default function CourseRentalPage() {
   const [rentalCode, setRentalCode] = useState('');
   const [error, setError] = useState('');
 
-  // Calculate duration from start/end dates
-  const durationDays = (startDate && endDate)
-    ? Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)))
-    : 0;
+  // Calculate billable duration from pickup/return time, not just calendar dates.
+  // Without this, e.g. pickup 09:00 Sun + return 20:00 Mon (35h) would bill as 1d.
+  // 1-hour grace absorbs minor overruns at handover; anything past 25h tips to 2d.
+  const durationDays = (() => {
+    if (!startDate || !endDate) return 0;
+    if (pickupTime && returnTime) {
+      const pickupMs = new Date(`${startDate}T${pickupTime}:00+07:00`).getTime();
+      const returnMs = new Date(`${endDate}T${returnTime}:00+07:00`).getTime();
+      const billableMs = Math.max(0, returnMs - pickupMs - 3_600_000);
+      return Math.max(1, Math.ceil(billableMs / 86_400_000));
+    }
+    return Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000));
+  })();
 
   // Today's date for min
   const todayStr = (() => {
