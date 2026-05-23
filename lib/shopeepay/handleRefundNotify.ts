@@ -1,8 +1,11 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { isFinalSuccess, type NotifyTransactionPayload } from './types';
+import { extractReferenceId, isFinalSuccess, type NotifyTransactionPayload } from './types';
 import { claimAndSendRefundEmail } from './markRefundAsRefunded';
+
+const IS_PROD_ENV = process.env.VERCEL_ENV === 'production';
+const LINE_PREFIX = IS_PROD_ENV ? '' : '[UAT] ';
 
 /**
  * Refund-notify branch of the ShopeePay webhook.
@@ -47,11 +50,16 @@ export async function handleRefundNotify(
   payload: NotifyTransactionPayload,
   opts: RefundNotifyOptions
 ): Promise<NextResponse> {
-  // TODO(refund-uat): confirm ShopeePay actually transmits the field as
-  // `refund_reference_id`. The payment-notify path was observed in UAT
-  // 2026-05-15 sending `reference_id` instead of `payment_reference_id`,
-  // so a similar mismatch on the refund branch is plausible. Capture the
-  // first real refund webhook payload and reconcile before Phase 2 UAT.
+  // Always log the wire shape of refund payloads so the next session can
+  // see exactly which fields ShopeePay actually sent (vs the docs claim).
+  // The payment-notify path was observed in UAT 2026-05-15 sending
+  // `reference_id` instead of `payment_reference_id` — a similar mismatch
+  // on the refund branch is plausible. Keys-only, never values (PII safety).
+  console.log(
+    '[ShopeePay/webhook/refund] payload keys:',
+    Object.keys(payload as unknown as Record<string, unknown>)
+  );
+
   const refundReferenceId = payload.refund_reference_id;
   if (!refundReferenceId) {
     // Defensive — caller should have checked, but never trust the input.
@@ -59,22 +67,93 @@ export async function handleRefundNotify(
   }
 
   // 1. Look up the refund row.
-  const { data: refundRow, error: refundErr } = await supabase
+  const { data: initialRefundRow, error: refundErr } = await supabase
     .from('payment_refunds')
     .select('id, payment_transaction_id, amount, status, raw_webhook_payload')
     .eq('refund_reference_id', refundReferenceId)
     .maybeSingle<PaymentRefundRow>();
+  // refundRow may be reassigned below in the orphan-refund self-create branch.
+  let refundRow = initialRefundRow;
 
   if (refundErr) {
     console.error('[ShopeePay/webhook/refund] DB lookup error:', refundErr);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
+
+  // ORPHAN REFUND PATH: no payment_refunds row exists for this refund_reference_id.
+  // This is the merchant-portal-initiated refund case (ops uses ShopeePay's
+  // dashboard to refund a customer, bypassing our /api/payments/refund route).
+  // First observed UAT 2026-05-23: a portal-initiated ฿1,200 refund was acked
+  // 200 by our handler but never updated our DB, leaving the rental as 'paid'
+  // while the customer's card was credited. Self-create the row so refunds
+  // are captured regardless of origin.
   if (!refundRow) {
-    console.warn(
-      `[ShopeePay/webhook/refund] no refund row for ${refundReferenceId} — ignoring`
+    const parentReferenceId = extractReferenceId(payload);
+    if (!parentReferenceId) {
+      console.warn(
+        `[ShopeePay/webhook/refund] orphan refund ${refundReferenceId} without parent reference — ignoring`
+      );
+      return NextResponse.json(ACK_OK);
+    }
+
+    const { data: parentTxn, error: parentErr } = await supabase
+      .from('payment_transactions')
+      .select('id, amount')
+      .eq('payment_reference_id', parentReferenceId)
+      .maybeSingle();
+
+    if (parentErr) {
+      console.error('[ShopeePay/webhook/refund] parent lookup error:', parentErr);
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    }
+    if (!parentTxn) {
+      console.warn(
+        `[ShopeePay/webhook/refund] orphan refund ${refundReferenceId} — no parent txn for ${parentReferenceId}`
+      );
+      // Don't loop ShopeePay on stale/replayed deletions.
+      return NextResponse.json(ACK_OK);
+    }
+
+    // Refund-amount sanity check before insert: must be a positive integer
+    // and not exceed the parent transaction amount.
+    if (
+      typeof payload.amount !== 'number' ||
+      payload.amount <= 0 ||
+      payload.amount > parentTxn.amount
+    ) {
+      console.error(
+        `[ShopeePay/webhook/refund] orphan refund ${refundReferenceId}: invalid amount ${payload.amount} vs parent ${parentTxn.amount}`
+      );
+      return NextResponse.json({ error: 'Invalid refund amount' }, { status: 400 });
+    }
+
+    const { data: insertedRefund, error: insertErr } = await supabase
+      .from('payment_refunds')
+      .insert({
+        payment_transaction_id: parentTxn.id,
+        refund_reference_id: refundReferenceId,
+        // Synthetic request_id so the NOT-NULL column is satisfied; flag
+        // origin for forensic tracing.
+        request_id: `merchant-portal-${refundReferenceId}`,
+        amount: payload.amount,
+        reason: 'Merchant portal refund (originated outside our backend)',
+        status: 'pending',
+        initiated_by_email: 'merchant-portal@shopeepay',
+        initiated_by_name: 'ShopeePay Merchant Portal',
+        refund_sn: payload.transaction_sn ?? null,
+      })
+      .select('id, payment_transaction_id, amount, status, raw_webhook_payload')
+      .single<PaymentRefundRow>();
+
+    if (insertErr || !insertedRefund) {
+      console.error('[ShopeePay/webhook/refund] orphan refund insert failed:', insertErr);
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    }
+
+    refundRow = insertedRefund;
+    console.log(
+      `[ShopeePay/webhook/refund] self-created orphan refund row ${refundRow.id} for ${refundReferenceId}`
     );
-    // Don't loop ShopeePay on stale/replayed deletions.
-    return NextResponse.json(ACK_OK);
   }
 
   // 2. Refund-amount tampering check.
@@ -194,7 +273,7 @@ export async function handleRefundNotify(
 
     const refundThb = (refundRow.amount / 100).toLocaleString();
     const lineMessage = [
-      `Refund ${newTxnStatus === 'refunded' ? 'Completed' : 'Issued (partial)'} (${rentalForLine?.rental_code ?? '?'})`,
+      `${LINE_PREFIX}Refund ${newTxnStatus === 'refunded' ? 'Completed' : 'Issued (partial)'} (${rentalForLine?.rental_code ?? '?'})`,
       rentalForLine?.customer_name ? `Customer: ${rentalForLine.customer_name}` : null,
       `Refund: ฿${refundThb}`,
       payload.transaction_sn ? `Refund SN: ${payload.transaction_sn}` : null,

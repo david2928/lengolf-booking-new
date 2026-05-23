@@ -29,6 +29,9 @@ import { handleRefundNotify } from '@/lib/shopeepay/handleRefundNotify';
 
 const ACK_OK = { errcode: 0, debug_msg: 'success' as const };
 
+const IS_PROD_ENV = process.env.VERCEL_ENV === 'production';
+const LINE_PREFIX = IS_PROD_ENV ? '' : '[UAT] ';
+
 function getBaseUrl(): string {
   if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'development' && process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
@@ -221,7 +224,7 @@ export async function POST(request: NextRequest) {
   const baseUrl = getBaseUrl();
   if (baseUrl) {
     const lineMessage = [
-      `Payment Received (${rental.rental_code})`,
+      `${LINE_PREFIX}Payment Received (${rental.rental_code})`,
       `Customer: ${rental.customer_name}`,
       `Amount: ฿${(Number(rental.total_price) || 0).toLocaleString()}`,
       transaction_sn ? `Txn: ${transaction_sn}` : null,
