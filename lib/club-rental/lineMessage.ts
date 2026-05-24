@@ -52,6 +52,10 @@ export interface RentalLineInput {
     total_price: number | string;
     notes: string | null;
     add_ons?: unknown;
+    /** Customer's payment choice at booking time. Surfaced to staff as a dedicated line. */
+    payment_method_chosen?: string | null;
+    /** Customer's preferred contact channel. Surfaced to staff as a dedicated line. */
+    contact_preference?: string | null;
   };
   clubSet?: {
     name: string;
@@ -116,6 +120,19 @@ function addOnsLine(addOnsRaw: unknown): string | null {
     .map(a => (typeof a.price === 'number' ? `${a.label} (฿${a.price})` : a.label))
     .join(', ');
   return formatted ? `🎒 Add-ons: ${formatted}` : null;
+}
+
+function paymentMethodChosenLabel(value: string | null | undefined): string | null {
+  if (value === 'online_shopeepay') return 'Online (ShopeePay — card or wallet)';
+  if (value === 'cash_at_pickup') return 'Cash at pickup';
+  return null;
+}
+
+function contactPreferenceLabel(value: string | null | undefined): string | null {
+  if (value === 'line') return 'LINE';
+  if (value === 'email') return 'Email';
+  if (value === 'whatsapp') return 'WhatsApp';
+  return null;
 }
 
 // ---------------------------------------------------------------------
@@ -243,17 +260,22 @@ export function composeRentalLineMessage(input: RentalLineInput): string {
     ? `🏌️ Set: ${clubSet.name} (${tierLabel(clubSet.tier)}, ${genderLabel(clubSet.gender)})`
     : null;
 
+  const paymentChosenLabel = paymentMethodChosenLabel(rental.payment_method_chosen);
+  const contactPrefLabel = contactPreferenceLabel(rental.contact_preference);
+
   const lines: Array<string | null> = [
     header,
     SEPARATOR,
     `👤 Customer: ${rental.customer_name}`,
     rental.customer_phone ? `📞 Phone: ${rental.customer_phone}` : null,
     rental.customer_email ? `📧 Email: ${rental.customer_email}` : null,
+    contactPrefLabel ? `💬 Contact via: ${contactPrefLabel}` : null,
     setLine,
     `🗓️ Dates: ${formatRentalDate(rental.start_date)} - ${formatRentalDate(rental.end_date)} (${daysLabel})`,
     deliveryLine(rental),
     addOnsLine(rental.add_ons),
     state.moneyLine,
+    paymentChosenLabel ? `💳 Payment: ${paymentChosenLabel}` : null,
     state.referenceLine,
     state.failureLine,
     rental.notes ? `📝 Notes: ${rental.notes}` : null,

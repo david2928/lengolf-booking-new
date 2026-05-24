@@ -56,7 +56,26 @@ export async function POST(request: NextRequest) {
       source = 'booking_app',
       language: bodyLanguage,
       payment_method: rawPaymentMethod,
+      payment_method_chosen: rawPaymentMethodChosen,
+      contact_preference: rawContactPreference,
     } = body;
+
+    // Customer-facing booking choices stored in their own columns so the
+    // free-form `notes` field stays strictly customer-typed (see CLAUDE.md
+    // — booking form previously concatenated these into notes and leaked
+    // into the customer confirmation email).
+    const VALID_PAYMENT_CHOICES = new Set(['online_shopeepay', 'cash_at_pickup']);
+    const VALID_CONTACT_PREFS = new Set(['line', 'email', 'whatsapp']);
+    const paymentMethodChosen: string | null =
+      typeof rawPaymentMethodChosen === 'string' &&
+      VALID_PAYMENT_CHOICES.has(rawPaymentMethodChosen)
+        ? rawPaymentMethodChosen
+        : null;
+    const contactPreference: string | null =
+      typeof rawContactPreference === 'string' &&
+      VALID_CONTACT_PREFS.has(rawContactPreference)
+        ? rawContactPreference
+        : null;
 
     // Normalize / validate the payment method. Course rentals branch
     // on this; indoor rentals ignore it. Server-side guard: delivery
@@ -244,6 +263,8 @@ export async function POST(request: NextRequest) {
         delivery_fee,
         total_price,
         notes: customerNotes || null,
+        payment_method_chosen: paymentMethodChosen,
+        contact_preference: contactPreference,
         source,
       })
       .select()
@@ -317,6 +338,14 @@ export async function POST(request: NextRequest) {
         totalPrice: total_price,
         notes: customerNotes || undefined,
         language: emailLocale,
+        // Reaches here only on !requiresPrepay → customer settles on arrival.
+        paymentStatus: 'pay_at_pickup',
+        contactPreference:
+          contactPreference === 'line' ||
+          contactPreference === 'email' ||
+          contactPreference === 'whatsapp'
+            ? contactPreference
+            : null,
       }).catch(err => console.error('[ClubReserve] Email send error:', err));
     }
 

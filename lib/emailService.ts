@@ -290,6 +290,12 @@ interface CourseRentalEmailConfirmation {
   paymentStatus?: 'paid' | 'awaiting_payment' | 'pay_at_pickup';
   /** ShopeePay transaction reference, only meaningful when paymentStatus='paid'. */
   transactionSn?: string;
+  /**
+   * Customer's preferred contact channel at booking time. Drives the
+   * "what happens next" copy — e.g. "we'll reach out via LINE if anything
+   * changes". Falls back to a generic "we'll be in touch" when null.
+   */
+  contactPreference?: 'line' | 'email' | 'whatsapp' | null;
 }
 
 export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEmailConfirmation) {
@@ -429,10 +435,28 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
         `
           : ''}
 
+        ${(() => {
+          // Branch the "What happens next" copy per payment state so the
+          // message actually reflects what the customer needs to do (or
+          // not do). Falls back to the generic body for legacy code paths
+          // that don't pass paymentStatus.
+          const contactChannelLabel =
+            booking.contactPreference === 'email'
+              ? t('contactChannelEmail')
+              : booking.contactPreference === 'whatsapp'
+                ? t('contactChannelWhatsApp')
+                : t('contactChannelLine');
+          let bodyKey: 'whatsNextBodyPaid' | 'whatsNextBodyAwaiting' | 'whatsNextBodyAtPickup' | 'whatsNextBody';
+          if (booking.paymentStatus === 'paid') bodyKey = 'whatsNextBodyPaid';
+          else if (booking.paymentStatus === 'awaiting_payment') bodyKey = 'whatsNextBodyAwaiting';
+          else if (booking.paymentStatus === 'pay_at_pickup') bodyKey = 'whatsNextBodyAtPickup';
+          else bodyKey = 'whatsNextBody';
+          return `
         <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
             <p style="font-weight: bold; color: #1e40af; margin: 0 0 5px;">${t('whatsNextHeading')}</p>
-            <p style="color: #1e40af; margin: 0; font-size: 14px;">${t('whatsNextBody')}</p>
-        </div>
+            <p style="color: #1e40af; margin: 0; font-size: 14px;">${t(bodyKey, { contactChannel: contactChannelLabel })}</p>
+        </div>`;
+        })()}
 
         <div style="font-size: 14px; color: #777; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
             <p style="margin: 5px 0; text-align: center;">

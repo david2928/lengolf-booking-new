@@ -243,11 +243,14 @@ export default function CourseRentalPage() {
           delivery_address: deliveryRequested ? deliveryAddress : undefined,
           delivery_time: pickupTime || undefined,
           return_time: returnTime || undefined,
-          notes: [
-            `Payment: ${paymentMethod === 'cash' ? 'Cash (at LENGOLF)' : 'Online (ShopeePay — credit/debit card or wallet)'}`,
-            `Contact via: ${preferredContact === 'line' ? 'LINE' : preferredContact === 'email' ? 'Email' : 'WhatsApp'}`,
-            notes,
-          ].filter(Boolean).join('\n') || undefined,
+          // Notes is now strictly customer-typed free text. Payment choice
+          // + contact preference travel as their own fields so they can be
+          // surfaced cleanly to staff (LINE / backoffice) without leaking
+          // into the customer-facing email's "Notes" block.
+          notes: notes || undefined,
+          payment_method_chosen:
+            paymentMethod === 'cash' ? 'cash_at_pickup' : 'online_shopeepay',
+          contact_preference: preferredContact, // 'line' | 'email' | 'whatsapp'
           source: 'website' as const,
           payment_method: paymentMethod,
         }),

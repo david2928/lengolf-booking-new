@@ -127,6 +127,12 @@ export async function claimAndSendConfirmationEmail(
       notes: rental.notes ?? undefined,
       language: emailLocale,
       paymentStatus: 'paid',
+      contactPreference:
+        rental.contact_preference === 'line' ||
+        rental.contact_preference === 'email' ||
+        rental.contact_preference === 'whatsapp'
+          ? rental.contact_preference
+          : null,
       transactionSn: options.transactionSn ?? undefined,
     });
     return { sent: true };

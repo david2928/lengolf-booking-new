@@ -307,3 +307,86 @@ describe('composeRentalLineMessage — multi-day rentals', () => {
     expect(msg).toMatch(/🗓️ Dates:.* \(3d\)/);
   });
 });
+
+describe('composeRentalLineMessage — payment_method_chosen + contact_preference', () => {
+  it('renders 💳 Payment + 💬 Contact lines when both fields are present', () => {
+    const msg = composeRentalLineMessage({
+      rental: {
+        ...baseRental,
+        payment_method_chosen: 'online_shopeepay',
+        contact_preference: 'line',
+      },
+      clubSet: baseClubSet,
+      status: { kind: 'Created', paymentMode: 'online' },
+    });
+    expect(msg).toContain('💬 Contact via: LINE');
+    expect(msg).toContain('💳 Payment: Online (ShopeePay — card or wallet)');
+  });
+
+  it('places 💬 Contact line below email, above set', () => {
+    const msg = composeRentalLineMessage({
+      rental: {
+        ...baseRental,
+        payment_method_chosen: 'online_shopeepay',
+        contact_preference: 'whatsapp',
+      },
+      clubSet: baseClubSet,
+      status: { kind: 'Created', paymentMode: 'online' },
+    });
+    const lines = msg.split('\n');
+    const emailIdx = lines.findIndex(l => l.startsWith('📧 Email:'));
+    const contactIdx = lines.findIndex(l => l.startsWith('💬 Contact via:'));
+    const setIdx = lines.findIndex(l => l.startsWith('🏌️ Set:'));
+    expect(contactIdx).toBeGreaterThan(emailIdx);
+    expect(contactIdx).toBeLessThan(setIdx);
+  });
+
+  it('renders cash_at_pickup label correctly', () => {
+    const msg = composeRentalLineMessage({
+      rental: { ...baseRental, payment_method_chosen: 'cash_at_pickup' },
+      clubSet: baseClubSet,
+      status: { kind: 'Created', paymentMode: 'manual' },
+    });
+    expect(msg).toContain('💳 Payment: Cash at pickup');
+  });
+
+  it('renders contact_preference variants (email, whatsapp)', () => {
+    const msgEmail = composeRentalLineMessage({
+      rental: { ...baseRental, contact_preference: 'email' },
+      clubSet: baseClubSet,
+      status: { kind: 'Created', paymentMode: 'online' },
+    });
+    expect(msgEmail).toContain('💬 Contact via: Email');
+
+    const msgWa = composeRentalLineMessage({
+      rental: { ...baseRental, contact_preference: 'whatsapp' },
+      clubSet: baseClubSet,
+      status: { kind: 'Created', paymentMode: 'online' },
+    });
+    expect(msgWa).toContain('💬 Contact via: WhatsApp');
+  });
+
+  it('omits both lines when neither field is set (legacy rentals)', () => {
+    const msg = composeRentalLineMessage({
+      rental: baseRental, // baseRental has neither field set
+      clubSet: baseClubSet,
+      status: { kind: 'Created', paymentMode: 'manual' },
+    });
+    expect(msg).not.toContain('💳 Payment:');
+    expect(msg).not.toContain('💬 Contact via:');
+  });
+
+  it('omits the line for unknown payment_method_chosen / contact_preference values', () => {
+    const msg = composeRentalLineMessage({
+      rental: {
+        ...baseRental,
+        payment_method_chosen: 'futuristic_method_we_dont_know_yet',
+        contact_preference: 'carrier_pigeon',
+      },
+      clubSet: baseClubSet,
+      status: { kind: 'Created', paymentMode: 'online' },
+    });
+    expect(msg).not.toContain('💳 Payment:');
+    expect(msg).not.toContain('💬 Contact via:');
+  });
+});
