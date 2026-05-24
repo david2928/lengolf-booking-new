@@ -1,0 +1,265 @@
+/**
+ * Unified LINE notification format for club-rental lifecycle events.
+ *
+ * Pure module — no env deps, no DB access. Tests live in
+ * __tests__/club-rental-line-message.test.ts. Visual style mirrors the
+ * existing bay-booking cancellation format in app/api/notifications/line/route.ts
+ * (shouty CAPS header bracketed by status emojis, dashed separators,
+ * emoji-prefixed fields, footer action line) so staff see one
+ * coherent visual language across both flows.
+ *
+ * Same skeleton for every lifecycle event — only the title/emoji,
+ * money line, optional reference line, and footer change. State-specific
+ * bits live in the RentalStatus discriminated union.
+ */
+
+const SEPARATOR = '----------------------------------';
+
+// ---------------------------------------------------------------------
+// State machine — one variant per lifecycle event
+// ---------------------------------------------------------------------
+
+export type RentalStatus =
+  | { kind: 'Created'; paymentMode: 'online' | 'manual' }
+  | { kind: 'Paid'; transactionSn?: string | null; gatewayLabel?: string }
+  | { kind: 'PaymentFailed'; reason?: string | null }
+  | { kind: 'Refunded'; refundedSatang: number; refundSn?: string | null }
+  | {
+      kind: 'PartiallyRefunded';
+      refundedThisTimeSatang: number;
+      totalRefundedSatang: number;
+      refundSn?: string | null;
+    }
+  | { kind: 'Expired' };
+
+// ---------------------------------------------------------------------
+// Inputs — everything the composer needs as plain data
+// ---------------------------------------------------------------------
+
+export interface RentalLineInput {
+  rental: {
+    rental_code: string;
+    customer_name: string;
+    customer_phone: string | null;
+    customer_email: string | null;
+    start_date: string; // 'YYYY-MM-DD'
+    end_date: string;
+    duration_days: number | null;
+    delivery_requested: boolean | null;
+    delivery_address: string | null;
+    delivery_time: string | null;
+    return_time: string | null;
+    total_price: number | string;
+    notes: string | null;
+    add_ons?: unknown;
+  };
+  clubSet?: {
+    name: string;
+    tier: string;
+    gender: string;
+  } | null;
+  status: RentalStatus;
+  /** Prepends `[UAT] ` to the header when true. */
+  uatPrefix?: boolean;
+}
+
+// ---------------------------------------------------------------------
+// Formatting helpers — kept private
+// ---------------------------------------------------------------------
+
+function tierLabel(tier: string): string {
+  return tier === 'premium-plus' ? 'Premium+' : 'Premium';
+}
+
+function genderLabel(gender: string): string {
+  return gender === 'mens' ? "Men's" : "Women's";
+}
+
+function formatRentalDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '?';
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+function formatSatangAsThb(satang: number): string {
+  return (satang / 100).toLocaleString();
+}
+
+function formatPrice(p: number | string): string {
+  const n = typeof p === 'string' ? Number(p) : p;
+  return Number.isFinite(n) ? n.toLocaleString() : String(p);
+}
+
+function deliveryLine(rental: RentalLineInput['rental']): string {
+  const timeInfo = [
+    rental.delivery_time
+      ? `${rental.delivery_requested ? 'Delivery' : 'Pickup'}: ${rental.delivery_time}`
+      : '',
+    rental.return_time ? `Return: ${rental.return_time}` : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  return rental.delivery_requested
+    ? `📍 Delivery to: ${rental.delivery_address ?? ''}${timeInfo ? ` (${timeInfo})` : ''}`
+    : `📍 Pickup at LENGOLF${timeInfo ? ` (${timeInfo})` : ''}`;
+}
+
+function addOnsLine(addOnsRaw: unknown): string | null {
+  if (!Array.isArray(addOnsRaw) || addOnsRaw.length === 0) return null;
+  const items = addOnsRaw as Array<{ label?: string; price?: number }>;
+  const formatted = items
+    .filter(a => a && a.label)
+    .map(a => (typeof a.price === 'number' ? `${a.label} (฿${a.price})` : a.label))
+    .join(', ');
+  return formatted ? `🎒 Add-ons: ${formatted}` : null;
+}
+
+// ---------------------------------------------------------------------
+// State-specific composition
+// ---------------------------------------------------------------------
+
+interface StateRender {
+  /** Header sandwich emoji on both sides (e.g. '✅') and the title (e.g. 'PAYMENT RECEIVED'). */
+  headerEmoji: string;
+  headerTitle: string;
+  /** Whether to bracket the title with the header emoji on the right side too. Most do. */
+  bracketed: boolean;
+  /** The money line (always present). */
+  moneyLine: string;
+  /** Optional reference id line (Txn, Refund SN). */
+  referenceLine: string | null;
+  /** Optional failure-reason line. */
+  failureLine: string | null;
+  /** Footer action line below the bottom separator. */
+  footerLine: string;
+}
+
+function renderState(input: RentalLineInput): StateRender {
+  const { rental, status } = input;
+  const totalDisplay = `฿${formatPrice(rental.total_price)}`;
+  const pickupOrDeliveryNoun = rental.delivery_requested ? 'delivery' : 'pickup';
+
+  switch (status.kind) {
+    case 'Created': {
+      return {
+        headerEmoji: '📝',
+        headerTitle: 'NEW CLUB RENTAL',
+        bracketed: true,
+        moneyLine: `💰 Total: ${totalDisplay}`,
+        referenceLine: null,
+        failureLine: null,
+        footerLine:
+          status.paymentMode === 'online'
+            ? `⌛ Awaiting ShopeePay payment — auto-cancels in 30 min if unpaid.`
+            : `👉 Please contact the customer to confirm availability and arrange payment.`,
+      };
+    }
+    case 'Paid': {
+      const gateway = status.gatewayLabel ?? 'ShopeePay';
+      return {
+        headerEmoji: '✅',
+        headerTitle: 'PAYMENT RECEIVED',
+        bracketed: true,
+        moneyLine: `💰 Total: ${totalDisplay} (PAID via ${gateway})`,
+        referenceLine: status.transactionSn ? `🔖 Txn: ${status.transactionSn}` : null,
+        failureLine: null,
+        footerLine: `👉 Booking confirmed — please prep clubs for ${pickupOrDeliveryNoun}.`,
+      };
+    }
+    case 'PaymentFailed': {
+      return {
+        headerEmoji: '❌',
+        headerTitle: 'PAYMENT FAILED',
+        bracketed: true,
+        moneyLine: `💰 Total: ${totalDisplay}`,
+        referenceLine: null,
+        failureLine: status.reason ? `⚠️ Failure reason: ${status.reason}` : null,
+        footerLine: `👉 Customer should retry. Reservation still held until 30-min window expires.`,
+      };
+    }
+    case 'Refunded': {
+      // Full refund — booking is effectively cancelled. Use the same
+      // 🚫 CANCELLED header pattern as the bay-booking cancellation flow.
+      return {
+        headerEmoji: '🚫',
+        headerTitle: 'RENTAL CANCELLED — REFUNDED',
+        bracketed: true,
+        moneyLine: `💰 Original: ${totalDisplay}\n↩️ Refunded: ฿${formatSatangAsThb(status.refundedSatang)} (Full)`,
+        referenceLine: status.refundSn ? `🔖 Refund SN: ${status.refundSn}` : null,
+        failureLine: null,
+        footerLine: `🗑️ Refunded via ShopeePay — clubs released back to inventory.`,
+      };
+    }
+    case 'PartiallyRefunded': {
+      const totalSatang = Math.round(Number(rental.total_price) * 100);
+      const remainingSatang = Math.max(totalSatang - status.totalRefundedSatang, 0);
+      return {
+        headerEmoji: '↩️',
+        headerTitle: 'PARTIAL REFUND',
+        bracketed: true,
+        moneyLine:
+          `💰 Original: ${totalDisplay}\n` +
+          `↩️ Refunded: ฿${formatSatangAsThb(status.refundedThisTimeSatang)} ` +
+          `(Partial — ฿${formatSatangAsThb(remainingSatang)} remaining)`,
+        referenceLine: status.refundSn ? `🔖 Refund SN: ${status.refundSn}` : null,
+        failureLine: null,
+        footerLine: `👉 Partial refund issued — booking remains active.`,
+      };
+    }
+    case 'Expired': {
+      return {
+        headerEmoji: '⌛',
+        headerTitle: 'RENTAL EXPIRED — UNPAID',
+        bracketed: true,
+        moneyLine: `💰 Total: ${totalDisplay} (never paid)`,
+        referenceLine: null,
+        failureLine: null,
+        footerLine: `🗑️ Auto-cancelled — customer didn't complete payment in 30 min. Slot released.`,
+      };
+    }
+  }
+}
+
+// ---------------------------------------------------------------------
+// Public entry point
+// ---------------------------------------------------------------------
+
+export function composeRentalLineMessage(input: RentalLineInput): string {
+  const { rental, clubSet, uatPrefix } = input;
+  const state = renderState(input);
+
+  const prefix = uatPrefix ? '[UAT] ' : '';
+  const headerRight = state.bracketed ? ` ${state.headerEmoji}` : '';
+  const header = `${prefix}${state.headerEmoji} ${state.headerTitle} (ID: ${rental.rental_code})${headerRight}`;
+
+  const daysLabel =
+    rental.duration_days && rental.duration_days > 1 ? `${rental.duration_days}d` : '1d';
+
+  const setLine = clubSet
+    ? `🏌️ Set: ${clubSet.name} (${tierLabel(clubSet.tier)}, ${genderLabel(clubSet.gender)})`
+    : null;
+
+  const lines: Array<string | null> = [
+    header,
+    SEPARATOR,
+    `👤 Customer: ${rental.customer_name}`,
+    rental.customer_phone ? `📞 Phone: ${rental.customer_phone}` : null,
+    rental.customer_email ? `📧 Email: ${rental.customer_email}` : null,
+    setLine,
+    `🗓️ Dates: ${formatRentalDate(rental.start_date)} - ${formatRentalDate(rental.end_date)} (${daysLabel})`,
+    deliveryLine(rental),
+    addOnsLine(rental.add_ons),
+    state.moneyLine,
+    state.referenceLine,
+    state.failureLine,
+    rental.notes ? `📝 Notes: ${rental.notes}` : null,
+    SEPARATOR,
+    state.footerLine,
+  ];
+
+  return lines.filter((l): l is string => l !== null).join('\n');
+}

@@ -8,6 +8,7 @@ import {
 } from '@/lib/shopeepay/types';
 import { claimAndSendConfirmationEmail } from '@/lib/shopeepay/markRentalAsPaid';
 import { handleRefundNotify } from '@/lib/shopeepay/handleRefundNotify';
+import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 
 /**
  * POST /api/webhooks/shopeepay
@@ -30,7 +31,6 @@ import { handleRefundNotify } from '@/lib/shopeepay/handleRefundNotify';
 const ACK_OK = { errcode: 0, debug_msg: 'success' as const };
 
 const IS_PROD_ENV = process.env.VERCEL_ENV === 'production';
-const LINE_PREFIX = IS_PROD_ENV ? '' : '[UAT] ';
 
 function getBaseUrl(): string {
   if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'development' && process.env.VERCEL_URL) {
@@ -174,10 +174,44 @@ export async function POST(request: NextRequest) {
     // ShopeePay returned a non-success terminal state, otherwise leave
     // it 'pending' and let the cleanup cron expire it.
     if (newTxnStatus === 'failed' && txnRow.club_rental_id) {
-      await supabase
+      const { data: failedRental } = await supabase
         .from('club_rentals')
         .update({ payment_status: 'failed' })
-        .eq('id', txnRow.club_rental_id);
+        .eq('id', txnRow.club_rental_id)
+        .select('*')
+        .single();
+
+      // Staff LINE ping — fire-and-forget. Same unified format as the
+      // other lifecycle events, with PaymentFailed status.
+      const baseUrl = getBaseUrl();
+      if (baseUrl && failedRental) {
+        const { data: clubSet } = await supabase
+          .from('rental_club_sets')
+          .select('name, tier, gender')
+          .eq('id', failedRental.rental_club_set_id)
+          .single();
+
+        // ShopeePay's notify-failure payload sometimes carries debug_msg
+        // alongside the standard fields; cast to read it without polluting
+        // the canonical NotifyTransactionPayload type.
+        const failureReason =
+          (payload as unknown as { debug_msg?: string }).debug_msg ?? null;
+
+        const lineMessage = composeRentalLineMessage({
+          rental: failedRental,
+          clubSet,
+          status: { kind: 'PaymentFailed', reason: failureReason },
+          uatPrefix: !IS_PROD_ENV,
+        });
+
+        fetch(`${baseUrl}/api/notifications/line`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: lineMessage }),
+        }).catch(err =>
+          console.error('[ShopeePay/webhook] LINE notification error (failed):', err)
+        );
+      }
     }
     return NextResponse.json(ACK_OK);
   }
@@ -220,18 +254,23 @@ export async function POST(request: NextRequest) {
     transactionSn: transaction_sn,
   });
 
-  // Staff LINE notification. Fire-and-forget.
+  // Staff LINE notification. Fire-and-forget. Uses the unified
+  // composeRentalLineMessage helper so the format stays consistent
+  // with the reservation-created, refund, and payment-failed pings.
   const baseUrl = getBaseUrl();
   if (baseUrl) {
-    const lineMessage = [
-      `${LINE_PREFIX}Payment Received (${rental.rental_code})`,
-      `Customer: ${rental.customer_name}`,
-      `Amount: ฿${(Number(rental.total_price) || 0).toLocaleString()}`,
-      transaction_sn ? `Txn: ${transaction_sn}` : null,
-      rental.delivery_requested ? `Delivery to: ${rental.delivery_address ?? ''}` : 'Pickup at LENGOLF',
-    ]
-      .filter(Boolean)
-      .join('\n');
+    const { data: clubSet } = await supabase
+      .from('rental_club_sets')
+      .select('name, tier, gender')
+      .eq('id', rental.rental_club_set_id)
+      .single();
+
+    const lineMessage = composeRentalLineMessage({
+      rental,
+      clubSet,
+      status: { kind: 'Paid', transactionSn: transaction_sn },
+      uatPrefix: !IS_PROD_ENV,
+    });
 
     fetch(`${baseUrl}/api/notifications/line`, {
       method: 'POST',

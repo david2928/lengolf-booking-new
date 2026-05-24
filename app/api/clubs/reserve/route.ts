@@ -3,6 +3,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { getIndoorPrice, getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
 import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
+import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 
 /** Build trusted add-on price/label map at request time for dynamic pricing */
 function getTrustedAddons(): Record<string, { price: number; label: string }> {
@@ -319,48 +320,21 @@ export async function POST(request: NextRequest) {
       }).catch(err => console.error('[ClubReserve] Email send error:', err));
     }
 
-    // Send LINE notification for staff
+    // Send LINE notification for staff — uses the unified
+    // composeRentalLineMessage helper so the format stays consistent
+    // with payment-received, refund, and payment-failed pings.
     const baseUrl = getBaseUrl();
     if (baseUrl) {
-      const addOnsText = validatedAddOns.length > 0
-        ? validatedAddOns.map((a: ClubRentalAddOn) => `${a.label} (฿${a.price})`).join(', ')
-        : 'None';
-      const tierLabel = clubSet.tier === 'premium-plus' ? 'Premium+' : 'Premium';
-      const genderLabel = clubSet.gender === 'mens' ? "Men's" : "Women's";
-      const timeInfo = [
-        delivery_time ? `${delivery_requested ? 'Delivery' : 'Pickup'}: ${delivery_time}` : '',
-        return_time ? `Return: ${return_time}` : '',
-      ].filter(Boolean).join(', ');
-      const deliveryText = delivery_requested
-        ? `Delivery to: ${delivery_address}${timeInfo ? `\nTime: ${timeInfo}` : ''}`
-        : `Pickup at LENGOLF${timeInfo ? ` (${timeInfo})` : ''}`;
+      const isProdEnv = process.env.VERCEL_ENV === 'production';
+      const paymentMode: 'online' | 'manual' =
+        rental_type === 'course' && requiresPrepay ? 'online' : 'manual';
 
-      const startDateFmt = new Date(start_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
-      const endDateFmt = new Date(end_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
-      const daysLabel = duration_days && duration_days > 1 ? `${duration_days}d` : '1d';
-
-      const lineMessage = [
-        `Club Rental Notification (${rentalCode})`,
-        `Customer: ${customer_name}`,
-        `Phone: ${customer_phone || 'N/A'}`,
-        customer_email ? `Email: ${customer_email}` : null,
-        `Set: ${clubSet.name} (${tierLabel}, ${genderLabel})`,
-        `Dates: ${startDateFmt} - ${endDateFmt} (${daysLabel})`,
-        deliveryText,
-        addOnsText !== 'None' ? `Add-ons: ${addOnsText}` : null,
-        `Total: ฿${total_price.toLocaleString()}`,
-        `Source: ${source}`,
-        customerNotes ? `Notes: ${customerNotes}` : null,
-        ``,
-        // Branch the staff CTA on the payment path:
-        //  - Prepay (ShopeePay): a "Payment Received" follow-up will fire
-        //    on success, or the rental will auto-cancel if abandoned.
-        //  - Pay-at-pickup (cash, self-pickup only): existing manual flow.
-        //  - Indoor rentals are unchanged.
-        rental_type === 'course' && requiresPrepay
-          ? `Awaiting ShopeePay payment — you'll receive a "Payment Received" notification on success, or the reservation auto-cancels if not paid within 30 min.`
-          : `Please contact the customer to confirm availability and arrange payment.`,
-      ].filter(Boolean).join('\n');
+      const lineMessage = composeRentalLineMessage({
+        rental,
+        clubSet: { name: clubSet.name, tier: clubSet.tier, gender: clubSet.gender },
+        status: { kind: 'Created', paymentMode },
+        uatPrefix: !isProdEnv,
+      });
 
       fetch(`${baseUrl}/api/notifications/line`, {
         method: 'POST',

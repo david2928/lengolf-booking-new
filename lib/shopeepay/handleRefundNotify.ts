@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { extractReferenceId, isFinalSuccess, type NotifyTransactionPayload } from './types';
 import { claimAndSendRefundEmail } from './markRefundAsRefunded';
+import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 
 const IS_PROD_ENV = process.env.VERCEL_ENV === 'production';
-const LINE_PREFIX = IS_PROD_ENV ? '' : '[UAT] ';
 
 /**
  * Refund-notify branch of the ShopeePay webhook.
@@ -263,31 +263,53 @@ export async function handleRefundNotify(
     refundSn: payload.transaction_sn ?? null,
   });
 
-  // 8. Staff LINE notification — fire-and-forget.
+  // 8. Staff LINE notification — fire-and-forget. Uses the unified
+  // composeRentalLineMessage helper so the format stays consistent
+  // with the reservation-created, payment-received, and payment-failed
+  // pings.
   if (opts.baseUrl && txn.club_rental_id) {
     const { data: rentalForLine } = await supabase
       .from('club_rentals')
-      .select('rental_code, customer_name')
+      .select('*')
       .eq('id', txn.club_rental_id)
       .single();
 
-    const refundThb = (refundRow.amount / 100).toLocaleString();
-    const lineMessage = [
-      `${LINE_PREFIX}Refund ${newTxnStatus === 'refunded' ? 'Completed' : 'Issued (partial)'} (${rentalForLine?.rental_code ?? '?'})`,
-      rentalForLine?.customer_name ? `Customer: ${rentalForLine.customer_name}` : null,
-      `Refund: ฿${refundThb}`,
-      payload.transaction_sn ? `Refund SN: ${payload.transaction_sn}` : null,
-    ]
-      .filter(Boolean)
-      .join('\n');
+    if (rentalForLine) {
+      const { data: clubSet } = rentalForLine.rental_club_set_id
+        ? await supabase
+            .from('rental_club_sets')
+            .select('name, tier, gender')
+            .eq('id', rentalForLine.rental_club_set_id)
+            .single()
+        : { data: null };
 
-    fetch(`${opts.baseUrl}/api/notifications/line`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: lineMessage }),
-    }).catch(err =>
-      console.error('[ShopeePay/webhook/refund] LINE notification error:', err)
-    );
+      const lineMessage = composeRentalLineMessage({
+        rental: rentalForLine,
+        clubSet,
+        status:
+          newTxnStatus === 'refunded'
+            ? {
+                kind: 'Refunded',
+                refundedSatang: refundRow.amount,
+                refundSn: payload.transaction_sn ?? null,
+              }
+            : {
+                kind: 'PartiallyRefunded',
+                refundedThisTimeSatang: refundRow.amount,
+                totalRefundedSatang: newRefundedAmount,
+                refundSn: payload.transaction_sn ?? null,
+              },
+        uatPrefix: !IS_PROD_ENV,
+      });
+
+      fetch(`${opts.baseUrl}/api/notifications/line`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: lineMessage }),
+      }).catch(err =>
+        console.error('[ShopeePay/webhook/refund] LINE notification error:', err)
+      );
+    }
   }
 
   return NextResponse.json(ACK_OK);
