@@ -10,6 +10,20 @@ const IS_PROD_ENV = process.env.VERCEL_ENV === 'production';
 /**
  * Refund-notify branch of the ShopeePay webhook.
  *
+ * ⚠️ DORMANT AS OF 2026-05-24. ShopeePay support (pearpearpearpearpear,
+ * 16:49 BKK) confirmed they do NOT currently emit refund webhooks at
+ * all — quote: "currently there is no webhook available for refund
+ * requests. At the moment, callbacks are only triggered for completed
+ * payment transactions. However, we are currently in the development
+ * stage for the refund callback. Please allow me to inform you again
+ * once it's ready." So this handler is never invoked in production
+ * today; refund reconciliation goes through the backoffice-initiated
+ * route (POST /api/payments/shopeepay/refund) which calls ShopeePay's
+ * refund API directly and writes our DB synchronously from the API
+ * response. Keep this handler in place for the day ShopeePay ships
+ * their refund-notify callback — the orphan-tolerant code below is
+ * the correct shape for that future event.
+ *
  * Triggered when an inbound notify payload carries `refund_reference_id`.
  * Updates the matching `payment_refunds` row, atomically increments
  * `payment_transactions.refunded_amount`, derives the new transaction
