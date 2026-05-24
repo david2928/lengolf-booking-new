@@ -346,7 +346,28 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
     ? t('clubSetGenderMens')
     : t('clubSetGenderWomens');
 
-  const emailSubject = t('subject', { rentalCode: booking.rentalCode });
+  // Subject + heading branch on paymentStatus so we don't claim
+  // "Reservation Confirmed!" before the customer has actually paid.
+  // Legacy keys `subject` + `heading` remain as fallback for code paths
+  // that don't pass paymentStatus and pre-existing email replays.
+  const subjectKey =
+    booking.paymentStatus === 'pay_at_pickup'
+      ? 'subjectPayAtPickup'
+      : booking.paymentStatus === 'awaiting_payment'
+        ? 'subjectAwaiting'
+        : booking.paymentStatus === 'paid'
+          ? 'subjectPaid'
+          : 'subject';
+  const headingKey =
+    booking.paymentStatus === 'pay_at_pickup'
+      ? 'headingPayAtPickup'
+      : booking.paymentStatus === 'awaiting_payment'
+        ? 'headingAwaiting'
+        : booking.paymentStatus === 'paid'
+          ? 'headingPaid'
+          : 'heading';
+
+  const emailSubject = t(subjectKey, { rentalCode: booking.rentalCode });
 
   const emailContent = `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
@@ -354,7 +375,7 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
             <img src="https://booking.len.golf/images/logo_v1.png" alt="${t('logoAlt')}" style="max-width: 200px;">
         </div>
 
-        <h2 style="color: #1a3308; text-align: center; margin-bottom: 20px;">${t('heading')}</h2>
+        <h2 style="color: #1a3308; text-align: center; margin-bottom: 20px;">${t(headingKey)}</h2>
 
         <p style="font-size: 16px; line-height: 1.5; color: #1a3308; margin-bottom: 5px;">
             <strong>${t('greeting', { name: safeName })}</strong>
