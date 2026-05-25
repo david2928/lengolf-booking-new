@@ -279,15 +279,21 @@ interface CourseRentalEmailConfirmation {
   notes?: string;
   language?: Locale;
   /**
-   * Payment lifecycle marker for the course rental.
-   * - 'paid': renders a "Payment received" line with transactionSn.
-   * - 'awaiting_payment': renders a "Complete payment via the link
-   *   we'll send" line. Used when the customer chose online pay
-   *   but hasn't completed the ShopeePay flow yet.
-   * - 'pay_at_pickup' (default): existing behavior — instructions
-   *   to settle on arrival.
+   * Payment lifecycle marker for the course rental. Controls subject +
+   * heading + the status block + the "what happens next" copy.
+   * - 'paid': renders "Payment received" + confirmed copy.
+   * - 'pay_at_pickup': renders "Reservation received" + settle-on-arrival copy.
+   * - (unset, legacy): falls back to the original generic copy.
+   *
+   * NOTE: there used to be an 'awaiting_payment' state intended for an
+   * abandoned-cart recovery email ("we'll send a link to finish payment"),
+   * but no caller ever sent it and the link-recovery flow was never built
+   * — so it was removed 2026-05-24 rather than leave the dead branch.
+   * If we ever want true abandoned-cart recovery, design it as its own
+   * feature with a proper trigger + recovery URL rather than reviving
+   * this state.
    */
-  paymentStatus?: 'paid' | 'awaiting_payment' | 'pay_at_pickup';
+  paymentStatus?: 'paid' | 'pay_at_pickup';
   /** ShopeePay transaction reference, only meaningful when paymentStatus='paid'. */
   transactionSn?: string;
   /**
@@ -353,19 +359,15 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
   const subjectKey =
     booking.paymentStatus === 'pay_at_pickup'
       ? 'subjectPayAtPickup'
-      : booking.paymentStatus === 'awaiting_payment'
-        ? 'subjectAwaiting'
-        : booking.paymentStatus === 'paid'
-          ? 'subjectPaid'
-          : 'subject';
+      : booking.paymentStatus === 'paid'
+        ? 'subjectPaid'
+        : 'subject';
   const headingKey =
     booking.paymentStatus === 'pay_at_pickup'
       ? 'headingPayAtPickup'
-      : booking.paymentStatus === 'awaiting_payment'
-        ? 'headingAwaiting'
-        : booking.paymentStatus === 'paid'
-          ? 'headingPaid'
-          : 'heading';
+      : booking.paymentStatus === 'paid'
+        ? 'headingPaid'
+        : 'heading';
 
   const emailSubject = t(subjectKey, { rentalCode: booking.rentalCode });
 
@@ -447,13 +449,6 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
               : ''}
         </div>
         `
-          : booking.paymentStatus === 'awaiting_payment'
-          ? `
-        <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-            <p style="font-weight: bold; color: #b45309; margin: 0 0 5px;">${t('paymentAwaitingHeading')}</p>
-            <p style="color: #92400e; margin: 0; font-size: 14px;">${t('paymentAwaitingBody')}</p>
-        </div>
-        `
           : ''}
 
         ${(() => {
@@ -467,9 +462,8 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
               : booking.contactPreference === 'whatsapp'
                 ? t('contactChannelWhatsApp')
                 : t('contactChannelLine');
-          let bodyKey: 'whatsNextBodyPaid' | 'whatsNextBodyAwaiting' | 'whatsNextBodyAtPickup' | 'whatsNextBody';
+          let bodyKey: 'whatsNextBodyPaid' | 'whatsNextBodyAtPickup' | 'whatsNextBody';
           if (booking.paymentStatus === 'paid') bodyKey = 'whatsNextBodyPaid';
-          else if (booking.paymentStatus === 'awaiting_payment') bodyKey = 'whatsNextBodyAwaiting';
           else if (booking.paymentStatus === 'pay_at_pickup') bodyKey = 'whatsNextBodyAtPickup';
           else bodyKey = 'whatsNextBody';
           return `
