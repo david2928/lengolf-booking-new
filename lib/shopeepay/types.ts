@@ -139,14 +139,28 @@ export interface CheckTransactionResponse {
 }
 
 // ---------------------------------------------------------------------
-// Create Refund — POST /v3/merchant-host/refund/create
+// Create Refund — POST /v3/merchant-host/transaction/refund/create-new
 // ---------------------------------------------------------------------
+//
+// Path + field-name caveat (confirmed by ShopeePay support pearpearpearpearpear,
+// 2026-05-25): the refund endpoint on prod is NOT `/v3/merchant-host/refund/create`
+// (which returns nginx 404). The correct path is
+// `/v3/merchant-host/transaction/refund/create-new`. It also uses
+// `reference_id` (matching the `transaction/check` endpoint's naming),
+// NOT `payment_reference_id` — confirmed via probe sequence:
+//   - `payment_reference_id` → errcode:1 "Payment reference ID must not be empty"
+//   - `reference_id` → errcode:1 "Non-refundable transaction type" (expected;
+//     the probe txn was already fully refunded — confirms field accepted)
 
 export interface CreateRefundRequest {
   /** Caller-generated unique request ID. We use `lengolf-rfd-{rental_code}-{epoch_ms}`. */
   request_id: string;
-  /** The parent payment's merchant reference. Same value used at order/create time. */
-  payment_reference_id: string;
+  /**
+   * The parent payment's merchant reference. Same value used at order/create
+   * time (`payment_reference_id` in that request body), but on this endpoint
+   * the field name is `reference_id` (matches transaction/check naming).
+   */
+  reference_id: string;
   /** Per-refund unique reference. We use `${payment_reference_id}-R<n>`. */
   refund_reference_id: string;
   merchant_ext_id: string;

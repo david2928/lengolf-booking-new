@@ -250,7 +250,11 @@ export async function POST(request: NextRequest) {
   try {
     gatewayResp = await createRefund({
       request_id: requestId,
-      payment_reference_id: parentTxn.payment_reference_id,
+      // ShopeePay's refund endpoint uses `reference_id` (matches their
+      // transaction/check naming), NOT `payment_reference_id` — confirmed
+      // by pearpearpearpearpear 2026-05-25. Our DB column stays
+      // `payment_reference_id` (semantically the same value).
+      reference_id: parentTxn.payment_reference_id,
       refund_reference_id: refundReferenceId,
       amount: refundAmountSatang,
       reason: reason ?? undefined,

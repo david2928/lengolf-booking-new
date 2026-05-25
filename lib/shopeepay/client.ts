@@ -125,17 +125,24 @@ export async function checkTransaction(
 
 /**
  * Issue a refund against a previously-successful payment. Called by
- * the back-office (lengolf-forms) refund route. ShopeePay returns
- * synchronously with `errcode=0` on accepted refunds; the final
- * terminal status arrives via the same notify webhook that handles
- * payment notifications, distinguished by the presence of
- * `refund_reference_id` in the payload.
+ * the back-office (lengolf-forms) refund route via our own
+ * /api/payments/shopeepay/refund endpoint.
+ *
+ * Refund-stack caveat — ShopeePay support (pearpearpearpearpear, 2026-05-25)
+ * confirmed:
+ *  - Path is `/v3/merchant-host/transaction/refund/create-new`, NOT
+ *    `/v3/merchant-host/refund/create` (the latter returns nginx 404).
+ *  - Field for the parent payment's reference is `reference_id` (matches
+ *    the transaction/check naming), NOT `payment_reference_id`.
+ *  - Refund-side webhook is NOT yet implemented on their end (separate
+ *    confirmation 2026-05-24). So this route's API response is the
+ *    only signal we get back — we write our DB synchronously based on
+ *    errcode==0 and don't expect a follow-up notify callback.
  *
  * Idempotency: the caller MUST insert the payment_refunds row
  * (with a unique refund_reference_id and a stable request_id) BEFORE
  * calling this. A network failure mid-call can then be reconciled
- * either by retrying with the same refund_reference_id or by waiting
- * for the webhook.
+ * by retrying with the same refund_reference_id.
  */
 export async function createRefund(
   input: Omit<CreateRefundRequest, 'merchant_ext_id' | 'store_ext_id' | 'currency'>
@@ -146,5 +153,8 @@ export async function createRefund(
     store_ext_id: shopeepayConfig.storeExtId,
     currency: 'THB',
   };
-  return postSigned<CreateRefundResponse>('/v3/merchant-host/refund/create', body);
+  return postSigned<CreateRefundResponse>(
+    '/v3/merchant-host/transaction/refund/create-new',
+    body
+  );
 }
