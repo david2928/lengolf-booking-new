@@ -145,10 +145,14 @@ export async function checkTransaction(
  * by retrying with the same refund_reference_id.
  */
 export async function createRefund(
-  input: Omit<CreateRefundRequest, 'merchant_ext_id' | 'store_ext_id' | 'currency'>
+  input: Omit<
+    CreateRefundRequest,
+    'merchant_ext_id' | 'store_ext_id' | 'currency' | 'transaction_type'
+  >
 ): Promise<CreateRefundResponse> {
   const body: CreateRefundRequest = {
     ...input,
+    transaction_type: TRANSACTION_TYPE_CHECKOUT,
     merchant_ext_id: shopeepayConfig.merchantExtId,
     store_ext_id: shopeepayConfig.storeExtId,
     currency: 'THB',

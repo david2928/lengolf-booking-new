@@ -161,11 +161,19 @@ export interface CreateRefundRequest {
    * the field name is `reference_id` (matches transaction/check naming).
    */
   reference_id: string;
+  /**
+   * Required per ShopeePay docs (uint32). Must match the original payment's
+   * transaction_type — 13 = Checkout-with-Shopee. Missing field returns
+   * errcode:1 "Non-refundable transaction type" even though the message
+   * sounds like a business-rule rejection.
+   * See https://product.shopeepay.com/integration/api/refund-a-payment/
+   */
+  transaction_type: typeof TRANSACTION_TYPE_CHECKOUT;
   /** Per-refund unique reference. We use `${payment_reference_id}-R<n>`. */
   refund_reference_id: string;
   merchant_ext_id: string;
   store_ext_id: string;
-  /** Refund amount in satang. Must be <= remaining (amount - already-refunded). */
+  /** Refund amount in satang (int64). Must be <= remaining (amount - already-refunded). */
   amount: number;
   currency: 'THB';
   /** Optional reason surfaced in ShopeePay's merchant dashboard. */
