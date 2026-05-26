@@ -260,11 +260,18 @@ export async function handleRefundNotify(
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 
-  // 6. Update the rental's payment_status to mirror the txn state.
+  // 6. Update the rental's payment_status to mirror the txn state — and
+  // for a FULL refund, also flip lifecycle status to 'cancelled' so the
+  // slot frees up. Mirrors the same fix in /api/payments/shopeepay/refund.
   if (txn.club_rental_id) {
+    const rentalUpdates: Record<string, unknown> = { payment_status: newTxnStatus };
+    if (newTxnStatus === 'refunded') {
+      rentalUpdates.status = 'cancelled';
+    }
+
     const { error: rentalUpdateErr } = await supabase
       .from('club_rentals')
-      .update({ payment_status: newTxnStatus })
+      .update(rentalUpdates)
       .eq('id', txn.club_rental_id);
     if (rentalUpdateErr) {
       console.error('[ShopeePay/webhook/refund] rental update failed:', rentalUpdateErr);

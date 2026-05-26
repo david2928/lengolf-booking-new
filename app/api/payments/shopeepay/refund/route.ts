@@ -331,10 +331,21 @@ export async function POST(request: NextRequest) {
     // Don't fail the response — gateway has the truth; staff can reconcile.
   }
 
-  // 8c. Update the rental's payment_status.
+  // 8c. Update the rental's payment_status — and for a FULL refund, also
+  // flip the lifecycle status to 'cancelled' so the slot frees up.
+  // The availability query in /api/clubs/availability filters on
+  // status IN ('reserved','picked_up'); without this, a fully-refunded
+  // rental would silently keep blocking other customers from booking
+  // that set on the same dates. Partial refunds leave status alone —
+  // the rental is still active for the remaining balance.
+  const rentalUpdates: Record<string, unknown> = { payment_status: newTxnStatus };
+  if (newTxnStatus === 'refunded') {
+    rentalUpdates.status = 'cancelled';
+  }
+
   const { error: rentalUpdateErr } = await supabase
     .from('club_rentals')
-    .update({ payment_status: newTxnStatus })
+    .update(rentalUpdates)
     .eq('id', rental.id);
 
   if (rentalUpdateErr) {
