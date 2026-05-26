@@ -135,6 +135,14 @@ export async function POST(request: NextRequest) {
   // resets club_rentals.payment_status from 'refunded' back to 'paid',
   // and fires a duplicate "PAYMENT RECEIVED" LINE notification —
   // confusing staff who already saw the cancellation.
+  //
+  // ADDITIONAL guard (W5 fix): for terminal-success state, also verify
+  // the rental is consistent (payment_status='paid'). If a previous
+  // webhook delivery committed the txn update but failed the rental
+  // update mid-handler (transient DB blip → 500 → ShopeePay retry),
+  // a strict idempotency check here would silence the retry and leave
+  // the rental stuck at payment_status='pending' forever. Falling
+  // through to re-run the rental update + side-effects fixes that.
   const TERMINAL_TXN_STATUSES = new Set([
     'success',
     'failed',
@@ -146,7 +154,32 @@ export async function POST(request: NextRequest) {
     txnRow.transaction_sn === transaction_sn &&
     TERMINAL_TXN_STATUSES.has(txnRow.status)
   ) {
-    return NextResponse.json(ACK_OK);
+    // For success state, verify the rental is also in the expected
+    // state before short-circuiting. Other terminal states (failed,
+    // refunded, partially_refunded) don't have this risk because the
+    // routes that reach those states write the rental synchronously
+    // alongside the txn and don't return 500 on rental-update failure.
+    if (txnRow.status === 'success' && txnRow.club_rental_id) {
+      const { data: rentalCheck } = await supabase
+        .from('club_rentals')
+        .select('payment_status')
+        .eq('id', txnRow.club_rental_id)
+        .maybeSingle();
+      if (rentalCheck && rentalCheck.payment_status === 'paid') {
+        return NextResponse.json(ACK_OK);
+      }
+      // Rental is inconsistent — fall through to re-run the rental
+      // update + side-effects. The success-path code below is
+      // idempotent against an already-success txn row.
+      console.warn(
+        `[ShopeePay/webhook] idempotency replay detected for ${referenceId} ` +
+          `but rental payment_status is ${rentalCheck?.payment_status ?? 'unknown'} — ` +
+          `re-running rental update + side-effects`
+      );
+    } else {
+      // Non-success terminal state — safe to short-circuit.
+      return NextResponse.json(ACK_OK);
+    }
   }
 
   const isSuccess = isFinalSuccess(payload);

@@ -93,11 +93,17 @@ export interface NotifyTransactionPayload {
  * accepting either wire name. Prefers `reference_id` (what UAT
  * actually sends) and falls back to `payment_reference_id` (the
  * docs-promised name) so we stay forward-compatible.
+ *
+ * Normalizes empty strings to `undefined` so callers that use
+ * `if (referenceId === undefined)` style checks behave the same as
+ * `if (!referenceId)` style. Without this, an empty `reference_id`
+ * field would fall through `??` and the caller would receive `''`.
  */
 export function extractReferenceId(
   payload: Pick<NotifyTransactionPayload, 'reference_id' | 'payment_reference_id'>
 ): string | undefined {
-  return payload.reference_id ?? payload.payment_reference_id ?? undefined;
+  const ref = payload.reference_id ?? payload.payment_reference_id;
+  return ref && ref.length > 0 ? ref : undefined;
 }
 
 export interface NotifyAck {

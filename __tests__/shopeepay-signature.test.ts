@@ -115,11 +115,16 @@ describe('ShopeePay extractReferenceId — UAT 2026-05-15 payload', () => {
   });
 
   it('returns undefined for empty-string reference_id', () => {
-    // `?? operator` only short-circuits on null/undefined. Empty string
-    // would falsely pass `if (!referenceId)` in the handler, so the
-    // current implementation (`?? `) lets the empty string through —
-    // verify that's the documented behavior. The handler itself
-    // separately guards with `if (!referenceId)`.
-    expect(extractReferenceId({ reference_id: '' })).toBe('');
+    // Empty strings are normalized to undefined so callers using
+    // `if (referenceId === undefined)` and `if (!referenceId)` behave
+    // identically. Without this, a future caller doing strict
+    // undefined-check would silently miss the empty case.
+    expect(extractReferenceId({ reference_id: '' })).toBeUndefined();
+  });
+
+  it('returns undefined for empty-string payment_reference_id fallback', () => {
+    // Same normalization applies when reference_id is absent and
+    // payment_reference_id is present but empty.
+    expect(extractReferenceId({ payment_reference_id: '' })).toBeUndefined();
   });
 });

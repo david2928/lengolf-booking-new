@@ -10,19 +10,32 @@ const IS_PROD_ENV = process.env.VERCEL_ENV === 'production';
 /**
  * Refund-notify branch of the ShopeePay webhook.
  *
- * ⚠️ DORMANT AS OF 2026-05-24. ShopeePay support (pearpearpearpearpear,
- * 16:49 BKK) confirmed they do NOT currently emit refund webhooks at
- * all — quote: "currently there is no webhook available for refund
- * requests. At the moment, callbacks are only triggered for completed
- * payment transactions. However, we are currently in the development
- * stage for the refund callback. Please allow me to inform you again
- * once it's ready." So this handler is never invoked in production
- * today; refund reconciliation goes through the backoffice-initiated
+ * ⚠️ ACTIVE BUT RARELY TRIGGERED (as of 2026-05-25).
+ *
+ * The CODE PATH IS WIRED LIVE — the webhook handler at
+ * /api/webhooks/shopeepay routes any payload with a `refund_reference_id`
+ * field straight here. What's currently missing is the TRIGGER:
+ * ShopeePay support (pearpearpearpearpear, 2026-05-24 16:49 BKK) confirmed
+ * they do NOT yet emit refund-status callbacks at all — quote:
+ *   "currently there is no webhook available for refund requests.
+ *    At the moment, callbacks are only triggered for completed payment
+ *    transactions. However, we are currently in the development stage
+ *    for the refund callback. Please allow me to inform you again
+ *    once it's ready."
+ *
+ * Today, refund reconciliation goes through the backoffice-initiated
  * route (POST /api/payments/shopeepay/refund) which calls ShopeePay's
  * refund API directly and writes our DB synchronously from the API
- * response. Keep this handler in place for the day ShopeePay ships
- * their refund-notify callback — the orphan-tolerant code below is
- * the correct shape for that future event.
+ * response. Once ShopeePay ships their refund-notify callback this
+ * handler will start firing in addition, and the orphan-tolerant code
+ * below is the correct shape for it — see the self-create branch at
+ * the bottom which handles a refund webhook arriving without a
+ * pre-existing `payment_refunds` row (which would happen e.g. for
+ * portal-initiated refunds).
+ *
+ * Note: the dormancy is at ShopeePay's edge, not in our code. If you
+ * stub a payload locally with `refund_reference_id` set, this handler
+ * runs end-to-end against the live DB.
  *
  * Triggered when an inbound notify payload carries `refund_reference_id`.
  * Updates the matching `payment_refunds` row, atomically increments

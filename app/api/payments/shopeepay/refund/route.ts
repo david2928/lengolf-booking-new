@@ -125,8 +125,19 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-  if (reason !== undefined && (typeof reason !== 'string' || reason.length > 500)) {
-    return NextResponse.json({ error: 'reason must be a string ≤ 500 chars' }, { status: 400 });
+  // payment_refunds.reason has a DB CHECK (length >= 10). Enforce the same
+  // floor in the route so we return a clean 400 rather than a 500 from the
+  // DB violation. Note: when `reason` is undefined entirely we apply our
+  // own default below (≥10 chars), so this only fires on explicitly-short
+  // values like the empty string or "no".
+  if (
+    reason !== undefined &&
+    (typeof reason !== 'string' || reason.length < 10 || reason.length > 500)
+  ) {
+    return NextResponse.json(
+      { error: 'reason must be a string of 10–500 chars' },
+      { status: 400 }
+    );
   }
   if (
     initiated_by_email !== undefined &&
