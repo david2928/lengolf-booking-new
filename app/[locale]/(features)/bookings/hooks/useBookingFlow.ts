@@ -20,6 +20,7 @@ export function useBookingFlow() {
   const [selectedPackage, setSelectedPackage] = useState<PlayFoodPackage | null>(null);
   const [selectedClubRental, setSelectedClubRental] = useState<string>('standard');
   const [selectedClubSetId, setSelectedClubSetId] = useState<string | null>(null);
+  const [selectedAddOns, setSelectedAddOns] = useState<Record<string, boolean>>({});
   const [selectedSlotData, setSelectedSlotData] = useState<TimeSlot | null>(null);
 
   useEffect(() => {
@@ -128,9 +129,11 @@ export function useBookingFlow() {
     selectedPackage,
     selectedClubRental,
     selectedClubSetId,
+    selectedAddOns,
     selectedSlotData,
     setSelectedClubRental,
     setSelectedClubSetId,
+    setSelectedAddOns,
     handleDateSelect,
     handleTimeSelect,
     handleBack,

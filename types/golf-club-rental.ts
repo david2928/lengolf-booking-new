@@ -9,8 +9,8 @@ export interface GearUpItem {
 }
 
 const DEFAULT_GEAR_UP_ITEMS: GearUpItem[] = [
-  { id: 'gloves', name: 'Premium Leather Gloves', price: 600, image: '/images/gear-up/gloves.png' },
-  { id: 'balls', name: 'Golf Balls (6-pack)', price: 400, image: '/images/gear-up/balls.png' },
+  { id: 'gloves', name: 'Cabretta Leather Glove', price: 600, description: 'Genuine cabretta leather, all sizes', image: '/images/gear-up/gloves.png' },
+  { id: 'balls', name: 'Srixon Distance Balls (6)', price: 400, description: '6-ball pack — ideal for course play', image: '/images/gear-up/balls.jpg' },
   { id: 'delivery', name: 'Delivery Service', price: 500, description: 'pick-up + return (within Bangkok)', image: '/images/gear-up/delivery.png' },
 ];
 

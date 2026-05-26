@@ -97,10 +97,19 @@ export default function CourseRentalPage() {
   const [rentalCode, setRentalCode] = useState('');
   const [error, setError] = useState('');
 
-  // Calculate duration from start/end dates
-  const durationDays = (startDate && endDate)
-    ? Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)))
-    : 0;
+  // Calculate billable duration from pickup/return time, not just calendar dates.
+  // Without this, e.g. pickup 09:00 Sun + return 20:00 Mon (35h) would bill as 1d.
+  // 1-hour grace absorbs minor overruns at handover; anything past 25h tips to 2d.
+  const durationDays = (() => {
+    if (!startDate || !endDate) return 0;
+    if (pickupTime && returnTime) {
+      const pickupMs = new Date(`${startDate}T${pickupTime}:00+07:00`).getTime();
+      const returnMs = new Date(`${endDate}T${returnTime}:00+07:00`).getTime();
+      const billableMs = Math.max(0, returnMs - pickupMs - 3_600_000);
+      return Math.max(1, Math.ceil(billableMs / 86_400_000));
+    }
+    return Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000));
+  })();
 
   // Today's date for min
   const todayStr = (() => {
@@ -656,7 +665,7 @@ export default function CourseRentalPage() {
                 <span>{t('dates.preview.label')}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {PREVIEW_SETS.map((s) => (
+                {PREVIEW_SETS.map((s, idx) => (
                   <div key={s.name} className="flex flex-col items-center">
                     <div className="relative h-16 sm:h-20 w-full bg-white rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
                       <Image
@@ -664,7 +673,8 @@ export default function CourseRentalPage() {
                         alt={s.name}
                         fill
                         className="object-contain p-1"
-                        loading="lazy"
+                        priority={idx === 0}
+                        fetchPriority={idx === 0 ? 'high' : 'auto'}
                         sizes="(max-width: 640px) 33vw, 200px"
                       />
                     </div>
@@ -746,7 +756,7 @@ export default function CourseRentalPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">{t('delivery.addOnsLabel')}</label>
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {GEAR_UP_ITEMS.filter(item => item.id !== 'delivery').map(item => {
                   const isSelected = addOns.some(a => a.key === item.id);
                   return (
@@ -754,25 +764,37 @@ export default function CourseRentalPage() {
                       key={item.id}
                       type="button"
                       onClick={() => toggleAddOn(item.id, item.name, item.price)}
-                      className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${
+                      aria-pressed={isSelected}
+                      className={`group relative flex flex-col overflow-hidden rounded-xl border-2 text-left transition-all ${
                         isSelected
-                          ? 'border-green-600 bg-green-50'
-                          : 'border-gray-200 hover:border-green-300'
+                          ? 'border-green-600 bg-green-50 shadow-md'
+                          : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
                       }`}
                     >
-                      <div>
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        {item.description && (
-                          <p className="text-xs text-gray-500">{item.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <p className="text-sm font-bold text-green-700">฿{format.number(item.price)}</p>
-                        <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
-                          isSelected ? 'bg-green-600 border-green-600' : 'border-gray-300'
+                      <div className={`relative h-36 w-full overflow-hidden ${
+                        isSelected ? 'bg-white' : 'bg-gray-50'
+                      }`}>
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="(max-width: 640px) 100vw, 50vw"
+                          className="object-contain p-3 transition-transform duration-200 group-hover:scale-105"
+                        />
+                        <div className={`absolute top-2 right-2 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
+                          isSelected ? 'bg-green-600 border-green-600' : 'bg-white border-gray-300'
                         }`}>
                           {isSelected && <CheckIcon className="h-4 w-4 text-white stroke-[3]" />}
                         </div>
+                      </div>
+                      <div className="flex items-start justify-between gap-2 px-4 py-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm text-gray-900 leading-tight">{item.name}</p>
+                          {item.description && (
+                            <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{item.description}</p>
+                          )}
+                        </div>
+                        <p className="text-sm font-bold text-green-700 whitespace-nowrap">฿{format.number(item.price)}</p>
                       </div>
                     </button>
                   );

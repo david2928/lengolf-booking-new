@@ -92,6 +92,22 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
     return null;
   };
 
+  // Read structured gear-up add-ons (e.g. glove sale) from booking.add_ons,
+  // defensively shaped: existing bookings have null, malformed JSON returns [].
+  const getBookingAddOns = (): Array<{ key: string; label: string; price: number }> => {
+    const raw = (booking as Record<string, unknown>).add_ons;
+    if (!Array.isArray(raw)) return [];
+    return raw.flatMap((item) => {
+      if (!item || typeof item !== 'object') return [];
+      const obj = item as Record<string, unknown>;
+      if (typeof obj.key === 'string' && typeof obj.label === 'string' && typeof obj.price === 'number') {
+        return [{ key: obj.key, label: obj.label, price: obj.price }];
+      }
+      return [];
+    });
+  };
+  const bookingAddOns = getBookingAddOns();
+
   // Compute cost breakdown from booking data
   const confirmationCostBreakdown: CostBreakdown | null = (() => {
     if (!booking.date || !booking.start_time || !booking.duration) return null;
@@ -107,11 +123,16 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
     const hasPackage = booking.booking_type === 'Package';
     const isPlayFoodPkg = booking.booking_type === 'Play_Food_Package';
 
+    // Reconstruct addOns map for the cost calculator from the persisted array.
+    const addOnsMap: Record<string, boolean> = {};
+    for (const a of bookingAddOns) addOnsMap[a.key] = true;
+
     return calculateCost({
       date: booking.date,
       startTime: booking.start_time,
       duration: booking.duration,
       clubRentalId,
+      addOns: addOnsMap,
       playFoodPackageId: isPlayFoodPkg ? (booking.package_name ?? null) : null,
       hasActivePackage: hasPackage,
       packageDisplayName: hasPackage ? (booking.package_name ?? undefined) : undefined,
@@ -279,6 +300,21 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Gear-up add-ons (e.g. glove sale) — only renders when add_ons present */}
+        {bookingAddOns.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-green-100">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('addOnsHeading')}</h3>
+            <ul className="space-y-2">
+              {bookingAddOns.map((addOn) => (
+                <li key={addOn.key} className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-gray-900">{addOn.label}</span>
+                  <span className="text-sm font-bold text-green-700 whitespace-nowrap">฿{format.number(addOn.price)}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 

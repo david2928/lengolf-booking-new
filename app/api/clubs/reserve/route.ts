@@ -156,6 +156,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid return time format' }, { status: 400 });
     }
 
+    // Course rentals must carry pickup + return time. Without them the server
+    // can't authoritatively compute billable days (see effective_duration_days
+    // below) and would have to trust the client — that was the original bug.
+    if (rental_type === 'course' && (!start_time || !return_time)) {
+      return NextResponse.json(
+        { error: 'Pickup time and return time are required for course rentals' },
+        { status: 400 }
+      );
+    }
+
     // Validate add-ons: use trusted server-side prices AND labels
     // Exclude 'delivery' add-on to prevent double-charging with delivery_fee
     const trustedAddons = getTrustedAddons();
@@ -173,12 +183,32 @@ export async function POST(request: NextRequest) {
         price: trustedAddons[addon.key].price,
       }));
 
-    // Calculate end_date: "1 day" means return next day, so end = start + duration
+    // Calculate end_date: "1 day" means return next day, so end = start + duration.
+    // Contract: an explicit body.end_date wins over duration_days-derived end_date.
+    // The time-aware recompute below is what actually determines billing duration,
+    // so the only role of end_date here is the date range for the availability check.
     let end_date = body.end_date || start_date;
-    if (rental_type === 'course' && duration_days) {
+    if (rental_type === 'course' && duration_days && !body.end_date) {
       const start = new Date(start_date);
       start.setDate(start.getDate() + duration_days);
       end_date = start.toISOString().split('T')[0];
+    }
+
+    // For course rentals, recompute duration_days authoritatively from pickup/return
+    // time so the client can't underpay by spanning >24h within "1 calendar day".
+    // 1-hour grace at handover. Falls back to date diff if times missing.
+    let effective_duration_days = duration_days;
+    if (rental_type === 'course') {
+      if (start_time && return_time) {
+        const pickupMs = new Date(`${start_date}T${start_time}:00+07:00`).getTime();
+        const returnMs = new Date(`${end_date}T${return_time}:00+07:00`).getTime();
+        const billableMs = Math.max(0, returnMs - pickupMs - 3_600_000);
+        effective_duration_days = Math.max(1, Math.ceil(billableMs / 86_400_000));
+      } else if (end_date && end_date !== start_date) {
+        effective_duration_days = Math.max(1, Math.round(
+          (new Date(end_date).getTime() - new Date(start_date).getTime()) / 86_400_000
+        ));
+      }
     }
 
     const supabase = createAdminClient();
@@ -219,8 +249,8 @@ export async function POST(request: NextRequest) {
     let rental_price = 0;
     if (rental_type === 'indoor' && duration_hours) {
       rental_price = getIndoorPrice(clubSet, duration_hours);
-    } else if (rental_type === 'course' && duration_days) {
-      rental_price = getCoursePrice(clubSet, duration_days);
+    } else if (rental_type === 'course' && effective_duration_days) {
+      rental_price = getCoursePrice(clubSet, effective_duration_days);
     }
 
     const add_ons_total = validatedAddOns.reduce((sum: number, item: ClubRentalAddOn) => sum + item.price, 0);
@@ -252,7 +282,7 @@ export async function POST(request: NextRequest) {
         end_date,
         start_time: start_time || null,
         duration_hours: duration_hours || null,
-        duration_days: duration_days || null,
+        duration_days: effective_duration_days || null,
         rental_price,
         add_ons: validatedAddOns.length > 0 ? validatedAddOns : [],
         add_ons_total,
@@ -331,7 +361,9 @@ export async function POST(request: NextRequest) {
           clubSetGender: clubSet.gender,
           startDate: start_date,
           endDate: end_date,
-          durationDays: duration_days || 1,
+          // effective_duration_days is the server-authoritative hourly-billing
+          // computation from PR #27 (replaces the old calendar-date diff).
+          durationDays: effective_duration_days || 1,
           deliveryRequested: delivery_requested,
           deliveryAddress: delivery_address,
           deliveryTime: [
@@ -367,6 +399,11 @@ export async function POST(request: NextRequest) {
       const paymentMode: 'online' | 'manual' =
         rental_type === 'course' && requiresPrepay ? 'online' : 'manual';
 
+      // Use the unified composer (our PR's contribution). Drop main's
+      // legacy inline message format — superseded by the per-state
+      // composer that also handles payment-received / refund / expired
+      // / payment-failed states. Preserve main's added error-status
+      // check on the LINE response (HTTP-level failure detection).
       const lineMessage = composeRentalLineMessage({
         rental,
         clubSet: { name: clubSet.name, tier: clubSet.tier, gender: clubSet.gender },
@@ -375,11 +412,15 @@ export async function POST(request: NextRequest) {
       });
 
       try {
-        await fetch(`${baseUrl}/api/notifications/line`, {
+        const lineRes = await fetch(`${baseUrl}/api/notifications/line`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: lineMessage }),
         });
+        if (!lineRes.ok) {
+          const errBody = await lineRes.text().catch(() => '');
+          console.error(`[ClubReserve] LINE notification failed: ${lineRes.status}`, errBody);
+        }
       } catch (err) {
         console.error('[ClubReserve] LINE notification error:', err);
       }
