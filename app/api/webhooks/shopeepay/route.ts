@@ -126,11 +126,25 @@ export async function POST(request: NextRequest) {
   }
 
   // Idempotency: if we already recorded this transaction_sn AND the
-  // row is already in a terminal state, ack and skip side effects.
+  // row is already in ANY terminal state, ack and skip side effects.
+  // Critical: 'refunded' and 'partially_refunded' MUST be included
+  // here. ShopeePay was observed re-sending the payment notify ~5 min
+  // after a refund (UAT 2026-05-26 on CR-20260526-F94F) — without this
+  // guard the handler treats the replay as a fresh success, resets
+  // payment_transactions.status from 'refunded' back to 'success',
+  // resets club_rentals.payment_status from 'refunded' back to 'paid',
+  // and fires a duplicate "PAYMENT RECEIVED" LINE notification —
+  // confusing staff who already saw the cancellation.
+  const TERMINAL_TXN_STATUSES = new Set([
+    'success',
+    'failed',
+    'refunded',
+    'partially_refunded',
+  ]);
   if (
     transaction_sn &&
     txnRow.transaction_sn === transaction_sn &&
-    (txnRow.status === 'success' || txnRow.status === 'failed')
+    TERMINAL_TXN_STATUSES.has(txnRow.status)
   ) {
     return NextResponse.json(ACK_OK);
   }
