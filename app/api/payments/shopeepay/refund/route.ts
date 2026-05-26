@@ -353,9 +353,17 @@ export async function POST(request: NextRequest) {
   }
 
   // 8d. Fire customer email + staff LINE ping — best-effort.
-  void claimAndSendRefundEmail(supabase, refundRow.id, {
-    refundSn: gatewayResp.refund_sn ?? null,
-  });
+  // AWAIT so Vercel doesn't tear down the function mid-fetch (same
+  // class of bug as the webhook hit on 2026-05-26 with the void-fire
+  // pattern). Wrap in try/catch so the refund response still succeeds
+  // even if the email side-effect fails.
+  try {
+    await claimAndSendRefundEmail(supabase, refundRow.id, {
+      refundSn: gatewayResp.refund_sn ?? null,
+    });
+  } catch (err) {
+    console.error('[ShopeePay/refund] email side-effect failed:', err);
+  }
 
   const baseUrl = getBaseUrl();
   if (baseUrl) {
@@ -395,11 +403,15 @@ export async function POST(request: NextRequest) {
         uatPrefix: !IS_PROD_ENV,
       });
 
-      fetch(`${baseUrl}/api/notifications/line`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: lineMessage }),
-      }).catch(err => console.error('[ShopeePay/refund] LINE notification error:', err));
+      try {
+        await fetch(`${baseUrl}/api/notifications/line`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: lineMessage }),
+        });
+      } catch (err) {
+        console.error('[ShopeePay/refund] LINE notification error:', err);
+      }
     }
   }
 

@@ -125,10 +125,18 @@ export async function GET(request: NextRequest) {
 
         // Fire the customer confirmation email (idempotent — webhook
         // arrival later will see the email already claimed and skip).
-        // Don't await — keep the polling response fast.
-        void claimAndSendConfirmationEmail(supabase, txn.id, rental.id, {
-          transactionSn: transactionSn,
-        });
+        // AWAIT so Vercel doesn't tear down the function mid-fetch —
+        // the void-fire pattern silently dropped the email under load
+        // (observed UAT 2026-05-26). The poll response now waits on
+        // the email side-effect, adding ~1-2s, which is acceptable
+        // since the customer is on the success page anyway.
+        try {
+          await claimAndSendConfirmationEmail(supabase, txn.id, rental.id, {
+            transactionSn: transactionSn,
+          });
+        } catch (err) {
+          console.error('[ShopeePay/status] email side-effect failed:', err);
+        }
       } else if (probe.errcode === 0 && (probe.status !== undefined || probe.transaction_status !== undefined)) {
         // Terminal non-success.
         await supabase

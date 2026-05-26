@@ -204,13 +204,15 @@ export async function POST(request: NextRequest) {
           uatPrefix: !IS_PROD_ENV,
         });
 
-        fetch(`${baseUrl}/api/notifications/line`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: lineMessage }),
-        }).catch(err =>
-          console.error('[ShopeePay/webhook] LINE notification error (failed):', err)
-        );
+        try {
+          await fetch(`${baseUrl}/api/notifications/line`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: lineMessage }),
+          });
+        } catch (err) {
+          console.error('[ShopeePay/webhook] LINE notification error (failed):', err);
+        }
       }
     }
     return NextResponse.json(ACK_OK);
@@ -248,11 +250,19 @@ export async function POST(request: NextRequest) {
 
   // Customer confirmation email — uses the shared dedup helper so the
   // polling status route doesn't re-send if it claimed the email first
-  // (and vice versa). Fire-and-forget; the helper handles its own
-  // logging.
-  void claimAndSendConfirmationEmail(supabase, txnRow.id, txnRow.club_rental_id, {
-    transactionSn: transaction_sn,
-  });
+  // (and vice versa). AWAIT so Vercel keeps the function alive until
+  // the helper's DB queries + SMTP send complete; under the old
+  // `void`-fire pattern (2026-05-26 UAT) Vercel tore the function down
+  // mid-fetch and the email silently failed with `TypeError: fetch failed`.
+  // Wrap in try/catch so a side-effect failure never breaks the ACK to
+  // ShopeePay.
+  try {
+    await claimAndSendConfirmationEmail(supabase, txnRow.id, txnRow.club_rental_id, {
+      transactionSn: transaction_sn,
+    });
+  } catch (err) {
+    console.error('[ShopeePay/webhook] email side-effect failed:', err);
+  }
 
   // Staff LINE notification. Fire-and-forget. Uses the unified
   // composeRentalLineMessage helper so the format stays consistent
@@ -272,11 +282,17 @@ export async function POST(request: NextRequest) {
       uatPrefix: !IS_PROD_ENV,
     });
 
-    fetch(`${baseUrl}/api/notifications/line`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: lineMessage }),
-    }).catch(err => console.error('[ShopeePay/webhook] LINE notification error:', err));
+    // AWAIT so Vercel doesn't tear down the function mid-fetch.
+    // Self-fetch is subject to the same lifecycle as the email send above.
+    try {
+      await fetch(`${baseUrl}/api/notifications/line`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: lineMessage }),
+      });
+    } catch (err) {
+      console.error('[ShopeePay/webhook] LINE notification error:', err);
+    }
   }
 
   return NextResponse.json(ACK_OK);

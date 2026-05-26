@@ -280,9 +280,15 @@ export async function handleRefundNotify(
   }
 
   // 7. Customer email — claim-and-send pattern guarantees one delivery.
-  void claimAndSendRefundEmail(supabase, refundRow.id, {
-    refundSn: payload.transaction_sn ?? null,
-  });
+  // AWAIT (with try/catch) so Vercel keeps the function alive until the
+  // email completes — see 2026-05-26 lesson on the payment-side webhook.
+  try {
+    await claimAndSendRefundEmail(supabase, refundRow.id, {
+      refundSn: payload.transaction_sn ?? null,
+    });
+  } catch (err) {
+    console.error('[ShopeePay/webhook/refund] email side-effect failed:', err);
+  }
 
   // 8. Staff LINE notification — fire-and-forget. Uses the unified
   // composeRentalLineMessage helper so the format stays consistent
@@ -323,13 +329,15 @@ export async function handleRefundNotify(
         uatPrefix: !IS_PROD_ENV,
       });
 
-      fetch(`${opts.baseUrl}/api/notifications/line`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: lineMessage }),
-      }).catch(err =>
-        console.error('[ShopeePay/webhook/refund] LINE notification error:', err)
-      );
+      try {
+        await fetch(`${opts.baseUrl}/api/notifications/line`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: lineMessage }),
+        });
+      } catch (err) {
+        console.error('[ShopeePay/webhook/refund] LINE notification error:', err);
+      }
     }
   }
 
