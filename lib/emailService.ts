@@ -278,6 +278,30 @@ interface CourseRentalEmailConfirmation {
   totalPrice: number;
   notes?: string;
   language?: Locale;
+  /**
+   * Payment lifecycle marker for the course rental. Controls subject +
+   * heading + the status block + the "what happens next" copy.
+   * - 'paid': renders "Payment received" + confirmed copy.
+   * - 'pay_at_pickup': renders "Reservation received" + settle-on-arrival copy.
+   * - (unset, legacy): falls back to the original generic copy.
+   *
+   * NOTE: there used to be an 'awaiting_payment' state intended for an
+   * abandoned-cart recovery email ("we'll send a link to finish payment"),
+   * but no caller ever sent it and the link-recovery flow was never built
+   * — so it was removed 2026-05-24 rather than leave the dead branch.
+   * If we ever want true abandoned-cart recovery, design it as its own
+   * feature with a proper trigger + recovery URL rather than reviving
+   * this state.
+   */
+  paymentStatus?: 'paid' | 'pay_at_pickup';
+  /** ShopeePay transaction reference, only meaningful when paymentStatus='paid'. */
+  transactionSn?: string;
+  /**
+   * Customer's preferred contact channel at booking time. Drives the
+   * "what happens next" copy — e.g. "we'll reach out via LINE if anything
+   * changes". Falls back to a generic "we'll be in touch" when null.
+   */
+  contactPreference?: 'line' | 'email' | 'whatsapp' | null;
 }
 
 export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEmailConfirmation) {
@@ -328,7 +352,24 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
     ? t('clubSetGenderMens')
     : t('clubSetGenderWomens');
 
-  const emailSubject = t('subject', { rentalCode: booking.rentalCode });
+  // Subject + heading branch on paymentStatus so we don't claim
+  // "Reservation Confirmed!" before the customer has actually paid.
+  // Legacy keys `subject` + `heading` remain as fallback for code paths
+  // that don't pass paymentStatus and pre-existing email replays.
+  const subjectKey =
+    booking.paymentStatus === 'pay_at_pickup'
+      ? 'subjectPayAtPickup'
+      : booking.paymentStatus === 'paid'
+        ? 'subjectPaid'
+        : 'subject';
+  const headingKey =
+    booking.paymentStatus === 'pay_at_pickup'
+      ? 'headingPayAtPickup'
+      : booking.paymentStatus === 'paid'
+        ? 'headingPaid'
+        : 'heading';
+
+  const emailSubject = t(subjectKey, { rentalCode: booking.rentalCode });
 
   const emailContent = `
     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
@@ -336,7 +377,7 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
             <img src="https://booking.len.golf/images/logo_v1.png" alt="${t('logoAlt')}" style="max-width: 200px;">
         </div>
 
-        <h2 style="color: #1a3308; text-align: center; margin-bottom: 20px;">${t('heading')}</h2>
+        <h2 style="color: #1a3308; text-align: center; margin-bottom: 20px;">${t(headingKey)}</h2>
 
         <p style="font-size: 16px; line-height: 1.5; color: #1a3308; margin-bottom: 5px;">
             <strong>${t('greeting', { name: safeName })}</strong>
@@ -398,10 +439,39 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
             </tr>
         </table>
 
+        ${booking.paymentStatus === 'paid'
+          ? `
+        <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <p style="font-weight: bold; color: #15803d; margin: 0 0 5px;">${t('paymentReceivedHeading')}</p>
+            <p style="color: #166534; margin: 0; font-size: 14px;">${t('paymentReceivedBody', { amount: booking.totalPrice.toLocaleString() })}</p>
+            ${booking.transactionSn
+              ? `<p style="color: #166534; margin: 8px 0 0; font-size: 12px;"><strong>${t('paymentReceivedTransactionLabel')}:</strong> <span style="font-family: monospace;">${escapeHtml(booking.transactionSn)}</span></p>`
+              : ''}
+        </div>
+        `
+          : ''}
+
+        ${(() => {
+          // Branch the "What happens next" copy per payment state so the
+          // message actually reflects what the customer needs to do (or
+          // not do). Falls back to the generic body for legacy code paths
+          // that don't pass paymentStatus.
+          const contactChannelLabel =
+            booking.contactPreference === 'email'
+              ? t('contactChannelEmail')
+              : booking.contactPreference === 'whatsapp'
+                ? t('contactChannelWhatsApp')
+                : t('contactChannelLine');
+          let bodyKey: 'whatsNextBodyPaid' | 'whatsNextBodyAtPickup' | 'whatsNextBody';
+          if (booking.paymentStatus === 'paid') bodyKey = 'whatsNextBodyPaid';
+          else if (booking.paymentStatus === 'pay_at_pickup') bodyKey = 'whatsNextBodyAtPickup';
+          else bodyKey = 'whatsNextBody';
+          return `
         <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
             <p style="font-weight: bold; color: #1e40af; margin: 0 0 5px;">${t('whatsNextHeading')}</p>
-            <p style="color: #1e40af; margin: 0; font-size: 14px;">${t('whatsNextBody')}</p>
-        </div>
+            <p style="color: #1e40af; margin: 0; font-size: 14px;">${t(bodyKey, { contactChannel: contactChannelLabel })}</p>
+        </div>`;
+        })()}
 
         <div style="font-size: 14px; color: #777; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
             <p style="margin: 5px 0; text-align: center;">
@@ -438,6 +508,148 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
     return true;
   } catch (error) {
     console.error('Failed to send course rental confirmation email:', error);
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------
+// Course rental refund — sent when ShopeePay confirms a refund via
+// the notify webhook. Triggered by claimAndSendRefundEmail.
+// ---------------------------------------------------------------------
+
+export interface CourseRentalRefundEmailInput {
+  customerName: string;
+  email: string;
+  rentalCode: string;
+  /** ShopeePay refund serial, when present in the notify payload. */
+  refundSn?: string;
+  /** Original payment amount in THB (display units, NOT satang). */
+  originalAmountThb: number;
+  /** This refund's amount in THB. */
+  refundAmountThb: number;
+  /** Total refunded so far in THB across all refunds for this transaction. */
+  totalRefundedThb: number;
+  /** Refund-confirmation timestamp (ISO 8601). */
+  refundedAt: string;
+  /** True when totalRefundedThb < originalAmountThb. */
+  isPartial: boolean;
+  language?: Locale;
+}
+
+export async function sendCourseRentalRefundEmail(input: CourseRentalRefundEmailInput) {
+  const locale: Locale = input.language ?? 'en';
+  const t = createTranslator({
+    locale,
+    messages: getEmailMessages(locale),
+    namespace: 'emails.courseRentalRefund',
+  });
+  const format = createFormatter({ locale });
+
+  const refundDateDisplay = format.dateTime(new Date(input.refundedAt), {
+    dateStyle: 'long',
+    timeZone: 'Asia/Bangkok',
+  });
+
+  const safeName = escapeHtml(input.customerName);
+  const safeRentalCode = escapeHtml(input.rentalCode);
+  const safeRefundSn = input.refundSn ? escapeHtml(input.refundSn) : '';
+
+  const partialBlock = input.isPartial
+    ? `
+        <p style="color: #92400e; margin: 8px 0 0; font-size: 13px;">
+          ${t('partialRefundNote', { totalRefunded: input.totalRefundedThb.toLocaleString() })}
+        </p>
+      `
+    : '';
+
+  const refundReferenceRow = safeRefundSn
+    ? `
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('refundReferenceLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; font-family: monospace;">${safeRefundSn}</td>
+            </tr>
+            `
+    : '';
+
+  const emailSubject = t('subject', { rentalCode: input.rentalCode });
+
+  const emailContent = `
+    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="https://booking.len.golf/images/logo_v1.png" alt="${t('logoAlt')}" style="max-width: 200px;">
+        </div>
+
+        <h2 style="color: #1a3308; text-align: center; margin-bottom: 20px;">${t('heading')}</h2>
+
+        <p style="font-size: 16px; line-height: 1.5; color: #1a3308; margin-bottom: 5px;">
+            <strong>${t('greeting', { name: safeName })}</strong>
+        </p>
+        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
+            ${t('intro')}
+        </p>
+
+        <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <p style="font-size: 14px; color: #92400e; margin: 0 0 5px;">${t('refundAmountLabel')}</p>
+            <p style="font-size: 28px; font-weight: bold; color: #b45309; margin: 0;">฿${input.refundAmountThb.toLocaleString()}</p>
+            ${partialBlock}
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 15px;">
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('rentalCodeLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; font-family: monospace; letter-spacing: 1px;">${safeRentalCode}</td>
+            </tr>
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('originalAmountLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">฿${input.originalAmountThb.toLocaleString()}</td>
+            </tr>
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('refundDateLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${refundDateDisplay}</td>
+            </tr>
+            ${refundReferenceRow}
+        </table>
+
+        <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <p style="font-weight: bold; color: #1e40af; margin: 0 0 5px;">${t('whatsNextHeading')}</p>
+            <p style="color: #1e40af; margin: 0; font-size: 14px;">${t('whatsNextBody')}</p>
+        </div>
+
+        <div style="font-size: 14px; color: #777; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p style="margin: 5px 0; text-align: center;">
+                <strong>${t('footerPhoneLabel')}</strong> <a href="tel:+66966682335" style="color: #8dc743; text-decoration: none;">+66 96 668 2335</a>
+            </p>
+            <p style="margin: 5px 0; text-align: center;">
+                <strong>${t('footerLineLabel')}</strong> <a href="https://lin.ee/UwwOr84" style="color: #8dc743; text-decoration: none;">@lengolf</a>
+            </p>
+            <p style="margin: 5px 0; text-align: center;">
+                <strong>${t('footerAddressLabel')}</strong> ${t('footerAddressValue')}
+            </p>
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="https://len.golf" style="text-decoration: none; color: white; background-color: #1a3308; padding: 8px 15px; border-radius: 5px; font-size: 14px;">
+                    ${t('visitWebsiteCta')}
+                </a>
+            </div>
+            <p style="font-size: 12px; margin-top: 15px; color: #777; text-align: center;">
+                ${t('copyright', { year: new Date().getFullYear() })}
+            </p>
+        </div>
+    </div>
+  `.trim();
+
+  const mailOptions = {
+    from: 'LENGOLF <notification@len.golf>',
+    to: input.email,
+    subject: emailSubject,
+    html: emailContent,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Course rental refund email sent to:', input.email);
+    return true;
+  } catch (error) {
+    console.error('Failed to send course rental refund email:', error);
     return false;
   }
 }

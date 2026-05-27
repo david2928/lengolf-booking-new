@@ -155,6 +155,7 @@ export const config = {
     '/play-and-food/:path*',
     '/golf-club-rental/:path*',
     '/course-rental/:path*',
+    '/payment/:path*',
     '/auth/:path*',
     '/liff/:path*',
     '/preferences/:path*',

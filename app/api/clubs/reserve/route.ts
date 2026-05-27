@@ -3,6 +3,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { getIndoorPrice, getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
 import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
+import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 
 /** Build trusted add-on price/label map at request time for dynamic pricing */
 function getTrustedAddons(): Record<string, { price: number; label: string }> {
@@ -54,7 +55,39 @@ export async function POST(request: NextRequest) {
       notes: customerNotes,
       source = 'booking_app',
       language: bodyLanguage,
+      payment_method: rawPaymentMethod,
+      payment_method_chosen: rawPaymentMethodChosen,
+      contact_preference: rawContactPreference,
     } = body;
+
+    // Customer-facing booking choices stored in their own columns so the
+    // free-form `notes` field stays strictly customer-typed (see CLAUDE.md
+    // — booking form previously concatenated these into notes and leaked
+    // into the customer confirmation email).
+    const VALID_PAYMENT_CHOICES = new Set(['online_shopeepay', 'cash_at_pickup']);
+    const VALID_CONTACT_PREFS = new Set(['line', 'email', 'whatsapp']);
+    const paymentMethodChosen: string | null =
+      typeof rawPaymentMethodChosen === 'string' &&
+      VALID_PAYMENT_CHOICES.has(rawPaymentMethodChosen)
+        ? rawPaymentMethodChosen
+        : null;
+    const contactPreference: string | null =
+      typeof rawContactPreference === 'string' &&
+      VALID_CONTACT_PREFS.has(rawContactPreference)
+        ? rawContactPreference
+        : null;
+
+    // Normalize / validate the payment method. Course rentals branch
+    // on this; indoor rentals ignore it. Server-side guard: delivery
+    // forces card (frontend already enforces this; defense in depth).
+    const paymentMethod: 'cash' | 'card' = rawPaymentMethod === 'cash' ? 'cash' : 'card';
+    if (delivery_requested && paymentMethod === 'cash') {
+      return NextResponse.json(
+        { error: 'Delivery requires online payment (card / ShopeePay).' },
+        { status: 400 }
+      );
+    }
+    const requiresPrepay = rental_type === 'course' && paymentMethod === 'card';
 
     // Only accept customer_id/user_id from trusted internal sources (booking_app with booking_id)
     const customer_id = booking_id ? (body.customer_id || null) : null;
@@ -260,6 +293,8 @@ export async function POST(request: NextRequest) {
         delivery_fee,
         total_price,
         notes: customerNotes || null,
+        payment_method_chosen: paymentMethodChosen,
+        contact_preference: contactPreference,
         source,
       })
       .select()
@@ -291,8 +326,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`[ClubReserve] Created rental ${rentalCode} for ${clubSet.name}, total: ฿${total_price}`);
 
-    // Send confirmation email for course rentals
-    if (rental_type === 'course' && customer_email) {
+    // Send confirmation email for course rentals.
+    // Skip when prepay is required — the ShopeePay webhook will send
+    // the confirmation email on payment success (with paymentStatus='paid'
+    // and the transaction reference). For abandoned-payment cases the
+    // cleanup cron expires the rental without an email; staff are
+    // already aware via the LINE notification below.
+    if (rental_type === 'course' && customer_email && !requiresPrepay) {
       // Resolve locale: explicit body param first, then fall back to
       // customers.preferred_language if we know the customer.
       let resolvedLanguage: string | null = typeof bodyLanguage === 'string' ? bodyLanguage : null;
@@ -306,6 +346,11 @@ export async function POST(request: NextRequest) {
       }
       const emailLocale = resolveEmailLocale(resolvedLanguage);
 
+      // AWAIT (with try/catch) so Vercel keeps the function alive until
+      // SMTP completes. The previous fire-and-forget pattern was
+      // silently failing in production with `TypeError: fetch failed`
+      // because Vercel tore down the function after the response was
+      // sent (observed 2026-05-26 on the webhook side).
       try {
         await sendCourseRentalConfirmationEmail({
           customerName: customer_name,
@@ -316,6 +361,8 @@ export async function POST(request: NextRequest) {
           clubSetGender: clubSet.gender,
           startDate: start_date,
           endDate: end_date,
+          // effective_duration_days is the server-authoritative hourly-billing
+          // computation from PR #27 (replaces the old calendar-date diff).
           durationDays: effective_duration_days || 1,
           deliveryRequested: delivery_requested,
           deliveryAddress: delivery_address,
@@ -329,47 +376,40 @@ export async function POST(request: NextRequest) {
           totalPrice: total_price,
           notes: customerNotes || undefined,
           language: emailLocale,
+          // Reaches here only on !requiresPrepay → customer settles on arrival.
+          paymentStatus: 'pay_at_pickup',
+          contactPreference:
+            contactPreference === 'line' ||
+            contactPreference === 'email' ||
+            contactPreference === 'whatsapp'
+              ? contactPreference
+              : null,
         });
       } catch (err) {
         console.error('[ClubReserve] Email send error:', err);
       }
     }
 
-    // Send LINE notification for staff
+    // Send LINE notification for staff — uses the unified
+    // composeRentalLineMessage helper so the format stays consistent
+    // with payment-received, refund, and payment-failed pings.
     const baseUrl = getBaseUrl();
     if (baseUrl) {
-      const addOnsText = validatedAddOns.length > 0
-        ? validatedAddOns.map((a: ClubRentalAddOn) => `${a.label} (฿${a.price})`).join(', ')
-        : 'None';
-      const tierLabel = clubSet.tier === 'premium-plus' ? 'Premium+' : 'Premium';
-      const genderLabel = clubSet.gender === 'mens' ? "Men's" : "Women's";
-      const timeInfo = [
-        delivery_time ? `${delivery_requested ? 'Delivery' : 'Pickup'}: ${delivery_time}` : '',
-        return_time ? `Return: ${return_time}` : '',
-      ].filter(Boolean).join(', ');
-      const deliveryText = delivery_requested
-        ? `Delivery to: ${delivery_address}${timeInfo ? `\nTime: ${timeInfo}` : ''}`
-        : `Pickup at LENGOLF${timeInfo ? ` (${timeInfo})` : ''}`;
+      const isProdEnv = process.env.VERCEL_ENV === 'production';
+      const paymentMode: 'online' | 'manual' =
+        rental_type === 'course' && requiresPrepay ? 'online' : 'manual';
 
-      const startDateFmt = new Date(start_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
-      const endDateFmt = new Date(end_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
-      const daysLabel = effective_duration_days && effective_duration_days > 1 ? `${effective_duration_days}d` : '1d';
-
-      const lineMessage = [
-        `Club Rental Notification (${rentalCode})`,
-        `Customer: ${customer_name}`,
-        `Phone: ${customer_phone || 'N/A'}`,
-        customer_email ? `Email: ${customer_email}` : null,
-        `Set: ${clubSet.name} (${tierLabel}, ${genderLabel})`,
-        `Dates: ${startDateFmt} - ${endDateFmt} (${daysLabel})`,
-        deliveryText,
-        addOnsText !== 'None' ? `Add-ons: ${addOnsText}` : null,
-        `Total: ฿${total_price.toLocaleString()}`,
-        `Source: ${source}`,
-        customerNotes ? `Notes: ${customerNotes}` : null,
-        ``,
-        `Please contact the customer to confirm availability and arrange payment.`,
-      ].filter(Boolean).join('\n');
+      // Use the unified composer (our PR's contribution). Drop main's
+      // legacy inline message format — superseded by the per-state
+      // composer that also handles payment-received / refund / expired
+      // / payment-failed states. Preserve main's added error-status
+      // check on the LINE response (HTTP-level failure detection).
+      const lineMessage = composeRentalLineMessage({
+        rental,
+        clubSet: { name: clubSet.name, tier: clubSet.tier, gender: clubSet.gender },
+        status: { kind: 'Created', paymentMode },
+        uatPrefix: !isProdEnv,
+      });
 
       try {
         const lineRes = await fetch(`${baseUrl}/api/notifications/line`, {
@@ -403,6 +443,9 @@ export async function POST(request: NextRequest) {
         delivery_fee,
         total_price,
       },
+      // Frontend uses this to decide whether to redirect to /payment/start
+      // (course + card) or stay on the in-page confirmation step (cash, indoor).
+      requires_prepay: requiresPrepay,
     });
   } catch (error) {
     console.error('[ClubReserve] Error:', error);
