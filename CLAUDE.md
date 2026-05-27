@@ -96,7 +96,14 @@ SUPABASE_SERVICE_ROLE_KEY=
 NEXTAUTH_SECRET=
 NEXTAUTH_URL=
 LINE_CHANNEL_ACCESS_TOKEN=
+LINE_GROUP_ID=            # staff notification group; required in every env that fires LINE
 MARKETING_PREFS_SECRET=   # 64 hex chars (`openssl rand -hex 32`) — see Marketing-consent deploy notes below
+SHOPEEPAY_BASE_URL=       # https://api.wallet.airpay.co.th (prod) or https://api.uat.wallet.airpay.co.th (UAT)
+SHOPEEPAY_CLIENT_ID=      # ShopeePay-issued; see ShopeePay deploy notes below
+SHOPEEPAY_SECRET_KEY=     # ShopeePay-issued HMAC secret
+SHOPEEPAY_MERCHANT_EXT_ID=# 'lengolf'
+SHOPEEPAY_STORE_EXT_ID=   # 'lengolf'
+BACKOFFICE_API_TOKEN=     # ≥32 chars, shared with lengolf-forms backoffice for refund route auth
 EMAIL_HOST=               # SMTP server hostname or IP
 EMAIL_PORT=               # SMTP port (default: 587)
 EMAIL_SECURE=             # Use SSL/TLS (default: false)
@@ -115,6 +122,71 @@ The marketing-consent feature (`/preferences/[token]`, GuestForm + BookingDetail
 - **Don't `echo "$SECRET" | vercel env add` from PowerShell.** PowerShell's pipe semantics differ from bash; in practice it stored the literal string `\r\n` (4 chars) as the value, breaking the assertion. Use the Vercel dashboard, or run `vercel env add` interactively and paste when prompted.
 
 If you rotate `MARKETING_PREFS_SECRET`, every previously-minted preference URL stops verifying. That's intended (it's the kill-switch for emails containing leaked links). Compose a fresh batch of preference URLs for any subsequent email send.
+
+## ShopeePay deploy notes (PR #28, merged 2026-05-27)
+
+Course-rental payments and refunds flow through ShopeePay's Checkout-with-Shopee (CwS) integration. Three production prerequisites — all five SHOPEEPAY_* + BACKOFFICE_API_TOKEN env vars must be set across **Production + Preview + Development BEFORE merging code that imports `lib/shopeepay/config.ts`**, OR the build fails at `Collecting page data` with:
+
+```
+Error: SHOPEEPAY_BASE_URL is required for ShopeePay integration.
+```
+
+Same trap as MARKETING_PREFS_SECRET above — once you have a build-time env-var assertion in the dependency graph of any route, every subsequent push to main fails until envs land. The original PR (#20) was reverted on 2026-05-15 specifically because prod env vars weren't set; the integration only re-shipped successfully on 2026-05-27 after the env discipline was followed.
+
+### Production-vs-staging coherence guard
+
+`lib/shopeepay/config.ts` throws if `VERCEL_ENV=production` sees a `.uat.` base URL — that combination ships UAT credentials to a prod-tagged deployment. The guard is intentional. To run prod-creds-in-UAT testing (which is how we did our final-mile QA), use the inverse — Preview env with prod base URL is allowed because Preview deployments don't carry VERCEL_ENV=production.
+
+### Wire-shape gotchas (learned the hard way)
+
+ShopeePay's API is internally inconsistent across endpoint families; never pattern-extrapolate. The published docs at https://product.shopeepay.com are reliable but easy to misread. Verified in UAT:
+
+| Endpoint | Path | Reference field |
+|---|---|---|
+| Order create | `/v3/merchant-host/order/create` | `payment_reference_id` |
+| Transaction check | `/v3/merchant-host/transaction/check` | `reference_id` |
+| Refund create | `/v3/merchant-host/transaction/refund/create-new` | `reference_id` |
+| Notify webhook | (callback URL) | `reference_id` |
+
+Refund endpoint additionally requires `transaction_type: 13` (uint32) — undocumented as required; missing it returns the misleading `errcode:1 "Non-refundable transaction type"`. The wire client at `lib/shopeepay/client.ts` auto-injects this.
+
+Webhook payload payment_method arrives as a **number** (e.g. `16`) but the DB column is TEXT — the handler coerces via `String(...)`. Notify payloads use `reference_id` despite docs claiming `payment_reference_id`; `extractReferenceId()` in `lib/shopeepay/types.ts` accepts either.
+
+### Refund webhook is dormant on ShopeePay's side
+
+As of 2026-05-25, ShopeePay confirmed they do NOT emit refund-status webhooks yet ("currently in development"). The refund flow runs synchronously via `POST /api/payments/shopeepay/refund` — the gateway response is the only signal we get and our route writes the DB from it. The handler in `lib/shopeepay/handleRefundNotify.ts` is wired live but rarely triggered; it'll start firing automatically when ShopeePay ships the callback. Don't delete it.
+
+### Payment webhook idempotency posture
+
+ShopeePay re-sends the payment notify ~5 min after refund (observed 2026-05-26 on CR-20260526-F94F). The handler's idempotency guard at `app/api/webhooks/shopeepay/route.ts` must cover ALL four terminal states (`success`/`failed`/`refunded`/`partially_refunded`) — without `refunded` in that set, the replay re-overwrites refund state back to paid. Fix is in commit `305a1dc`.
+
+Additionally for the `success` terminal state, the guard ALSO verifies the rental's `payment_status='paid'` before short-circuiting. If a prior delivery committed the txn update but failed the rental update mid-handler (transient DB blip → 500 → retry), strict idempotency would silence the retry and orphan the rental at `payment_status='pending'`. The fallthrough lets the retry repair it. Fix in commit `15eec1a`.
+
+### Side-effects must be awaited, not fired-and-forgotten
+
+`void promise()` and `.catch(handler)` patterns DIE on Vercel — the function instance gets torn down the moment the response is sent, killing any in-flight Supabase or self-fetch sockets. Surfaces as `TypeError: fetch failed` in logs ~2-10s after the route returned. All side-effects in this codebase (customer email, staff LINE) are `await` + `try/catch`. Don't reintroduce fire-and-forget. See `feedback_vercel_void_fire_and_forget_dies.md` in personal memory for the full diagnosis.
+
+### Refunds must flip lifecycle status
+
+A FULL refund must update `club_rentals.payment_status='refunded'` AND `status='cancelled'`. The availability query at `/api/clubs/availability` filters on `status IN ('reserved','picked_up')`; a fully-refunded rental with `status='reserved'` silently keeps blocking the slot. Partial refunds leave `status='reserved'` (booking remains active for the remaining balance). Both refund write paths (`/api/payments/shopeepay/refund/route.ts` and the dormant `lib/shopeepay/handleRefundNotify.ts`) follow this rule.
+
+### Callback URL registration
+
+Production callback URL is `https://booking.len.golf/api/webhooks/shopeepay`. Send this to ShopeePay support (contact: pearpearpearpearpear@seamoney.com) so they configure it on the production merchant. No IP whitelisting needed — confirmed 2026-05-26. Same URL serves both payment notifies AND (eventually) refund notifies.
+
+### Customer-side data model
+
+`club_rentals` has two orthogonal status columns; never conflate them:
+- `status` — lifecycle: `reserved` → `picked_up` → `returned` → `cancelled`
+- `payment_status` — payment lifecycle: `pending` / `paid` / `failed` / `refunded` / `partially_refunded`
+
+Plus `payment_method_chosen` (`online_shopeepay` | `cash_at_pickup`) and `contact_preference` (`line` | `email` | `whatsapp`) as separate columns — these used to be blended into the free-form `notes` column which leaked staff metadata into customer emails. Don't merge them back.
+
+The customer confirmation email subject + heading + "what happens next" copy branches per `paymentStatus` ('paid' / 'pay_at_pickup') so we don't claim "Reservation Confirmed!" to a customer who hasn't paid yet. i18n keys for all 5 locales exist; if you add a state, update `messages/{en,th,ko,ja,zh}.json` together.
+
+### Callback to ShopeePay support
+
+If anything misbehaves at the wire level (404s, wrong field names, missing required fields), email pearpearpearpearpear@seamoney.com with a side-by-side `curl` of a known-working endpoint (e.g. `transaction/check`) vs the failing one. The format that worked was in commit `29542ab` — same host, same auth, same signing setup, only the path differs. That made the diagnosis a ~1-day turnaround instead of a multi-day ticket.
 
 ## Common Gotchas
 
@@ -294,6 +366,20 @@ cookie-driven root redirect, cookie-driven `/auth/login` redirect,
   `lib/emailService.ts` and other `'server-only'` files occasionally
   don't pick up via HMR. If email or API behavior looks wrong and the
   code clearly has the fix, stop dev, `rm -rf .next`, restart.
+- **Bare-locale URLs cannot use middleware rewrite — must redirect.**
+  Rewriting `/{locale}` → `/{locale}/bookings` via
+  `NextResponse.rewrite(url)` silently collapses the locale back to
+  `en` downstream — the page renders with `<html lang="en">` and
+  English content despite the URL prefix. Visible only in the
+  browser (or `curl -s | grep '<html lang'`) — never caught by
+  typecheck/lint/build. Shipped to prod once (PR #24, May 2026); fix
+  is `NextResponse.redirect(url, 308)` so the browser refetches the
+  canonical `/{locale}/bookings`. Keep the rewrite for `/` (default
+  locale needs no prefix under `as-needed`). The `LanguageSwitcher`
+  amplifies the bug: at `/`, `usePathname()` returns `/` and switching
+  produces `/ko`, `/th`, etc. — once trapped, every subsequent switch
+  stays on bare URLs. The 308 breaks the trap. See the
+  `next-intl-v3` skill for the predicate + test pattern.
 - **CJK Han Unification fallback.** See
   `app/globals.css` — we add `html[lang="ja|ko|zh"] body` font stacks
   even though we don't load Noto fonts, as a belt-and-suspenders against
