@@ -143,6 +143,18 @@ export default function CourseRentalPage() {
     setHeroIndex(0);
   }, [selectedSet?.id]);
 
+  // Funnel telemetry: push a step-viewed event whenever the user advances.
+  // GTM trigger "Course Rental Step Viewed" fans this out to GA4
+  // (event: course_rental_step_viewed) so we can build a per-step drop-off
+  // funnel alongside the existing course_rental_confirmed conversion.
+  useEffect(() => {
+    pushEventToGtm('course_rental_step_viewed', {
+      step,
+      step_index: step === 'confirmation' ? STEP_ORDER.length : STEP_ORDER.indexOf(step),
+      total_steps: STEP_ORDER.length,
+    });
+  }, [step]);
+
   // Prefill contact fields for logged-in customers from VIP profile.
   // Mirrors the BookingDetails approach (sessionStorage cache + /api/vip/profile).
   useEffect(() => {
@@ -311,6 +323,12 @@ export default function CourseRentalPage() {
           });
           const payData = await payRes.json();
           if (payRes.ok && payData?.redirect_url) {
+            pushEventToGtm('course_rental_payment_redirect', {
+              rental_code: data.rental_code,
+              conversion_value: totalPrice,
+              currency: 'THB',
+              platform_type: platformType,
+            });
             window.location.href = payData.redirect_url;
             return;
           }
