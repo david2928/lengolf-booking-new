@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { verifyPayload } from '@/lib/opn/signature';
 import { webhookSecrets } from '@/lib/opn/config';
@@ -74,7 +74,7 @@ async function handleChargeComplete(supabase: ReturnType<typeof createAdminClien
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
   if (!txn) {
-    console.warn(`[opn/webhook] no txn for charge ${charge.id} — ack and ignore`);
+    console.warn(`[opn/webhook] no txn for charge ${charge.id} â€” ack and ignore`);
     return NextResponse.json(ACK_OK);
   }
 
@@ -142,7 +142,7 @@ async function handleChargeComplete(supabase: ReturnType<typeof createAdminClien
   }
 
   void claimAndSendConfirmationEmail(supabase, txn.id, txn.club_rental_id, {
-    transactionRef: charge.id,
+    transactionSn: charge.id,
   });
 
   const baseUrl = getBaseUrl();
@@ -150,7 +150,7 @@ async function handleChargeComplete(supabase: ReturnType<typeof createAdminClien
     const lineMessage = [
       `Payment Received (${rental.rental_code})`,
       `Customer: ${rental.customer_name}`,
-      `Amount: ฿${(Number(rental.total_price) || 0).toLocaleString()}`,
+      `Amount: à¸¿${(Number(rental.total_price) || 0).toLocaleString()}`,
       `Charge: ${charge.id}`,
       rental.delivery_requested ? `Delivery to: ${rental.delivery_address ?? ''}` : 'Pickup at LENGOLF',
     ].join('\n');

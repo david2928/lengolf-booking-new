@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { retrieveCharge } from '@/lib/opn/client';
 import { classifyFailure, isChargeSuccessful, isChargeTerminal } from '@/lib/opn/types';
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
         authCode = (charge as { authorization_code?: string | null }).authorization_code ?? authCode;
 
         void claimAndSendConfirmationEmail(supabase, txn.id, rental.id, {
-          transactionRef: charge.id,
+          transactionSn: charge.id,
         });
       } else if (isChargeTerminal(charge) && charge.status === 'failed') {
         await supabase
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
         status = 'failed';
         failureReason = classifyFailure(charge.failure_code);
       }
-      // else: still processing — leave as pending; client polls again.
+      // else: still processing â€” leave as pending; client polls again.
     } catch (e) {
       console.warn('[opn/return] charge probe failed:', e);
     }
