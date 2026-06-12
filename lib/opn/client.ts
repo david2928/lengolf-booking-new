@@ -1,74 +1,129 @@
 import 'server-only';
-import Omise from 'omise';
 import { opnConfig } from '@/lib/opn/config';
 import type { OpnCharge, OpnRefund } from '@/lib/opn/types';
 
 /**
- * Wraps the omise-node SDK. Single shared instance pinned to the
- * API version from env. Thin — adds typed return shapes and the
- * Idempotency-Key header for /charges creation so a double-click
- * can't double-charge.
+ * Thin REST client for the Opn (Omise) API.
  *
- * The SDK uses callbacks by default but supports promise returns
- * when no callback is supplied. We always use the promise form.
+ * Deliberately NOT the `omise` npm SDK: the SDK has no way to send the
+ * `Idempotency-Key` header, which is the only server-side protection
+ * against a double-submitted token creating two captured charges. The
+ * REST surface we touch is four endpoints with stable, documented
+ * shapes (see lib/opn/types.ts), and form-encoding matches every
+ * worked example in Opn's docs.
+ *
+ * Error contract: Opn returns HTTP 4xx with
+ * `{ object: 'error', code, message }` for API-level failures.
+ * DECLINED CARDS ARE NOT ERRORS — charge creation returns 200 with a
+ * charge object whose status is 'failed' + failure_code set. Callers
+ * branch on the charge object, and only catch OpnApiError for
+ * gateway-unreachable / auth-level problems.
  */
 
-const client = Omise({
-  publicKey: opnConfig.publicKey,
-  secretKey: opnConfig.secretKey,
-  omiseVersion: opnConfig.apiVersion,
-});
+const OPN_API_BASE = 'https://api.omise.co';
+
+export class OpnApiError extends Error {
+  readonly httpStatus: number;
+  readonly code: string;
+
+  constructor(httpStatus: number, code: string, message: string) {
+    super(`Opn API error ${httpStatus} (${code}): ${message}`);
+    this.name = 'OpnApiError';
+    this.httpStatus = httpStatus;
+    this.code = code;
+  }
+}
+
+/** Charge/refund ids go into URL paths — never interpolate unvalidated. */
+function assertSafeId(id: string, label: string): void {
+  if (!/^[A-Za-z0-9_]+$/.test(id)) {
+    throw new OpnApiError(400, 'invalid_id', `${label} has an unexpected shape`);
+  }
+}
+
+async function opnFetch<T>(
+  path: string,
+  opts: {
+    method: 'GET' | 'POST';
+    form?: Record<string, string>;
+    idempotencyKey?: string;
+  }
+): Promise<T> {
+  const headers: Record<string, string> = {
+    Authorization: `Basic ${Buffer.from(`${opnConfig.secretKey}:`).toString('base64')}`,
+    'Omise-Version': opnConfig.apiVersion,
+  };
+  if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
+
+  const res = await fetch(`${OPN_API_BASE}${path}`, {
+    method: opts.method,
+    headers,
+    // URLSearchParams sets Content-Type: application/x-www-form-urlencoded
+    // automatically — the encoding all of Opn's documented examples use.
+    body: opts.form ? new URLSearchParams(opts.form) : undefined,
+  });
+
+  const json = (await res.json()) as Record<string, unknown>;
+  if (json?.object === 'error') {
+    throw new OpnApiError(
+      res.status,
+      String(json.code ?? 'unknown'),
+      String(json.message ?? 'no message')
+    );
+  }
+  if (!res.ok) {
+    throw new OpnApiError(res.status, 'http_error', `unexpected HTTP ${res.status}`);
+  }
+  return json as T;
+}
 
 export interface CreateChargeInput {
   amountSatang: number;
   currency: 'thb';
-  cardToken: string;          // tokn_*
+  cardToken: string; // tokn_*
   returnUri: string;
   metadata: Record<string, string>;
+  /** Sent as the Idempotency-Key header — same key returns the same charge. */
   idempotencyKey: string;
 }
 
 export async function createCharge(input: CreateChargeInput): Promise<OpnCharge> {
-  // omise-node's TS types don't always expose `headers` on charges.create
-  // params. If the installed version doesn't accept it, fall back to
-  // omitting and rely on the (rental_code, status='pending') idempotency
-  // check in /api/payments/opn/intent. The `as any` bypasses the SDK's
-  // strict IRequest shape so we can pass `card` without TS complaining about
-  // undocumented fields that the runtime API does accept.
-  const chargeParams = {
-    amount: input.amountSatang,
+  const form: Record<string, string> = {
+    amount: String(input.amountSatang),
     currency: input.currency,
     card: input.cardToken,
     return_uri: input.returnUri,
-    metadata: input.metadata,
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await client.charges.create(chargeParams as any);
-  return result as unknown as OpnCharge;
+  for (const [key, value] of Object.entries(input.metadata)) {
+    form[`metadata[${key}]`] = value;
+  }
+  return opnFetch<OpnCharge>('/charges', {
+    method: 'POST',
+    form,
+    idempotencyKey: input.idempotencyKey,
+  });
 }
 
 export async function retrieveCharge(chargeId: string): Promise<OpnCharge> {
-  const result = await client.charges.retrieve(chargeId);
-  return result as unknown as OpnCharge;
+  assertSafeId(chargeId, 'chargeId');
+  return opnFetch<OpnCharge>(`/charges/${chargeId}`, { method: 'GET' });
 }
 
 export async function createRefund(
   chargeId: string,
-  amountSatang?: number
+  amountSatang: number,
+  idempotencyKey?: string
 ): Promise<OpnRefund> {
-  // IRefundRequest types `amount` as required, but the Omise API accepts
-  // an empty body for a full refund. Cast to any to allow the optional shape.
-  const params: { amount?: number } = {};
-  if (typeof amountSatang === 'number') params.amount = amountSatang;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await client.charges.createRefund(chargeId, params as any);
-  return result as unknown as OpnRefund;
+  assertSafeId(chargeId, 'chargeId');
+  return opnFetch<OpnRefund>(`/charges/${chargeId}/refunds`, {
+    method: 'POST',
+    form: { amount: String(amountSatang) },
+    idempotencyKey,
+  });
 }
 
-export async function retrieveRefund(
-  chargeId: string,
-  refundId: string
-): Promise<OpnRefund> {
-  const result = await client.charges.retrieveRefund(chargeId, refundId);
-  return result as unknown as OpnRefund;
+export async function retrieveRefund(chargeId: string, refundId: string): Promise<OpnRefund> {
+  assertSafeId(chargeId, 'chargeId');
+  assertSafeId(refundId, 'refundId');
+  return opnFetch<OpnRefund>(`/charges/${chargeId}/refunds/${refundId}`, { method: 'GET' });
 }

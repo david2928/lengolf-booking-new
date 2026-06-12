@@ -50,7 +50,7 @@ type ViewState =
   | { kind: 'submitting' }
   | { kind: 'tokenize-error'; code: string };
 
-export function PayElement({ rentalCode, amount, publicKey }: PayElementProps) {
+export function PayElement({ rentalCode, amount, publicKey, locale }: PayElementProps) {
   const t = useTranslations('payment.checkout');
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -117,7 +117,7 @@ export function PayElement({ rentalCode, amount, publicKey }: PayElementProps) {
           const r = await fetch('/api/payments/opn/intent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rental_code: rentalCode, token: response.id }),
+            body: JSON.stringify({ rental_code: rentalCode, token: response.id, locale }),
           });
           const data = await r.json();
           if (data.status === 'requires_3ds' && data.authorize_uri) {
@@ -134,7 +134,7 @@ export function PayElement({ rentalCode, amount, publicKey }: PayElementProps) {
         }
       }
     );
-  }, [ready, publicKey, name, numberDigits, parsedExp, cvv, rentalCode, router]);
+  }, [ready, publicKey, name, numberDigits, parsedExp, cvv, rentalCode, locale, router]);
 
   const submitting = state.kind === 'submitting';
   const errorCode = state.kind === 'tokenize-error' ? state.code : null;

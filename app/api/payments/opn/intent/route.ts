@@ -1,12 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
-import { createCharge } from '@/lib/opn/client';
-import { classifyFailure, isChargeSuccessful } from '@/lib/opn/types';
+import { createCharge, retrieveCharge, OpnApiError } from '@/lib/opn/client';
+import { classifyFailure, isChargeSuccessful, type OpnCharge } from '@/lib/opn/types';
+import { processChargeResult } from '@/lib/opn/processChargeResult';
+import { isValidLocale, routing } from '@/i18n/routing';
 import { createHash } from 'crypto';
+
+/**
+ * POST /api/payments/opn/intent
+ *
+ * Body: { rental_code, token: 'tokn_*', locale? }
+ *
+ * Charges the tokenized card for a course rental. Auth model is
+ * implicit-via-rental_code, identical to the ShopeePay create route.
+ *
+ * Double-charge protections (layered):
+ *   1. The PayElement submit button disables while submitting.
+ *   2. A pending txn with a charge already in flight is REUSED: a
+ *      successful/pending probe short-circuits instead of charging the
+ *      new token (covers back-button + second-tab cases).
+ *   3. The Omise Idempotency-Key header — SHA256(rental_code:token) —
+ *      makes a network-level retry of the same submission return the
+ *      original charge instead of creating a second one.
+ *
+ * Sync (non-3DS) results are processed through the shared
+ * processChargeResult writer so the rental flip + email + staff LINE
+ * behave identically across intent/webhook/polling triggers.
+ */
 
 interface IntentBody {
   rental_code?: string;
   token?: string;
+  locale?: string;
 }
 
 function getBaseUrl(): string {
@@ -34,12 +59,17 @@ export async function POST(request: NextRequest) {
   if (!token || typeof token !== 'string' || !token.startsWith('tokn_')) {
     return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
   }
+  // Locale only shapes the 3DS return URL — default locale is unprefixed
+  // under next-intl's 'as-needed' strategy.
+  const locale =
+    body.locale && isValidLocale(body.locale) ? body.locale : routing.defaultLocale;
+  const localePrefix = locale === routing.defaultLocale ? '' : `/${locale}`;
 
   const supabase = createAdminClient();
 
   const { data: rental, error: rentalErr } = await supabase
     .from('club_rentals')
-    .select('id, rental_code, rental_type, total_price, payment_status, customer_name, expires_at')
+    .select('id, rental_code, rental_type, status, total_price, payment_status, customer_name, expires_at')
     .eq('rental_code', rental_code)
     .single();
 
@@ -47,10 +77,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Rental not found' }, { status: 404 });
   }
   if (rental.rental_type !== 'course') {
-    return NextResponse.json({ error: 'Online payment is not available for this rental type' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Online payment is not available for this rental type' },
+      { status: 400 }
+    );
+  }
+  // State-machine guard: a rental that has left the 'reserved' lifecycle
+  // cannot be charged. Critically, the cleanup cron cancels by setting
+  // status='cancelled' AND expires_at=NULL — so without this guard a
+  // stale checkout tab passes the expiry check below and charges a
+  // cancelled rental whose club set may already be rebooked.
+  if (rental.status !== 'reserved') {
+    return NextResponse.json(
+      { error: `This reservation is no longer payable (${rental.status})` },
+      { status: 409 }
+    );
   }
   if (rental.payment_status === 'paid') {
     return NextResponse.json({ error: 'This rental has already been paid' }, { status: 409 });
+  }
+  if (rental.payment_status === 'refunded' || rental.payment_status === 'partially_refunded') {
+    return NextResponse.json(
+      { error: 'This rental has been refunded and cannot be re-billed' },
+      { status: 409 }
+    );
   }
   if (rental.expires_at && new Date(rental.expires_at) < new Date()) {
     return NextResponse.json({ error: 'This reservation has expired' }, { status: 410 });
@@ -65,14 +115,73 @@ export async function POST(request: NextRequest) {
   if (!baseUrl) {
     return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
   }
-  const returnUri = `${baseUrl}/payment/return?ref=${rental.rental_code}`;
+  const returnUri = `${baseUrl}${localePrefix}/payment/return?ref=${rental.rental_code}`;
 
-  // Insert pending row BEFORE calling Omise — paper trail even on timeout.
+  // Pending-txn reuse: if a charge is already in flight for this rental
+  // (3DS tab still open, double-submit, back button), resolve it instead
+  // of creating a second charge against the customer's card.
+  const { data: pendingTxn } = await supabase
+    .from('payment_transactions')
+    .select('id, gateway_charge_id')
+    .eq('club_rental_id', rental.id)
+    .eq('gateway', 'opn')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (pendingTxn) {
+    if (pendingTxn.gateway_charge_id) {
+      let prior: OpnCharge | null = null;
+      try {
+        prior = await retrieveCharge(pendingTxn.gateway_charge_id);
+      } catch (probeErr) {
+        // Probe failure is not fatal — log and fall through to a fresh
+        // charge; the stale row resolves via webhook/cron eventually.
+        console.warn('[opn/intent] prior-charge probe failed:', probeErr);
+      }
+
+      if (prior) {
+        if (isChargeSuccessful(prior)) {
+          // Already paid via the earlier attempt — record + ack.
+          await processChargeResult(supabase, prior, { baseUrl });
+          return NextResponse.json({ status: 'success', ref: rental.rental_code });
+        }
+        if (prior.status === 'pending' && prior.authorize_uri) {
+          // 3DS still in flight — resume the SAME charge rather than
+          // stacking a second authorization on the customer's card.
+          return NextResponse.json({
+            status: 'requires_3ds',
+            authorize_uri: prior.authorize_uri,
+          });
+        }
+        // Terminal non-success — record the failure, then continue to a
+        // fresh charge for this retry.
+        await processChargeResult(supabase, prior, { baseUrl });
+      }
+    } else {
+      // Insert happened but the gateway call never completed (crash /
+      // timeout before the charge id landed). Close it out for the audit
+      // trail and continue.
+      await supabase
+        .from('payment_transactions')
+        .update({ status: 'failed', error_message: 'abandoned: no charge created' })
+        .eq('id', pendingTxn.id);
+    }
+  }
+
+  // Insert the audit row BEFORE calling Omise — paper trail even on
+  // gateway timeout. payment_reference_id / request_id are NOT NULL
+  // (shared schema with ShopeePay); Opn's webhook joins on
+  // gateway_charge_id, so these exist for audit/uniqueness only.
+  const epoch = Date.now();
   const { data: txnRow, error: txnInsertErr } = await supabase
     .from('payment_transactions')
     .insert({
       club_rental_id: rental.id,
       gateway: 'opn',
+      payment_reference_id: `LENGOLF-OPN-${rental.rental_code}-${epoch.toString(36)}`,
+      request_id: `lengolf-opn-${rental.rental_code}-${epoch}`,
       gateway_token_id: token,
       amount: amountSatang,
       currency: 'THB',
@@ -87,11 +196,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to record payment intent' }, { status: 500 });
   }
 
-  const idempotencyKey = createHash('sha256')
-    .update(`${rental_code}:${token}`)
-    .digest('hex');
+  const idempotencyKey = createHash('sha256').update(`${rental_code}:${token}`).digest('hex');
 
-  let charge;
+  let charge: OpnCharge;
   try {
     charge = await createCharge({
       amountSatang,
@@ -102,14 +209,19 @@ export async function POST(request: NextRequest) {
       idempotencyKey,
     });
   } catch (e) {
-    const msg = (e as Error).message?.slice(0, 500) ?? 'unknown';
+    const msg =
+      e instanceof OpnApiError ? e.message.slice(0, 500) : ((e as Error).message?.slice(0, 500) ?? 'unknown');
     console.error('[opn/intent] charge create failed:', e);
     await supabase
       .from('payment_transactions')
       .update({ status: 'failed', error_message: msg })
       .eq('id', txnRow.id);
     return NextResponse.json(
-      { status: 'failed', failure_reason: 'unknown', error: 'Payment gateway is not reachable. Please try again.' },
+      {
+        status: 'failed',
+        failure_reason: 'unknown',
+        error: 'Payment gateway is not reachable. Please try again.',
+      },
       { status: 502 }
     );
   }
@@ -132,21 +244,31 @@ export async function POST(request: NextRequest) {
     })
     .eq('id', rental.id);
 
+  // 3DS — same-tab redirect to the issuer; result lands via the webhook
+  // and the /payment/return polling fallback.
   if (charge.authorize_uri) {
     return NextResponse.json({
       status: 'requires_3ds',
       authorize_uri: charge.authorize_uri,
     });
   }
+
+  // Synchronous (non-3DS) result — run the shared writer so the rental
+  // flip + email + staff LINE happen now, exactly once (the webhook's
+  // charge.create delivery for this charge will short-circuit on the
+  // terminal txn state).
+  const outcome = await processChargeResult(supabase, charge, { baseUrl });
+  if (outcome.kind === 'db_error') {
+    // Writes failed but the charge may have succeeded — tell the client
+    // to poll /payment/return, which repairs state via the probe path.
+    return NextResponse.json({ status: 'success', ref: rental.rental_code });
+  }
+
   if (isChargeSuccessful(charge)) {
     return NextResponse.json({ status: 'success', ref: rental.rental_code });
   }
-  if (charge.status === 'failed') {
-    return NextResponse.json({
-      status: 'failed',
-      failure_reason: classifyFailure(charge.failure_code),
-    });
-  }
-
-  return NextResponse.json({ status: 'success', ref: rental.rental_code });
+  return NextResponse.json({
+    status: 'failed',
+    failure_reason: classifyFailure(charge.failure_code),
+  });
 }

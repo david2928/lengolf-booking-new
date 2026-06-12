@@ -29,7 +29,14 @@ import type { RentalOrderSummary } from '@/lib/payments/order-summary';
 
 interface StatusResponse {
   ref: string;
-  status: 'unpaid' | 'pending' | 'redirected' | 'success' | 'failed' | 'refunded';
+  status:
+    | 'unpaid'
+    | 'pending'
+    | 'redirected'
+    | 'success'
+    | 'failed'
+    | 'refunded'
+    | 'partially_refunded';
   total_price: number;
   gateway_charge_id?: string | null;
   paid_at?: string | null;
@@ -100,6 +107,14 @@ export default function PaymentReturnPage() {
         }
         if (data.status === 'failed') {
           setState({ kind: 'failed', reason: data.failure_reason || 'unknown' });
+          return;
+        }
+        if (data.status === 'refunded' || data.status === 'partially_refunded') {
+          // Customer revisiting the return URL after a refund — terminal,
+          // don't burn the poll budget. 'cancelled' copy is the closest
+          // honest message; its retry CTA lands on the checkout preflight,
+          // which explains the rental is no longer payable.
+          setState({ kind: 'failed', reason: 'cancelled' });
           return;
         }
 

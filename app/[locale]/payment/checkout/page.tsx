@@ -40,6 +40,17 @@ export default async function CheckoutPage({
   if (!summary) return <MissingRefView />;
 
   if (summary.payment_status === 'paid') return <AlreadyPaidView ref={ref} />;
+  // Lifecycle guard: the cleanup cron cancels by setting status='cancelled'
+  // AND expires_at=NULL, so the expiry check alone would happily render a
+  // payable form for a cancelled rental (whose club set may be rebooked).
+  // Refunded rentals are also non-payable. The intent route re-validates
+  // server-side; this just spares the customer a doomed form.
+  if (summary.status && summary.status !== 'reserved') return <ExpiredView />;
+  if (
+    summary.payment_status === 'refunded' ||
+    summary.payment_status === 'partially_refunded'
+  )
+    return <ExpiredView />;
   if (summary.expires_at && new Date(summary.expires_at) < new Date())
     return <ExpiredView />;
 
