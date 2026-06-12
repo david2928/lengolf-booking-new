@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { retrieveCharge } from '@/lib/opn/client';
 import { classifyFailure, isChargeSuccessful, isChargeTerminal } from '@/lib/opn/types';
@@ -86,9 +86,15 @@ export async function GET(request: NextRequest) {
         cardLast4 = charge.card?.last_digits ?? cardLast4;
         authCode = (charge as { authorization_code?: string | null }).authorization_code ?? authCode;
 
-        void claimAndSendConfirmationEmail(supabase, txn.id, rental.id, {
-          transactionSn: charge.id,
-        });
+        try {
+          await claimAndSendConfirmationEmail(supabase, txn.id, rental.id, {
+            transactionSn: charge.id,
+          });
+        } catch (emailErr) {
+          // Email must never fail the poll response; dedup claim means a
+          // later webhook delivery can still pick it up if we lost the race.
+          console.error('[opn/return] confirmation email error:', emailErr);
+        }
       } else if (isChargeTerminal(charge) && charge.status === 'failed') {
         await supabase
           .from('payment_transactions')
@@ -106,7 +112,7 @@ export async function GET(request: NextRequest) {
         status = 'failed';
         failureReason = classifyFailure(charge.failure_code);
       }
-      // else: still processing â€” leave as pending; client polls again.
+      // else: still processing — leave as pending; client polls again.
     } catch (e) {
       console.warn('[opn/return] charge probe failed:', e);
     }
