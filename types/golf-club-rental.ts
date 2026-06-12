@@ -270,7 +270,7 @@ export interface ClubReserveRequest {
    * Distinct from `payment_method` above which is the legacy boolean-ish
    * flag that drives the prepay routing decision.
    */
-  payment_method_chosen?: 'online_shopeepay' | 'cash_at_pickup';
+  payment_method_chosen?: 'online_card' | 'online_shopeepay' | 'cash_at_pickup';
   /**
    * Customer's preferred contact channel. Stored in
    * `club_rentals.contact_preference` and threaded into LINE / email.

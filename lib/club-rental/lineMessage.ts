@@ -123,6 +123,7 @@ function addOnsLine(addOnsRaw: unknown): string | null {
 }
 
 function paymentMethodChosenLabel(value: string | null | undefined): string | null {
+  if (value === 'online_card') return 'Online (card via Opn)';
   if (value === 'online_shopeepay') return 'Online (ShopeePay — card or wallet)';
   if (value === 'cash_at_pickup') return 'Cash at pickup';
   return null;

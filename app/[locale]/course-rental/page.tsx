@@ -270,7 +270,7 @@ export default function CourseRentalPage() {
           // into the customer-facing email's "Notes" block.
           notes: notes || undefined,
           payment_method_chosen:
-            paymentMethod === 'cash' ? 'cash_at_pickup' : 'online_shopeepay',
+            paymentMethod === 'cash' ? 'cash_at_pickup' : 'online_card',
           contact_preference: preferredContact, // 'line' | 'email' | 'whatsapp'
           source: 'website' as const,
           payment_method: paymentMethod,
@@ -304,39 +304,24 @@ export default function CourseRentalPage() {
       // hand off to the ShopeePay flow. Otherwise stay on the in-page
       // confirmation step as today.
       if (data.requires_prepay) {
-        // Call ShopeePay create while the submit spinner is still showing,
-        // then navigate directly to ShopeePay — no intermediate /payment/start
-        // page. /payment/start still handles direct URL access (recovery links).
+        // Hand off to the Opn inline card checkout. Unlike the ShopeePay
+        // flow this needs no gateway round-trip first — /payment/checkout
+        // is our own page; the charge happens when the customer submits
+        // the card form there.
         const localePrefix = window.location.pathname.match(/^\/(en|th|ko|ja|zh)(\/|$)/)?.[1];
         const prefix = localePrefix ? `/${localePrefix}` : '';
         const platformType: 'mweb' | 'pc' =
           typeof window !== 'undefined' && window.innerWidth < 768 ? 'mweb' : 'pc';
-        try {
-          const payRes = await fetch('/api/payments/shopeepay/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              rental_code: data.rental_code,
-              platform_type: platformType,
-              return_path: `${prefix}/payment/result`,
-            }),
-          });
-          const payData = await payRes.json();
-          if (payRes.ok && payData?.redirect_url) {
-            pushEventToGtm('course_rental_payment_redirect', {
-              rental_code: data.rental_code,
-              conversion_value: totalPrice,
-              currency: 'THB',
-              platform_type: platformType,
-            });
-            window.location.href = payData.redirect_url;
-            return;
-          }
-        } catch {
-          // Fall through to /payment/start on network error — it will retry.
-        }
-        // Fallback: navigate to /payment/start which has its own retry logic.
-        window.location.href = `${prefix}/payment/start?ref=${encodeURIComponent(data.rental_code)}`;
+        // Funnel semantic preserved: "left the rental form for payment".
+        // Same event name + payload as the ShopeePay flow so the GTM
+        // container's triggers keep working unchanged.
+        pushEventToGtm('course_rental_payment_redirect', {
+          rental_code: data.rental_code,
+          conversion_value: totalPrice,
+          currency: 'THB',
+          platform_type: platformType,
+        });
+        window.location.href = `${prefix}/payment/checkout?ref=${encodeURIComponent(data.rental_code)}`;
         return;
       }
 
