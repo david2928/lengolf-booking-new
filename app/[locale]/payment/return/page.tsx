@@ -4,45 +4,51 @@ import { useEffect, useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
-import { ShopeepayWordmark } from '@/components/payment/ShopeepayWordmark';
-import type { RentalOrderSummary } from '@/lib/shopeepay/order-summary';
+import { PoweredByOpn } from '@/components/payment/PoweredByOpn';
+import type { RentalOrderSummary } from '@/lib/payments/order-summary';
 
 /**
- * Payment result page.
+ * Opn Payments return page.
  *
- * Customer lands here after returning from ShopeePay (the gateway's
- * `return_url` points here). Per the ShopeePay UAT contract:
+ * Customer lands here after the browser returns from Opn's hosted
+ * 3DS / redirect flow. The `return_url` configured on the charge
+ * points here with `?ref=<rental_code>`.
  *
- *   "Redirect to return_url should NEVER be used as an indication of
- *    payment success."
+ * Per Opn's integration guide, the redirect MUST NOT be treated as
+ * payment confirmation — this page polls our own
+ * /api/payments/opn/return, which checks the charge status and falls
+ * back to the Opn API when the webhook hasn't landed yet.
  *
- * So this page polls our own /api/payments/shopeepay/status, which
- * itself falls back to ShopeePay's /transaction/check when the
- * webhook hasn't arrived yet.
- *
- * State machine (modern UX — distinct copy per failure reason):
- *   - checking         : poll attempts 1-3 (~7.5s)
- *   - confirming-late  : poll attempts 4+ ("still confirming")
- *   - success          : final terminal — render receipt
- *   - failed-declined  : ShopeePay rejected the charge
- *   - failed-cancelled : user cancelled before completing
- *   - failed-expired   : reservation expired or polling budget hit
- *   - failed-unknown   : generic failure fallback
- *   - missing-ref      : no ?ref or 404 from the API
+ * State machine:
+ *   checking        : poll attempts 1-3 (~7.5 s)
+ *   confirming-late : poll attempts 4+ ("still confirming" copy)
+ *   success         : terminal — render receipt with card details
+ *   failed          : declined | cancelled | expired | unknown
+ *   missing-ref     : no ?ref query param or 404 from the API
  */
 
 interface StatusResponse {
   ref: string;
-  status: 'unpaid' | 'pending' | 'redirected' | 'success' | 'failed' | 'refunded';
+  status:
+    | 'unpaid'
+    | 'pending'
+    | 'redirected'
+    | 'success'
+    | 'failed'
+    | 'refunded'
+    | 'partially_refunded';
   total_price: number;
-  transaction_sn?: string | null;
+  gateway_charge_id?: string | null;
   paid_at?: string | null;
   failure_reason?: 'declined' | 'cancelled' | 'expired' | 'unknown' | null;
+  card_brand?: string | null;
+  card_last4?: string | null;
+  auth_code?: string | null;
   summary?: RentalOrderSummary | null;
 }
 
 const POLL_INTERVAL_MS = 2500;
-const MAX_POLLS = 6;  // 15s total — after that, user almost certainly cancelled
+const MAX_POLLS = 6; // 15s total — after that, user almost certainly cancelled
 const LATE_THRESHOLD = 3; // after 3 attempts (~7.5s), surface "still confirming" copy
 
 type ViewState =
@@ -52,8 +58,8 @@ type ViewState =
   | { kind: 'failed'; reason: 'declined' | 'cancelled' | 'expired' | 'unknown' }
   | { kind: 'missing-ref' };
 
-export default function PaymentResultPage() {
-  const t = useTranslations('payment.result');
+export default function PaymentReturnPage() {
+  const t = useTranslations('payment.return');
   const format = useFormatter();
   const params = useSearchParams();
   const ref = params?.get('ref') ?? null;
@@ -75,7 +81,7 @@ export default function PaymentResultPage() {
 
       try {
         const res = await fetch(
-          `/api/payments/shopeepay/status?ref=${encodeURIComponent(ref)}`,
+          `/api/payments/opn/return?ref=${encodeURIComponent(ref)}`,
           { cache: 'no-store' }
         );
         if (cancelled) return;
@@ -103,10 +109,17 @@ export default function PaymentResultPage() {
           setState({ kind: 'failed', reason: data.failure_reason || 'unknown' });
           return;
         }
+        if (data.status === 'refunded' || data.status === 'partially_refunded') {
+          // Customer revisiting the return URL after a refund — terminal,
+          // don't burn the poll budget. 'cancelled' copy is the closest
+          // honest message; its retry CTA lands on the checkout preflight,
+          // which explains the rental is no longer payable.
+          setState({ kind: 'failed', reason: 'cancelled' });
+          return;
+        }
 
-        // Still pending. Switch to "confirming-late" copy after the
-        // threshold so the user gets reassurance instead of a static
-        // spinner.
+        // Still pending. Switch to "confirming-late" copy after the threshold
+        // so the user gets reassurance rather than a static spinner.
         const nextKind: 'checking' | 'confirming-late' =
           pollCount >= LATE_THRESHOLD ? 'confirming-late' : 'checking';
         setState({ kind: nextKind, attempt: pollCount });
@@ -114,9 +127,8 @@ export default function PaymentResultPage() {
         if (pollCount < MAX_POLLS) {
           timeoutId = setTimeout(poll, POLL_INTERVAL_MS);
         } else {
-          // Polling budget exhausted. The most common cause is the user
-          // closing ShopeePay before completing payment — show "cancelled"
-          // rather than "expired" since that's more accurate and less alarming.
+          // Polling budget exhausted. Most common cause is user closing the
+          // gateway before completing — "cancelled" is more accurate than "expired".
           setState({ kind: 'failed', reason: 'cancelled' });
         }
       } catch {
@@ -138,7 +150,10 @@ export default function PaymentResultPage() {
   }, [ref]);
 
   const retryHref = useMemo(
-    () => (ref ? { pathname: '/payment/start' as const, query: { ref } } : '/course-rental'),
+    () =>
+      ref
+        ? { pathname: '/payment/checkout' as const, query: { ref } }
+        : '/course-rental',
     [ref]
   );
 
@@ -172,7 +187,7 @@ function CheckingView({
   t,
 }: {
   state: { kind: 'checking' | 'confirming-late'; attempt: number };
-  t: ReturnType<typeof useTranslations>;
+  t: ReturnType<typeof useTranslations<'payment.return'>>;
 }) {
   const isLate = state.kind === 'confirming-late';
   return (
@@ -198,7 +213,7 @@ function SuccessView({
   format,
 }: {
   data: StatusResponse;
-  t: ReturnType<typeof useTranslations>;
+  t: ReturnType<typeof useTranslations<'payment.return'>>;
   format: ReturnType<typeof useFormatter>;
 }) {
   const formatDate = (iso: string) =>
@@ -219,6 +234,7 @@ function SuccessView({
 
   return (
     <div className="space-y-4" role="status" aria-live="polite">
+      {/* Success header */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
         <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
           <svg
@@ -236,7 +252,7 @@ function SuccessView({
         <p className="text-sm text-gray-600">{t('successBody')}</p>
       </div>
 
-      {/* Receipt card — what they paid + transaction details. */}
+      {/* Receipt card */}
       <section
         className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5"
         aria-labelledby="receipt-heading"
@@ -272,36 +288,57 @@ function SuccessView({
         )}
 
         <div className="space-y-2 text-sm">
+          {/* Rental code */}
           <div className="flex justify-between gap-3">
             <span className="text-gray-500">{t('successRentalCodeLabel')}</span>
             <span className="font-mono font-semibold text-gray-900">{data.ref}</span>
           </div>
+
+          {/* Total */}
           <div className="flex justify-between gap-3">
             <span className="text-gray-500">{t('successAmountLabel')}</span>
-            <span className="font-bold text-gray-900">
-              ฿{format.number(data.total_price)}
-            </span>
+            <span className="font-bold text-gray-900">฿{format.number(data.total_price)}</span>
           </div>
+
+          {/* Card brand · •••• last4 (Opn-specific) */}
+          {(data.card_brand || data.card_last4) && (
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-500">{t('successCardLabel')}</span>
+              <span className="text-gray-700">
+                {data.card_brand || ''}{data.card_last4 ? ` •••• ${data.card_last4}` : ''}
+              </span>
+            </div>
+          )}
+
+          {/* Paid at timestamp */}
           {data.paid_at && (
             <div className="flex justify-between gap-3">
               <span className="text-gray-500">{t('successPaidAtLabel')}</span>
               <span className="text-gray-700">{formatPaidAt(data.paid_at)}</span>
             </div>
           )}
-          {data.transaction_sn && (
+
+          {/* gateway_charge_id (chrg_* reference for Opn support) */}
+          {data.gateway_charge_id && (
             <div className="flex justify-between gap-3 items-baseline">
-              <span className="text-gray-500 flex items-center gap-1">
-                <ShopeepayWordmark className="text-xs" />
-                <span>·</span>
-                <span>{t('successTransactionLabel')}</span>
-              </span>
+              <span className="text-gray-500">{t('successChargeIdLabel')}</span>
               <span className="font-mono text-xs text-gray-600 break-all max-w-[55%]">
-                {data.transaction_sn}
+                {data.gateway_charge_id}
               </span>
             </div>
           )}
+
+          {/* auth_code fold-out (Opn-specific) */}
+          {data.auth_code && (
+            <details className="text-xs text-gray-500 pt-1">
+              <summary className="cursor-pointer">{t('successAuthCodeSummary')}</summary>
+              <div className="font-mono mt-1">{data.auth_code}</div>
+            </details>
+          )}
         </div>
       </section>
+
+      <PoweredByOpn />
 
       <div className="flex flex-col gap-2 pt-2">
         <Link
@@ -332,8 +369,8 @@ function FailedView({
 }: {
   reason: 'declined' | 'cancelled' | 'expired' | 'unknown';
   rentalCode: string | null;
-  retryHref: { pathname: '/payment/start'; query: { ref: string } } | string;
-  t: ReturnType<typeof useTranslations>;
+  retryHref: { pathname: '/payment/checkout'; query: { ref: string } } | string;
+  t: ReturnType<typeof useTranslations<'payment.return'>>;
 }) {
   const titles = {
     declined: t('declinedTitle'),
@@ -349,7 +386,8 @@ function FailedView({
   } as const;
 
   // Retry only makes sense when the failure is recoverable AND we have a ref.
-  const canRetry = (reason === 'declined' || reason === 'cancelled' || reason === 'unknown') && !!rentalCode;
+  const canRetry =
+    (reason === 'declined' || reason === 'cancelled' || reason === 'unknown') && !!rentalCode;
 
   return (
     <div
@@ -370,9 +408,17 @@ function FailedView({
           aria-hidden="true"
         >
           {reason === 'expired' ? (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6 18L18 6M6 6l12 12"
+            />
           )}
         </svg>
       </div>
@@ -408,25 +454,9 @@ function FailedView({
   );
 }
 
-function MissingRefView({ t }: { t: ReturnType<typeof useTranslations> }) {
+function MissingRefView({ t }: { t: ReturnType<typeof useTranslations<'payment.return'>> }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
-      <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
-        <svg
-          className="w-7 h-7 text-gray-500"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      </div>
       <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('expiredTitle')}</h1>
       <p className="text-sm text-gray-600 mb-6">{t('expiredBody')}</p>
       <Link

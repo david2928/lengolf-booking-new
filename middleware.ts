@@ -66,6 +66,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Opn-cutover compatibility: /payment/start was the ShopeePay hand-off
+  // page (its <HandoffClient> minted a ShopeePay order). On the Opn flow the
+  // customer pays inline at /payment/checkout, so /payment/start must never
+  // be reachable — landing there could create a mismatched ShopeePay order.
+  // Redirect at the edge (a real 307, preserving locale prefix + ?ref=...),
+  // NOT via a page-level redirect() — that one renders a cached meta-refresh
+  // (x-nextjs-cache HIT) which risks serving one rental's ref to another.
+  // /payment/start is only ever a payment ENTRY page (never a ShopeePay
+  // return_url, which is /payment/result), so redirecting it is always safe.
+  if (stripLocale(pathname) === '/payment/start') {
+    const url = request.nextUrl.clone();
+    url.pathname = `${localePrefix(pathname)}/payment/checkout`;
+    // url.search (the ?ref=... query) is preserved by the clone.
+    return NextResponse.redirect(url, 307);
+  }
+
   // LINE browser users: redirect to LIFF equivalents (locale-agnostic)
   if (isLineBrowser(request)) {
     const bare = stripLocale(pathname);

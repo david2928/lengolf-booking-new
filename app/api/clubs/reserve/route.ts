@@ -64,7 +64,15 @@ export async function POST(request: NextRequest) {
     // free-form `notes` field stays strictly customer-typed (see CLAUDE.md
     // — booking form previously concatenated these into notes and leaked
     // into the customer confirmation email).
-    const VALID_PAYMENT_CHOICES = new Set(['online_shopeepay', 'cash_at_pickup']);
+    // 'online_card' = Opn inline card checkout; 'online_shopeepay' kept
+    // for the parallel-run window (ShopeePay flow still in-tree). The DB
+    // CHECK constraint must stay in lockstep — see migration
+    // 20260613000000_club_rentals_payment_choice_add_card.sql.
+    const VALID_PAYMENT_CHOICES = new Set([
+      'online_card',
+      'online_shopeepay',
+      'cash_at_pickup',
+    ]);
     const VALID_CONTACT_PREFS = new Set(['line', 'email', 'whatsapp']);
     const paymentMethodChosen: string | null =
       typeof rawPaymentMethodChosen === 'string' &&

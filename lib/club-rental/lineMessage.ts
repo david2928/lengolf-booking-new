@@ -123,6 +123,7 @@ function addOnsLine(addOnsRaw: unknown): string | null {
 }
 
 function paymentMethodChosenLabel(value: string | null | undefined): string | null {
+  if (value === 'online_card') return 'Online (card via Opn)';
   if (value === 'online_shopeepay') return 'Online (ShopeePay — card or wallet)';
   if (value === 'cash_at_pickup') return 'Cash at pickup';
   return null;
@@ -171,7 +172,7 @@ function renderState(input: RentalLineInput): StateRender {
         failureLine: null,
         footerLine:
           status.paymentMode === 'online'
-            ? `⌛ Awaiting ShopeePay payment — auto-cancels in 30 min if unpaid.`
+            ? `⌛ Awaiting online payment — auto-cancels in 30 min if unpaid.`
             : `👉 Please contact the customer to confirm availability and arrange payment.`,
       };
     }
@@ -208,7 +209,7 @@ function renderState(input: RentalLineInput): StateRender {
         moneyLine: `💰 Original: ${totalDisplay}\n↩️ Refunded: ฿${formatSatangAsThb(status.refundedSatang)} (Full)`,
         referenceLine: status.refundSn ? `🔖 Refund SN: ${status.refundSn}` : null,
         failureLine: null,
-        footerLine: `🗑️ Refunded via ShopeePay — clubs released back to inventory.`,
+        footerLine: `🗑️ Refunded — clubs released back to inventory.`,
       };
     }
     case 'PartiallyRefunded': {

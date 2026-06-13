@@ -12,7 +12,8 @@ import { createAdminClient } from '@/utils/supabase/admin';
  * rental and 302's to ShopeePay's full redirect_url.
  *
  * Behaviour:
- * - Pending payment found        → 302 to ShopeePay redirect_url
+ * - Pending ShopeePay link found → 302 to ShopeePay redirect_url (parallel-run window)
+ * - Otherwise payable            → 302 to /payment/checkout?ref=<code> (Opn inline card flow)
  * - Rental paid                  → 302 to /payment/result?ref=<code>  (existing page renders the paid state)
  * - Rental cancelled / refunded  → 302 to /payment/result?ref=<code>&missing=1
  * - rental_code not found        → 404 with a short HTML message
@@ -48,17 +49,33 @@ export async function GET(
     return new NextResponse('Payment link not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
   }
 
-  // Build a base URL for relative redirects (e.g. to /payment/result).
-  // The request is already on this domain, so prefer the request's origin
-  // when reachable, falling back to known env vars.
+  // Pick the result page that matches how this rental was actually paid:
+  // Opn → /payment/return (polls /api/payments/opn/return), ShopeePay →
+  // /payment/result (polls the ShopeePay status route). Sending an
+  // Opn-paid rental to the ShopeePay receipt page (or vice-versa) shows the
+  // wrong gateway branding and polls a status endpoint that can't find the
+  // transaction. Default to the Opn page for the go-forward gateway.
+  const { data: lastTxn } = await supabase
+    .from('payment_transactions')
+    .select('gateway')
+    .eq('club_rental_id', rental.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const isShopee = lastTxn?.gateway === 'shopeepay';
+
   function resultUrl(suffix: string = ''): string {
     const envBase = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '';
     const base = envBase.replace(/\/$/, '');
-    const path = `/payment/result?ref=${encodeURIComponent(rental_code)}${suffix}`;
+    const page = isShopee ? '/payment/result' : '/payment/return';
+    // The &missing=1 hint is only meaningful to the ShopeePay result page;
+    // the Opn return page resolves the state from its own poll.
+    const sfx = isShopee ? suffix : '';
+    const path = `${page}?ref=${encodeURIComponent(rental_code)}${sfx}`;
     return base ? `${base}${path}` : path;
   }
 
-  // Terminal payment states — show the result page rather than hitting ShopeePay.
+  // Terminal payment states — show the matching result page.
   if (rental.payment_status === 'paid' || rental.payment_status === 'refunded' || rental.payment_status === 'partially_refunded') {
     return NextResponse.redirect(resultUrl(), 302);
   }
@@ -77,11 +94,18 @@ export async function GET(
     .limit(1)
     .maybeSingle();
 
-  if (!txn?.redirect_url) {
-    // Rental exists but no active payment link — surface the result page so
-    // the customer sees a graceful "no link" instead of a bare 404.
-    return NextResponse.redirect(resultUrl('&missing=1'), 302);
+  if (txn?.redirect_url) {
+    // Legacy ShopeePay link still in flight — honor it during the
+    // parallel-run window.
+    return NextResponse.redirect(txn.redirect_url, 302);
   }
 
-  return NextResponse.redirect(txn.redirect_url, 302);
+  // Opn flow: there is no gateway-hosted URL until the customer submits
+  // the card form, so the payment link IS our own checkout page. Any
+  // still-payable rental (guards above filtered paid/refunded/cancelled)
+  // lands on /payment/checkout, whose preflight re-validates expiry and
+  // lifecycle server-side.
+  const envBase = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
+  const checkoutPath = `/payment/checkout?ref=${encodeURIComponent(rental_code)}`;
+  return NextResponse.redirect(envBase ? `${envBase}${checkoutPath}` : checkoutPath, 302);
 }

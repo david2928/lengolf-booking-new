@@ -1,11 +1,11 @@
 import { getTranslations, getFormatter } from 'next-intl/server';
-import type { RentalOrderSummary } from '@/lib/shopeepay/order-summary';
+import type { RentalOrderSummary } from '@/lib/payments/order-summary';
 
 /**
- * Server-rendered summary card shown above the ShopeePay handoff on
- * /payment/start. Mirrors the visual style of the course-rental review
- * step but with a more compact layout suited for a transient "you're
- * about to be redirected" page.
+ * Server-rendered order summary card shown above the payment form on the
+ * Opn /payment/checkout page (and on the ShopeePay /payment/result page
+ * during the parallel-run window). Compact layout mirroring the
+ * course-rental review step.
  *
  * Pulls translations via next-intl/server so it works as part of an RSC
  * page (no client-side useTranslations).
