@@ -93,7 +93,13 @@ export function isChargeSuccessful(charge: OpnCharge): boolean {
   return charge.status === 'successful' && charge.paid === true;
 }
 
-/** True iff the charge is in any terminal state (success or failure). */
+/**
+ * True iff the charge is in any terminal state (success or failure).
+ * Note: `reversed` (a voided authorization) and `expired` carry no
+ * failure_code, so processChargeResult records them as a generic 'failed'
+ * with failure_reason 'unknown'. Nothing was captured, so there is no money
+ * impact — only a coarse label in support/reporting.
+ */
 export function isChargeTerminal(charge: OpnCharge): boolean {
   return charge.status === 'successful' || charge.status === 'failed' ||
     charge.status === 'reversed' || charge.status === 'expired';

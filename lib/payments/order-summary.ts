@@ -2,11 +2,12 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * Shape returned to the client for the payment summary card on
- * /payment/start and the receipt on /payment/result. Everything here is
- * already visible to the customer (they entered/chose it) — there's no
- * customer-identifying data beyond the rental_code, which is the
- * implicit capability for accessing this endpoint.
+ * Shape returned to the client for the payment summary card and receipt.
+ * Used by both gateways' pages — ShopeePay (/payment/start, /payment/result)
+ * and Opn (/payment/checkout, /payment/return). Everything here is already
+ * visible to the customer (they entered/chose it) — there's no
+ * customer-identifying data beyond the rental_code, which is the implicit
+ * capability for accessing this endpoint.
  */
 export interface RentalOrderSummary {
   rental_code: string;

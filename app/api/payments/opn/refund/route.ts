@@ -187,11 +187,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 5. Deterministic Idempotency-Key: two racing identical requests
-  // (staff double-click) compute the same refund index → same key →
-  // Omise returns the SAME rfnd_* instead of refunding twice. A
-  // deliberate second partial refund happens after the first row is
-  // recorded, so it sees count+1 → a fresh key.
+  // 5. Idempotency-Key for the gateway call. BEST-EFFORT against staff
+  // double-clicks: two near-simultaneous identical requests usually both
+  // read count=0 (the gateway round-trip is slow relative to this query),
+  // compute the same `-R1` key, and Omise returns the SAME rfnd_* — no
+  // double refund. The race that defeats it is narrow (req1 inserts its
+  // row before req2 runs this count), and the REAL backstop is the UNIQUE
+  // constraint on payment_refunds.refund_reference_id (= rfnd_*): if the
+  // keys collide we record once (step 7 treats the dup as already-recorded);
+  // if they don't, that's two distinct gateway refunds, which is what two
+  // genuinely-separate clicks asked for. A deliberate second partial refund
+  // sees count+1 → a fresh key by design.
   const { count: existingRefundCount, error: countErr } = await supabase
     .from('payment_refunds')
     .select('id', { count: 'exact', head: true })

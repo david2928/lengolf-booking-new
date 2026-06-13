@@ -90,11 +90,15 @@ export async function claimAndSendRefundEmail(
   }
   const emailLocale = resolveEmailLocale(language);
 
-  // Money arrives as satang in DB; the email is in display THB.
+  // Money arrives as satang in DB; the email is in display THB. Compute
+  // isPartial in SATANG before rounding — rounding first can misclassify a
+  // near-full refund (e.g. 10000 of 10050 satang) as full, so the email's
+  // "partial vs full" copy could contradict the DB's txn status (derived in
+  // satang upstream).
   const originalAmountThb = Math.round(Number(txn.amount) / 100);
   const refundAmountThb = Math.round(Number(claimed.amount) / 100);
   const totalRefundedThb = Math.round(Number(txn.refunded_amount) / 100);
-  const isPartial = totalRefundedThb < originalAmountThb;
+  const isPartial = Number(txn.refunded_amount) < Number(txn.amount);
 
   try {
     await sendCourseRentalRefundEmail({

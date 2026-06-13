@@ -51,10 +51,16 @@ export async function processChargeResult(
   charge: OpnCharge,
   opts: { baseUrl: string }
 ): Promise<ChargeProcessOutcome> {
+  // Defensive: order + limit(1) rather than a bare maybeSingle so a stray
+  // duplicate gateway_charge_id (which a partial-unique index now prevents,
+  // but belt-and-suspenders) picks the most recent row instead of throwing
+  // PGRST116 → db_error → an infinite webhook-retry storm.
   const { data: txn, error: txnErr } = await supabase
     .from('payment_transactions')
     .select('id, club_rental_id, amount, status')
     .eq('gateway_charge_id', charge.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (txnErr) {
@@ -111,14 +117,29 @@ export async function processChargeResult(
   };
   if (isSuccess) updates.paid_at = new Date().toISOString();
 
-  const { error: updateErr } = await supabase
+  // Conditional update doubles as a single-writer lock: only transition if
+  // the row is STILL in the state we read. Two concurrent deliveries (a
+  // webhook + the polling probe, or a replayed delivery) both read the same
+  // pre-terminal status, but only the first UPDATE matches the .eq('status')
+  // guard — the loser gets zero rows back and bails, so the rental flip +
+  // side-effects run once. (The email is additionally claim-deduped; this
+  // also single-fires the LINE ping and rental write.)
+  const { data: locked, error: updateErr } = await supabase
     .from('payment_transactions')
     .update(updates)
-    .eq('id', txn.id);
+    .eq('id', txn.id)
+    .eq('status', txn.status)
+    .select('id')
+    .maybeSingle();
 
   if (updateErr) {
     console.error('[opn/processCharge] txn update failed:', updateErr);
     return { kind: 'db_error' };
+  }
+  if (!locked) {
+    // Another writer transitioned this row between our read and update.
+    console.warn(`[opn/processCharge] lost transition race for ${charge.id} — already handled`);
+    return { kind: 'already_terminal', txnStatus: isSuccess ? 'success' : 'failed' };
   }
 
   // ----- Failure path -----

@@ -16,5 +16,12 @@ ALTER TABLE public.payment_transactions
   ADD COLUMN IF NOT EXISTS transaction_vat_rate NUMERIC(5,3);
 
 -- Critical: webhook handler joins on gateway_charge_id every callback.
-CREATE INDEX IF NOT EXISTS payment_transactions_gateway_charge_id_idx
-  ON public.payment_transactions (gateway_charge_id);
+-- PARTIAL UNIQUE: two payment_transactions rows must never share one
+-- gateway_charge_id, or processChargeResult's single-row lookup throws and
+-- the webhook 500s into an infinite Omise retry loop. Partial (WHERE NOT
+-- NULL) so the many ShopeePay rows — which leave gateway_charge_id NULL and
+-- key off transaction_sn instead — are exempt.
+DROP INDEX IF EXISTS public.payment_transactions_gateway_charge_id_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS payment_transactions_gateway_charge_id_idx
+  ON public.payment_transactions (gateway_charge_id)
+  WHERE gateway_charge_id IS NOT NULL;

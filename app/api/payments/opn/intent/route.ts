@@ -120,80 +120,103 @@ export async function POST(request: NextRequest) {
   // Pending-txn reuse: if a charge is already in flight for this rental
   // (3DS tab still open, double-submit, back button), resolve it instead
   // of creating a second charge against the customer's card.
-  const { data: pendingTxn } = await supabase
+  //
+  // Dedup on the EXACT token, not just status='pending'. The Omise
+  // idempotency key is SHA256(rental_code:token), so a given token always
+  // maps to a single Omise charge. Keying the lookup on gateway_token_id
+  // means a network-level retry of an already-completed request (or a
+  // back-button resubmit carrying the same token) resolves the EXISTING
+  // charge instead of inserting a second txn row — which would otherwise
+  // end up sharing one gateway_charge_id and break the webhook's
+  // single-row lookup (it 500s on a multi-row match → Omise retries
+  // forever).
+  const { data: priorTxn } = await supabase
     .from('payment_transactions')
     .select('id, gateway_charge_id')
     .eq('club_rental_id', rental.id)
     .eq('gateway', 'opn')
-    .eq('status', 'pending')
+    .eq('gateway_token_id', token)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (pendingTxn) {
-    if (pendingTxn.gateway_charge_id) {
+  let reuseTxnId: string | null = null;
+
+  if (priorTxn) {
+    if (priorTxn.gateway_charge_id) {
+      // A charge already exists for this exact token. Resolve it — never
+      // create a second charge for the same token.
       let prior: OpnCharge | null = null;
       try {
-        prior = await retrieveCharge(pendingTxn.gateway_charge_id);
+        prior = await retrieveCharge(priorTxn.gateway_charge_id);
       } catch (probeErr) {
-        // Probe failure is not fatal — log and fall through to a fresh
-        // charge; the stale row resolves via webhook/cron eventually.
         console.warn('[opn/intent] prior-charge probe failed:', probeErr);
+        // Can't confirm the prior attempt — surface a soft failure rather
+        // than risk a parallel charge on the same card.
+        return NextResponse.json(
+          {
+            status: 'failed',
+            failure_reason: 'unknown',
+            error: 'Could not confirm your previous attempt. Please try again shortly.',
+          },
+          { status: 502 }
+        );
       }
 
-      if (prior) {
-        if (isChargeSuccessful(prior)) {
-          // Already paid via the earlier attempt — record + ack.
-          await processChargeResult(supabase, prior, { baseUrl });
-          return NextResponse.json({ status: 'success', ref: rental.rental_code });
-        }
-        if (prior.status === 'pending' && prior.authorize_uri) {
-          // 3DS still in flight — resume the SAME charge rather than
-          // stacking a second authorization on the customer's card.
-          return NextResponse.json({
-            status: 'requires_3ds',
-            authorize_uri: prior.authorize_uri,
-          });
-        }
-        // Terminal non-success — record the failure, then continue to a
-        // fresh charge for this retry.
+      if (isChargeSuccessful(prior)) {
         await processChargeResult(supabase, prior, { baseUrl });
+        return NextResponse.json({ status: 'success', ref: rental.rental_code });
       }
-    } else {
-      // Insert happened but the gateway call never completed (crash /
-      // timeout before the charge id landed). Close it out for the audit
-      // trail and continue.
-      await supabase
-        .from('payment_transactions')
-        .update({ status: 'failed', error_message: 'abandoned: no charge created' })
-        .eq('id', pendingTxn.id);
+      if (prior.status === 'pending' && prior.authorize_uri) {
+        // 3DS still in flight — resume the SAME charge rather than stacking
+        // a second authorization on the customer's card.
+        return NextResponse.json({ status: 'requires_3ds', authorize_uri: prior.authorize_uri });
+      }
+      // Terminal failure for this token. Record it and report failure — a
+      // retry needs a NEW card (new token, new row). Re-charging the same
+      // token would just return this same failed charge.
+      await processChargeResult(supabase, prior, { baseUrl });
+      return NextResponse.json({
+        status: 'failed',
+        failure_reason: classifyFailure(prior.failure_code),
+      });
     }
+    // Row exists for this token but the gateway call never landed a charge
+    // id (crash / timeout before createCharge returned). Reuse the row
+    // rather than inserting a duplicate.
+    reuseTxnId = priorTxn.id;
   }
 
   // Insert the audit row BEFORE calling Omise — paper trail even on
   // gateway timeout. payment_reference_id / request_id are NOT NULL
   // (shared schema with ShopeePay); Opn's webhook joins on
   // gateway_charge_id, so these exist for audit/uniqueness only.
-  const epoch = Date.now();
-  const { data: txnRow, error: txnInsertErr } = await supabase
-    .from('payment_transactions')
-    .insert({
-      club_rental_id: rental.id,
-      gateway: 'opn',
-      payment_reference_id: `LENGOLF-OPN-${rental.rental_code}-${epoch.toString(36)}`,
-      request_id: `lengolf-opn-${rental.rental_code}-${epoch}`,
-      gateway_token_id: token,
-      amount: amountSatang,
-      currency: 'THB',
-      status: 'pending',
-      return_url: returnUri,
-    })
-    .select('id')
-    .single();
+  let txnId: string;
+  if (reuseTxnId) {
+    txnId = reuseTxnId;
+  } else {
+    const epoch = Date.now();
+    const { data: txnRow, error: txnInsertErr } = await supabase
+      .from('payment_transactions')
+      .insert({
+        club_rental_id: rental.id,
+        gateway: 'opn',
+        payment_reference_id: `LENGOLF-OPN-${rental.rental_code}-${epoch.toString(36)}`,
+        request_id: `lengolf-opn-${rental.rental_code}-${epoch}`,
+        gateway_token_id: token,
+        amount: amountSatang,
+        currency: 'THB',
+        status: 'pending',
+        return_url: returnUri,
+      })
+      .select('id')
+      .single();
 
-  if (txnInsertErr || !txnRow) {
-    console.error('[opn/intent] txn insert failed:', txnInsertErr);
-    return NextResponse.json({ error: 'Failed to record payment intent' }, { status: 500 });
+    if (txnInsertErr || !txnRow) {
+      console.error('[opn/intent] txn insert failed:', txnInsertErr);
+      return NextResponse.json({ error: 'Failed to record payment intent' }, { status: 500 });
+    }
+    txnId = txnRow.id;
   }
 
   const idempotencyKey = createHash('sha256').update(`${rental_code}:${token}`).digest('hex');
@@ -205,7 +228,7 @@ export async function POST(request: NextRequest) {
       currency: 'thb',
       cardToken: token,
       returnUri,
-      metadata: { rental_code, txn_id: txnRow.id },
+      metadata: { rental_code, txn_id: txnId },
       idempotencyKey,
     });
   } catch (e) {
@@ -215,7 +238,7 @@ export async function POST(request: NextRequest) {
     await supabase
       .from('payment_transactions')
       .update({ status: 'failed', error_message: msg })
-      .eq('id', txnRow.id);
+      .eq('id', txnId);
     return NextResponse.json(
       {
         status: 'failed',
@@ -233,13 +256,13 @@ export async function POST(request: NextRequest) {
       is_3ds: charge.authorize_uri !== null,
       raw_create_response: charge as unknown as Record<string, unknown>,
     })
-    .eq('id', txnRow.id);
+    .eq('id', txnId);
 
   await supabase
     .from('club_rentals')
     .update({
       payment_status: 'pending',
-      payment_transaction_id: txnRow.id,
+      payment_transaction_id: txnId,
       expires_at: new Date(Date.now() + 30 * 60_000).toISOString(),
     })
     .eq('id', rental.id);
