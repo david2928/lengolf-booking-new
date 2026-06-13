@@ -903,11 +903,11 @@
       "totalLabel": "总计",
       "paymentHeading": "支付",
       "paymentCashBody": "在 LENGOLF 取件时使用现金支付。",
-      "paymentLinkBody": "您将在 ShopeePay 的安全付款页面完成支付，完成后将自动返回此页面。",
+      "paymentLinkBody": "您将在下一步安全地输入您的卡片信息。",
       "submitting": "提交中...",
       "confirmReservation": "确认预订",
-      "payWithShopeepay": "使用 ShopeePay 支付 ฿{total}",
-      "securedByShopeepay": "由 ShopeePay 安全保障"
+      "payByCard": "支付 ฿{total}",
+      "securedNote": "由 Opn Payments 安全保障"
     },
     "confirmation": {
       "rentalCodeLabel": "您的租赁编号",

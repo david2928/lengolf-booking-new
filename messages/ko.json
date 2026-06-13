@@ -903,11 +903,11 @@
       "totalLabel": "총액",
       "paymentHeading": "결제",
       "paymentCashBody": "LENGOLF에서 클럽을 수령하실 때 현금으로 결제해 주세요.",
-      "paymentLinkBody": "ShopeePay의 보안 결제 페이지에서 결제를 완료하시면 자동으로 이 페이지로 돌아옵니다.",
+      "paymentLinkBody": "다음 단계에서 카드 정보를 안전하게 입력하시게 됩니다.",
       "submitting": "전송 중...",
       "confirmReservation": "예약 확정",
-      "payWithShopeepay": "ShopeePay로 ฿{total} 결제",
-      "securedByShopeepay": "ShopeePay 보안 결제"
+      "payByCard": "฿{total} 결제",
+      "securedNote": "Opn Payments 보안 결제"
     },
     "confirmation": {
       "rentalCodeLabel": "렌탈 코드",

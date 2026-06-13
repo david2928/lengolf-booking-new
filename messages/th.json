@@ -903,11 +903,11 @@
       "totalLabel": "รวม",
       "paymentHeading": "การชำระเงิน",
       "paymentCashBody": "ชำระด้วยเงินสดเมื่อรับไม้กอล์ฟที่ LENGOLF",
-      "paymentLinkBody": "คุณจะชำระเงินที่หน้าปลอดภัยของ ShopeePay แล้วระบบจะพากลับมาหน้านี้โดยอัตโนมัติ",
+      "paymentLinkBody": "คุณจะกรอกข้อมูลบัตรอย่างปลอดภัยในขั้นตอนถัดไป",
       "submitting": "กำลังส่ง...",
       "confirmReservation": "ยืนยันการจอง",
-      "payWithShopeepay": "ชำระ ฿{total} ผ่าน ShopeePay",
-      "securedByShopeepay": "ปลอดภัยด้วย ShopeePay"
+      "payByCard": "ชำระ ฿{total}",
+      "securedNote": "ปลอดภัยด้วย Opn Payments"
     },
     "confirmation": {
       "rentalCodeLabel": "รหัสการเช่าของคุณ",

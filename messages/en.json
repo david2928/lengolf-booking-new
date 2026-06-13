@@ -903,11 +903,11 @@
       "totalLabel": "Total",
       "paymentHeading": "Payment",
       "paymentCashBody": "Pay with cash when you pick up the clubs at LENGOLF.",
-      "paymentLinkBody": "You'll complete payment on ShopeePay's secure page and return here automatically.",
+      "paymentLinkBody": "You'll enter your card details securely on the next step.",
       "submitting": "Submitting...",
       "confirmReservation": "Confirm Reservation",
-      "payWithShopeepay": "Pay ฿{total} with ShopeePay",
-      "securedByShopeepay": "Secured by ShopeePay"
+      "payByCard": "Pay ฿{total}",
+      "securedNote": "Secured by Opn Payments"
     },
     "confirmation": {
       "rentalCodeLabel": "Your rental code",
