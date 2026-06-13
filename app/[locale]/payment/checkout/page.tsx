@@ -39,7 +39,7 @@ export default async function CheckoutPage({
   const summary = await loadRentalOrderSummary(supabase, ref);
   if (!summary) return <MissingRefView />;
 
-  if (summary.payment_status === 'paid') return <AlreadyPaidView ref={ref} />;
+  if (summary.payment_status === 'paid') return <AlreadyPaidView rentalCode={ref} />;
   // Lifecycle guard: the cleanup cron cancels by setting status='cancelled'
   // AND expires_at=NULL, so the expiry check alone would happily render a
   // payable form for a cancelled rental (whose club set may be rebooked).
@@ -89,7 +89,9 @@ async function MissingRefView() {
   );
 }
 
-async function AlreadyPaidView({ ref }: { ref: string }) {
+// NB: prop must not be named `ref` — that's a reserved React prop and
+// throws "Refs cannot be used in Server Components" at render time.
+async function AlreadyPaidView({ rentalCode }: { rentalCode: string }) {
   const t = await getTranslations('payment.checkout');
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -97,7 +99,7 @@ async function AlreadyPaidView({ ref }: { ref: string }) {
         <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('alreadyPaidTitle')}</h1>
         <p className="text-sm text-gray-600 mb-6">{t('alreadyPaidBody')}</p>
         <Link
-          href={`/payment/return?ref=${ref}`}
+          href={`/payment/return?ref=${rentalCode}`}
           className="block w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700"
         >
           {t('viewReceiptCta')}

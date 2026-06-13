@@ -154,7 +154,7 @@ export default function PaymentResultPage() {
         )}
 
         {state.kind === 'failed' && (
-          <FailedView reason={state.reason} ref={ref} retryHref={retryHref} t={t} />
+          <FailedView reason={state.reason} rentalCode={ref} retryHref={retryHref} t={t} />
         )}
 
         {state.kind === 'missing-ref' && <MissingRefView t={t} />}
@@ -321,14 +321,17 @@ function SuccessView({
   );
 }
 
+// NB: prop must not be named `ref` — React 18 strips `ref` from function-
+// component props (it's a reserved prop), so it arrives undefined and the
+// retry CTA below silently never renders.
 function FailedView({
   reason,
-  ref,
+  rentalCode,
   retryHref,
   t,
 }: {
   reason: 'declined' | 'cancelled' | 'expired' | 'unknown';
-  ref: string | null;
+  rentalCode: string | null;
   retryHref: { pathname: '/payment/start'; query: { ref: string } } | string;
   t: ReturnType<typeof useTranslations>;
 }) {
@@ -346,7 +349,7 @@ function FailedView({
   } as const;
 
   // Retry only makes sense when the failure is recoverable AND we have a ref.
-  const canRetry = (reason === 'declined' || reason === 'cancelled' || reason === 'unknown') && !!ref;
+  const canRetry = (reason === 'declined' || reason === 'cancelled' || reason === 'unknown') && !!rentalCode;
 
   return (
     <div
