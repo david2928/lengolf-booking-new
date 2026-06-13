@@ -172,7 +172,7 @@ function renderState(input: RentalLineInput): StateRender {
         failureLine: null,
         footerLine:
           status.paymentMode === 'online'
-            ? `⌛ Awaiting ShopeePay payment — auto-cancels in 30 min if unpaid.`
+            ? `⌛ Awaiting online payment — auto-cancels in 30 min if unpaid.`
             : `👉 Please contact the customer to confirm availability and arrange payment.`,
       };
     }
@@ -209,7 +209,7 @@ function renderState(input: RentalLineInput): StateRender {
         moneyLine: `💰 Original: ${totalDisplay}\n↩️ Refunded: ฿${formatSatangAsThb(status.refundedSatang)} (Full)`,
         referenceLine: status.refundSn ? `🔖 Refund SN: ${status.refundSn}` : null,
         failureLine: null,
-        footerLine: `🗑️ Refunded via ShopeePay — clubs released back to inventory.`,
+        footerLine: `🗑️ Refunded — clubs released back to inventory.`,
       };
     }
     case 'PartiallyRefunded': {

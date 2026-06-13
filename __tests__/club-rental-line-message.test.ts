@@ -56,10 +56,10 @@ describe('composeRentalLineMessage — Created (online prepay)', () => {
     expect(lines[customerIdx + 2]).toBe('📧 Email: dgeiermann@gmail.com');
   });
 
-  it('closes with the "Awaiting ShopeePay" footer', () => {
+  it('closes with the gateway-neutral "Awaiting online payment" footer', () => {
     const lines = msg.split('\n');
     expect(lines[lines.length - 1]).toBe(
-      '⌛ Awaiting ShopeePay payment — auto-cancels in 30 min if unpaid.'
+      '⌛ Awaiting online payment — auto-cancels in 30 min if unpaid.'
     );
   });
 
@@ -177,10 +177,10 @@ describe('composeRentalLineMessage — Refunded (full)', () => {
     expect(msg).toContain('↩️ Refunded: ฿1,200 (Full)');
   });
 
-  it('closes with the "released back to inventory" footer', () => {
+  it('closes with the gateway-neutral "released back to inventory" footer', () => {
     const lines = msg.split('\n');
     expect(lines[lines.length - 1]).toBe(
-      '🗑️ Refunded via ShopeePay — clubs released back to inventory.'
+      '🗑️ Refunded — clubs released back to inventory.'
     );
   });
 });
