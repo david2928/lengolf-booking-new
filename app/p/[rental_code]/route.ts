@@ -49,17 +49,33 @@ export async function GET(
     return new NextResponse('Payment link not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
   }
 
-  // Build a base URL for relative redirects (e.g. to /payment/result).
-  // The request is already on this domain, so prefer the request's origin
-  // when reachable, falling back to known env vars.
+  // Pick the result page that matches how this rental was actually paid:
+  // Opn → /payment/return (polls /api/payments/opn/return), ShopeePay →
+  // /payment/result (polls the ShopeePay status route). Sending an
+  // Opn-paid rental to the ShopeePay receipt page (or vice-versa) shows the
+  // wrong gateway branding and polls a status endpoint that can't find the
+  // transaction. Default to the Opn page for the go-forward gateway.
+  const { data: lastTxn } = await supabase
+    .from('payment_transactions')
+    .select('gateway')
+    .eq('club_rental_id', rental.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const isShopee = lastTxn?.gateway === 'shopeepay';
+
   function resultUrl(suffix: string = ''): string {
     const envBase = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || '';
     const base = envBase.replace(/\/$/, '');
-    const path = `/payment/result?ref=${encodeURIComponent(rental_code)}${suffix}`;
+    const page = isShopee ? '/payment/result' : '/payment/return';
+    // The &missing=1 hint is only meaningful to the ShopeePay result page;
+    // the Opn return page resolves the state from its own poll.
+    const sfx = isShopee ? suffix : '';
+    const path = `${page}?ref=${encodeURIComponent(rental_code)}${sfx}`;
     return base ? `${base}${path}` : path;
   }
 
-  // Terminal payment states — show the result page rather than hitting ShopeePay.
+  // Terminal payment states — show the matching result page.
   if (rental.payment_status === 'paid' || rental.payment_status === 'refunded' || rental.payment_status === 'partially_refunded') {
     return NextResponse.redirect(resultUrl(), 302);
   }
