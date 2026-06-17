@@ -295,6 +295,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 
+  // Advance lifecycle status reserved → confirmed on payment. Only runs
+  // when the row is still 'reserved'; already-confirmed/checked-out rentals
+  // are left untouched. A separate update is the simplest way to make this
+  // conditional without a raw SQL CASE expression.
+  await supabase
+    .from('club_rentals')
+    .update({ status: 'confirmed' })
+    .eq('id', txnRow.club_rental_id)
+    .eq('status', 'reserved');
+
   // Customer confirmation email — uses the shared dedup helper so the
   // polling status route doesn't re-send if it claimed the email first
   // (and vice versa). AWAIT so Vercel keeps the function alive until

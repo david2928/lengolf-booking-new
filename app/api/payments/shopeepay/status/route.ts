@@ -117,6 +117,12 @@ export async function GET(request: NextRequest) {
           .from('club_rentals')
           .update({ payment_status: 'paid', expires_at: null })
           .eq('id', rental.id);
+        // Advance lifecycle status reserved → confirmed on payment.
+        await supabase
+          .from('club_rentals')
+          .update({ status: 'confirmed' })
+          .eq('id', rental.id)
+          .eq('status', 'reserved');
 
         status = 'success';
         transactionSn = probe.transaction_sn ?? transactionSn;
