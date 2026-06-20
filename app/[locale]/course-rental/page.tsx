@@ -690,26 +690,30 @@ export default function CourseRentalPage() {
                 <span style={{ color: '#007429' }}>{t('landing.showcaseHeadingA')}</span>{' '}
                 <span className="text-gray-900">{t('landing.showcaseHeadingB')}</span>
               </h2>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {PREVIEW_SETS.map((s) => (
                   <div
                     key={s.name}
                     className="overflow-hidden rounded-xl bg-white"
                     style={s.featured ? { border: '2px solid #c8a96e' } : { border: '1px solid #e2e2e2' }}
                   >
-                    <div className="relative h-36 w-full bg-white">
-                      <Image src={s.img} alt={s.name} fill className="object-contain p-3" loading="lazy" sizes="(max-width: 640px) 100vw, 200px" />
-                    </div>
-                    <div className="p-3">
-                      <span
-                        className="mb-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                        style={s.tier === 'premium-plus' ? { backgroundColor: '#005a32', color: '#fff' } : { backgroundColor: '#e4f0e9', color: '#005a32' }}
-                      >
-                        {s.tier === 'premium-plus' ? t('set.tierPremiumPlus') : t('set.tierPremium')}
-                      </span>
-                      <p className="text-sm font-semibold text-gray-900">{s.name}</p>
-                      <p className="text-xs text-gray-500">{t(`dates.preview.${s.metaKey}`)}</p>
-                      <p className="mt-1 text-sm font-bold" style={{ color: '#007429' }}>{t('landing.fromPerDay', { price: format.number(s.fromPrice) })}</p>
+                    <div className="flex items-stretch">
+                      {/* Square photo on the left */}
+                      <div className="relative w-24 flex-none bg-gray-50 sm:w-28">
+                        <Image src={s.img} alt={s.name} fill className="object-contain p-2" loading="lazy" sizes="112px" />
+                      </div>
+                      {/* Details on the right */}
+                      <div className="flex min-h-[108px] flex-1 flex-col justify-center p-3">
+                        <span
+                          className="mb-1 self-start rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={s.tier === 'premium-plus' ? { backgroundColor: '#005a32', color: '#fff' } : { backgroundColor: '#e4f0e9', color: '#005a32' }}
+                        >
+                          {s.tier === 'premium-plus' ? t('set.tierPremiumPlus') : t('set.tierPremium')}
+                        </span>
+                        <p className="text-sm font-semibold leading-tight text-gray-900">{s.name}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">{t(`dates.preview.${s.metaKey}`)}</p>
+                        <p className="mt-1 text-sm font-bold" style={{ color: '#007429' }}>{t('landing.fromPerDay', { price: format.number(s.fromPrice) })}</p>
+                      </div>
                     </div>
                   </div>
                 ))}
