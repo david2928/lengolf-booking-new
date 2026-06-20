@@ -781,6 +781,32 @@
     }
   },
   "courseRental": {
+    "landing": {
+      "heroHeadline": "畅打曼谷任何球场的高级球杆",
+      "heroTagline": "拥有体验，而非装备。",
+      "ratingChip": "{rating} · {count} 条 Google 评价",
+      "instantChip": "即时确认",
+      "valueProps": {
+        "sets": "巡回赛级 Callaway 与 Majesty 套杆",
+        "instant": "刷卡支付，即时确认",
+        "delivery": "送至您的酒店 · ฿500 往返",
+        "savings": "多日套餐最高省 50%"
+      },
+      "featuredPrefix": "推荐",
+      "featuredMeta": "Premium+ 巡回赛级 · ฿{price}/天起",
+      "cardHeading": "开始租赁",
+      "cardSubtitle": "选择日期，我们将为您查询可租情况。",
+      "checkAvailability": "查询可租情况",
+      "microcopy": "免费自取 · 配送 ฿500 · 保留 30 分钟",
+      "instantPayTitle": "刷卡支付，即时确认",
+      "instantPaySubtitle": "安全的在线支付",
+      "trustPrice": "฿1,200/天起",
+      "trustDelivery": "酒店配送",
+      "trustSavings": "最高省 50%",
+      "showcaseHeadingA": "选择",
+      "showcaseHeadingB": "您的套杆",
+      "fromPerDay": "฿{price}/天起"
+    },
     "page": {
       "backAriaLabel": "返回",
       "headingConfirmed": "预订已确认！",

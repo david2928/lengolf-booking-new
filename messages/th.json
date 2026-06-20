@@ -781,6 +781,32 @@
     }
   },
   "courseRental": {
+    "landing": {
+      "heroHeadline": "ไม้กอล์ฟพรีเมียมสำหรับทุกสนามในกรุงเทพฯ",
+      "heroTagline": "เป็นเจ้าของประสบการณ์ ไม่ใช่ไม้กอล์ฟ",
+      "ratingChip": "{rating} · {count} รีวิวบน Google",
+      "instantChip": "ยืนยันทันที",
+      "valueProps": {
+        "sets": "เซ็ตไม้ระดับทัวร์ Callaway และ Majesty",
+        "instant": "ชำระด้วยบัตร ยืนยันทันที",
+        "delivery": "ส่งถึงโรงแรมของคุณ · ฿500 ไป-กลับ",
+        "savings": "แพ็กเกจหลายวัน ประหยัดสูงสุด 50%"
+      },
+      "featuredPrefix": "แนะนำ",
+      "featuredMeta": "ระดับทัวร์ Premium+ · เริ่มต้น ฿{price}/วัน",
+      "cardHeading": "เริ่มการเช่าของคุณ",
+      "cardSubtitle": "เลือกวันที่ แล้วเราจะตรวจสอบคิวว่างให้",
+      "checkAvailability": "ตรวจสอบคิวว่าง",
+      "microcopy": "รับเองฟรี · ส่ง ฿500 · กันคิวไว้ 30 นาที",
+      "instantPayTitle": "ชำระด้วยบัตร ยืนยันทันที",
+      "instantPaySubtitle": "ชำระเงินออนไลน์อย่างปลอดภัย",
+      "trustPrice": "เริ่มต้น ฿1,200/วัน",
+      "trustDelivery": "ส่งถึงโรงแรม",
+      "trustSavings": "ประหยัดสูงสุด 50%",
+      "showcaseHeadingA": "เลือก",
+      "showcaseHeadingB": "เซ็ตของคุณ",
+      "fromPerDay": "เริ่มต้น ฿{price}/วัน"
+    },
     "page": {
       "backAriaLabel": "ย้อนกลับ",
       "headingConfirmed": "ยืนยันการจองแล้ว!",
