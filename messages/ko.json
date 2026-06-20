@@ -781,6 +781,31 @@
     }
   },
   "courseRental": {
+    "landing": {
+      "heroHeadline": "방콕 모든 코스를 위한 프리미엄 클럽",
+      "heroTagline": "장비가 아닌, 경험을 누리세요.",
+      "ratingChip": "{rating} · Google 리뷰 {count}개",
+      "instantChip": "즉시 확정",
+      "valueProps": {
+        "sets": "투어 등급 Callaway·Majesty 세트",
+        "instant": "카드 결제로 즉시 확정",
+        "noDeposit": "보증금 없음",
+        "delivery": "호텔·골프장으로 배송 · 왕복 ฿500",
+        "savings": "여러 날 패키지로 최대 50% 절약"
+      },
+      "featuredPrefix": "추천",
+      "featuredMeta": "Premium+ 투어 등급 · ฿{price}/일부터",
+      "cardHeading": "대여 시작하기",
+      "cardSubtitle": "날짜를 선택하면 예약 가능 여부를 확인해 드려요.",
+      "checkAvailability": "예약 확인",
+      "instantPayTitle": "카드 결제로 즉시 확정",
+      "instantPaySubtitle": "안전한 온라인 결제",
+      "trustDelivery": "호텔·코스 배송",
+      "trustSavings": "최대 50% 절약",
+      "showcaseHeadingA": "세트",
+      "showcaseHeadingB": "선택",
+      "fromPerDay": "฿{price}/일부터"
+    },
     "page": {
       "backAriaLabel": "뒤로",
       "headingConfirmed": "예약이 확정되었습니다!",

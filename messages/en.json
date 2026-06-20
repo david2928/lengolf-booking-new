@@ -781,6 +781,31 @@
     }
   },
   "courseRental": {
+    "landing": {
+      "heroHeadline": "Premium clubs for any Bangkok course",
+      "heroTagline": "Own the experience, not the gear.",
+      "ratingChip": "{rating} · {count} Google reviews",
+      "instantChip": "Instant confirmation",
+      "valueProps": {
+        "sets": "Tour-grade Callaway & Majesty sets",
+        "instant": "Pay by card, confirmed instantly",
+        "noDeposit": "No deposit",
+        "delivery": "Delivered to your hotel or course · ฿500 round trip",
+        "savings": "Multi-day packages save up to 50%"
+      },
+      "featuredPrefix": "Featured",
+      "featuredMeta": "Premium+ tour-grade · from ฿{price}/day",
+      "cardHeading": "Start your rental",
+      "cardSubtitle": "Select your dates and we'll check live availability.",
+      "checkAvailability": "Check availability",
+      "instantPayTitle": "Pay by card, confirmed instantly",
+      "instantPaySubtitle": "Secure online checkout",
+      "trustDelivery": "Hotel & course delivery",
+      "trustSavings": "Save up to 50%",
+      "showcaseHeadingA": "Choose",
+      "showcaseHeadingB": "your set",
+      "fromPerDay": "from ฿{price}/day"
+    },
     "page": {
       "backAriaLabel": "Go back",
       "headingConfirmed": "Booking Confirmed!",

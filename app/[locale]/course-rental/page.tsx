@@ -7,7 +7,7 @@ import { useTranslations, useFormatter } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
-import { ArrowLeftIcon, CheckIcon, InformationCircleIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
@@ -46,10 +46,17 @@ function getSetImageKey(set: { tier: string; gender: string }): string {
 // booking selector and the rental-options modal. Set names are brand names
 // kept untranslated; meta strings resolve via i18n at render time.
 const PREVIEW_SETS = [
-  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'mens' }), name: 'Callaway Warbird', metaKey: 'metaMensPremium' as const },
-  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'womens' }), name: 'Majesty Shuttle', metaKey: 'metaLadiesPremium' as const },
-  { img: getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' }), name: 'Callaway Paradym', metaKey: 'metaMensPremiumPlus' as const },
+  { img: getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' }), name: 'Callaway Paradym', tier: 'premium-plus', gender: 'mens', fromPrice: 1800, featured: true, metaKey: 'metaMensPremiumPlus' as const },
+  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'mens' }), name: 'Callaway Warbird', tier: 'premium', gender: 'mens', fromPrice: 1200, featured: false, metaKey: 'metaMensPremium' as const },
+  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'womens' }), name: 'Majesty Shuttle', tier: 'premium', gender: 'womens', fromPrice: 1200, featured: false, metaKey: 'metaLadiesPremium' as const },
 ];
+
+const HERO_IMAGE = `${STORAGE_BASE}/golf/hero-course-rental.webp`;
+
+// Google review stats shown in the hero. Keep in sync with len.golf BUSINESS_INFO
+// (googleRating 5.0 / googleReviewCount). Wire to a shared/live source if it drifts.
+const GOOGLE_RATING = '5.0';
+const GOOGLE_REVIEW_COUNT = 579;
 
 const TIME_OPTIONS = [
   '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
@@ -352,9 +359,10 @@ export default function CourseRentalPage() {
   const isConfirmation = step === 'confirmation';
 
   return (
-    <Layout hidePromotionBar hideNav>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6">
-        {/* Header with back button */}
+    <Layout hidePromotionBar hideNav compactHeader flushMain>
+      <div className={step === 'dates' ? 'w-full' : 'max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8'}>
+        {/* Header with back button — hidden on the dates landing (the hero is the header) */}
+        {step !== 'dates' && (
         <div className="mb-6 flex items-start">
           {stepIndex > 0 && !isConfirmation && (
             <button
@@ -370,7 +378,6 @@ export default function CourseRentalPage() {
               {isConfirmation ? t('page.headingConfirmed') : t(`stepLabels.${step}`)}
             </h2>
             <p className="text-gray-600 mt-1 text-sm">
-              {step === 'dates' && t('page.subtitleDates')}
               {step === 'set' && t('page.subtitleSet')}
               {step === 'delivery' && t('page.subtitleDelivery')}
               {step === 'contact' && t('page.subtitleContact')}
@@ -379,6 +386,7 @@ export default function CourseRentalPage() {
             </p>
           </div>
         </div>
+        )}
 
         {/* Step 2: Set Selection */}
         {step === 'set' && (
@@ -559,9 +567,53 @@ export default function CourseRentalPage() {
           </div>
         )}
 
-        {/* Step 1: Dates & Duration */}
+        {/* Step 1: Dates & Duration — premium landing (hero + booking card + showcase) */}
         {step === 'dates' && (
-          <div className="space-y-6">
+          <div className="space-y-6 pb-10">
+            {/* Hero + booking card: full-bleed on mobile, centered rounded card on desktop */}
+            <div className="md:mx-auto md:max-w-5xl md:px-6 md:pt-6">
+              <div className="md:grid md:grid-cols-[1.1fr_1fr] md:overflow-hidden md:rounded-2xl md:border md:border-gray-100 md:shadow-sm">
+              {/* Hero panel — mirrors the len.golf course-rental ad page */}
+              <div className="relative min-h-[260px] p-6 pb-16 text-white sm:p-8 sm:pb-20 md:min-h-[460px] md:pb-8" style={{ backgroundColor: '#00371c' }}>
+                <Image src={HERO_IMAGE} alt="" fill priority sizes="(max-width: 768px) 100vw, 640px" className="object-cover" style={{ objectPosition: 'center 38%' }} />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(0,55,28,0.88) 0%, rgba(0,82,46,0.62) 48%, rgba(0,82,46,0.42) 100%)' }} />
+                <div className="relative">
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded bg-white/95 px-2.5 py-1 text-xs font-semibold text-gray-900">
+                      <span style={{ color: '#f5a623', letterSpacing: '-1px' }}>★★★★★</span>
+                      {t('landing.ratingChip', { rating: GOOGLE_RATING, count: format.number(GOOGLE_REVIEW_COUNT) })}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,45,24,0.55)' }}>
+                      <BoltIcon className="h-3.5 w-3.5" style={{ color: '#7CB342' }} />
+                      {t('landing.instantChip')}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-extrabold uppercase leading-tight text-white sm:text-3xl lg:text-4xl">{t('landing.heroHeadline')}</h2>
+                  <p className="mt-2 text-sm italic text-white/90 sm:text-base">{t('landing.heroTagline')}</p>
+                  <ul className="mt-5 hidden flex-col gap-2.5 md:flex">
+                    {(['sets', 'instant', 'noDeposit', 'delivery', 'savings'] as const).map((k) => (
+                      <li key={k} className="flex items-center gap-2.5 text-sm text-white/90">
+                        <CheckIcon className="h-4 w-4 flex-none" style={{ color: '#9fe1cb' }} />
+                        {t(`landing.valueProps.${k}`)}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-5 hidden max-w-xs items-center gap-3 rounded-xl border border-white/20 bg-white/10 p-2.5 md:flex">
+                    <div className="relative h-12 w-12 flex-none overflow-hidden rounded-lg bg-white">
+                      <Image src={getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' })} alt="Callaway Paradym" fill className="object-contain" sizes="48px" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-white">{t('landing.featuredPrefix')}: Callaway Paradym</p>
+                      <p className="text-[11px] text-white/70">{t('landing.featuredMeta', { price: format.number(1800) })}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Booking card — the real date picker. On mobile it lifts up and
+                  overlaps the hero (floating, inset, rounded); flush in the grid on desktop. */}
+              <div className="relative z-10 -mt-12 mx-4 flex flex-col justify-center rounded-2xl border border-gray-100 bg-white p-5 shadow-lg sm:-mt-16 sm:mx-6 sm:p-7 md:mt-0 md:mx-0 md:rounded-none md:border-0 md:p-6 md:shadow-none">
+                <h2 className="text-lg font-bold text-gray-900">{t('landing.cardHeading')}</h2>
+                <p className="mb-4 mt-0.5 text-sm text-gray-500">{t('landing.cardSubtitle')}</p>
             {/* Date pickers */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -595,7 +647,7 @@ export default function CourseRentalPage() {
             </div>
 
             {/* Time pickers */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">{t('dates.pickupTimeLabel')} <span className="text-red-500">*</span></label>
                 <select
@@ -623,98 +675,118 @@ export default function CourseRentalPage() {
               </div>
             </div>
 
+                <button
+                  onClick={goNext}
+                  disabled={!startDate || !endDate || !pickupTime || !returnTime}
+                  className="mt-5 w-full rounded-xl bg-[#007429] py-3 font-semibold text-white transition-colors hover:bg-[#045923] disabled:cursor-not-allowed disabled:bg-gray-300"
+                >
+                  {t('landing.checkAvailability')}
+                </button>
+                <div className="mt-3 flex items-center gap-2.5 rounded-xl border px-3 py-2.5" style={{ backgroundColor: '#F1FAF4', borderColor: '#cfe8da' }}>
+                  <BoltIcon className="h-5 w-5 flex-none" style={{ color: '#007429' }} />
+                  <div>
+                    <p className="text-xs font-bold" style={{ color: '#005a32' }}>{t('landing.instantPayTitle')}</p>
+                    <p className="text-[11px] text-gray-500">{t('landing.instantPaySubtitle')}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+
+            <div className="mx-auto max-w-5xl space-y-6 px-4 sm:px-6">
+            {/* Benefits bar (mobile; desktop shows these in the hero value list) */}
+            <div className="grid grid-cols-2 gap-2 md:hidden">
+              {([
+                { Icon: BoltIcon, label: t('landing.instantChip') },
+                { Icon: ShieldCheckIcon, label: t('landing.valueProps.noDeposit') },
+                { Icon: TruckIcon, label: t('landing.trustDelivery') },
+                { Icon: ReceiptPercentIcon, label: t('landing.trustSavings') },
+              ]).map(({ Icon, label }, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: '#F6FFFA', border: '1px solid #e4f0e9' }}>
+                  <Icon className="h-4 w-4 flex-none" style={{ color: '#007429' }} />
+                  <span className="text-xs font-semibold leading-tight" style={{ color: '#005a32' }}>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Club showcase (orientation only — availability-filtered selection is the next step) */}
+            <div>
+              <h2 className="mb-3 text-lg font-bold uppercase italic">
+                <span style={{ color: '#007429' }}>{t('landing.showcaseHeadingA')}</span>{' '}
+                <span className="text-gray-900">{t('landing.showcaseHeadingB')}</span>
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {PREVIEW_SETS.map((s) => (
+                  <div
+                    key={s.name}
+                    className="overflow-hidden rounded-xl bg-white"
+                    style={s.featured ? { border: '2px solid #c8a96e' } : { border: '1px solid #e2e2e2' }}
+                  >
+                    <div className="flex items-stretch">
+                      {/* Square photo on the left */}
+                      <div className="relative w-24 flex-none bg-gray-50 sm:w-28">
+                        <Image src={s.img} alt={s.name} fill className="object-contain p-2" loading="lazy" sizes="112px" />
+                      </div>
+                      {/* Details on the right */}
+                      <div className="flex min-h-[108px] flex-1 flex-col justify-center p-3">
+                        <span
+                          className="mb-1 self-start rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={s.tier === 'premium-plus' ? { backgroundColor: '#005a32', color: '#fff' } : { backgroundColor: '#e4f0e9', color: '#005a32' }}
+                        >
+                          {s.tier === 'premium-plus' ? t('set.tierPremiumPlus') : t('set.tierPremium')}
+                        </span>
+                        <p className="text-sm font-semibold leading-tight text-gray-900">{s.name}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">{t(`dates.preview.${s.metaKey}`)}</p>
+                        <p className="mt-1 text-sm font-bold" style={{ color: '#007429' }}>{t('landing.fromPerDay', { price: format.number(s.fromPrice) })}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Collapsible pricing guide — matches len.golf styling */}
             <details className="group">
               <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
                 <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 {t('dates.pricingGuideToggle')}
               </summary>
-              <div className="mt-3 overflow-hidden rounded-xl border border-gray-200/60">
-                <table className="w-full text-left">
+              <div className="mt-3 overflow-hidden rounded-xl border border-gray-200">
+                <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="bg-[#1B5E20] text-white">
-                      <th className="px-5 py-3 text-sm font-semibold">{t('dates.pricingTable.durationHeader')}</th>
-                      <th className="px-5 py-3 text-sm font-semibold text-center">{t('dates.pricingTable.premiumHeader')}</th>
-                      <th className="px-5 py-3 text-sm font-semibold text-center">{t('dates.pricingTable.premiumPlusHeader')}</th>
+                    <tr className="text-white" style={{ backgroundColor: '#005a32' }}>
+                      <th className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide sm:px-5">{t('dates.pricingTable.durationHeader')}</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide sm:px-5">{t('dates.pricingTable.premiumHeader')}</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide sm:px-5" style={{ backgroundColor: 'rgba(255,255,255,0.10)' }}>{t('dates.pricingTable.premiumPlusHeader')}</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr className="bg-white">
-                      <td className="px-5 py-4 text-sm font-medium text-gray-900">{t('dates.pricingTable.oneDay')}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>1,200 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>1,800 THB</td>
-                    </tr>
-                    <tr className="bg-gray-50/50">
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.threeDays')}</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay2Get1')}</span>
-                      </td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>2,400 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>3,600 THB</td>
-                    </tr>
-                    <tr className="bg-white">
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.sevenDays')}</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay4Get3')}</span>
-                      </td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>4,800 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>7,200 THB</td>
-                    </tr>
-                    <tr className="bg-gray-50/50">
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.fourteenDays')}</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay7Get7')}</span>
-                      </td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>8,400 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>12,600 THB</td>
-                    </tr>
+                  <tbody className="divide-y divide-gray-100">
+                    {([
+                      { dur: t('dates.pricingTable.oneDay'), premium: '1,200', plus: '1,800', offer: null },
+                      { dur: t('dates.pricingTable.threeDays'), premium: '2,400', plus: '3,600', offer: t('dates.pricingTable.offerPay2Get1') },
+                      { dur: t('dates.pricingTable.sevenDays'), premium: '4,800', plus: '7,200', offer: t('dates.pricingTable.offerPay4Get3') },
+                      { dur: t('dates.pricingTable.fourteenDays'), premium: '8,400', plus: '12,600', offer: t('dates.pricingTable.offerPay7Get7') },
+                    ] as const).map((row, i) => (
+                      <tr key={i} className="bg-white">
+                        <td className="px-3 py-3 align-middle sm:px-5">
+                          <div className="font-medium text-gray-900">{row.dur}</div>
+                          {row.offer && (
+                            <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 sm:text-xs">{row.offer}</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-sm font-bold sm:px-5 sm:text-base" style={{ color: '#007429' }}>{row.premium} THB</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-sm font-bold sm:px-5 sm:text-base" style={{ color: '#005a32', backgroundColor: 'rgba(0,90,50,0.05)' }}>{row.plus} THB</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
-                <p className="text-xs text-gray-400 italic px-5 py-2.5">
+                <p className="border-t border-gray-100 px-3 py-2.5 text-xs italic text-gray-400 sm:px-5">
                   {t('dates.pricingTable.footnote')}
                 </p>
               </div>
             </details>
-
-            {/* FYI strip - shows the sets that can be rented. Availability is checked on Step 2. */}
-            <div>
-              <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
-                <InformationCircleIcon className="w-3.5 h-3.5" />
-                <span>{t('dates.preview.label')}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {PREVIEW_SETS.map((s, idx) => (
-                  <div key={s.name} className="flex flex-col items-center">
-                    <div className="relative h-16 sm:h-20 w-full bg-white rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
-                      <Image
-                        src={s.img}
-                        alt={s.name}
-                        fill
-                        className="object-contain p-1"
-                        priority={idx === 0}
-                        fetchPriority={idx === 0 ? 'high' : 'auto'}
-                        sizes="(max-width: 640px) 33vw, 200px"
-                      />
-                    </div>
-                    <div className="text-center mt-1.5">
-                      <div className="text-[10px] sm:text-[11px] font-medium text-gray-700 leading-tight">{s.name}</div>
-                      <div className="text-[9px] sm:text-[10px] text-gray-400">{t(`dates.preview.${s.metaKey}`)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-gray-400 mt-2 text-center">
-                {t('dates.preview.helper')}
-              </p>
             </div>
 
-            <button
-              onClick={goNext}
-              disabled={!startDate || !endDate || !pickupTime || !returnTime}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
-              {t('dates.continue')}
-            </button>
           </div>
         )}
 

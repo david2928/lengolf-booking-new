@@ -21,9 +21,13 @@ interface LayoutProps {
   children: React.ReactNode;
   hidePromotionBar?: boolean;
   hideNav?: boolean;
+  /** Slimmer header on mobile (used by the course-rental landing). */
+  compactHeader?: boolean;
+  /** Drop the centered/padded <main> wrapper so the page controls full-bleed layout. */
+  flushMain?: boolean;
 }
 
-export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
+export function Layout({ children, hidePromotionBar, hideNav, compactHeader, flushMain }: LayoutProps) {
   const t = useTranslations('bookings.layout');
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
@@ -126,6 +130,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
     <div className="min-h-screen bg-background flex flex-col">
       <Header
         title="LENGOLF"
+        compact={compactHeader}
         badge={{
           text: t('headerBadge'),
           href: "/bookings"
@@ -584,7 +589,7 @@ export function Layout({ children, hidePromotionBar, hideNav }: LayoutProps) {
         </div>
       )}
 
-      <main className="py-8 flex-grow container mx-auto px-4 sm:px-6 lg:px-8">
+      <main className={flushMain ? 'flex-grow' : 'py-8 flex-grow container mx-auto px-4 sm:px-6 lg:px-8'}>
         {children}
       </main>
 
