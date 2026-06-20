@@ -959,22 +959,9 @@ export async function POST(request: NextRequest) {
     });
     logTiming('Data formatting', 'success');
     
-    // Append active auto-apply promo labels to notes for staff notification.
-    //
-    // Gate on the AUTHORITATIVE booking.is_new_customer flag (set by the
-    // check_new_customer BEFORE INSERT trigger via is_phone_new_customer),
-    // NOT the local `isNewCustomer` from findOrCreateCustomer. The two diverge:
-    // findOrCreateCustomer returns is_new_customer=false whenever the phone
-    // already matches a public.customers row, whereas the trigger predicate
-    // checks for prior *confirmed bookings / POS sales*. The customer's
-    // confirmation/success screen renders B1G1 off the trigger flag
-    // (see app/liff/booking/page.tsx — result.booking.is_new_customer), so a
-    // customer with an existing customers row but no booking history would be
-    // shown "Buy 1 Get 1" while staff received no promo label. Using the same
-    // flag here keeps the staff notification consistent with what the customer saw.
-    const isNewCustomerForPromo = booking.is_new_customer === true;
+    // Append active auto-apply promo labels to notes for staff notification
     let notificationNotes = customer_notes || '';
-    if (isNewCustomerForPromo) {
+    if (isNewCustomer) {
       try {
         const { data: autoPromos } = await supabase
           .from('promotions')
