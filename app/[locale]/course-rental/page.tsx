@@ -556,7 +556,7 @@ export default function CourseRentalPage() {
             <div className="md:mx-auto md:max-w-5xl md:px-6 md:pt-6">
               <div className="md:grid md:grid-cols-[1.1fr_1fr] md:overflow-hidden md:rounded-2xl md:border md:border-gray-100 md:shadow-sm">
               {/* Hero panel — mirrors the len.golf course-rental ad page */}
-              <div className="relative min-h-[260px] p-6 pb-16 text-white sm:p-8 sm:pb-20 md:min-h-[460px] md:pb-8" style={{ backgroundColor: '#003d1f' }}>
+              <div className="relative min-h-[260px] p-6 pb-16 text-white sm:p-8 sm:pb-20 md:min-h-[460px] md:pb-8" style={{ backgroundColor: '#00371c' }}>
                 <Image src={HERO_IMAGE} alt="" fill priority sizes="(max-width: 768px) 100vw, 640px" className="object-cover" style={{ objectPosition: 'center 38%' }} />
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(0,55,28,0.88) 0%, rgba(0,82,46,0.62) 48%, rgba(0,82,46,0.42) 100%)' }} />
                 <div className="relative">
@@ -565,7 +565,7 @@ export default function CourseRentalPage() {
                       <span style={{ color: '#f5a623', letterSpacing: '-1px' }}>★★★★★</span>
                       {t('landing.ratingChip', { rating: GOOGLE_RATING, count: format.number(GOOGLE_REVIEW_COUNT) })}
                     </span>
-                    <span className="inline-flex items-center gap-1.5 rounded bg-white/20 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                    <span className="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,45,24,0.55)' }}>
                       <BoltIcon className="h-3.5 w-3.5" style={{ color: '#7CB342' }} />
                       {t('landing.instantChip')}
                     </span>
