@@ -13,16 +13,58 @@ interface HasBookingsSession extends NextAuthSession {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions) as HasBookingsSession | null;
   const phone = request.nextUrl.searchParams.get('phone');
+  const supabase = createAdminClient();
 
-  // Both paths require a session. The phone-based path in particular MUST be
-  // gated: without auth it would be an enumeration oracle on customer
-  // existence (anon could probe arbitrary phone numbers and learn whether
-  // each has any prior bookings or POS sales). All legitimate callers
-  // (LIFF, NextAuth web flow, guest provider) have a session by the time
-  // they reach the cost preview, so requiring one is non-disruptive.
-  if (!session?.user?.id) {
+  // Resolve the authenticated caller. Two supported auth modes:
+  //   - LIFF: the `x-line-user-id` header (the same trust model
+  //     /api/bookings/create uses for the LIFF flow), resolved to a profile
+  //     via provider/provider_id. LIFF users authenticate through the LINE
+  //     SDK and never carry a NextAuth session cookie, so the session-only
+  //     gate this endpoint previously had returned hasBookings:false for
+  //     every LIFF caller — which the cost preview reads as isNewCustomer=true,
+  //     showing B1G1 to returning customers. Accepting the header here is what
+  //     makes the phone-aware check actually work inside LIFF.
+  //   - Web: the NextAuth session cookie.
+  //
+  // Requiring one of these keeps the ?phone= path from being an anonymous
+  // phone-enumeration oracle on customer existence. We resolve the LINE header
+  // to an EXISTING profile rather than trusting the raw header value, so a
+  // scraper can't forge a LINE id to enumerate phones — only app-known LINE
+  // identities (i.e. customers who have used the system before) and logged-in
+  // web sessions can ask.
+  const lineUserId = request.headers.get('x-line-user-id');
+  let profileId: string | null = null;
+  let customerId: string | null = null;
+  let authenticated = false;
+
+  if (lineUserId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, customer_id')
+      .eq('provider', 'line')
+      .eq('provider_id', lineUserId)
+      .maybeSingle();
+    if (profile) {
+      authenticated = true;
+      profileId = profile.id;
+      customerId = profile.customer_id ?? null;
+    }
+  } else {
+    const session = await getServerSession(authOptions) as HasBookingsSession | null;
+    if (session?.user?.id) {
+      authenticated = true;
+      profileId = session.user.id;
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('customer_id')
+        .eq('id', profileId)
+        .maybeSingle();
+      customerId = profileData?.customer_id ?? null;
+    }
+  }
+
+  if (!authenticated) {
     return NextResponse.json({ hasBookings: false });
   }
 
@@ -30,14 +72,6 @@ export async function GET(request: NextRequest) {
   // that the check_new_customer trigger uses to set bookings.is_new_customer
   // at insert time — single source of truth.
   if (phone) {
-    const supabase = createAdminClient();
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('customer_id')
-      .eq('id', session.user.id)
-      .maybeSingle();
-    const customerId = profileData?.customer_id ?? null;
-
     const { data: isNew, error } = await supabase.rpc('is_phone_new_customer', {
       p_phone: phone,
       p_customer_id: customerId,
@@ -56,24 +90,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ hasBookings });
   }
 
-  const profileId = session.user.id;
-  const supabase = createAdminClient();
-
   try {
-    // First get the user's customer_id if they have one
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('customer_id')
-      .eq('id', profileId)
-      .single();
-
-    if (profileError) {
-      console.error('[Has Bookings API] Error fetching profile:', profileError);
-      // On error, assume user has bookings to avoid showing promotion incorrectly
-      return NextResponse.json({ hasBookings: true });
-    }
-
-    const customerId = profileData?.customer_id;
 
     // Check if user has any bookings by user_id OR customer_id
     let query = supabase
