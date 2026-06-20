@@ -47,12 +47,21 @@ export async function GET(request: NextRequest) {
   let authenticated = false;
 
   if (lineUserId) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileLookupError } = await supabase
       .from('profiles')
       .select('id, customer_id')
       .eq('provider', 'line')
       .eq('provider_id', lineUserId)
       .maybeSingle();
+    // A missing profile (first-time LINE account) is data:null/error:null and
+    // is fine — we fall through and let the entered-phone check decide. But a
+    // real DB error must NOT be swallowed: dropping customer_id here would lose
+    // the linkage signal and could show B1G1 to a returning customer. Keep the
+    // safe default (treat as returning) on error, as the no-phone path does.
+    if (profileLookupError) {
+      console.error('[Has Bookings API] LIFF profile lookup error:', profileLookupError);
+      return NextResponse.json({ hasBookings: true });
+    }
     authenticated = true;
     profileId = profile?.id ?? null;
     customerId = profile?.customer_id ?? null;
@@ -61,11 +70,16 @@ export async function GET(request: NextRequest) {
     if (session?.user?.id) {
       authenticated = true;
       profileId = session.user.id;
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileLookupError } = await supabase
         .from('profiles')
         .select('customer_id')
         .eq('id', profileId)
         .maybeSingle();
+      if (profileLookupError) {
+        console.error('[Has Bookings API] Session profile lookup error:', profileLookupError);
+        // Safe default: assume returning so we don't show the promo on a DB error.
+        return NextResponse.json({ hasBookings: true });
+      }
       customerId = profileData?.customer_id ?? null;
     }
   }
