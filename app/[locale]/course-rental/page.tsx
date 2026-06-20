@@ -555,7 +555,7 @@ export default function CourseRentalPage() {
             <div className="overflow-hidden rounded-2xl border border-gray-100 shadow-sm md:grid md:grid-cols-[1.1fr_1fr]">
               {/* Hero panel — mirrors the len.golf course-rental ad page */}
               <div className="relative min-h-[260px] p-6 text-white sm:p-8 md:min-h-[460px]" style={{ backgroundColor: '#003d1f' }}>
-                <Image src={HERO_IMAGE} alt={t('landing.heroHeadline')} fill priority sizes="(max-width: 768px) 100vw, 640px" className="object-cover" style={{ objectPosition: 'center 38%' }} />
+                <Image src={HERO_IMAGE} alt="" fill priority sizes="(max-width: 768px) 100vw, 640px" className="object-cover" style={{ objectPosition: 'center 38%' }} />
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(0,55,28,0.88) 0%, rgba(0,82,46,0.62) 48%, rgba(0,82,46,0.42) 100%)' }} />
                 <div className="relative">
                   <div className="mb-4 flex flex-wrap gap-2">
@@ -568,7 +568,7 @@ export default function CourseRentalPage() {
                       {t('landing.instantChip')}
                     </span>
                   </div>
-                  <h1 className="text-2xl font-extrabold uppercase leading-tight text-white sm:text-3xl lg:text-4xl">{t('landing.heroHeadline')}</h1>
+                  <h2 className="text-2xl font-extrabold uppercase leading-tight text-white sm:text-3xl lg:text-4xl">{t('landing.heroHeadline')}</h2>
                   <p className="mt-2 text-sm italic text-white/90 sm:text-base">{t('landing.heroTagline')}</p>
                   <ul className="mt-5 hidden flex-col gap-2.5 md:flex">
                     {(['sets', 'instant', 'delivery', 'savings'] as const).map((k) => (
