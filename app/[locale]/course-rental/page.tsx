@@ -341,8 +341,8 @@ export default function CourseRentalPage() {
   const isConfirmation = step === 'confirmation';
 
   return (
-    <Layout hidePromotionBar hideNav>
-      <div className={`${step === 'dates' ? 'max-w-5xl' : 'max-w-3xl'} mx-auto px-4 sm:px-6`}>
+    <Layout hidePromotionBar hideNav compactHeader flushMain>
+      <div className={step === 'dates' ? 'w-full' : 'max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8'}>
         {/* Header with back button — hidden on the dates landing (the hero is the header) */}
         {step !== 'dates' && (
         <div className="mb-6 flex items-start">
@@ -551,8 +551,10 @@ export default function CourseRentalPage() {
 
         {/* Step 1: Dates & Duration — premium landing (hero + booking card + showcase) */}
         {step === 'dates' && (
-          <div className="space-y-6">
-            <div className="overflow-hidden rounded-2xl border border-gray-100 shadow-sm md:grid md:grid-cols-[1.1fr_1fr]">
+          <div className="space-y-6 pb-10">
+            {/* Hero + booking card: full-bleed on mobile, centered rounded card on desktop */}
+            <div className="md:mx-auto md:max-w-5xl md:px-6 md:pt-6">
+              <div className="overflow-hidden shadow-sm md:grid md:grid-cols-[1.1fr_1fr] md:rounded-2xl md:border md:border-gray-100">
               {/* Hero panel — mirrors the len.golf course-rental ad page */}
               <div className="relative min-h-[260px] p-6 text-white sm:p-8 md:min-h-[460px]" style={{ backgroundColor: '#003d1f' }}>
                 <Image src={HERO_IMAGE} alt="" fill priority sizes="(max-width: 768px) 100vw, 640px" className="object-cover" style={{ objectPosition: 'center 38%' }} />
@@ -671,7 +673,9 @@ export default function CourseRentalPage() {
                 </div>
               </div>
             </div>
+            </div>
 
+            <div className="mx-auto max-w-5xl space-y-6 px-4 sm:px-6">
             {/* Trust strip (mobile; desktop shows value props in the hero) */}
             <div className="flex justify-between gap-2 rounded-xl px-3 py-2.5 md:hidden" style={{ backgroundColor: '#F6FFFA', border: '1px solid #e4f0e9' }}>
               <span className="text-xs font-semibold" style={{ color: '#005a32' }}>{t('landing.trustPrice')}</span>
@@ -763,6 +767,7 @@ export default function CourseRentalPage() {
                 </p>
               </div>
             </details>
+            </div>
 
           </div>
         )}
