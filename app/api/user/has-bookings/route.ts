@@ -18,21 +18,29 @@ export async function GET(request: NextRequest) {
 
   // Resolve the authenticated caller. Two supported auth modes:
   //   - LIFF: the `x-line-user-id` header (the same trust model
-  //     /api/bookings/create uses for the LIFF flow), resolved to a profile
-  //     via provider/provider_id. LIFF users authenticate through the LINE
-  //     SDK and never carry a NextAuth session cookie, so the session-only
-  //     gate this endpoint previously had returned hasBookings:false for
-  //     every LIFF caller — which the cost preview reads as isNewCustomer=true,
-  //     showing B1G1 to returning customers. Accepting the header here is what
-  //     makes the phone-aware check actually work inside LIFF.
+  //     /api/bookings/create uses for the LIFF flow). LIFF users authenticate
+  //     through the LINE SDK and never carry a NextAuth session cookie, so the
+  //     session-only gate this endpoint previously had returned
+  //     hasBookings:false for every LIFF caller — which the cost preview reads
+  //     as isNewCustomer=true, showing B1G1 to returning customers. Accepting
+  //     the header here is what makes the eligibility check work inside LIFF.
   //   - Web: the NextAuth session cookie.
   //
-  // Requiring one of these keeps the ?phone= path from being an anonymous
-  // phone-enumeration oracle on customer existence. We resolve the LINE header
-  // to an EXISTING profile rather than trusting the raw header value, so a
-  // scraper can't forge a LINE id to enumerate phones — only app-known LINE
-  // identities (i.e. customers who have used the system before) and logged-in
-  // web sessions can ask.
+  // Customer resolution for the phone check below:
+  //   - If the LINE account is already LINKED to a customer (profile has a
+  //     customer_id), we trust that linkage and pass it as the authoritative
+  //     signal — no further checks needed.
+  //   - If it's NOT linked (first-time / fresh LINE account, no profile or no
+  //     customer_id yet), we fall through with customerId=null and let the
+  //     entered-phone check decide, so a returning-by-phone customer on a new
+  //     LINE account is still correctly identified instead of being shown B1G1.
+  //
+  // Security note: trusting the raw x-line-user-id header (rather than
+  // requiring it to resolve to a known profile) means the ?phone= path is again
+  // reachable by anyone who sets the header, i.e. a phone-existence enumeration
+  // oracle. This matches the trust model the rest of the LIFF surface already
+  // uses for the header. If that exposure ever needs closing without losing the
+  // unlinked-phone fallback, verify the LIFF ID/access token server-side here.
   const lineUserId = request.headers.get('x-line-user-id');
   let profileId: string | null = null;
   let customerId: string | null = null;
@@ -45,11 +53,9 @@ export async function GET(request: NextRequest) {
       .eq('provider', 'line')
       .eq('provider_id', lineUserId)
       .maybeSingle();
-    if (profile) {
-      authenticated = true;
-      profileId = profile.id;
-      customerId = profile.customer_id ?? null;
-    }
+    authenticated = true;
+    profileId = profile?.id ?? null;
+    customerId = profile?.customer_id ?? null;
   } else {
     const session = await getServerSession(authOptions) as HasBookingsSession | null;
     if (session?.user?.id) {
@@ -88,6 +94,13 @@ export async function GET(request: NextRequest) {
     // for genuine new customers who haven't typed enough yet.
     const hasBookings = isNew === false;
     return NextResponse.json({ hasBookings });
+  }
+
+  // Legacy profile-based path (non-LIFF web layout's promotion bar, which calls
+  // without ?phone=). Requires a resolved profile id; a LIFF caller without a
+  // profile only reaches here if it omitted the phone, which it never does.
+  if (!profileId) {
+    return NextResponse.json({ hasBookings: false });
   }
 
   try {
