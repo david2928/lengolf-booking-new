@@ -789,7 +789,7 @@
       "valueProps": {
         "sets": "투어 등급 Callaway·Majesty 세트",
         "instant": "카드 결제로 즉시 확정",
-        "delivery": "호텔로 배송 · 왕복 ฿500",
+        "delivery": "호텔·골프장으로 배송 · 왕복 ฿500",
         "savings": "여러 날 패키지로 최대 50% 절약"
       },
       "featuredPrefix": "추천",
@@ -801,7 +801,7 @@
       "instantPayTitle": "카드 결제로 즉시 확정",
       "instantPaySubtitle": "안전한 온라인 결제",
       "trustPrice": "฿1,200/일부터",
-      "trustDelivery": "호텔 배송",
+      "trustDelivery": "호텔·코스 배송",
       "trustSavings": "최대 50% 절약",
       "showcaseHeadingA": "세트",
       "showcaseHeadingB": "선택",

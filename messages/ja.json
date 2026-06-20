@@ -789,7 +789,7 @@
       "valueProps": {
         "sets": "ツアーグレードの Callaway・Majesty セット",
         "instant": "カード決済で即時確定",
-        "delivery": "ホテルへお届け · 往復 ฿500",
+        "delivery": "ホテル・ゴルフ場へお届け · 往復 ฿500",
         "savings": "複数日パッケージで最大50%お得"
       },
       "featuredPrefix": "おすすめ",
@@ -801,7 +801,7 @@
       "instantPayTitle": "カード決済で即時確定",
       "instantPaySubtitle": "安全なオンライン決済",
       "trustPrice": "฿1,200/日〜",
-      "trustDelivery": "ホテル配送",
+      "trustDelivery": "ホテル・コース配送",
       "trustSavings": "最大50%お得",
       "showcaseHeadingA": "セットを",
       "showcaseHeadingB": "選ぶ",

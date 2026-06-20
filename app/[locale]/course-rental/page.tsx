@@ -554,9 +554,9 @@ export default function CourseRentalPage() {
           <div className="space-y-6 pb-10">
             {/* Hero + booking card: full-bleed on mobile, centered rounded card on desktop */}
             <div className="md:mx-auto md:max-w-5xl md:px-6 md:pt-6">
-              <div className="overflow-hidden shadow-sm md:grid md:grid-cols-[1.1fr_1fr] md:rounded-2xl md:border md:border-gray-100">
+              <div className="md:grid md:grid-cols-[1.1fr_1fr] md:overflow-hidden md:rounded-2xl md:border md:border-gray-100 md:shadow-sm">
               {/* Hero panel — mirrors the len.golf course-rental ad page */}
-              <div className="relative min-h-[260px] p-6 text-white sm:p-8 md:min-h-[460px]" style={{ backgroundColor: '#003d1f' }}>
+              <div className="relative min-h-[260px] p-6 pb-16 text-white sm:p-8 sm:pb-20 md:min-h-[460px] md:pb-8" style={{ backgroundColor: '#003d1f' }}>
                 <Image src={HERO_IMAGE} alt="" fill priority sizes="(max-width: 768px) 100vw, 640px" className="object-cover" style={{ objectPosition: 'center 38%' }} />
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(0,55,28,0.88) 0%, rgba(0,82,46,0.62) 48%, rgba(0,82,46,0.42) 100%)' }} />
                 <div className="relative">
@@ -591,8 +591,9 @@ export default function CourseRentalPage() {
                   </div>
                 </div>
               </div>
-              {/* Booking card — the real date picker */}
-              <div className="flex flex-col justify-center bg-white p-6 sm:p-7">
+              {/* Booking card — the real date picker. On mobile it lifts up and
+                  overlaps the hero (floating, inset, rounded); flush in the grid on desktop. */}
+              <div className="relative z-10 -mt-12 mx-4 flex flex-col justify-center rounded-2xl border border-gray-100 bg-white p-5 shadow-lg sm:-mt-16 sm:mx-6 sm:p-7 md:mt-0 md:mx-0 md:rounded-none md:border-0 md:p-6 md:shadow-none">
                 <h2 className="text-lg font-bold text-gray-900">{t('landing.cardHeading')}</h2>
                 <p className="mb-4 mt-0.5 text-sm text-gray-500">{t('landing.cardSubtitle')}</p>
             {/* Date pickers */}
