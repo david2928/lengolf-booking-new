@@ -789,6 +789,7 @@
       "valueProps": {
         "sets": "Tour-grade Callaway & Majesty sets",
         "instant": "Pay by card, confirmed instantly",
+        "noDeposit": "No deposit",
         "delivery": "Delivered to your hotel or course · ฿500 round trip",
         "savings": "Multi-day packages save up to 50%"
       },
@@ -797,10 +798,8 @@
       "cardHeading": "Start your rental",
       "cardSubtitle": "Select your dates and we'll check live availability.",
       "checkAvailability": "Check availability",
-      "microcopy": "Free pickup · Delivery ฿500 · Slot held 30 min",
       "instantPayTitle": "Pay by card, confirmed instantly",
       "instantPaySubtitle": "Secure online checkout",
-      "trustPrice": "From ฿1,200/day",
       "trustDelivery": "Hotel & course delivery",
       "trustSavings": "Save up to 50%",
       "showcaseHeadingA": "Choose",

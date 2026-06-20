@@ -7,7 +7,7 @@ import { useTranslations, useFormatter } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
-import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
@@ -573,7 +573,7 @@ export default function CourseRentalPage() {
                   <h2 className="text-2xl font-extrabold uppercase leading-tight text-white sm:text-3xl lg:text-4xl">{t('landing.heroHeadline')}</h2>
                   <p className="mt-2 text-sm italic text-white/90 sm:text-base">{t('landing.heroTagline')}</p>
                   <ul className="mt-5 hidden flex-col gap-2.5 md:flex">
-                    {(['sets', 'instant', 'delivery', 'savings'] as const).map((k) => (
+                    {(['sets', 'instant', 'noDeposit', 'delivery', 'savings'] as const).map((k) => (
                       <li key={k} className="flex items-center gap-2.5 text-sm text-white/90">
                         <CheckIcon className="h-4 w-4 flex-none" style={{ color: '#9fe1cb' }} />
                         {t(`landing.valueProps.${k}`)}
@@ -664,7 +664,6 @@ export default function CourseRentalPage() {
                 >
                   {t('landing.checkAvailability')}
                 </button>
-                <p className="mt-2 text-center text-xs text-gray-500">{t('landing.microcopy')}</p>
                 <div className="mt-3 flex items-center gap-2.5 rounded-xl border px-3 py-2.5" style={{ backgroundColor: '#F1FAF4', borderColor: '#cfe8da' }}>
                   <BoltIcon className="h-5 w-5 flex-none" style={{ color: '#007429' }} />
                   <div>
@@ -677,11 +676,19 @@ export default function CourseRentalPage() {
             </div>
 
             <div className="mx-auto max-w-5xl space-y-6 px-4 sm:px-6">
-            {/* Trust strip (mobile; desktop shows value props in the hero) */}
-            <div className="flex justify-between gap-2 rounded-xl px-3 py-2.5 md:hidden" style={{ backgroundColor: '#F6FFFA', border: '1px solid #e4f0e9' }}>
-              <span className="text-xs font-semibold" style={{ color: '#005a32' }}>{t('landing.trustPrice')}</span>
-              <span className="text-xs font-semibold" style={{ color: '#005a32' }}>{t('landing.trustDelivery')}</span>
-              <span className="text-xs font-semibold" style={{ color: '#005a32' }}>{t('landing.trustSavings')}</span>
+            {/* Benefits bar (mobile; desktop shows these in the hero value list) */}
+            <div className="grid grid-cols-2 gap-2 md:hidden">
+              {([
+                { Icon: BoltIcon, label: t('landing.instantChip') },
+                { Icon: ShieldCheckIcon, label: t('landing.valueProps.noDeposit') },
+                { Icon: TruckIcon, label: t('landing.trustDelivery') },
+                { Icon: ReceiptPercentIcon, label: t('landing.trustSavings') },
+              ]).map(({ Icon, label }, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: '#F6FFFA', border: '1px solid #e4f0e9' }}>
+                  <Icon className="h-4 w-4 flex-none" style={{ color: '#007429' }} />
+                  <span className="text-xs font-semibold leading-tight" style={{ color: '#005a32' }}>{label}</span>
+                </div>
+              ))}
             </div>
 
             {/* Club showcase (orientation only — availability-filtered selection is the next step) */}
@@ -726,48 +733,36 @@ export default function CourseRentalPage() {
                 <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 {t('dates.pricingGuideToggle')}
               </summary>
-              <div className="mt-3 overflow-hidden rounded-xl border border-gray-200/60">
-                <table className="w-full text-left">
+              <div className="mt-3 overflow-hidden rounded-xl border border-gray-200">
+                <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="bg-[#1B5E20] text-white">
-                      <th className="px-5 py-3 text-sm font-semibold">{t('dates.pricingTable.durationHeader')}</th>
-                      <th className="px-5 py-3 text-sm font-semibold text-center">{t('dates.pricingTable.premiumHeader')}</th>
-                      <th className="px-5 py-3 text-sm font-semibold text-center">{t('dates.pricingTable.premiumPlusHeader')}</th>
+                    <tr className="text-white" style={{ backgroundColor: '#005a32' }}>
+                      <th className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide sm:px-5">{t('dates.pricingTable.durationHeader')}</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide sm:px-5">{t('dates.pricingTable.premiumHeader')}</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide sm:px-5" style={{ backgroundColor: 'rgba(255,255,255,0.10)' }}>{t('dates.pricingTable.premiumPlusHeader')}</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr className="bg-white">
-                      <td className="px-5 py-4 text-sm font-medium text-gray-900">{t('dates.pricingTable.oneDay')}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>1,200 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>1,800 THB</td>
-                    </tr>
-                    <tr className="bg-gray-50/50">
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.threeDays')}</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay2Get1')}</span>
-                      </td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>2,400 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>3,600 THB</td>
-                    </tr>
-                    <tr className="bg-white">
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.sevenDays')}</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay4Get3')}</span>
-                      </td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>4,800 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>7,200 THB</td>
-                    </tr>
-                    <tr className="bg-gray-50/50">
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.fourteenDays')}</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay7Get7')}</span>
-                      </td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>8,400 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>12,600 THB</td>
-                    </tr>
+                  <tbody className="divide-y divide-gray-100">
+                    {([
+                      { dur: t('dates.pricingTable.oneDay'), premium: '1,200', plus: '1,800', offer: null },
+                      { dur: t('dates.pricingTable.threeDays'), premium: '2,400', plus: '3,600', offer: t('dates.pricingTable.offerPay2Get1') },
+                      { dur: t('dates.pricingTable.sevenDays'), premium: '4,800', plus: '7,200', offer: t('dates.pricingTable.offerPay4Get3') },
+                      { dur: t('dates.pricingTable.fourteenDays'), premium: '8,400', plus: '12,600', offer: t('dates.pricingTable.offerPay7Get7') },
+                    ] as const).map((row, i) => (
+                      <tr key={i} className="bg-white">
+                        <td className="px-3 py-3 align-middle sm:px-5">
+                          <div className="font-medium text-gray-900">{row.dur}</div>
+                          {row.offer && (
+                            <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 sm:text-xs">{row.offer}</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-sm font-bold sm:px-5 sm:text-base" style={{ color: '#007429' }}>{row.premium} THB</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-sm font-bold sm:px-5 sm:text-base" style={{ color: '#005a32', backgroundColor: 'rgba(0,90,50,0.05)' }}>{row.plus} THB</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
-                <p className="text-xs text-gray-400 italic px-5 py-2.5">
+                <p className="border-t border-gray-100 px-3 py-2.5 text-xs italic text-gray-400 sm:px-5">
                   {t('dates.pricingTable.footnote')}
                 </p>
               </div>
