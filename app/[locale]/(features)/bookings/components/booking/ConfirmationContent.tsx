@@ -21,6 +21,7 @@ import {
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { isAILabBay } from '@/lib/bayConfig';
 import { calculateCost, type CostBreakdown } from '@/lib/cost-calculator';
+import { clearFlowPersistence } from '@/lib/use-flow-persistence';
 import { ProjectedCostBreakdown } from '@/components/booking/ProjectedCostBreakdown';
 
 // Dynamically import PageTransition with loading fallback
@@ -72,6 +73,12 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
       });
     }
   }, [booking.email, booking.phone_number]);
+
+  // The booking is complete — clear the persisted bay-flow snapshot so returning
+  // to /bookings starts a fresh booking (see useFlowPersistence in useBookingFlow).
+  useEffect(() => {
+    clearFlowPersistence('lengolf.bayBookingFlow');
+  }, []);
 
   const handleMakeAnotherBooking = () => {
     router.push('/bookings');

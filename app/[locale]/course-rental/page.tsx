@@ -12,6 +12,7 @@ import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
+import { useFlowPersistence, clearFlowPersistence } from '@/lib/use-flow-persistence';
 import { pushEventToGtm } from '@/utils/gtm';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
@@ -103,6 +104,40 @@ export default function CourseRentalPage() {
   const [submitting, setSubmitting] = useState(false);
   const [rentalCode, setRentalCode] = useState('');
   const [error, setError] = useState('');
+
+  // Persist the in-progress flow so switching language (which remounts this page
+  // under a different /[locale] route) doesn't bounce the customer back to step 1.
+  // Stops persisting and clears the snapshot once a rental is created or we reach
+  // the confirmation step, so a fresh visit always starts over.
+  useFlowPersistence(
+    'lengolf.courseRentalFlow',
+    { step, selectedSet, startDate, endDate, pickupTime, returnTime, deliveryRequested, deliveryAddress, addOns, paymentMethod, preferredContact, contactName, contactPhone, contactEmail, notes },
+    (s) => {
+      // Clamp the restored step to what the saved data can actually render, so a
+      // partial/corrupt snapshot can't strand the customer on a blank step.
+      {
+        const want = s.step || 'dates';
+        const hasDates = !!(s.startDate && s.endDate && s.pickupTime && s.returnTime);
+        const needsSet = want === 'delivery' || want === 'contact' || want === 'review';
+        setStep(want !== 'dates' && !hasDates ? 'dates' : needsSet && !s.selectedSet ? 'set' : want);
+      }
+      if (s.selectedSet) setSelectedSet(s.selectedSet);
+      if (s.startDate) setStartDate(s.startDate);
+      if (s.endDate) setEndDate(s.endDate);
+      if (s.pickupTime) setPickupTime(s.pickupTime);
+      if (s.returnTime) setReturnTime(s.returnTime);
+      if (typeof s.deliveryRequested === 'boolean') setDeliveryRequested(s.deliveryRequested);
+      if (s.deliveryAddress) setDeliveryAddress(s.deliveryAddress);
+      if (Array.isArray(s.addOns)) setAddOns(s.addOns);
+      if (s.paymentMethod) setPaymentMethod(s.paymentMethod);
+      if (s.preferredContact) setPreferredContact(s.preferredContact);
+      if (s.contactName) setContactName(s.contactName);
+      if (s.contactPhone) setContactPhone(s.contactPhone);
+      if (s.contactEmail) setContactEmail(s.contactEmail);
+      if (s.notes) setNotes(s.notes);
+    },
+    { enabled: step !== 'confirmation' && !rentalCode },
+  );
 
   // Calculate billable duration from pickup/return time, not just calendar dates.
   // Without this, e.g. pickup 09:00 Sun + return 20:00 Mon (35h) would bill as 1d.
@@ -292,6 +327,12 @@ export default function CourseRentalPage() {
       }
 
       setRentalCode(data.rental_code);
+
+      // A rental now exists — clear the persisted flow immediately (imperatively,
+      // not via the effect) so stale state can't restore if the customer returns
+      // after the ShopeePay redirect below, which leaves the tab before React
+      // commits the enabled=false cleanup (would otherwise risk a re-submit).
+      clearFlowPersistence('lengolf.courseRentalFlow');
 
       // Push conversion event to GTM for Google Ads tracking
       pushEventToGtm('course_rental_confirmed', {
