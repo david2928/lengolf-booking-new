@@ -12,6 +12,7 @@ import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
+import { useFlowPersistence } from '@/lib/use-flow-persistence';
 import { pushEventToGtm } from '@/utils/gtm';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
@@ -103,6 +104,33 @@ export default function CourseRentalPage() {
   const [submitting, setSubmitting] = useState(false);
   const [rentalCode, setRentalCode] = useState('');
   const [error, setError] = useState('');
+
+  // Persist the in-progress flow so switching language (which remounts this page
+  // under a different /[locale] route) doesn't bounce the customer back to step 1.
+  // Stops persisting and clears the snapshot once a rental is created or we reach
+  // the confirmation step, so a fresh visit always starts over.
+  useFlowPersistence(
+    'lengolf.courseRentalFlow',
+    { step, selectedSet, startDate, endDate, pickupTime, returnTime, deliveryRequested, deliveryAddress, addOns, paymentMethod, preferredContact, contactName, contactPhone, contactEmail, notes },
+    (s) => {
+      if (s.step) setStep(s.step);
+      if (s.selectedSet) setSelectedSet(s.selectedSet);
+      if (s.startDate) setStartDate(s.startDate);
+      if (s.endDate) setEndDate(s.endDate);
+      if (s.pickupTime) setPickupTime(s.pickupTime);
+      if (s.returnTime) setReturnTime(s.returnTime);
+      if (typeof s.deliveryRequested === 'boolean') setDeliveryRequested(s.deliveryRequested);
+      if (s.deliveryAddress) setDeliveryAddress(s.deliveryAddress);
+      if (Array.isArray(s.addOns)) setAddOns(s.addOns);
+      if (s.paymentMethod) setPaymentMethod(s.paymentMethod);
+      if (s.preferredContact) setPreferredContact(s.preferredContact);
+      if (s.contactName) setContactName(s.contactName);
+      if (s.contactPhone) setContactPhone(s.contactPhone);
+      if (s.contactEmail) setContactEmail(s.contactEmail);
+      if (s.notes) setNotes(s.notes);
+    },
+    { enabled: step !== 'confirmation' && !rentalCode },
+  );
 
   // Calculate billable duration from pickup/return time, not just calendar dates.
   // Without this, e.g. pickup 09:00 Sun + return 20:00 Mon (35h) would bill as 1d.

@@ -5,6 +5,7 @@ import { getPlayFoodPackages, type PlayFoodPackage } from '@/types/play-food-pac
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from './useAvailability';
+import { useFlowPersistence } from '@/lib/use-flow-persistence';
 
 export function useBookingFlow() {
   const { status } = useSession();
@@ -22,6 +23,47 @@ export function useBookingFlow() {
   const [selectedClubSetId, setSelectedClubSetId] = useState<string | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<Record<string, boolean>>({});
   const [selectedSlotData, setSelectedSlotData] = useState<TimeSlot | null>(null);
+
+  const hasDeepLink = !!(
+    searchParams &&
+    (searchParams.get('selectDate') || searchParams.get('package') || searchParams.get('club'))
+  );
+
+  // Persist the in-progress booking so switching language (which remounts the
+  // page under a different /[locale] route) doesn't reset the wizard to step 1.
+  // Cleared on the confirmation page; skips restore when a deep-link / auth-return
+  // param is present so those flows keep ownership of the initial state.
+  useFlowPersistence(
+    'lengolf.bayBookingFlow',
+    {
+      currentStep,
+      selectedDateIso: selectedDate && !Number.isNaN(selectedDate.getTime()) ? selectedDate.toISOString() : null,
+      selectedTime,
+      selectedBayType,
+      maxDuration,
+      selectedPackageId: selectedPackage ? selectedPackage.id : null,
+      selectedClubRental,
+      selectedClubSetId,
+      selectedAddOns,
+      selectedSlotData,
+    },
+    (s) => {
+      if (hasDeepLink) return;
+      if (s.currentStep) setCurrentStep(s.currentStep);
+      if (s.selectedDateIso) setSelectedDate(new Date(s.selectedDateIso));
+      if (s.selectedTime) setSelectedTime(s.selectedTime);
+      if (s.selectedBayType) setSelectedBayType(s.selectedBayType);
+      if (s.maxDuration) setMaxDuration(s.maxDuration);
+      if (s.selectedPackageId) {
+        const pkg = getPlayFoodPackages().find((p) => p.id === s.selectedPackageId);
+        if (pkg) setSelectedPackage(pkg);
+      }
+      if (s.selectedClubRental) setSelectedClubRental(s.selectedClubRental);
+      if (s.selectedClubSetId) setSelectedClubSetId(s.selectedClubSetId);
+      if (s.selectedAddOns) setSelectedAddOns(s.selectedAddOns);
+      if (s.selectedSlotData) setSelectedSlotData(s.selectedSlotData);
+    },
+  );
 
   useEffect(() => {
     if (searchParams && !isAutoSelecting) {
