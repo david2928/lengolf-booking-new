@@ -7,7 +7,7 @@ import { useTranslations, useFormatter } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
-import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon, UserGroupIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
@@ -784,6 +784,49 @@ export default function CourseRentalPage() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Group / multi-set CTA — the self-serve flow books ONE set per
+                reservation; larger parties or several sets are quoted manually
+                by staff (custom quotation + group discount). */}
+            <div
+              className="rounded-2xl p-5 sm:p-6"
+              style={{ backgroundColor: '#F6FFFA', border: '1px solid #cfe8da' }}
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full" style={{ backgroundColor: '#e4f0e9' }}>
+                    <UserGroupIcon className="h-5 w-5" style={{ color: '#007429' }} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[#c8a96e]">{t('landing.group.eyebrow')}</p>
+                    <h3 className="text-base font-bold text-gray-900 sm:text-lg">{t('landing.group.heading')}</h3>
+                    <p className="mt-1 max-w-md text-sm text-gray-600">{t('landing.group.body')}</p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-none sm:flex-row">
+                  <a
+                    href="https://lin.ee/uxQpIXn"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#005a32] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#007429]"
+                  >
+                    <FaLine className="text-lg" />
+                    {t('landing.group.lineCta')}
+                  </a>
+                  <a
+                    href="mailto:info@len.golf"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-[#cfe8da] bg-white px-4 py-2.5 text-sm font-semibold text-[#005a32] transition-colors hover:bg-[#f0f9f4]"
+                  >
+                    <EnvelopeIcon className="h-4 w-4" />
+                    {t('landing.group.emailCta')}
+                  </a>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-gray-400 sm:mt-4">
+                {t('landing.group.phonePrefix')}{' '}
+                <a href="tel:+66966682335" className="font-medium text-[#007429] underline underline-offset-2">096-668-2335</a>
+              </p>
             </div>
 
             {/* Collapsible pricing guide — matches len.golf styling */}

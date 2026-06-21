@@ -804,7 +804,15 @@
       "trustSavings": "Save up to 50%",
       "showcaseHeadingA": "Choose",
       "showcaseHeadingB": "your set",
-      "fromPerDay": "from ฿{price}/day"
+      "fromPerDay": "from ฿{price}/day",
+      "group": {
+        "eyebrow": "Group rentals",
+        "heading": "Renting for a group?",
+        "body": "Multiple sets or a larger party? We'll put together a custom quote with a group discount.",
+        "lineCta": "LINE @lengolf",
+        "emailCta": "Email us",
+        "phonePrefix": "Prefer to call?"
+      }
     },
     "page": {
       "backAriaLabel": "Go back",

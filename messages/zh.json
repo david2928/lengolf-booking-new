@@ -804,7 +804,15 @@
       "trustSavings": "最高省 50%",
       "showcaseHeadingA": "选择",
       "showcaseHeadingB": "您的套杆",
-      "fromPerDay": "฿{price}/天起"
+      "fromPerDay": "฿{price}/天起",
+      "group": {
+        "eyebrow": "团体租赁",
+        "heading": "团体租赁？",
+        "body": "需要多套球杆或人数较多？我们可为您提供含团体折扣的专属报价。",
+        "lineCta": "LINE @lengolf",
+        "emailCta": "邮件联系",
+        "phonePrefix": "想要来电咨询？"
+      }
     },
     "page": {
       "backAriaLabel": "返回",
