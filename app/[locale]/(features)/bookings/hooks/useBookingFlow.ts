@@ -49,7 +49,12 @@ export function useBookingFlow() {
     },
     (s) => {
       if (hasDeepLink) return;
-      if (s.currentStep) setCurrentStep(s.currentStep);
+      // Clamp the restored step to what the saved data supports (avoids a blank
+      // step-2/3 render if the snapshot is partial/corrupt).
+      const wantStep = s.currentStep ?? 1;
+      const canStep2 = !!s.selectedDateIso;
+      const canStep3 = !!(s.selectedDateIso && s.selectedTime);
+      setCurrentStep(wantStep >= 3 && canStep3 ? 3 : wantStep >= 2 && canStep2 ? 2 : 1);
       if (s.selectedDateIso) setSelectedDate(new Date(s.selectedDateIso));
       if (s.selectedTime) setSelectedTime(s.selectedTime);
       if (s.selectedBayType) setSelectedBayType(s.selectedBayType);

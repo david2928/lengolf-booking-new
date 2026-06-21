@@ -12,7 +12,7 @@ import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
-import { useFlowPersistence } from '@/lib/use-flow-persistence';
+import { useFlowPersistence, clearFlowPersistence } from '@/lib/use-flow-persistence';
 import { pushEventToGtm } from '@/utils/gtm';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
@@ -113,7 +113,14 @@ export default function CourseRentalPage() {
     'lengolf.courseRentalFlow',
     { step, selectedSet, startDate, endDate, pickupTime, returnTime, deliveryRequested, deliveryAddress, addOns, paymentMethod, preferredContact, contactName, contactPhone, contactEmail, notes },
     (s) => {
-      if (s.step) setStep(s.step);
+      // Clamp the restored step to what the saved data can actually render, so a
+      // partial/corrupt snapshot can't strand the customer on a blank step.
+      {
+        const want = s.step || 'dates';
+        const hasDates = !!(s.startDate && s.endDate && s.pickupTime && s.returnTime);
+        const needsSet = want === 'delivery' || want === 'contact' || want === 'review';
+        setStep(want !== 'dates' && !hasDates ? 'dates' : needsSet && !s.selectedSet ? 'set' : want);
+      }
       if (s.selectedSet) setSelectedSet(s.selectedSet);
       if (s.startDate) setStartDate(s.startDate);
       if (s.endDate) setEndDate(s.endDate);
@@ -320,6 +327,12 @@ export default function CourseRentalPage() {
       }
 
       setRentalCode(data.rental_code);
+
+      // A rental now exists — clear the persisted flow immediately (imperatively,
+      // not via the effect) so stale state can't restore if the customer returns
+      // after the ShopeePay redirect below, which leaves the tab before React
+      // commits the enabled=false cleanup (would otherwise risk a re-submit).
+      clearFlowPersistence('lengolf.courseRentalFlow');
 
       // Push conversion event to GTM for Google Ads tracking
       pushEventToGtm('course_rental_confirmed', {
