@@ -804,7 +804,15 @@
       "trustSavings": "최대 50% 절약",
       "showcaseHeadingA": "세트",
       "showcaseHeadingB": "선택",
-      "fromPerDay": "฿{price}/일부터"
+      "fromPerDay": "฿{price}/일부터",
+      "group": {
+        "eyebrow": "단체 대여",
+        "heading": "단체로 대여하시나요?",
+        "body": "여러 세트나 대규모 일행이라면 단체 할인이 포함된 맞춤 견적을 준비해 드립니다.",
+        "lineCta": "LINE @lengolf",
+        "emailCta": "이메일 문의",
+        "phonePrefix": "전화가 편하신가요?"
+      }
     },
     "page": {
       "backAriaLabel": "뒤로",
