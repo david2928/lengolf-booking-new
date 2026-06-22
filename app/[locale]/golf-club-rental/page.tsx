@@ -14,7 +14,6 @@ const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object
 export default function GolfClubRentalPage() {
   const t = useTranslations('clubRental');
   const [carouselIndex, setCarouselIndex] = useState<number | null>(null);
-  const [premiumCarouselIndex, setPremiumCarouselIndex] = useState<number | null>(null);
   usePricingLoader();
   const PREMIUM_CLUB_PRICING = getPremiumClubPricing();
   const PREMIUM_PLUS_CLUB_PRICING = getPremiumPlusClubPricing();
@@ -28,11 +27,6 @@ export default function GolfClubRentalPage() {
 
   const ALL_PARADYM_IMAGES = Array.from({ length: 18 }, (_, i) => ({
     src: `${STORAGE_BASE}/clubs/premium-plus/${i + 1}.png`,
-    alt: t('hero.galleryPhotoAlt', { index: i + 1 }),
-  }));
-
-  const ALL_PREMIUM_IMAGES = Array.from({ length: 16 }, (_, i) => ({
-    src: `${STORAGE_BASE}/clubs/premium/${i + 1}.png`,
     alt: t('hero.galleryPhotoAlt', { index: i + 1 }),
   }));
 
@@ -204,70 +198,6 @@ export default function GolfClubRentalPage() {
           );
         })()}
 
-        {/* Premium Lightbox Modal */}
-        {premiumCarouselIndex !== null && (() => {
-          const current = ALL_PREMIUM_IMAGES[premiumCarouselIndex];
-          return (
-          <div
-            className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center"
-            onClick={() => setPremiumCarouselIndex(null)}
-          >
-            <button
-              onClick={() => setPremiumCarouselIndex(null)}
-              className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 z-10"
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-xs sm:text-sm font-medium">
-              {premiumCarouselIndex + 1} / {ALL_PREMIUM_IMAGES.length}
-            </div>
-            <div className="flex-1 flex items-center justify-center w-full px-12 sm:px-20" onClick={(e) => e.stopPropagation()}>
-              <Image
-                src={current.src}
-                alt={current.alt}
-                width={800}
-                height={600}
-                className="max-w-full max-h-[70vh] object-contain"
-                unoptimized
-              />
-            </div>
-            <div className="text-white/80 text-xs sm:text-sm mb-2">{current.alt}</div>
-            <button
-              onClick={(e) => { e.stopPropagation(); setPremiumCarouselIndex((premiumCarouselIndex - 1 + ALL_PREMIUM_IMAGES.length) % ALL_PREMIUM_IMAGES.length); }}
-              className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 sm:p-3"
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setPremiumCarouselIndex((premiumCarouselIndex + 1) % ALL_PREMIUM_IMAGES.length); }}
-              className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 sm:p-3"
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            <div className="flex gap-1.5 pb-4 pt-2 overflow-x-auto max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
-              {ALL_PREMIUM_IMAGES.map((img, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setPremiumCarouselIndex(i)}
-                  className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded overflow-hidden border-2 transition-colors ${
-                    i === premiumCarouselIndex ? 'border-white' : 'border-transparent opacity-50 hover:opacity-80'
-                  }`}
-                >
-                  <Image src={img.src} alt={img.alt} width={48} height={48} className="w-full h-full object-contain bg-white/10 p-0.5" />
-                </button>
-              ))}
-            </div>
-          </div>
-          );
-        })()}
-
         {/* Club Upgrade Pricing Table */}
         <div className="mb-8 sm:mb-12">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
@@ -358,27 +288,6 @@ export default function GolfClubRentalPage() {
               <p className="text-base sm:text-lg font-semibold text-gray-700 mb-3 sm:mb-4">
                 {t('sets.premiumSubtitle')}
               </p>
-
-              {/* Warbird images - 3-up grid, opens full carousel */}
-              <div className="grid grid-cols-3 gap-1.5 mb-3 sm:mb-4">
-                {[3, 2, 4].map((imgNum) => (
-                  <button
-                    key={imgNum}
-                    type="button"
-                    onClick={() => setPremiumCarouselIndex(imgNum - 1)}
-                    className="relative aspect-square rounded-md overflow-hidden bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer"
-                  >
-                    <Image
-                      src={`${STORAGE_BASE}/clubs/premium/${imgNum}.png`}
-                      alt={t('sets.premiumMensTitle')}
-                      fill
-                      className="object-contain p-1"
-                      loading="lazy"
-                      sizes="100px"
-                    />
-                  </button>
-                ))}
-              </div>
 
               <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6 flex-1">
                 <div className="border-l-4 border-green-500 pl-3 sm:pl-4">
