@@ -29,7 +29,14 @@ const SET_IMAGES: Record<string, { src: string; alt: string }[]> = {
     { src: `${STORAGE_BASE}/clubs/premium-plus/1.png`, alt: 'Callaway golf bag' },
   ],
   'premium_mens': [
-    { src: `${STORAGE_BASE}/clubs/warbird/warbird-full-set.webp`, alt: 'Callaway Warbird full set' },
+    { src: `${STORAGE_BASE}/clubs/premium/3.png`, alt: 'Callaway Warbird full set with headcovers' },
+    { src: `${STORAGE_BASE}/clubs/premium/2.png`, alt: 'Callaway Warbird full set with clubs' },
+    { src: `${STORAGE_BASE}/clubs/premium/4.png`, alt: 'Callaway Warbird driver 10.5°' },
+    { src: `${STORAGE_BASE}/clubs/premium/9.png`, alt: 'Callaway Warbird 5W fairway wood' },
+    { src: `${STORAGE_BASE}/clubs/premium/11.png`, alt: 'Callaway Warbird irons set' },
+    { src: `${STORAGE_BASE}/clubs/premium/13.png`, alt: 'Odyssey putter' },
+    { src: `${STORAGE_BASE}/clubs/premium/7.png`, alt: 'Callaway Warbird S-flex shaft' },
+    { src: `${STORAGE_BASE}/clubs/premium/1.png`, alt: 'Callaway Warbird golf bag' },
   ],
   'premium_womens': [
     { src: `${STORAGE_BASE}/clubs/premium-womens/majesty-shuttle-full-set.jpg`, alt: 'Majesty Shuttle full set' },
