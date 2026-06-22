@@ -359,9 +359,10 @@ export default function GolfClubRentalPage() {
                 {t('sets.premiumSubtitle')}
               </p>
 
-              {/* Warbird images - 3-up grid, opens full carousel */}
+              {/* Warbird images - 3-up grid, opens full carousel.
+                  Mirrors the Paradym grid angles: full set w/ headcovers, single iron, bag. */}
               <div className="grid grid-cols-3 gap-1.5 mb-3 sm:mb-4">
-                {[3, 2, 4].map((imgNum) => (
+                {[3, 10, 1].map((imgNum) => (
                   <button
                     key={imgNum}
                     type="button"
