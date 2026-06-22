@@ -29,8 +29,17 @@ const SET_IMAGES: Record<string, { src: string; alt: string }[]> = {
     { src: `${STORAGE_BASE}/clubs/premium-plus/12.png`, alt: 'Ventus TR shaft' },
     { src: `${STORAGE_BASE}/clubs/premium-plus/1.png`, alt: 'Callaway golf bag' },
   ],
+  // Mirrors the Paradym (premium-plus_mens) angle sequence: full set → driver →
+  // irons → fairway wood → putter → shaft → bag. Warbird has no wedges, so the
+  // Paradym wedge slot is omitted rather than substituted.
   'premium_mens': [
-    { src: `${STORAGE_BASE}/clubs/warbird/warbird-full-set.webp`, alt: 'Callaway Warbird full set' },
+    { src: `${STORAGE_BASE}/clubs/premium/2.png`, alt: 'Callaway Warbird full set in golf bag' },
+    { src: `${STORAGE_BASE}/clubs/premium/4.png`, alt: 'Callaway Warbird driver 10.5°' },
+    { src: `${STORAGE_BASE}/clubs/premium/11.png`, alt: 'Callaway Warbird irons set' },
+    { src: `${STORAGE_BASE}/clubs/premium/9.png`, alt: 'Callaway Warbird 5W fairway wood' },
+    { src: `${STORAGE_BASE}/clubs/premium/13.png`, alt: 'Odyssey putter' },
+    { src: `${STORAGE_BASE}/clubs/premium/7.png`, alt: 'Callaway Warbird S-flex shaft' },
+    { src: `${STORAGE_BASE}/clubs/premium/1.png`, alt: 'Callaway Warbird golf bag' },
   ],
   'premium_womens': [
     { src: `${STORAGE_BASE}/clubs/premium-womens/majesty-shuttle-full-set.jpg`, alt: 'Majesty Shuttle full set' },
