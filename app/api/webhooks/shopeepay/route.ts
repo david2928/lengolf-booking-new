@@ -162,10 +162,14 @@ export async function POST(request: NextRequest) {
     if (txnRow.status === 'success' && txnRow.club_rental_id) {
       const { data: rentalCheck } = await supabase
         .from('club_rentals')
-        .select('payment_status')
+        .select('payment_status, status')
         .eq('id', txnRow.club_rental_id)
         .maybeSingle();
-      if (rentalCheck && rentalCheck.payment_status === 'paid') {
+      // Short-circuit only when BOTH the payment and lifecycle status are
+      // consistent. If payment_status='paid' but status='reserved', a prior
+      // delivery committed the payment_status update but was torn down before
+      // the status advance — fall through so the retry repairs it.
+      if (rentalCheck && rentalCheck.payment_status === 'paid' && rentalCheck.status !== 'reserved') {
         return NextResponse.json(ACK_OK);
       }
       // Rental is inconsistent — fall through to re-run the rental
@@ -173,8 +177,8 @@ export async function POST(request: NextRequest) {
       // idempotent against an already-success txn row.
       console.warn(
         `[ShopeePay/webhook] idempotency replay detected for ${referenceId} ` +
-          `but rental payment_status is ${rentalCheck?.payment_status ?? 'unknown'} — ` +
-          `re-running rental update + side-effects`
+          `but rental payment_status=${rentalCheck?.payment_status ?? 'unknown'} ` +
+          `status=${rentalCheck?.status ?? 'unknown'} — re-running rental update + side-effects`
       );
     } else {
       // Non-success terminal state — safe to short-circuit.
@@ -293,6 +297,19 @@ export async function POST(request: NextRequest) {
     // confirmation. Return non-zero so ShopeePay retries and gives us
     // another shot.
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+  }
+
+  // Advance lifecycle status reserved → confirmed on payment. Only runs
+  // when the row is still 'reserved'; already-confirmed/checked-out rentals
+  // are left untouched. A separate update is the simplest way to make this
+  // conditional without a raw SQL CASE expression.
+  const { error: statusAdvanceErr } = await supabase
+    .from('club_rentals')
+    .update({ status: 'confirmed' })
+    .eq('id', txnRow.club_rental_id)
+    .eq('status', 'reserved');
+  if (statusAdvanceErr) {
+    console.error('[ShopeePay/webhook] status advance failed:', statusAdvanceErr);
   }
 
   // Customer confirmation email — uses the shared dedup helper so the

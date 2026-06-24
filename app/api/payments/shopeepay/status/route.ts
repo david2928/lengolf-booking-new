@@ -117,6 +117,15 @@ export async function GET(request: NextRequest) {
           .from('club_rentals')
           .update({ payment_status: 'paid', expires_at: null })
           .eq('id', rental.id);
+        // Advance lifecycle status reserved → confirmed on payment.
+        const { error: statusAdvanceErr } = await supabase
+          .from('club_rentals')
+          .update({ status: 'confirmed' })
+          .eq('id', rental.id)
+          .eq('status', 'reserved');
+        if (statusAdvanceErr) {
+          console.error('[ShopeePay/status] status advance failed:', statusAdvanceErr);
+        }
 
         status = 'success';
         transactionSn = probe.transaction_sn ?? transactionSn;
