@@ -42,6 +42,40 @@ export async function loadRentalOrderSummary(
     return null;
   }
 
+  // Order-level: when the line belongs to an order, the receipt reflects the
+  // ORDER (joined set names + header rollup totals), not just this bearer line.
+  if (rental.order_id) {
+    const { data: order } = await supabase
+      .from('club_rental_orders')
+      .select('rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address')
+      .eq('id', rental.order_id)
+      .maybeSingle();
+    const { data: lineRows } = await supabase
+      .from('club_rentals')
+      .select('rental_club_sets ( name )')
+      .eq('order_id', rental.order_id);
+    if (order && lineRows && lineRows.length > 0) {
+      const names = lineRows
+        .map((r) => (r.rental_club_sets as { name?: string } | null)?.name)
+        .filter(Boolean)
+        .join(', ');
+      return {
+        rental_code: rental.rental_code,
+        club_set_name: names || null,
+        start_date: rental.start_date,
+        end_date: rental.end_date,
+        duration_days: rental.duration_days || 1,
+        delivery_requested: !!order.delivery_requested,
+        delivery_address: order.delivery_address ?? null,
+        rental_price: Number(order.rental_subtotal),
+        delivery_fee: Number(order.delivery_fee || 0),
+        total_price: Number(order.total_price),
+        currency: 'THB',
+      };
+    }
+    // Order load failed — fall through to the single-line summary.
+  }
+
   let clubSetName: string | null = null;
   if (rental.rental_club_set_id) {
     const { data: clubSet } = await supabase

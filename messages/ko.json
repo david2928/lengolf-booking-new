@@ -873,7 +873,12 @@
       "savings": "일일 요금 대비 ฿{amount} 절약",
       "selected": "선택됨",
       "fullDetailsLink": "len.golf에서 클럽 상세 정보 보기",
-      "continue": "계속"
+      "continue": "계속",
+      "add": "추가",
+      "decreaseQty": "하나 줄이기",
+      "increaseQty": "하나 추가",
+      "availableCount": "{count}개 남음",
+      "unitsSelected": "{count, plural, other {#개 세트 선택됨}}"
     },
     "delivery": {
       "methodLabel": "클럽을 어떻게 받으시겠습니까?",
@@ -892,7 +897,8 @@
       "paymentLinkTitle": "온라인 결제",
       "paymentLinkHint": "신용/체크카드 또는 ShopeePay 월렛으로 지금 결제",
       "addressRequiredHint": "계속하려면 위에 배송 주소를 입력해 주세요",
-      "continue": "계속"
+      "continue": "계속",
+      "deliveryFeeNote": "1~2세트는 ฿500, 세트당 ฿250 추가"
     },
     "contact": {
       "nameLabel": "성명",
@@ -940,7 +946,8 @@
       "submitting": "전송 중...",
       "confirmReservation": "예약 확정",
       "payWithShopeepay": "ShopeePay로 ฿{total} 결제",
-      "securedByShopeepay": "ShopeePay 보안 결제"
+      "securedByShopeepay": "ShopeePay 보안 결제",
+      "setQty": "× {count}"
     },
     "confirmation": {
       "rentalCodeLabel": "렌탈 코드",

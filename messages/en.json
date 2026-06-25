@@ -873,7 +873,12 @@
       "savings": "Save ฿{amount} vs daily rate",
       "selected": "Selected",
       "fullDetailsLink": "View full club details on len.golf",
-      "continue": "Continue"
+      "continue": "Continue",
+      "add": "Add",
+      "decreaseQty": "Remove one",
+      "increaseQty": "Add one",
+      "availableCount": "{count} available",
+      "unitsSelected": "{count, plural, =1 {1 set selected} other {# sets selected}}"
     },
     "delivery": {
       "methodLabel": "How would you like to get the clubs?",
@@ -892,7 +897,8 @@
       "paymentLinkTitle": "Pay Online",
       "paymentLinkHint": "Pay now with credit/debit card or ShopeePay wallet",
       "addressRequiredHint": "Please enter a delivery address above to continue",
-      "continue": "Continue"
+      "continue": "Continue",
+      "deliveryFeeNote": "฿500 covers 1–2 sets; +฿250 per additional set."
     },
     "contact": {
       "nameLabel": "Full Name",
@@ -940,7 +946,8 @@
       "submitting": "Submitting...",
       "confirmReservation": "Confirm Reservation",
       "payWithShopeepay": "Pay ฿{total} with ShopeePay",
-      "securedByShopeepay": "Secured by ShopeePay"
+      "securedByShopeepay": "Secured by ShopeePay",
+      "setQty": "× {count}"
     },
     "confirmation": {
       "rentalCodeLabel": "Your rental code",

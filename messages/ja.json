@@ -873,7 +873,12 @@
       "savings": "通常料金より ฿{amount} お得",
       "selected": "選択中",
       "fullDetailsLink": "len.golfでクラブの詳細を見る",
-      "continue": "次へ"
+      "continue": "次へ",
+      "add": "追加",
+      "decreaseQty": "1つ減らす",
+      "increaseQty": "1つ増やす",
+      "availableCount": "残り{count}セット",
+      "unitsSelected": "{count, plural, other {#セット選択中}}"
     },
     "delivery": {
       "methodLabel": "クラブの受け取り方法は？",
@@ -892,7 +897,8 @@
       "paymentLinkTitle": "オンライン決済",
       "paymentLinkHint": "クレジット/デビットカード、または ShopeePay ウォレットで今すぐお支払い",
       "addressRequiredHint": "続行するには配送先住所をご入力ください",
-      "continue": "次へ"
+      "continue": "次へ",
+      "deliveryFeeNote": "1〜2セットは฿500、追加1セットごとに฿250"
     },
     "contact": {
       "nameLabel": "お名前（フルネーム）",
@@ -940,7 +946,8 @@
       "submitting": "送信中...",
       "confirmReservation": "予約を確定する",
       "payWithShopeepay": "ShopeePay で ฿{total} をお支払い",
-      "securedByShopeepay": "ShopeePay で安全にお支払い"
+      "securedByShopeepay": "ShopeePay で安全にお支払い",
+      "setQty": "× {count}"
     },
     "confirmation": {
       "rentalCodeLabel": "レンタルコード",

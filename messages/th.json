@@ -873,7 +873,12 @@
       "savings": "ประหยัด ฿{amount} จากราคารายวัน",
       "selected": "เลือกแล้ว",
       "fullDetailsLink": "ดูรายละเอียดไม้กอล์ฟทั้งหมดบน len.golf",
-      "continue": "ดำเนินการต่อ"
+      "continue": "ดำเนินการต่อ",
+      "add": "เพิ่ม",
+      "decreaseQty": "ลดจำนวน",
+      "increaseQty": "เพิ่มจำนวน",
+      "availableCount": "มี {count} ชุด",
+      "unitsSelected": "{count, plural, other {เลือกแล้ว # ชุด}}"
     },
     "delivery": {
       "methodLabel": "คุณต้องการรับไม้กอล์ฟอย่างไร?",
@@ -892,7 +897,8 @@
       "paymentLinkTitle": "ชำระเงินออนไลน์",
       "paymentLinkHint": "ชำระตอนนี้ด้วยบัตรเครดิต/เดบิต หรือกระเป๋าเงิน ShopeePay",
       "addressRequiredHint": "กรุณากรอกที่อยู่จัดส่งด้านบนเพื่อดำเนินการต่อ",
-      "continue": "ดำเนินการต่อ"
+      "continue": "ดำเนินการต่อ",
+      "deliveryFeeNote": "฿500 สำหรับ 1–2 ชุด เพิ่มชุดละ ฿250"
     },
     "contact": {
       "nameLabel": "ชื่อ-นามสกุล",
@@ -940,7 +946,8 @@
       "submitting": "กำลังส่ง...",
       "confirmReservation": "ยืนยันการจอง",
       "payWithShopeepay": "ชำระ ฿{total} ผ่าน ShopeePay",
-      "securedByShopeepay": "ปลอดภัยด้วย ShopeePay"
+      "securedByShopeepay": "ปลอดภัยด้วย ShopeePay",
+      "setQty": "× {count}"
     },
     "confirmation": {
       "rentalCodeLabel": "รหัสการเช่าของคุณ",
