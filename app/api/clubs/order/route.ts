@@ -7,7 +7,7 @@ import {
   composeRentalLineMessage,
   composeOrderCreatedLineMessage,
 } from '@/lib/club-rental/lineMessage';
-import { allocateOrderMoney, courseDeliveryFee } from '@/lib/club-rental/order-pricing';
+import { allocateOrderMoney, courseDeliveryFee, groupAddOns } from '@/lib/club-rental/order-pricing';
 import { resolveCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
 import { logOrderEvent } from '@/lib/club-rental/order-events';
 
@@ -198,6 +198,22 @@ export async function POST(request: NextRequest) {
     const validatedAddOns: ClubRentalAddOn[] = add_ons
       .filter((a) => a.key !== 'delivery')
       .map((a) => ({ key: a.key, label: trustedAddons[a.key].label, price: trustedAddons[a.key].price }));
+
+    // Cap each add-on quantity at the number of sets (one per player). The
+    // frontend enforces this; re-check server-side (defense in depth).
+    const addOnCountByKey = new Map<string, number>();
+    for (const a of validatedAddOns) {
+      addOnCountByKey.set(a.key, (addOnCountByKey.get(a.key) ?? 0) + 1);
+    }
+    for (const count of addOnCountByKey.values()) {
+      if (count > lines.length) {
+        return NextResponse.json(
+          { error: 'Add-on quantity cannot exceed the number of sets' },
+          { status: 400 },
+        );
+      }
+    }
+
     const add_ons_total = validatedAddOns.reduce((s, a) => s + a.price, 0);
 
     // Tiered delivery fee by set count (one trip for the whole order).
@@ -450,7 +466,10 @@ export async function POST(request: NextRequest) {
           ]
             .filter(Boolean)
             .join(', ') || undefined,
-          addOns: validatedAddOns.map((a) => ({ label: a.label, price: a.price })),
+          addOns: groupAddOns(validatedAddOns).map((g) => ({
+            label: g.quantity > 1 ? `${g.label} ×${g.quantity}` : g.label,
+            price: g.price,
+          })),
           rentalPrice: rollup.rentalSubtotal,
           deliveryFee: rollup.deliveryFee,
           totalPrice: rollup.totalPrice,

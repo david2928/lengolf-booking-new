@@ -9,7 +9,7 @@ import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
 import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon, UserGroupIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
-import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
+import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
 import { useFlowPersistence, clearFlowPersistence } from '@/lib/use-flow-persistence';
@@ -103,7 +103,10 @@ export default function CourseRentalPage() {
   const [returnTime, setReturnTime] = useState('');
   const [deliveryRequested, setDeliveryRequested] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [addOns, setAddOns] = useState<ClubRentalAddOn[]>([]);
+  // Add-on quantity per item id (gloves / balls). Order-level; each capped at the
+  // number of sets (one per player). Stored expanded (repeated) so add_ons_total
+  // and the forms reader stay correct.
+  const [addOnQty, setAddOnQty] = useState<Record<string, number>>({});
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
   const [preferredContact, setPreferredContact] = useState<'line' | 'email' | 'whatsapp'>('line');
   const [contactName, setContactName] = useState('');
@@ -123,7 +126,7 @@ export default function CourseRentalPage() {
   // the confirmation step, so a fresh visit always starts over.
   useFlowPersistence(
     'lengolf.courseRentalFlow',
-    { step, selectedQty, startDate, endDate, pickupTime, returnTime, deliveryRequested, deliveryAddress, addOns, paymentMethod, preferredContact, contactName, contactPhone, contactEmail, notes },
+    { step, selectedQty, startDate, endDate, pickupTime, returnTime, deliveryRequested, deliveryAddress, addOnQty, paymentMethod, preferredContact, contactName, contactPhone, contactEmail, notes },
     (s) => {
       // Clamp the restored step to what the saved data can actually render, so a
       // partial/corrupt snapshot can't strand the customer on a blank step.
@@ -141,7 +144,7 @@ export default function CourseRentalPage() {
       if (s.returnTime) setReturnTime(s.returnTime);
       if (typeof s.deliveryRequested === 'boolean') setDeliveryRequested(s.deliveryRequested);
       if (s.deliveryAddress) setDeliveryAddress(s.deliveryAddress);
-      if (Array.isArray(s.addOns)) setAddOns(s.addOns);
+      if (s.addOnQty) setAddOnQty(s.addOnQty);
       if (s.paymentMethod) setPaymentMethod(s.paymentMethod);
       if (s.preferredContact) setPreferredContact(s.preferredContact);
       if (s.contactName) setContactName(s.contactName);
@@ -287,7 +290,12 @@ export default function CourseRentalPage() {
           0,
         )
       : 0;
-  const addOnsTotal = addOns.reduce((sum, a) => sum + a.price, 0);
+  // Add-ons (gloves / balls): order-level, charged price × quantity.
+  const addOnItems = GEAR_UP_ITEMS.filter((item) => item.id !== 'delivery');
+  const addOnsTotal = addOnItems.reduce(
+    (sum, item) => sum + item.price * (addOnQty[item.id] ?? 0),
+    0,
+  );
   const deliveryFee = deliveryRequested ? courseDeliveryFee(totalUnits) : 0;
   const totalPrice = rentalPrice + addOnsTotal + deliveryFee;
 
@@ -302,13 +310,33 @@ export default function CourseRentalPage() {
     });
   };
 
-  const toggleAddOn = (key: string, label: string, price: number) => {
-    setAddOns(prev =>
-      prev.find(a => a.key === key)
-        ? prev.filter(a => a.key !== key)
-        : [...prev, { key, label, price }]
-    );
+  // Adjust an add-on quantity, clamped to [0, max] (max = number of sets).
+  const setAddOnQtyClamped = (key: string, next: number, max: number) => {
+    const clamped = Math.max(0, Math.min(next, max));
+    setAddOnQty((prev) => {
+      const updated = { ...prev };
+      if (clamped <= 0) delete updated[key];
+      else updated[key] = clamped;
+      return updated;
+    });
   };
+
+  // If the customer reduces the number of sets below an add-on quantity, clamp it
+  // (the cap is the set count). The server enforces the same cap.
+  useEffect(() => {
+    setAddOnQty((prev) => {
+      let changed = false;
+      const next: Record<string, number> = { ...prev };
+      for (const k of Object.keys(next)) {
+        if (next[k] > totalUnits) {
+          changed = true;
+          if (totalUnits <= 0) delete next[k];
+          else next[k] = totalUnits;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [totalUnits]);
 
   const goBack = () => {
     const idx = STEP_ORDER.indexOf(step);
@@ -344,7 +372,11 @@ export default function CourseRentalPage() {
           customer_name: contactName,
           customer_email: contactEmail || undefined,
           customer_phone: contactPhone,
-          add_ons: addOns,
+          // Expand add-on quantities to one entry per unit; the server re-resolves
+          // price/label by key and sums them (price × quantity).
+          add_ons: addOnItems.flatMap((item) =>
+            Array.from({ length: addOnQty[item.id] ?? 0 }, () => ({ key: item.id })),
+          ),
           delivery_requested: deliveryRequested,
           delivery_address: deliveryRequested ? deliveryAddress : undefined,
           // Notes is strictly customer-typed free text. Payment choice + contact
@@ -1017,14 +1049,12 @@ export default function CourseRentalPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">{t('delivery.addOnsLabel')}</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {GEAR_UP_ITEMS.filter(item => item.id !== 'delivery').map(item => {
-                  const isSelected = addOns.some(a => a.key === item.id);
+                {addOnItems.map(item => {
+                  const qty = addOnQty[item.id] ?? 0;
+                  const isSelected = qty > 0;
                   return (
-                    <button
+                    <div
                       key={item.id}
-                      type="button"
-                      onClick={() => toggleAddOn(item.id, item.name, item.price)}
-                      aria-pressed={isSelected}
                       className={`group relative flex flex-col overflow-hidden rounded-xl border-2 text-left transition-all ${
                         isSelected
                           ? 'border-green-600 bg-green-50 shadow-md'
@@ -1041,13 +1071,13 @@ export default function CourseRentalPage() {
                           sizes="(max-width: 640px) 100vw, 50vw"
                           className="object-contain p-3 transition-transform duration-200 group-hover:scale-105"
                         />
-                        <div className={`absolute top-2 right-2 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
-                          isSelected ? 'bg-green-600 border-green-600' : 'bg-white border-gray-300'
-                        }`}>
-                          {isSelected && <CheckIcon className="h-4 w-4 text-white stroke-[3]" />}
-                        </div>
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 h-6 min-w-6 px-1.5 rounded-md bg-green-600 text-white text-xs font-bold flex items-center justify-center">
+                            &times;{qty}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-start justify-between gap-2 px-4 py-3">
+                      <div className="flex items-start justify-between gap-2 px-4 pt-3">
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-sm text-gray-900 leading-tight">{item.name}</p>
                           {item.description && (
@@ -1056,7 +1086,40 @@ export default function CourseRentalPage() {
                         </div>
                         <p className="text-sm font-bold text-green-700 whitespace-nowrap">฿{format.number(item.price)}</p>
                       </div>
-                    </button>
+                      {/* Quantity stepper — capped at the number of sets */}
+                      <div className="px-4 pb-3 pt-2">
+                        {qty === 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setAddOnQtyClamped(item.id, 1, totalUnits)}
+                            className="inline-flex items-center gap-1 rounded-lg border-2 border-green-600 text-green-700 px-3 py-1.5 text-sm font-semibold hover:bg-green-50"
+                          >
+                            <span className="text-base leading-none">+</span> {t('set.add')}
+                          </button>
+                        ) : (
+                          <div className="inline-flex items-center rounded-lg border-2 border-green-600 overflow-hidden">
+                            <button
+                              type="button"
+                              aria-label={t('set.decreaseQty')}
+                              onClick={() => setAddOnQtyClamped(item.id, qty - 1, totalUnits)}
+                              className="px-3 py-1.5 text-green-700 hover:bg-green-50 text-lg leading-none"
+                            >
+                              &minus;
+                            </button>
+                            <span className="px-3 text-sm font-semibold text-gray-900 min-w-[2ch] text-center">{qty}</span>
+                            <button
+                              type="button"
+                              aria-label={t('set.increaseQty')}
+                              disabled={qty >= totalUnits}
+                              onClick={() => setAddOnQtyClamped(item.id, qty + 1, totalUnits)}
+                              className="px-3 py-1.5 text-green-700 hover:bg-green-50 disabled:text-gray-300 disabled:hover:bg-transparent text-lg leading-none"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -1288,15 +1351,18 @@ export default function CourseRentalPage() {
             </div>
 
             {/* Add-ons */}
-            {addOns.length > 0 && (
+            {addOnItems.some(item => (addOnQty[item.id] ?? 0) > 0) && (
               <div className="bg-white rounded-xl border border-gray-200 p-4">
                 <h3 className="text-sm font-medium text-gray-500 mb-2">{t('review.addOnsHeading')}</h3>
-                {addOns.map(a => (
-                  <div key={a.key} className="flex justify-between text-sm">
-                    <span className="text-gray-900">{a.label}</span>
-                    <span className="text-gray-600">฿{format.number(a.price)}</span>
-                  </div>
-                ))}
+                {addOnItems.filter(item => (addOnQty[item.id] ?? 0) > 0).map(item => {
+                  const q = addOnQty[item.id] ?? 0;
+                  return (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-gray-900">{item.name}{q > 1 ? ` ${t('review.setQty', { count: q })}` : ''}</span>
+                      <span className="text-gray-600">฿{format.number(item.price * q)}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -1341,12 +1407,15 @@ export default function CourseRentalPage() {
                     <span className="text-gray-900">฿{format.number(deliveryFee)}</span>
                   </div>
                 )}
-                {addOns.map(a => (
-                  <div key={a.key} className="flex justify-between">
-                    <span className="text-gray-700">{a.label}</span>
-                    <span className="text-gray-900">฿{format.number(a.price)}</span>
-                  </div>
-                ))}
+                {addOnItems.filter(item => (addOnQty[item.id] ?? 0) > 0).map(item => {
+                  const q = addOnQty[item.id] ?? 0;
+                  return (
+                    <div key={item.id} className="flex justify-between">
+                      <span className="text-gray-700">{item.name}{q > 1 ? ` ${t('review.setQty', { count: q })}` : ''}</span>
+                      <span className="text-gray-900">฿{format.number(item.price * q)}</span>
+                    </div>
+                  );
+                })}
                 {totalSavings > 0 && (
                   <div className="flex justify-between text-green-600 text-xs">
                     <span>{t('review.savings', { amount: format.number(totalSavings) })}</span>

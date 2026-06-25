@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
+import { groupAddOns } from '@/lib/club-rental/order-pricing';
 
 /**
  * Marks a payment transaction + its rental as paid, and fires the
@@ -184,9 +185,12 @@ async function sendOrderConfirmationEmail(
     .filter(Boolean)
     .join(', ');
   const firstSet = (lineRows[0].rental_club_sets as SetRef) ?? {};
-  const addOns = lineRows
-    .flatMap((r) => (Array.isArray(r.add_ons) ? (r.add_ons as Array<{ label: string; price: number }>) : []))
-    .map((a) => ({ label: a.label, price: a.price }));
+  // Group the expanded add-ons array ("3 gloves") into "Golf Glove ×3" for the email.
+  const rawAddOns = lineRows.flatMap((r) => (Array.isArray(r.add_ons) ? r.add_ons : []));
+  const addOns = groupAddOns(rawAddOns).map((g) => ({
+    label: g.quantity > 1 ? `${g.label} ×${g.quantity}` : g.label,
+    price: g.price,
+  }));
 
   let language: string | null = null;
   if (rental.customer_id) {

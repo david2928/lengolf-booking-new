@@ -1,8 +1,31 @@
 import {
   allocateOrderMoney,
   courseDeliveryFee,
+  groupAddOns,
   round2,
 } from '@/lib/club-rental/order-pricing';
+
+describe('groupAddOns', () => {
+  it('groups repeated items by label with summed price + quantity', () => {
+    const grouped = groupAddOns([
+      { key: 'gloves', label: 'Golf Glove', price: 600 },
+      { key: 'gloves', label: 'Golf Glove', price: 600 },
+      { key: 'gloves', label: 'Golf Glove', price: 600 },
+      { key: 'balls', label: 'Golf Balls', price: 400 },
+    ]);
+    expect(grouped).toEqual([
+      { label: 'Golf Glove', price: 1800, quantity: 3 },
+      { label: 'Golf Balls', price: 400, quantity: 1 },
+    ]);
+  });
+
+  it('returns [] for non-arrays / empty / unlabeled', () => {
+    expect(groupAddOns(null)).toEqual([]);
+    expect(groupAddOns(undefined)).toEqual([]);
+    expect(groupAddOns([])).toEqual([]);
+    expect(groupAddOns([{ price: 600 }])).toEqual([]);
+  });
+});
 
 describe('round2', () => {
   it('rounds to 2 decimals', () => {

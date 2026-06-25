@@ -13,6 +13,8 @@
  * bits live in the RentalStatus discriminated union.
  */
 
+import { groupAddOns } from './order-pricing';
+
 const SEPARATOR = '----------------------------------';
 
 // ---------------------------------------------------------------------
@@ -113,11 +115,16 @@ function deliveryLine(rental: RentalLineInput['rental']): string {
 }
 
 function addOnsLine(addOnsRaw: unknown): string | null {
-  if (!Array.isArray(addOnsRaw) || addOnsRaw.length === 0) return null;
-  const items = addOnsRaw as Array<{ label?: string; price?: number }>;
-  const formatted = items
-    .filter(a => a && a.label)
-    .map(a => (typeof a.price === 'number' ? `${a.label} (฿${a.price})` : a.label))
+  // The stored array holds one entry per unit; group it so "3 gloves" shows as
+  // "Golf Glove ×3 (฿1,800)" rather than three repeated entries.
+  const grouped = groupAddOns(addOnsRaw);
+  if (grouped.length === 0) return null;
+  const formatted = grouped
+    .map(g =>
+      g.quantity > 1
+        ? `${g.label} ×${g.quantity} (฿${g.price.toLocaleString()})`
+        : `${g.label} (฿${g.price.toLocaleString()})`,
+    )
     .join(', ');
   return formatted ? `🎒 Add-ons: ${formatted}` : null;
 }

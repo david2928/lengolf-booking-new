@@ -36,6 +36,38 @@ export function courseDeliveryFee(setCount: number, baseFee = 500): number {
   return round2(baseFee + Math.max(0, n - 2) * (baseFee / 2));
 }
 
+export interface DisplayAddOn {
+  label: string;
+  /** Summed price across the grouped units (price × quantity). */
+  price: number;
+  quantity: number;
+}
+
+/**
+ * Group a flat add-ons array — which stores ONE entry per unit (e.g. three glove
+ * entries for quantity 3) — by label into { label, summed price, quantity } for
+ * display. The stored array stays expanded so add_ons_total and the forms staff
+ * reader keep reading correct values; only the customer/staff DISPLAY is grouped.
+ */
+export function groupAddOns(addOnsRaw: unknown): DisplayAddOn[] {
+  if (!Array.isArray(addOnsRaw)) return [];
+  const map = new Map<string, DisplayAddOn>();
+  for (const a of addOnsRaw) {
+    if (!a || typeof a !== 'object') continue;
+    const item = a as { label?: string; price?: number | string };
+    if (!item.label) continue;
+    const price = Number(item.price) || 0;
+    const existing = map.get(item.label);
+    if (existing) {
+      existing.quantity += 1;
+      existing.price = round2(existing.price + price);
+    } else {
+      map.set(item.label, { label: item.label, price, quantity: 1 });
+    }
+  }
+  return Array.from(map.values());
+}
+
 export interface OrderLineMoney {
   /** Per-line set rental price (already resolved for the order duration). */
   rentalPrice: number;
