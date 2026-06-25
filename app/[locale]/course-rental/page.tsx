@@ -13,6 +13,7 @@ import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/gol
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
 import { pushEventToGtm } from '@/utils/gtm';
+import { courseDeliveryFee } from '@/lib/club-rental/order-pricing';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
 
@@ -80,12 +81,14 @@ export default function CourseRentalPage() {
   const [step, setStep] = useState<Step>('dates');
   const [availableSets, setAvailableSets] = useState<RentalClubSetWithAvailability[]>([]);
   const [setsLoading, setSetsLoading] = useState(true);
-  const [heroIndex, setHeroIndex] = useState(0);
+  // Per-set hero image index (multiple sets can be expanded at once).
+  const [heroIndexBySet, setHeroIndexBySet] = useState<Record<string, number>>({});
   const [lightboxImages, setLightboxImages] = useState<{ src: string; alt: string }[] | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  // Selections
-  const [selectedSet, setSelectedSet] = useState<RentalClubSetWithAvailability | null>(null);
+  // Selections — quantity per set id (0 = not selected). One order can hold
+  // multiple sets; each unit becomes a club_rentals line under one order.
+  const [selectedQty, setSelectedQty] = useState<Record<string, number>>({});
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
@@ -146,11 +149,6 @@ export default function CourseRentalPage() {
   useEffect(() => {
     fetchSets();
   }, [fetchSets]);
-
-  // Reset hero index when selected set changes
-  useEffect(() => {
-    setHeroIndex(0);
-  }, [selectedSet?.id]);
 
   // Prefill contact fields for logged-in customers from VIP profile.
   // Mirrors the BookingDetails approach (sessionStorage cache + /api/vip/profile).
@@ -214,12 +212,40 @@ export default function CourseRentalPage() {
     };
   }, [authStatus, session?.user?.id, profilePrefilled]);
 
-  // Pricing — optimal combo
-  const breakdown = (selectedSet && durationDays > 0) ? getCoursePriceBreakdown(selectedSet, durationDays) : null;
-  const rentalPrice = breakdown?.total || 0;
+  // Selection derived state — sets with quantity > 0, and the total unit count.
+  const selectedEntries = availableSets.filter((s) => (selectedQty[s.id] ?? 0) > 0);
+  const totalUnits = selectedEntries.reduce((sum, s) => sum + (selectedQty[s.id] ?? 0), 0);
+
+  // Pricing — optimal combo per set × quantity; delivery charged ONCE (tiered by
+  // set count). Mirrors the server-side allocateOrderMoney rollup.
+  const rentalPrice =
+    durationDays > 0
+      ? selectedEntries.reduce(
+          (sum, s) => sum + getCoursePriceBreakdown(s, durationDays).total * (selectedQty[s.id] ?? 0),
+          0,
+        )
+      : 0;
+  const totalSavings =
+    durationDays > 0
+      ? selectedEntries.reduce(
+          (sum, s) => sum + getCoursePriceBreakdown(s, durationDays).savings * (selectedQty[s.id] ?? 0),
+          0,
+        )
+      : 0;
   const addOnsTotal = addOns.reduce((sum, a) => sum + a.price, 0);
-  const deliveryFee = deliveryRequested ? 500 : 0;
+  const deliveryFee = deliveryRequested ? courseDeliveryFee(totalUnits) : 0;
   const totalPrice = rentalPrice + addOnsTotal + deliveryFee;
+
+  // Adjust the quantity for a set, clamped to [0, available_count].
+  const setQty = (setId: string, next: number, max: number) => {
+    const clamped = Math.max(0, Math.min(next, max));
+    setSelectedQty((prev) => {
+      const updated = { ...prev };
+      if (clamped <= 0) delete updated[setId];
+      else updated[setId] = clamped;
+      return updated;
+    });
+  };
 
   const toggleAddOn = (key: string, label: string, price: number) => {
     setAddOns(prev =>
@@ -243,34 +269,39 @@ export default function CourseRentalPage() {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch('/api/clubs/reserve', {
+      // One order, N lines (one per selected unit). The bearer line carries the
+      // shared delivery fee + add-ons; the server (allocateOrderMoney) enforces this.
+      const orderLines = selectedEntries.flatMap((s) =>
+        Array.from({ length: selectedQty[s.id] ?? 0 }, () => ({ rental_club_set_id: s.id })),
+      );
+      const localePrefix = window.location.pathname.match(/^\/(en|th|ko|ja|zh)(\/|$)/)?.[1];
+
+      const res = await fetch('/api/clubs/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          rental_club_set_id: selectedSet!.id,
-          rental_type: 'course',
+          lines: orderLines,
           start_date: startDate,
           end_date: endDate,
           start_time: pickupTime || undefined,
-          duration_days: durationDays,
+          return_time: returnTime || undefined,
+          delivery_time: pickupTime || undefined,
           customer_name: contactName,
           customer_email: contactEmail || undefined,
           customer_phone: contactPhone,
           add_ons: addOns,
           delivery_requested: deliveryRequested,
           delivery_address: deliveryRequested ? deliveryAddress : undefined,
-          delivery_time: pickupTime || undefined,
-          return_time: returnTime || undefined,
-          // Notes is now strictly customer-typed free text. Payment choice
-          // + contact preference travel as their own fields so they can be
-          // surfaced cleanly to staff (LINE / backoffice) without leaking
-          // into the customer-facing email's "Notes" block.
+          // Notes is strictly customer-typed free text. Payment choice + contact
+          // preference travel as their own fields so they can be surfaced cleanly
+          // to staff (LINE / backoffice) without leaking into the customer email.
           notes: notes || undefined,
           payment_method_chosen:
             paymentMethod === 'cash' ? 'cash_at_pickup' : 'online_shopeepay',
           contact_preference: preferredContact, // 'line' | 'email' | 'whatsapp'
           source: 'website' as const,
           payment_method: paymentMethod,
+          language: localePrefix || undefined,
         }),
       });
 
@@ -281,7 +312,8 @@ export default function CourseRentalPage() {
         return;
       }
 
-      setRentalCode(data.rental_code);
+      // The order code is the customer-facing reference (searchable by staff).
+      setRentalCode(data.order_code);
 
       // Push conversion event to GTM for Google Ads tracking
       pushEventToGtm('course_rental_confirmed', {
@@ -291,20 +323,18 @@ export default function CourseRentalPage() {
         },
         conversion_value: totalPrice,
         currency: 'THB',
-        rental_code: data.rental_code,
-        club_set: selectedSet?.name,
+        order_code: data.order_code,
+        rental_code: data.order_code,
+        club_set: selectedEntries.map((s) => s.name).join(', '),
+        num_sets: totalUnits,
         duration_days: durationDays,
         delivery_requested: deliveryRequested,
       });
 
-      // If the customer chose card (and for delivery, this is forced),
-      // hand off to the ShopeePay flow. Otherwise stay on the in-page
-      // confirmation step as today.
+      // If the customer chose card (delivery forces it), hand off to ShopeePay.
+      // The handoff keys off the order's bearer-line rental_code; the server
+      // charges the ORDER total and marks every line paid (order-level payment).
       if (data.requires_prepay) {
-        // Call ShopeePay create while the submit spinner is still showing,
-        // then navigate directly to ShopeePay — no intermediate /payment/start
-        // page. /payment/start still handles direct URL access (recovery links).
-        const localePrefix = window.location.pathname.match(/^\/(en|th|ko|ja|zh)(\/|$)/)?.[1];
         const prefix = localePrefix ? `/${localePrefix}` : '';
         const platformType: 'mweb' | 'pc' =
           typeof window !== 'undefined' && window.innerWidth < 768 ? 'mweb' : 'pc';
@@ -403,32 +433,30 @@ export default function CourseRentalPage() {
             ) : (
               availableSets.map(set => {
                 const isAvailable = set.available_count > 0;
-                const isSelected = selectedSet?.id === set.id;
+                const qty = selectedQty[set.id] ?? 0;
+                const isSelected = qty > 0;
                 const images = SET_IMAGES[getSetImageKey(set)] || [];
                 const heroImg = images[0];
-                const activeImg = isSelected && images.length > 1 ? images[heroIndex % images.length] : heroImg;
+                const heroIdx = heroIndexBySet[set.id] ?? 0;
+                const activeImg = isSelected && images.length > 1 ? images[heroIdx % images.length] : heroImg;
                 return (
                   <div key={set.id} className="space-y-2">
-                    <button
-                      type="button"
-                      disabled={!isAvailable}
-                      onClick={() => setSelectedSet(set)}
-                      className={`w-full text-left rounded-xl border-2 transition-all overflow-hidden ${
+                    <div
+                      className={`w-full rounded-xl border-2 transition-all overflow-hidden ${
                         isSelected
                           ? 'border-green-600 bg-white shadow-md'
                           : isAvailable
                           ? 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
-                          : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                          : 'border-gray-100 bg-gray-50 opacity-50'
                       }`}
                     >
                       <div className="flex">
                         {/* Square thumbnail on left */}
                         <div
                           className={`relative w-28 sm:w-36 flex-shrink-0 bg-gray-50 flex items-center justify-center ${heroImg ? '' : 'bg-gray-100'} ${isSelected && images.length > 1 ? 'cursor-zoom-in' : ''}`}
-                          onClick={isSelected && images.length > 1 ? (e) => {
-                            e.stopPropagation();
+                          onClick={isSelected && images.length > 1 ? () => {
                             setLightboxImages(images);
-                            setLightboxIndex(heroIndex % images.length);
+                            setLightboxIndex(heroIdx % images.length);
                           } : undefined}
                         >
                           {heroImg ? (
@@ -496,16 +524,54 @@ export default function CourseRentalPage() {
                               </div>
                             );
                           })()}
-                          {isSelected && (
-                            <div className="mt-1.5">
-                              <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
-                                <CheckIcon className="w-3.5 h-3.5" /> {t('set.selected')}
-                              </span>
+                          {/* Quantity stepper — selecting qty >= 1 adds the set to the order */}
+                          {isAvailable && (
+                            <div className="mt-2">
+                              {qty === 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setQty(set.id, 1, set.available_count)}
+                                  className="inline-flex items-center gap-1 rounded-lg border-2 border-green-600 text-green-700 px-3 py-1.5 text-sm font-semibold hover:bg-green-50"
+                                >
+                                  <span className="text-base leading-none">+</span> {t('set.add')}
+                                </button>
+                              ) : (
+                                <div className="inline-flex items-center gap-3">
+                                  <div className="inline-flex items-center rounded-lg border-2 border-green-600 overflow-hidden">
+                                    <button
+                                      type="button"
+                                      aria-label={t('set.decreaseQty')}
+                                      onClick={() => setQty(set.id, qty - 1, set.available_count)}
+                                      className="px-3 py-1.5 text-green-700 hover:bg-green-50 text-lg leading-none"
+                                    >
+                                      &minus;
+                                    </button>
+                                    <span className="px-3 text-sm font-semibold text-gray-900 min-w-[2ch] text-center">{qty}</span>
+                                    <button
+                                      type="button"
+                                      aria-label={t('set.increaseQty')}
+                                      disabled={qty >= set.available_count}
+                                      onClick={() => setQty(set.id, qty + 1, set.available_count)}
+                                      className="px-3 py-1.5 text-green-700 hover:bg-green-50 disabled:text-gray-300 disabled:hover:bg-transparent text-lg leading-none"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                  <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
+                                    <CheckIcon className="w-3.5 h-3.5" /> {t('set.selected')}
+                                  </span>
+                                </div>
+                              )}
+                              {set.available_count > 1 && (
+                                <p className="text-[10px] text-gray-400 mt-1">
+                                  {t('set.availableCount', { count: set.available_count })}
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>
                       </div>
-                    </button>
+                    </div>
 
                     {/* Thumbnail carousel for selected set with multiple images */}
                     {isSelected && images.length > 1 && (
@@ -514,9 +580,9 @@ export default function CourseRentalPage() {
                           <button
                             key={i}
                             type="button"
-                            onClick={() => setHeroIndex(i)}
+                            onClick={() => setHeroIndexBySet(prev => ({ ...prev, [set.id]: i }))}
                             className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                              heroIndex % images.length === i
+                              heroIdx % images.length === i
                                 ? 'border-green-600 shadow-sm'
                                 : 'border-gray-200 opacity-50 hover:opacity-100'
                             }`}
@@ -540,9 +606,15 @@ export default function CourseRentalPage() {
               {t('set.fullDetailsLink')}
             </a>
 
+            {totalUnits > 0 && (
+              <p className="text-center text-sm font-medium text-green-700">
+                {t('set.unitsSelected', { count: totalUnits })}
+              </p>
+            )}
+
             <button
               onClick={goNext}
-              disabled={!selectedSet}
+              disabled={totalUnits === 0}
               className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               {t('set.continue')}
@@ -564,7 +636,7 @@ export default function CourseRentalPage() {
                   onChange={e => {
                     setStartDate(e.target.value);
                     if (endDate && e.target.value > endDate) setEndDate('');
-                    setSelectedSet(null);
+                    setSelectedQty({});
                   }}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
                 />
@@ -578,7 +650,7 @@ export default function CourseRentalPage() {
                   disabled={!startDate}
                   onChange={e => {
                     setEndDate(e.target.value);
-                    setSelectedSet(null);
+                    setSelectedQty({});
                   }}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
@@ -741,7 +813,10 @@ export default function CourseRentalPage() {
                   <TruckIcon className="h-6 w-6 text-green-600 mb-2" />
                   <p className="font-semibold text-gray-900">{t('delivery.deliveryTitle')}</p>
                   <p className="text-xs text-gray-500 mt-1">{t('delivery.deliveryDescription')}</p>
-                  <p className="text-sm font-bold text-green-700 mt-2">{t('delivery.deliveryPrice')}</p>
+                  <p className="text-sm font-bold text-green-700 mt-2">฿{format.number(courseDeliveryFee(totalUnits))}</p>
+                  {totalUnits >= 2 && (
+                    <p className="text-[10px] text-gray-400 mt-1">{t('delivery.deliveryFeeNote')}</p>
+                  )}
                 </button>
               </div>
             </div>
@@ -963,25 +1038,36 @@ export default function CourseRentalPage() {
         )}
 
         {/* Step 5: Review & Confirm */}
-        {step === 'review' && selectedSet && (
+        {step === 'review' && selectedEntries.length > 0 && (
           <div className="space-y-5">
-            {/* Club set */}
+            {/* Club sets */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <h3 className="text-sm font-medium text-gray-500 mb-2">{t('review.clubSetHeading')}</h3>
-              <p className="font-semibold text-gray-900">{selectedSet.name}</p>
-              <div className="flex gap-2 mt-1">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  selectedSet.tier === 'premium-plus' ? 'bg-green-800 text-white' : 'bg-green-100 text-green-800'
-                }`}>
-                  {selectedSet.tier === 'premium-plus' ? t('review.tierPremiumPlus') : t('review.tierPremium')}
-                </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  selectedSet.gender === 'mens'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'bg-pink-50 text-pink-700'
-                }`}>
-                  {selectedSet.gender === 'mens' ? t('review.genderMens') : t('review.genderWomens')}
-                </span>
+              <div className="space-y-3">
+                {selectedEntries.map(s => (
+                  <div key={s.id}>
+                    <p className="font-semibold text-gray-900">
+                      {s.name}
+                      {(selectedQty[s.id] ?? 0) > 1 && (
+                        <span className="ml-1.5 text-sm font-normal text-gray-500">
+                          {t('review.setQty', { count: selectedQty[s.id] ?? 0 })}
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex gap-2 mt-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        s.tier === 'premium-plus' ? 'bg-green-800 text-white' : 'bg-green-100 text-green-800'
+                      }`}>
+                        {s.tier === 'premium-plus' ? t('review.tierPremiumPlus') : t('review.tierPremium')}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        s.gender === 'mens' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700'
+                      }`}>
+                        {s.gender === 'mens' ? t('review.genderMens') : t('review.genderWomens')}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1060,12 +1146,19 @@ export default function CourseRentalPage() {
             <div className="bg-green-50 rounded-xl border border-green-200 p-4">
               <h3 className="text-sm font-medium text-green-800 mb-3">{t('review.pricingHeading')}</h3>
               <div className="space-y-1 text-sm">
-                {breakdown && breakdown.packs.map((pack, i) => (
-                  <div key={i} className="flex justify-between">
-                    <span className="text-gray-700">{pack.label}</span>
-                    <span className="text-gray-900">฿{format.number(pack.price)}</span>
-                  </div>
-                ))}
+                {selectedEntries.map(s => {
+                  const q = selectedQty[s.id] ?? 0;
+                  const bd = getCoursePriceBreakdown(s, durationDays);
+                  return (
+                    <div key={s.id} className="flex justify-between">
+                      <span className="text-gray-700">
+                        {s.name}
+                        {q > 1 ? ` ${t('review.setQty', { count: q })}` : ''}
+                      </span>
+                      <span className="text-gray-900">฿{format.number(bd.total * q)}</span>
+                    </div>
+                  );
+                })}
                 {deliveryRequested && (
                   <div className="flex justify-between">
                     <span className="text-gray-700">{t('review.deliveryAndReturn')}</span>
@@ -1078,9 +1171,9 @@ export default function CourseRentalPage() {
                     <span className="text-gray-900">฿{format.number(a.price)}</span>
                   </div>
                 ))}
-                {breakdown && breakdown.savings > 0 && (
+                {totalSavings > 0 && (
                   <div className="flex justify-between text-green-600 text-xs">
-                    <span>{t('review.savings', { amount: format.number(breakdown.savings) })}</span>
+                    <span>{t('review.savings', { amount: format.number(totalSavings) })}</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-2 border-t border-green-300 font-bold text-base">
@@ -1150,7 +1243,16 @@ export default function CourseRentalPage() {
             <div className="bg-white rounded-xl border border-gray-200 p-5 text-left space-y-3">
               <div>
                 <p className="text-xs text-gray-500">{t('confirmation.clubSetLabel')}</p>
-                <p className="font-semibold text-gray-900">{selectedSet?.name}</p>
+                {selectedEntries.map(s => (
+                  <p key={s.id} className="font-semibold text-gray-900">
+                    {s.name}
+                    {(selectedQty[s.id] ?? 0) > 1 && (
+                      <span className="ml-1.5 text-sm font-normal text-gray-500">
+                        {t('review.setQty', { count: selectedQty[s.id] ?? 0 })}
+                      </span>
+                    )}
+                  </p>
+                ))}
               </div>
               <div>
                 <p className="text-xs text-gray-500">{t('confirmation.datesLabel')}</p>

@@ -4,6 +4,7 @@ import { checkTransaction } from '@/lib/shopeepay/client';
 import { isFinalSuccess } from '@/lib/shopeepay/types';
 import { loadRentalOrderSummary } from '@/lib/shopeepay/order-summary';
 import { claimAndSendConfirmationEmail } from '@/lib/shopeepay/markRentalAsPaid';
+import { applyOrderPaymentState } from '@/lib/shopeepay/orderPayment';
 
 /**
  * GET /api/payments/shopeepay/status?ref=<rental_code>
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
   // Find the rental + its most recent payment_transactions row.
   const { data: rental, error: rentalError } = await supabase
     .from('club_rentals')
-    .select('id, rental_code, total_price, payment_status, rental_type')
+    .select('id, rental_code, total_price, payment_status, rental_type, order_id')
     .eq('rental_code', ref)
     .single();
 
@@ -113,10 +114,19 @@ export async function GET(request: NextRequest) {
         }
 
         await supabase.from('payment_transactions').update(updates).eq('id', txn.id);
-        await supabase
-          .from('club_rentals')
-          .update({ payment_status: 'paid', expires_at: null })
-          .eq('id', rental.id);
+        if (rental.order_id) {
+          // Order-level: mark the header + every line paid (one payment per order).
+          await applyOrderPaymentState(supabase, rental.order_id, {
+            payment_status: 'paid',
+            expires_at: null,
+            payment_transaction_id: txn.id,
+          });
+        } else {
+          await supabase
+            .from('club_rentals')
+            .update({ payment_status: 'paid', expires_at: null })
+            .eq('id', rental.id);
+        }
 
         status = 'success';
         transactionSn = probe.transaction_sn ?? transactionSn;
@@ -143,10 +153,14 @@ export async function GET(request: NextRequest) {
           .from('payment_transactions')
           .update({ status: 'failed', error_code: probe.errcode })
           .eq('id', txn.id);
-        await supabase
-          .from('club_rentals')
-          .update({ payment_status: 'failed' })
-          .eq('id', rental.id);
+        if (rental.order_id) {
+          await applyOrderPaymentState(supabase, rental.order_id, { payment_status: 'failed' });
+        } else {
+          await supabase
+            .from('club_rentals')
+            .update({ payment_status: 'failed' })
+            .eq('id', rental.id);
+        }
         status = 'failed';
         // The probe's terminal status code can hint at failure reason.
         failureReason = classifyFailure(
@@ -168,7 +182,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     ref,
     status,
-    total_price: Number(rental.total_price),
+    // For order-linked rentals the receipt total is the ORDER total (summary is
+    // order-aware); order-less rentals fall back to the single line's total.
+    total_price: summary ? summary.total_price : Number(rental.total_price),
     transaction_sn: transactionSn || null,
     paid_at: paidAt || null,
     failure_reason: failureReason,

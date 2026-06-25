@@ -8,7 +8,8 @@ import {
 } from '@/lib/shopeepay/types';
 import { claimAndSendConfirmationEmail } from '@/lib/shopeepay/markRentalAsPaid';
 import { handleRefundNotify } from '@/lib/shopeepay/handleRefundNotify';
-import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
+import { composeRentalLineMessage, composeOrderPaidLineMessage } from '@/lib/club-rental/lineMessage';
+import { applyOrderPaymentState } from '@/lib/shopeepay/orderPayment';
 
 /**
  * POST /api/webhooks/shopeepay
@@ -162,14 +163,27 @@ export async function POST(request: NextRequest) {
     if (txnRow.status === 'success' && txnRow.club_rental_id) {
       const { data: rentalCheck } = await supabase
         .from('club_rentals')
-        .select('payment_status')
+        .select('payment_status, order_id')
         .eq('id', txnRow.club_rental_id)
         .maybeSingle();
-      if (rentalCheck && rentalCheck.payment_status === 'paid') {
+      let consistent = rentalCheck?.payment_status === 'paid';
+      // For order-linked rentals the WHOLE order must be paid, not just the
+      // bearer line — a prior delivery's order propagation is best-effort and
+      // may have partially failed (header/siblings still pending). Re-run the
+      // success path (which re-propagates) unless the header is also paid.
+      if (consistent && rentalCheck?.order_id) {
+        const { data: orderCheck } = await supabase
+          .from('club_rental_orders')
+          .select('payment_status')
+          .eq('id', rentalCheck.order_id)
+          .maybeSingle();
+        consistent = orderCheck?.payment_status === 'paid';
+      }
+      if (consistent) {
         return NextResponse.json(ACK_OK);
       }
-      // Rental is inconsistent — fall through to re-run the rental
-      // update + side-effects. The success-path code below is
+      // Rental/order is inconsistent — fall through to re-run the rental
+      // update + propagation + side-effects. The success-path code below is
       // idempotent against an already-success txn row.
       console.warn(
         `[ShopeePay/webhook] idempotency replay detected for ${referenceId} ` +
@@ -227,6 +241,11 @@ export async function POST(request: NextRequest) {
         .eq('id', txnRow.club_rental_id)
         .select('*')
         .single();
+
+      // Order-level: propagate the failed state to the header + every line.
+      if (failedRental?.order_id) {
+        await applyOrderPaymentState(supabase, failedRental.order_id, { payment_status: 'failed' });
+      }
 
       // Staff LINE ping — fire-and-forget. Same unified format as the
       // other lifecycle events, with PaymentFailed status.
@@ -295,6 +314,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 
+  // Order-level payment: propagate paid + clear expiry to the header + every
+  // line of the order (one payment per order). The bearer line is already paid
+  // above; this also marks the header (forms reads it) and any sibling sets.
+  // If propagation fails, return non-zero BEFORE side-effects so ShopeePay
+  // retries — the email claim is idempotent and the LINE ping hasn't fired yet,
+  // so the retry sends each exactly once. (Pairs with the order-aware
+  // idempotency guard above, which re-runs propagation when the header is stale.)
+  if (rental.order_id) {
+    const propagated = await applyOrderPaymentState(supabase, rental.order_id, {
+      payment_status: 'paid',
+      expires_at: null,
+      payment_transaction_id: txnRow.id,
+    });
+    if (!propagated) {
+      console.error(
+        `[ShopeePay/webhook] order propagation failed for ${referenceId} (order ${rental.order_id}) — returning 500 for retry`
+      );
+      return NextResponse.json({ error: 'Order propagation failed' }, { status: 500 });
+    }
+  }
+
   // Customer confirmation email — uses the shared dedup helper so the
   // polling status route doesn't re-send if it claimed the email first
   // (and vice versa). AWAIT so Vercel keeps the function alive until
@@ -316,18 +356,77 @@ export async function POST(request: NextRequest) {
   // with the reservation-created, refund, and payment-failed pings.
   const baseUrl = getBaseUrl();
   if (baseUrl) {
-    const { data: clubSet } = await supabase
-      .from('rental_club_sets')
-      .select('name, tier, gender')
-      .eq('id', rental.rental_club_set_id)
-      .single();
+    type SetRef = { name: string; tier: string; gender: string } | null;
+    type OrderLineRow = { add_ons: unknown; rental_club_sets: SetRef };
+    type OrderHeaderRow = {
+      order_code: string;
+      total_price: number | string;
+      delivery_requested: boolean | null;
+      delivery_address: string | null;
+      delivery_time: string | null;
+      return_time: string | null;
+    };
+    let lineMessage: string;
 
-    const lineMessage = composeRentalLineMessage({
-      rental,
-      clubSet,
-      status: { kind: 'Paid', transactionSn: transaction_sn },
-      uatPrefix: !IS_PROD_ENV,
-    });
+    // Multi-set order → one order-level Paid ping; single-set (or order-less) →
+    // the per-line composer (byte-identical to the legacy single-rental ping).
+    let orderLines: OrderLineRow[] | null = null;
+    let orderHeader: OrderHeaderRow | null = null;
+    if (rental.order_id) {
+      const [{ data: lns }, { data: hdr }] = await Promise.all([
+        supabase
+          .from('club_rentals')
+          .select('add_ons, rental_club_sets ( name, tier, gender )')
+          .eq('order_id', rental.order_id),
+        supabase
+          .from('club_rental_orders')
+          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time')
+          .eq('id', rental.order_id)
+          .maybeSingle(),
+      ]);
+      orderLines = (lns as unknown as OrderLineRow[]) ?? null;
+      orderHeader = (hdr as unknown as OrderHeaderRow | null) ?? null;
+    }
+
+    if (rental.order_id && orderHeader && orderLines && orderLines.length > 1) {
+      lineMessage = composeOrderPaidLineMessage({
+        order_code: orderHeader.order_code,
+        customer_name: rental.customer_name,
+        customer_phone: rental.customer_phone,
+        customer_email: rental.customer_email,
+        start_date: rental.start_date,
+        end_date: rental.end_date,
+        duration_days: rental.duration_days,
+        delivery_requested: orderHeader.delivery_requested,
+        delivery_address: orderHeader.delivery_address,
+        delivery_time: orderHeader.delivery_time,
+        return_time: orderHeader.return_time,
+        sets: orderLines.map((l) => ({
+          name: l.rental_club_sets?.name ?? '?',
+          tier: l.rental_club_sets?.tier ?? 'premium',
+          gender: l.rental_club_sets?.gender ?? 'mens',
+        })),
+        add_ons: orderLines.flatMap((l) => (Array.isArray(l.add_ons) ? l.add_ons : [])),
+        total_price: orderHeader.total_price,
+        notes: rental.notes,
+        contact_preference: rental.contact_preference,
+        transactionSn: transaction_sn,
+        uatPrefix: !IS_PROD_ENV,
+      });
+    } else {
+      const { data: clubSet } = await supabase
+        .from('rental_club_sets')
+        .select('name, tier, gender')
+        .eq('id', rental.rental_club_set_id)
+        .single();
+
+      lineMessage = composeRentalLineMessage({
+        rental,
+        clubSet,
+        status: { kind: 'Paid', transactionSn: transaction_sn },
+        uatPrefix: !IS_PROD_ENV,
+      });
+    }
 
     // AWAIT so Vercel doesn't tear down the function mid-fetch.
     // Self-fetch is subject to the same lifecycle as the email send above.
