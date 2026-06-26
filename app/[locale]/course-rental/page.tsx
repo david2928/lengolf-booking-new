@@ -7,7 +7,9 @@ import { useTranslations, useFormatter } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
-import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon, UserGroupIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { DeliveryAddressAutocomplete } from '@/components/course-rental/DeliveryAddressAutocomplete';
+import { RentalPriceSummaryBar } from '@/components/course-rental/RentalPriceSummaryBar';
+import { ArrowLeftIcon, CheckIcon, InformationCircleIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon, UserGroupIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
@@ -103,6 +105,9 @@ export default function CourseRentalPage() {
   const [returnTime, setReturnTime] = useState('');
   const [deliveryRequested, setDeliveryRequested] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
+  const [deliveryLng, setDeliveryLng] = useState<number | null>(null);
+  const [addressFallback, setAddressFallback] = useState(false);
   // Add-on quantity per item id (gloves / balls). Order-level; each capped at the
   // number of sets (one per player). Stored expanded (repeated) so add_ons_total
   // and the forms reader stay correct.
@@ -379,6 +384,8 @@ export default function CourseRentalPage() {
           ),
           delivery_requested: deliveryRequested,
           delivery_address: deliveryRequested ? deliveryAddress : undefined,
+          delivery_lat: deliveryRequested && deliveryLat != null ? deliveryLat : undefined,
+          delivery_lng: deliveryRequested && deliveryLng != null ? deliveryLng : undefined,
           // Notes is strictly customer-typed free text. Payment choice + contact
           // preference travel as their own fields so they can be surfaced cleanly
           // to staff (LINE / backoffice) without leaking into the customer email.
@@ -474,7 +481,7 @@ export default function CourseRentalPage() {
 
   return (
     <Layout hidePromotionBar hideNav compactHeader flushMain>
-      <div className={step === 'dates' ? 'w-full' : 'max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8'}>
+      <div className={step === 'dates' ? 'w-full' : 'max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24'}>
         {/* Header with back button — hidden on the dates landing (the hero is the header) */}
         {step !== 'dates' && (
         <div className="mb-6 flex items-start">
@@ -997,7 +1004,12 @@ export default function CourseRentalPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setDeliveryRequested(false)}
+                  onClick={() => {
+                    setDeliveryRequested(false);
+                    setDeliveryAddress('');
+                    setDeliveryLat(null);
+                    setDeliveryLng(null);
+                  }}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     !deliveryRequested
                       ? 'border-green-600 bg-green-50'
@@ -1035,13 +1047,24 @@ export default function CourseRentalPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {t('delivery.addressLabel')} <span className="text-red-500">*</span>
                   </label>
-                  <textarea
-                    value={deliveryAddress}
-                    onChange={e => setDeliveryAddress(e.target.value)}
-                    placeholder={t('delivery.addressPlaceholder')}
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
-                  />
+                  {addressFallback ? (
+                    <textarea
+                      value={deliveryAddress}
+                      onChange={e => setDeliveryAddress(e.target.value)}
+                      placeholder={t('delivery.addressPlaceholder')}
+                      rows={3}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
+                    />
+                  ) : (
+                    <DeliveryAddressAutocomplete
+                      onSelect={({ address, lat, lng }) => {
+                        setDeliveryAddress(address);
+                        setDeliveryLat(lat);
+                        setDeliveryLng(lng);
+                      }}
+                      onLoadError={() => setAddressFallback(true)}
+                    />
+                  )}
                 </div>
               </div>
             )}
@@ -1632,6 +1655,18 @@ export default function CourseRentalPage() {
             </>
           )}
         </div>
+      )}
+
+      {/* Sticky price bar — only show from step 2 onwards */}
+      {step !== 'dates' && step !== 'confirmation' && (
+        <RentalPriceSummaryBar
+          rentalPrice={rentalPrice}
+          savings={totalSavings}
+          durationDays={durationDays}
+          deliveryFee={deliveryFee}
+          addOnsTotal={addOnsTotal}
+          currentStep={step}
+        />
       )}
     </Layout>
   );

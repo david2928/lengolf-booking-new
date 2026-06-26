@@ -249,6 +249,8 @@ export interface ClubReserveRequest {
   add_ons?: ClubRentalAddOn[];
   delivery_requested?: boolean;
   delivery_address?: string;
+  delivery_lat?: number;   // Google Places lat — stored for dispatch
+  delivery_lng?: number;   // Google Places lng — stored for dispatch
   delivery_time?: string;
   return_time?: string;
   notes?: string;
