@@ -7,7 +7,8 @@ import { getCoursePriceBreakdown } from '@/types/golf-club-rental';
 interface RentalPriceSummaryBarProps {
   selectedSet: RentalClubSetWithAvailability | null;
   durationDays: number;
-  deliveryRequested: boolean;
+  /** Delivery fee in THB (0 if no delivery). Passed from parent which resolves dynamic pricing. */
+  deliveryFee: number;
   addOnsTotal: number;
   /** 'set' | 'delivery' | 'contact' | 'review' */
   currentStep: string;
@@ -16,7 +17,7 @@ interface RentalPriceSummaryBarProps {
 export function RentalPriceSummaryBar({
   selectedSet,
   durationDays,
-  deliveryRequested,
+  deliveryFee,
   addOnsTotal,
   currentStep,
 }: RentalPriceSummaryBarProps) {
@@ -25,7 +26,6 @@ export function RentalPriceSummaryBar({
   if (!selectedSet || durationDays <= 0) return null;
 
   const breakdown = getCoursePriceBreakdown(selectedSet, durationDays);
-  const deliveryFee = deliveryRequested ? 500 : 0;
   const total = breakdown.total + deliveryFee + addOnsTotal;
 
   // On review step the full breakdown is visible — show only total to avoid repetition.
@@ -52,8 +52,8 @@ export function RentalPriceSummaryBar({
               </p>
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <span className="text-xs text-gray-400">฿{format.number(breakdown.total)} rental</span>
-                {deliveryRequested && (
-                  <span className="text-xs text-amber-600">+ ฿500 delivery</span>
+                {deliveryFee > 0 && (
+                  <span className="text-xs text-amber-600">+ ฿{format.number(deliveryFee)} delivery</span>
                 )}
                 {addOnsTotal > 0 && (
                   <span className="text-xs text-gray-400">+ ฿{format.number(addOnsTotal)} add-ons</span>

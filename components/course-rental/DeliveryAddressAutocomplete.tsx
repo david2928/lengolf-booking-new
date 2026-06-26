@@ -49,7 +49,6 @@ export function DeliveryAddressAutocomplete({
           }
         };
 
-        element.addEventListener('gmp-select', handler);
         element.addEventListener('gmp-placeselect', handler);
         containerRef.current.appendChild(element);
       })
@@ -67,9 +66,8 @@ export function DeliveryAddressAutocomplete({
     <div>
       <div ref={containerRef} className="gmp-autocomplete-host" />
       {pinned && (
-        <p className="mt-1 text-xs text-green-700 flex items-center gap-1">
-          <span aria-hidden>📍</span>
-          <span>{pinned}</span>
+        <p className="mt-1 text-xs text-green-700">
+          {pinned}
         </p>
       )}
     </div>

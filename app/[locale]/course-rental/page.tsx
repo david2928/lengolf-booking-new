@@ -1306,7 +1306,7 @@ export default function CourseRentalPage() {
         <RentalPriceSummaryBar
           selectedSet={selectedSet}
           durationDays={durationDays}
-          deliveryRequested={deliveryRequested}
+          deliveryFee={deliveryFee}
           addOnsTotal={addOnsTotal}
           currentStep={step}
         />

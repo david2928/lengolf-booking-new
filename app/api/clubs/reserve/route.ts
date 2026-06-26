@@ -141,6 +141,18 @@ export async function POST(request: NextRequest) {
     if (delivery_address && delivery_address.length > MAX_ADDRESS_LENGTH) {
       return NextResponse.json({ error: 'Delivery address is too long' }, { status: 400 });
     }
+    if (delivery_lat != null) {
+      const lat = Number(delivery_lat);
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+        return NextResponse.json({ error: 'Invalid delivery_lat' }, { status: 400 });
+      }
+    }
+    if (delivery_lng != null) {
+      const lng = Number(delivery_lng);
+      if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+        return NextResponse.json({ error: 'Invalid delivery_lng' }, { status: 400 });
+      }
+    }
     if (customerNotes && customerNotes.length > MAX_NOTES_LENGTH) {
       return NextResponse.json({ error: 'Notes are too long' }, { status: 400 });
     }

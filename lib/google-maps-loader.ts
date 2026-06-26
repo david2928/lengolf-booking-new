@@ -55,12 +55,16 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
   loadPromise = new Promise<GoogleMapsApi>((resolve, reject) => {
     const CALLBACK = '__lengolfGmapsReady';
     const script = document.createElement('script');
+    const w = window as unknown as Record<string, unknown>;
+    const cleanup = () => { delete w[CALLBACK]; };
     const fail = (err: Error) => {
+      cleanup();
       loadPromise = null;
       script.remove();
       reject(err);
     };
-    (window as unknown as Record<string, unknown>)[CALLBACK] = () => {
+    w[CALLBACK] = () => {
+      cleanup();
       if (window.google?.maps) resolve(window.google.maps);
       else fail(new Error('Google Maps loaded but window.google.maps is missing'));
     };
