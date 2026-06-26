@@ -68,6 +68,22 @@ export function groupAddOns(addOnsRaw: unknown): DisplayAddOn[] {
   return Array.from(map.values());
 }
 
+/**
+ * Join per-line set names into a display summary, collapsing repeats into
+ * "Name ×N" (so a 2× Warbird order reads "…Warbird ×2", not "…Warbird,
+ * …Warbird"). Preserves first-seen order; skips empty names.
+ */
+export function groupSetNames(names: Array<string | null | undefined>): string {
+  const counts = new Map<string, number>();
+  for (const n of names) {
+    if (!n) continue;
+    counts.set(n, (counts.get(n) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([name, count]) => (count > 1 ? `${name} ×${count}` : name))
+    .join(', ');
+}
+
 export interface OrderLineMoney {
   /** Per-line set rental price (already resolved for the order duration). */
   rentalPrice: number;

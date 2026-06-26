@@ -2,8 +2,22 @@ import {
   allocateOrderMoney,
   courseDeliveryFee,
   groupAddOns,
+  groupSetNames,
   round2,
 } from '@/lib/club-rental/order-pricing';
+
+describe('groupSetNames', () => {
+  it('collapses repeats into "Name ×N" and preserves first-seen order', () => {
+    expect(groupSetNames(['Warbird', 'Warbird'])).toBe('Warbird ×2');
+    expect(groupSetNames(['Warbird', 'Paradym'])).toBe('Warbird, Paradym');
+    expect(groupSetNames(['Warbird', 'Paradym', 'Warbird'])).toBe('Warbird ×2, Paradym');
+  });
+
+  it('skips empty names and handles the empty list', () => {
+    expect(groupSetNames([])).toBe('');
+    expect(groupSetNames([null, undefined, 'X'])).toBe('X');
+  });
+});
 
 describe('groupAddOns', () => {
   it('groups repeated items by label with summed price + quantity', () => {

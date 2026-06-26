@@ -7,7 +7,7 @@ import {
   composeRentalLineMessage,
   composeOrderCreatedLineMessage,
 } from '@/lib/club-rental/lineMessage';
-import { allocateOrderMoney, courseDeliveryFee, groupAddOns } from '@/lib/club-rental/order-pricing';
+import { allocateOrderMoney, courseDeliveryFee, groupAddOns, groupSetNames } from '@/lib/club-rental/order-pricing';
 import { resolveCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
 import { logOrderEvent } from '@/lib/club-rental/order-events';
 
@@ -428,9 +428,9 @@ export async function POST(request: NextRequest) {
     });
 
     const firstSet = setById.get(distinctSetIds[0]) as Record<string, unknown>;
-    const setSummary = lines
-      .map((l) => String((setById.get(l.rental_club_set_id as string) as Record<string, unknown>).name))
-      .join(', ');
+    const setSummary = groupSetNames(
+      lines.map((l) => String((setById.get(l.rental_club_set_id as string) as Record<string, unknown>).name)),
+    );
 
     // ---- One confirmation email for the whole order ----------------------------
     // Skip when prepay is required — the payment webhook sends the confirmation
