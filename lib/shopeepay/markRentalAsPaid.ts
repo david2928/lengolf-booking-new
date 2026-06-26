@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
+import { groupAddOns } from '@/lib/club-rental/order-pricing';
 
 /**
  * Marks a payment transaction + its rental as paid, and fires the
@@ -64,6 +65,15 @@ export async function claimAndSendConfirmationEmail(
   if (!rental.customer_email) {
     // Nothing to send — but keep the claim so we don't retry forever.
     return { sent: false, reason: 'no_customer_email' };
+  }
+
+  // Order-level: if this line belongs to an order, send ONE order-summary email
+  // (joined set names + order rollup totals) instead of the single bearer-line
+  // email. The claim above (per-txn, one txn per order) still dedups it.
+  if (rental.order_id) {
+    const orderResult = await sendOrderConfirmationEmail(supabase, rental, options);
+    if (orderResult) return orderResult;
+    // Order load failed — fall through to the single-rental email as a backstop.
   }
 
   let language: string | null = null;
@@ -138,6 +148,101 @@ export async function claimAndSendConfirmationEmail(
     return { sent: true };
   } catch (err) {
     console.error('[markRentalAsPaid] email send error:', err);
+    return { sent: false, reason: 'email_send_error' };
+  }
+}
+
+/**
+ * Send ONE order-summary confirmation email for a paid course-rental ORDER
+ * (joined set names + header rollup totals). Returns a result when it handled
+ * the send (success OR send error), or null when the order couldn't be loaded
+ * so the caller falls back to the single-rental email.
+ */
+async function sendOrderConfirmationEmail(
+  supabase: SupabaseClient,
+  rental: Record<string, unknown>,
+  options: { transactionSn?: string | null },
+): Promise<{ sent: boolean; reason?: string } | null> {
+  const orderId = rental.order_id as string;
+  const { data: order } = await supabase
+    .from('club_rental_orders')
+    .select(
+      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time',
+    )
+    .eq('id', orderId)
+    .maybeSingle();
+
+  const { data: lineRows } = await supabase
+    .from('club_rentals')
+    .select('add_ons, rental_club_sets ( name, tier, gender )')
+    .eq('order_id', orderId);
+
+  if (!order || !lineRows || lineRows.length === 0) return null;
+
+  type SetRef = { name?: string; tier?: string; gender?: string } | null;
+  const setNames = lineRows
+    .map((r) => (r.rental_club_sets as SetRef)?.name)
+    .filter(Boolean)
+    .join(', ');
+  const firstSet = (lineRows[0].rental_club_sets as SetRef) ?? {};
+  // Group the expanded add-ons array ("3 gloves") into "Golf Glove ×3" for the email.
+  const rawAddOns = lineRows.flatMap((r) => (Array.isArray(r.add_ons) ? r.add_ons : []));
+  const addOns = groupAddOns(rawAddOns).map((g) => ({
+    label: g.quantity > 1 ? `${g.label} ×${g.quantity}` : g.label,
+    price: g.price,
+  }));
+
+  let language: string | null = null;
+  if (rental.customer_id) {
+    const { data: customerLang } = await supabase
+      .from('customers')
+      .select('preferred_language')
+      .eq('id', rental.customer_id as string)
+      .single();
+    language = customerLang?.preferred_language ?? null;
+  }
+
+  const deliveryTimeStr = [
+    order.delivery_time
+      ? `${order.delivery_requested ? 'Delivery' : 'Pickup'}: ${order.delivery_time}`
+      : '',
+    order.return_time ? `Return: ${order.return_time}` : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  const contactPref = rental.contact_preference as string | null;
+
+  try {
+    await sendCourseRentalConfirmationEmail({
+      customerName: rental.customer_name as string,
+      email: rental.customer_email as string,
+      rentalCode: order.order_code,
+      clubSetName: setNames,
+      clubSetTier: (firstSet.tier as string) ?? 'premium',
+      clubSetGender: (firstSet.gender as string) ?? 'mens',
+      startDate: rental.start_date as string,
+      endDate: rental.end_date as string,
+      durationDays: (rental.duration_days as number) || 1,
+      deliveryRequested: !!order.delivery_requested,
+      deliveryAddress: order.delivery_address ?? undefined,
+      deliveryTime: deliveryTimeStr || undefined,
+      addOns,
+      rentalPrice: Number(order.rental_subtotal),
+      deliveryFee: Number(order.delivery_fee || 0),
+      totalPrice: Number(order.total_price),
+      notes: (rental.notes as string) ?? undefined,
+      language: resolveEmailLocale(language),
+      paymentStatus: 'paid',
+      contactPreference:
+        contactPref === 'line' || contactPref === 'email' || contactPref === 'whatsapp'
+          ? contactPref
+          : null,
+      transactionSn: options.transactionSn ?? undefined,
+    });
+    return { sent: true };
+  } catch (err) {
+    console.error('[markRentalAsPaid] order email send error:', err);
     return { sent: false, reason: 'email_send_error' };
   }
 }

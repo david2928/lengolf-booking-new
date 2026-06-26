@@ -13,6 +13,8 @@
  * bits live in the RentalStatus discriminated union.
  */
 
+import { groupAddOns } from './order-pricing';
+
 const SEPARATOR = '----------------------------------';
 
 // ---------------------------------------------------------------------
@@ -113,11 +115,16 @@ function deliveryLine(rental: RentalLineInput['rental']): string {
 }
 
 function addOnsLine(addOnsRaw: unknown): string | null {
-  if (!Array.isArray(addOnsRaw) || addOnsRaw.length === 0) return null;
-  const items = addOnsRaw as Array<{ label?: string; price?: number }>;
-  const formatted = items
-    .filter(a => a && a.label)
-    .map(a => (typeof a.price === 'number' ? `${a.label} (฿${a.price})` : a.label))
+  // The stored array holds one entry per unit; group it so "3 gloves" shows as
+  // "Golf Glove ×3 (฿1,800)" rather than three repeated entries.
+  const grouped = groupAddOns(addOnsRaw);
+  if (grouped.length === 0) return null;
+  const formatted = grouped
+    .map(g =>
+      g.quantity > 1
+        ? `${g.label} ×${g.quantity} (฿${g.price.toLocaleString()})`
+        : `${g.label} (฿${g.price.toLocaleString()})`,
+    )
     .join(', ');
   return formatted ? `🎒 Add-ons: ${formatted}` : null;
 }
@@ -244,6 +251,154 @@ function renderState(input: RentalLineInput): StateRender {
 // ---------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------
+
+// ---------------------------------------------------------------------
+// Order-level composer — one staff ping for a MULTI-set order
+// ---------------------------------------------------------------------
+
+export interface OrderCreatedLineInput {
+  order_code: string;
+  customer_name: string;
+  customer_phone: string | null;
+  customer_email: string | null;
+  start_date: string; // 'YYYY-MM-DD'
+  end_date: string;
+  duration_days: number | null;
+  delivery_requested: boolean | null;
+  delivery_address: string | null;
+  delivery_time: string | null;
+  return_time: string | null;
+  /** One entry per rented set (lines of the order). */
+  sets: Array<{ name: string; tier: string; gender: string }>;
+  /** Order-level add-ons (charged once); shape: [{ label, price }]. */
+  add_ons?: unknown;
+  total_price: number | string;
+  notes: string | null;
+  payment_method_chosen?: string | null;
+  contact_preference?: string | null;
+  /** 'online' = awaiting prepay; 'manual' = staff arranges payment. */
+  paymentMode: 'online' | 'manual';
+  uatPrefix?: boolean;
+}
+
+/**
+ * Compose a single staff LINE notification for a freshly-created multi-set
+ * course-rental ORDER. Mirrors the `Created` state of composeRentalLineMessage
+ * but keys off the CRO order code and lists every set, so a multi-set trip is
+ * one ping instead of N. Single-set orders keep using composeRentalLineMessage.
+ */
+export function composeOrderCreatedLineMessage(input: OrderCreatedLineInput): string {
+  const prefix = input.uatPrefix ? '[UAT] ' : '';
+  const header = `${prefix}📝 NEW CLUB RENTAL ORDER (ID: ${input.order_code}) 📝`;
+
+  const daysLabel =
+    input.duration_days && input.duration_days > 1 ? `${input.duration_days}d` : '1d';
+
+  const setLines = input.sets.map(
+    (s, i) =>
+      `🏌️ Set ${i + 1}: ${s.name} (${tierLabel(s.tier)}, ${genderLabel(s.gender)})`,
+  );
+
+  const paymentChosenLabel = paymentMethodChosenLabel(input.payment_method_chosen);
+  const contactPrefLabel = contactPreferenceLabel(input.contact_preference);
+
+  const footerLine =
+    input.paymentMode === 'online'
+      ? `⌛ Awaiting ShopeePay payment — auto-cancels in 30 min if unpaid.`
+      : `👉 Please contact the customer to confirm availability and arrange payment.`;
+
+  const lines: Array<string | null> = [
+    header,
+    SEPARATOR,
+    `👤 Customer: ${input.customer_name}`,
+    input.customer_phone ? `📞 Phone: ${input.customer_phone}` : null,
+    input.customer_email ? `📧 Email: ${input.customer_email}` : null,
+    contactPrefLabel ? `💬 Contact via: ${contactPrefLabel}` : null,
+    `📦 ${input.sets.length} sets in this order:`,
+    ...setLines,
+    `🗓️ Dates: ${formatRentalDate(input.start_date)} - ${formatRentalDate(input.end_date)} (${daysLabel})`,
+    deliveryLine({
+      delivery_requested: input.delivery_requested,
+      delivery_address: input.delivery_address,
+      delivery_time: input.delivery_time,
+      return_time: input.return_time,
+    } as RentalLineInput['rental']),
+    addOnsLine(input.add_ons),
+    `💰 Order total: ฿${formatPrice(input.total_price)}`,
+    paymentChosenLabel ? `💳 Payment: ${paymentChosenLabel}` : null,
+    input.notes ? `📝 Notes: ${input.notes}` : null,
+    SEPARATOR,
+    footerLine,
+  ];
+
+  return lines.filter((l): l is string => l !== null).join('\n');
+}
+
+export interface OrderPaidLineInput {
+  order_code: string;
+  customer_name: string;
+  customer_phone: string | null;
+  customer_email: string | null;
+  start_date: string;
+  end_date: string;
+  duration_days: number | null;
+  delivery_requested: boolean | null;
+  delivery_address: string | null;
+  delivery_time: string | null;
+  return_time: string | null;
+  sets: Array<{ name: string; tier: string; gender: string }>;
+  add_ons?: unknown;
+  total_price: number | string;
+  notes: string | null;
+  contact_preference?: string | null;
+  transactionSn?: string | null;
+  uatPrefix?: boolean;
+}
+
+/**
+ * Compose one staff LINE notification when a multi-set course-rental ORDER is
+ * paid. Mirrors the `Paid` state of composeRentalLineMessage but at the order
+ * level (CRO code + all sets + order total). Single-set orders keep using the
+ * per-line composeRentalLineMessage.
+ */
+export function composeOrderPaidLineMessage(input: OrderPaidLineInput): string {
+  const prefix = input.uatPrefix ? '[UAT] ' : '';
+  const header = `${prefix}✅ ORDER PAYMENT RECEIVED (ID: ${input.order_code}) ✅`;
+
+  const daysLabel =
+    input.duration_days && input.duration_days > 1 ? `${input.duration_days}d` : '1d';
+  const setLines = input.sets.map(
+    (s, i) => `🏌️ Set ${i + 1}: ${s.name} (${tierLabel(s.tier)}, ${genderLabel(s.gender)})`,
+  );
+  const contactPrefLabel = contactPreferenceLabel(input.contact_preference);
+  const pickupOrDeliveryNoun = input.delivery_requested ? 'delivery' : 'pickup';
+
+  const lines: Array<string | null> = [
+    header,
+    SEPARATOR,
+    `👤 Customer: ${input.customer_name}`,
+    input.customer_phone ? `📞 Phone: ${input.customer_phone}` : null,
+    input.customer_email ? `📧 Email: ${input.customer_email}` : null,
+    contactPrefLabel ? `💬 Contact via: ${contactPrefLabel}` : null,
+    `📦 ${input.sets.length} sets in this order:`,
+    ...setLines,
+    `🗓️ Dates: ${formatRentalDate(input.start_date)} - ${formatRentalDate(input.end_date)} (${daysLabel})`,
+    deliveryLine({
+      delivery_requested: input.delivery_requested,
+      delivery_address: input.delivery_address,
+      delivery_time: input.delivery_time,
+      return_time: input.return_time,
+    } as RentalLineInput['rental']),
+    addOnsLine(input.add_ons),
+    `💰 Order total: ฿${formatPrice(input.total_price)} (PAID via ShopeePay)`,
+    input.transactionSn ? `🔖 Txn: ${input.transactionSn}` : null,
+    input.notes ? `📝 Notes: ${input.notes}` : null,
+    SEPARATOR,
+    `👉 Booking confirmed — please prep clubs for ${pickupOrDeliveryNoun}.`,
+  ];
+
+  return lines.filter((l): l is string => l !== null).join('\n');
+}
 
 export function composeRentalLineMessage(input: RentalLineInput): string {
   const { rental, clubSet, uatPrefix } = input;

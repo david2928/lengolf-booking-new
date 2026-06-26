@@ -873,7 +873,12 @@
       "savings": "比日租价节省 ฿{amount}",
       "selected": "已选择",
       "fullDetailsLink": "在 len.golf 查看球杆详情",
-      "continue": "继续"
+      "continue": "继续",
+      "add": "添加",
+      "decreaseQty": "减少一个",
+      "increaseQty": "增加一个",
+      "availableCount": "剩余 {count} 套",
+      "unitsSelected": "{count, plural, other {已选 # 套}}"
     },
     "delivery": {
       "methodLabel": "您希望如何获取球杆？",
@@ -892,7 +897,8 @@
       "paymentLinkTitle": "在线支付",
       "paymentLinkHint": "立即使用信用卡/借记卡或 ShopeePay 钱包支付",
       "addressRequiredHint": "请在上方填写配送地址以继续",
-      "continue": "继续"
+      "continue": "继续",
+      "deliveryFeeNote": "1–2 套 ฿500，每增加一套加 ฿250"
     },
     "contact": {
       "nameLabel": "姓名",
@@ -940,7 +946,8 @@
       "submitting": "提交中...",
       "confirmReservation": "确认预订",
       "payWithShopeepay": "使用 ShopeePay 支付 ฿{total}",
-      "securedByShopeepay": "由 ShopeePay 安全保障"
+      "securedByShopeepay": "由 ShopeePay 安全保障",
+      "setQty": "× {count}"
     },
     "confirmation": {
       "rentalCodeLabel": "您的租赁编号",

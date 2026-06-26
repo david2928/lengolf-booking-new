@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { createOrder } from '@/lib/shopeepay/client';
 import { shopeepayConfig } from '@/lib/shopeepay/config';
+import { applyOrderPaymentState, loadOrderChargeContext } from '@/lib/shopeepay/orderPayment';
 
 /**
  * POST /api/payments/shopeepay/create
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
   // transaction.
   const { data: rental, error: rentalError } = await supabase
     .from('club_rentals')
-    .select('id, rental_code, rental_type, status, total_price, payment_status, customer_name, expires_at')
+    .select('id, rental_code, rental_type, status, total_price, payment_status, customer_name, expires_at, order_id')
     .eq('rental_code', rental_code)
     .single();
 
@@ -189,6 +190,16 @@ export async function POST(request: NextRequest) {
       { status: 409 }
     );
   }
+
+  // Course-rental payment is ORDER-level: one ShopeePay charge covers the whole
+  // order (all its lines), so charge order.total_price — not just this bearer
+  // line. Order-less rentals (legacy /api/clubs/reserve, order_id NULL) charge
+  // their own total. The customer-facing ref stays the bearer line's rental_code.
+  const orderCtx = await loadOrderChargeContext(supabase, rental.order_id);
+  if (orderCtx && orderCtx.paymentStatus === 'paid') {
+    return NextResponse.json({ error: 'This rental has already been paid' }, { status: 409 });
+  }
+  const chargeTotal = orderCtx ? orderCtx.totalPrice : Number(rental.total_price);
 
   // Idempotency: reuse the most recent pending order for this rental
   // if one already exists. This matters when the customer hits the
@@ -235,8 +246,9 @@ export async function POST(request: NextRequest) {
 
   const returnUrl = `${baseUrl}${return_path || `/payment/result`}?ref=${rental.rental_code}`;
 
-  // Convert THB → satang (ShopeePay's wire format).
-  const amountSatang = Math.round(Number(rental.total_price) * 100);
+  // Convert THB → satang (ShopeePay's wire format). chargeTotal is the order
+  // total for order-linked rentals, else this single line's total.
+  const amountSatang = Math.round(chargeTotal * 100);
   if (!Number.isFinite(amountSatang) || amountSatang <= 0) {
     return NextResponse.json({ error: 'Rental has an invalid price' }, { status: 500 });
   }
@@ -331,14 +343,24 @@ export async function POST(request: NextRequest) {
   }
 
   const expiresAtIso = new Date(Date.now() + effectiveValidity * 1000).toISOString();
-  await supabase
-    .from('club_rentals')
-    .update({
+  if (orderCtx) {
+    // Order-level: mark the header + every line pending (one payment per order),
+    // so the expire cron clears the whole order together and forms reads consistent.
+    await applyOrderPaymentState(supabase, orderCtx.orderId, {
       payment_status: 'pending',
       payment_transaction_id: txnRow.id,
       expires_at: expiresAtIso,
-    })
-    .eq('id', rental.id);
+    });
+  } else {
+    await supabase
+      .from('club_rentals')
+      .update({
+        payment_status: 'pending',
+        payment_transaction_id: txnRow.id,
+        expires_at: expiresAtIso,
+      })
+      .eq('id', rental.id);
+  }
 
   // Don't return amount/customer info to the browser — the redirect
   // URL is the only thing the client legitimately needs.
