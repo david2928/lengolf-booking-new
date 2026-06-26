@@ -14,6 +14,8 @@ interface HeaderProps {
   onToggleMobileMenu: () => void;
   rightContent: ReactNode;
   mobileMenu?: ReactNode;
+  /** Slimmer bar on mobile (full height restored at the desktop breakpoint). */
+  compact?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -23,13 +25,14 @@ const Header: React.FC<HeaderProps> = ({
   onToggleMobileMenu,
   rightContent,
   mobileMenu,
+  compact,
 }) => {
   return (
-    <header className="bg-primary text-primary-foreground py-4 sticky top-0 z-50 shadow-md">
+    <header className={`bg-primary text-primary-foreground sticky top-0 z-50 shadow-md ${compact ? 'py-2 header-desktop:py-4' : 'py-4'}`}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-shrink">
-            <h1 className="text-2xl font-bold text-white flex-shrink-0">
+            <h1 className={`font-bold text-white flex-shrink-0 ${compact ? 'text-xl header-desktop:text-2xl' : 'text-2xl'}`}>
               {title}
             </h1>
             {badge && (

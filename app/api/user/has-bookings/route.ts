@@ -13,16 +13,78 @@ interface HasBookingsSession extends NextAuthSession {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions) as HasBookingsSession | null;
   const phone = request.nextUrl.searchParams.get('phone');
+  const supabase = createAdminClient();
 
-  // Both paths require a session. The phone-based path in particular MUST be
-  // gated: without auth it would be an enumeration oracle on customer
-  // existence (anon could probe arbitrary phone numbers and learn whether
-  // each has any prior bookings or POS sales). All legitimate callers
-  // (LIFF, NextAuth web flow, guest provider) have a session by the time
-  // they reach the cost preview, so requiring one is non-disruptive.
-  if (!session?.user?.id) {
+  // Resolve the authenticated caller. Two supported auth modes:
+  //   - LIFF: the `x-line-user-id` header (the same trust model
+  //     /api/bookings/create uses for the LIFF flow). LIFF users authenticate
+  //     through the LINE SDK and never carry a NextAuth session cookie, so the
+  //     session-only gate this endpoint previously had returned
+  //     hasBookings:false for every LIFF caller — which the cost preview reads
+  //     as isNewCustomer=true, showing B1G1 to returning customers. Accepting
+  //     the header here is what makes the eligibility check work inside LIFF.
+  //   - Web: the NextAuth session cookie.
+  //
+  // Customer resolution for the phone check below:
+  //   - If the LINE account is already LINKED to a customer (profile has a
+  //     customer_id), we trust that linkage and pass it as the authoritative
+  //     signal — no further checks needed.
+  //   - If it's NOT linked (first-time / fresh LINE account, no profile or no
+  //     customer_id yet), we fall through with customerId=null and let the
+  //     entered-phone check decide, so a returning-by-phone customer on a new
+  //     LINE account is still correctly identified instead of being shown B1G1.
+  //
+  // Security note: trusting the raw x-line-user-id header (rather than
+  // requiring it to resolve to a known profile) means the ?phone= path is again
+  // reachable by anyone who sets the header, i.e. a phone-existence enumeration
+  // oracle. This matches the trust model the rest of the LIFF surface already
+  // uses for the header. If that exposure ever needs closing without losing the
+  // unlinked-phone fallback, verify the LIFF ID/access token server-side here.
+  const lineUserId = request.headers.get('x-line-user-id');
+  let profileId: string | null = null;
+  let customerId: string | null = null;
+  let authenticated = false;
+
+  if (lineUserId) {
+    const { data: profile, error: profileLookupError } = await supabase
+      .from('profiles')
+      .select('id, customer_id')
+      .eq('provider', 'line')
+      .eq('provider_id', lineUserId)
+      .maybeSingle();
+    // A missing profile (first-time LINE account) is data:null/error:null and
+    // is fine — we fall through and let the entered-phone check decide. But a
+    // real DB error must NOT be swallowed: dropping customer_id here would lose
+    // the linkage signal and could show B1G1 to a returning customer. Keep the
+    // safe default (treat as returning) on error, as the no-phone path does.
+    if (profileLookupError) {
+      console.error('[Has Bookings API] LIFF profile lookup error:', profileLookupError);
+      return NextResponse.json({ hasBookings: true });
+    }
+    authenticated = true;
+    profileId = profile?.id ?? null;
+    customerId = profile?.customer_id ?? null;
+  } else {
+    const session = await getServerSession(authOptions) as HasBookingsSession | null;
+    if (session?.user?.id) {
+      authenticated = true;
+      profileId = session.user.id;
+      const { data: profileData, error: profileLookupError } = await supabase
+        .from('profiles')
+        .select('customer_id')
+        .eq('id', profileId)
+        .maybeSingle();
+      if (profileLookupError) {
+        console.error('[Has Bookings API] Session profile lookup error:', profileLookupError);
+        // Safe default: assume returning so we don't show the promo on a DB error.
+        return NextResponse.json({ hasBookings: true });
+      }
+      customerId = profileData?.customer_id ?? null;
+    }
+  }
+
+  if (!authenticated) {
     return NextResponse.json({ hasBookings: false });
   }
 
@@ -30,14 +92,6 @@ export async function GET(request: NextRequest) {
   // that the check_new_customer trigger uses to set bookings.is_new_customer
   // at insert time — single source of truth.
   if (phone) {
-    const supabase = createAdminClient();
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('customer_id')
-      .eq('id', session.user.id)
-      .maybeSingle();
-    const customerId = profileData?.customer_id ?? null;
-
     const { data: isNew, error } = await supabase.rpc('is_phone_new_customer', {
       p_phone: phone,
       p_customer_id: customerId,
@@ -56,24 +110,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ hasBookings });
   }
 
-  const profileId = session.user.id;
-  const supabase = createAdminClient();
+  // Legacy profile-based path (non-LIFF web layout's promotion bar, which calls
+  // without ?phone=). Requires a resolved profile id; a LIFF caller without a
+  // profile only reaches here if it omitted the phone, which it never does.
+  if (!profileId) {
+    return NextResponse.json({ hasBookings: false });
+  }
 
   try {
-    // First get the user's customer_id if they have one
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('customer_id')
-      .eq('id', profileId)
-      .single();
-
-    if (profileError) {
-      console.error('[Has Bookings API] Error fetching profile:', profileError);
-      // On error, assume user has bookings to avoid showing promotion incorrectly
-      return NextResponse.json({ hasBookings: true });
-    }
-
-    const customerId = profileData?.customer_id;
 
     // Check if user has any bookings by user_id OR customer_id
     let query = supabase

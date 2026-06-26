@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { createOrder } from '@/lib/shopeepay/client';
 import { shopeepayConfig } from '@/lib/shopeepay/config';
+import { applyOrderPaymentState, loadOrderChargeContext } from '@/lib/shopeepay/orderPayment';
 
 /**
  * POST /api/payments/shopeepay/create
@@ -15,12 +16,17 @@ import { shopeepayConfig } from '@/lib/shopeepay/config';
  * redirect_url instead of creating a duplicate at ShopeePay.
  *
  * Auth: server-only via SUPABASE_SERVICE_ROLE_KEY (createAdminClient).
- * Authorization is implicit — knowing the rental_code is the
- * capability. Rental codes are short (CRYYMMDDXXX) but the
- * /payment/create endpoint never reveals customer-identifying data
- * back to the caller, so a guess yields nothing useful beyond
- * starting a real customer's payment flow (which they'd have to
- * complete from their own ShopeePay app).
+ * Authorization is implicit for the customer flow — knowing the
+ * rental_code is the capability. Rental codes are short
+ * (CRYYMMDDXXX) but the /payment/create endpoint never reveals
+ * customer-identifying data back to the caller, so a guess yields
+ * nothing useful beyond starting a real customer's payment flow
+ * (which they'd have to complete from their own ShopeePay app).
+ *
+ * Backoffice flow: callers may override the link validity window by
+ * supplying `validity_period_seconds` AND a valid `Authorization:
+ * Bearer ${BACKOFFICE_API_TOKEN}` header. Staff issuing links from
+ * lengolf-forms use this path; customers use the default 30 min.
  */
 
 interface CreateBody {
@@ -29,9 +35,56 @@ interface CreateBody {
   platform_type?: 'mweb' | 'pc';
   /** Optional locale-prefixed return path (defaults to /payment/result). */
   return_path?: string;
+  /**
+   * Optional link-validity override in seconds. Requires Bearer auth.
+   * Range [60, 86400]. Customer flow omits this and gets the default.
+   */
+  validity_period_seconds?: number;
 }
 
-const VALIDITY_PERIOD_SECONDS = 1800; // 30 min, matches the cleanup cron window.
+const DEFAULT_VALIDITY_PERIOD_SECONDS = 1800; // 30 min, matches the cleanup cron window.
+const MIN_VALIDITY_PERIOD_SECONDS = 60;
+const MAX_VALIDITY_PERIOD_SECONDS = 86400; // ShopeePay's documented upper bound.
+const BACKOFFICE_TOKEN_MIN_LENGTH = 32;
+
+/**
+ * Constant-time bearer-token compare, mirroring the helper in
+ * app/api/payments/shopeepay/refund/route.ts. Kept in-file (rather
+ * than extracted to a shared module) because the two routes have
+ * subtly different misconfiguration semantics — refund 503s when
+ * the env var is missing because it's strictly a backoffice route,
+ * but here a missing env var only matters when a caller is trying
+ * to use the bearer path.
+ */
+function verifyBearerToken(
+  request: NextRequest
+): { ok: true } | { ok: false; status: number; message: string } {
+  const expected = process.env.BACKOFFICE_API_TOKEN;
+  if (!expected || expected.length < BACKOFFICE_TOKEN_MIN_LENGTH) {
+    return {
+      ok: false,
+      status: 503,
+      message:
+        'Backoffice payment-link path is not configured. Set BACKOFFICE_API_TOKEN (32+ chars) in this environment.',
+    };
+  }
+  const header = request.headers.get('authorization');
+  if (!header || !header.startsWith('Bearer ')) {
+    return { ok: false, status: 401, message: 'Missing or malformed Authorization header' };
+  }
+  const presented = header.slice('Bearer '.length).trim();
+  if (presented.length !== expected.length) {
+    return { ok: false, status: 401, message: 'Invalid token' };
+  }
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) {
+    diff |= presented.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  if (diff !== 0) {
+    return { ok: false, status: 401, message: 'Invalid token' };
+  }
+  return { ok: true };
+}
 
 function getBaseUrl(): string {
   if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== 'development' && process.env.VERCEL_URL) {
@@ -51,7 +104,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { rental_code, platform_type = 'mweb', return_path } = body;
+  const { rental_code, platform_type = 'mweb', return_path, validity_period_seconds } = body;
 
   if (!rental_code || typeof rental_code !== 'string' || rental_code.length > 32) {
     return NextResponse.json({ error: 'rental_code is required' }, { status: 400 });
@@ -63,12 +116,43 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid return_path' }, { status: 400 });
   }
 
+  // Resolve the link validity. Customer flow omits the field and gets
+  // the 30-min default. Backoffice flow (lengolf-forms) supplies it and
+  // must authenticate via bearer token first.
+  let effectiveValidity = DEFAULT_VALIDITY_PERIOD_SECONDS;
+  if (validity_period_seconds !== undefined) {
+    const tokenResult = verifyBearerToken(request);
+    if (!tokenResult.ok) {
+      return NextResponse.json({ error: tokenResult.message }, { status: tokenResult.status });
+    }
+    if (
+      !Number.isInteger(validity_period_seconds) ||
+      validity_period_seconds < MIN_VALIDITY_PERIOD_SECONDS ||
+      validity_period_seconds > MAX_VALIDITY_PERIOD_SECONDS
+    ) {
+      return NextResponse.json(
+        {
+          error: `validity_period_seconds must be an integer in [${MIN_VALIDITY_PERIOD_SECONDS}, ${MAX_VALIDITY_PERIOD_SECONDS}]`,
+        },
+        { status: 400 }
+      );
+    }
+    effectiveValidity = validity_period_seconds;
+  }
+
   const supabase = createAdminClient();
 
   // Look up the rental. v1 only supports course rentals.
+  //
+  // `status` + `expires_at` are read together so the reused-path response
+  // below can use the rental's own expiry without a second query. That
+  // dodges a race with `shopeepay_expire_unpaid_rentals()` (pg_cron, runs
+  // every minute) which sets `expires_at=NULL` + `status='cancelled'` +
+  // flips the matching `payment_transactions.status` to 'failed' in one
+  // transaction.
   const { data: rental, error: rentalError } = await supabase
     .from('club_rentals')
-    .select('id, rental_code, rental_type, total_price, payment_status, customer_name')
+    .select('id, rental_code, rental_type, status, total_price, payment_status, customer_name, expires_at, order_id')
     .eq('rental_code', rental_code)
     .single();
 
@@ -81,12 +165,41 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  // State-machine guard: a rental that has moved out of the 'reserved'
+  // lifecycle cannot be re-billed. Catches the cleanup-cron race (where
+  // a rental is auto-cancelled before the customer pays) and the staff
+  // who-cancelled-then-tried-to-resend case.
+  if (rental.status !== 'reserved') {
+    return NextResponse.json(
+      { error: `Cannot create payment link for rental in '${rental.status}' state` },
+      { status: 409 }
+    );
+  }
   if (rental.payment_status === 'paid') {
     return NextResponse.json(
       { error: 'This rental has already been paid' },
       { status: 409 }
     );
   }
+  // partially_refunded / refunded are terminal on the payment side — even
+  // if the lifecycle is still 'reserved' for some reason, do not let staff
+  // mint another payment link against a refunded rental.
+  if (rental.payment_status === 'refunded' || rental.payment_status === 'partially_refunded') {
+    return NextResponse.json(
+      { error: 'This rental has been refunded and cannot be re-billed' },
+      { status: 409 }
+    );
+  }
+
+  // Course-rental payment is ORDER-level: one ShopeePay charge covers the whole
+  // order (all its lines), so charge order.total_price — not just this bearer
+  // line. Order-less rentals (legacy /api/clubs/reserve, order_id NULL) charge
+  // their own total. The customer-facing ref stays the bearer line's rental_code.
+  const orderCtx = await loadOrderChargeContext(supabase, rental.order_id);
+  if (orderCtx && orderCtx.paymentStatus === 'paid') {
+    return NextResponse.json({ error: 'This rental has already been paid' }, { status: 409 });
+  }
+  const chargeTotal = orderCtx ? orderCtx.totalPrice : Number(rental.total_price);
 
   // Idempotency: reuse the most recent pending order for this rental
   // if one already exists. This matters when the customer hits the
@@ -101,10 +214,17 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (existing && existing.redirect_url) {
+    // Use rental.expires_at as read above — the prior code re-SELECTed
+    // expires_at here, which opened a race window with the cleanup cron
+    // that nulls expires_at while we're between queries. Reading once
+    // up-front + the status-guard above eliminates that.
+    // We do NOT extend the window here — the original validity wins;
+    // that's the booking-app's idempotency contract.
     return NextResponse.json({
       success: true,
       redirect_url: existing.redirect_url,
       payment_reference_id: existing.payment_reference_id,
+      expires_at: rental.expires_at,
       reused: true,
     });
   }
@@ -126,8 +246,9 @@ export async function POST(request: NextRequest) {
 
   const returnUrl = `${baseUrl}${return_path || `/payment/result`}?ref=${rental.rental_code}`;
 
-  // Convert THB → satang (ShopeePay's wire format).
-  const amountSatang = Math.round(Number(rental.total_price) * 100);
+  // Convert THB → satang (ShopeePay's wire format). chargeTotal is the order
+  // total for order-linked rentals, else this single line's total.
+  const amountSatang = Math.round(chargeTotal * 100);
   if (!Number.isFinite(amountSatang) || amountSatang <= 0) {
     return NextResponse.json({ error: 'Rental has an invalid price' }, { status: 500 });
   }
@@ -171,7 +292,7 @@ export async function POST(request: NextRequest) {
       currency: 'THB',
       return_url: returnUrl,
       platform_type,
-      validity_period: VALIDITY_PERIOD_SECONDS,
+      validity_period: effectiveValidity,
       additional_info: additionalInfo,
     });
   } catch (e) {
@@ -221,14 +342,25 @@ export async function POST(request: NextRequest) {
     // Non-fatal — we still got a redirect URL. Continue.
   }
 
-  await supabase
-    .from('club_rentals')
-    .update({
+  const expiresAtIso = new Date(Date.now() + effectiveValidity * 1000).toISOString();
+  if (orderCtx) {
+    // Order-level: mark the header + every line pending (one payment per order),
+    // so the expire cron clears the whole order together and forms reads consistent.
+    await applyOrderPaymentState(supabase, orderCtx.orderId, {
       payment_status: 'pending',
       payment_transaction_id: txnRow.id,
-      expires_at: new Date(Date.now() + VALIDITY_PERIOD_SECONDS * 1000).toISOString(),
-    })
-    .eq('id', rental.id);
+      expires_at: expiresAtIso,
+    });
+  } else {
+    await supabase
+      .from('club_rentals')
+      .update({
+        payment_status: 'pending',
+        payment_transaction_id: txnRow.id,
+        expires_at: expiresAtIso,
+      })
+      .eq('id', rental.id);
+  }
 
   // Don't return amount/customer info to the browser — the redirect
   // URL is the only thing the client legitimately needs.
@@ -236,6 +368,7 @@ export async function POST(request: NextRequest) {
     success: true,
     redirect_url: shopeeResp.redirect_url_http,
     payment_reference_id: paymentReferenceId,
+    expires_at: expiresAtIso,
     gateway_environment: shopeepayConfig.isProductionEnv ? 'production' : 'staging',
   });
 }

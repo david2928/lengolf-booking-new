@@ -781,6 +781,39 @@
     }
   },
   "courseRental": {
+    "landing": {
+      "heroHeadline": "방콕 모든 코스를 위한 프리미엄 클럽",
+      "heroTagline": "장비가 아닌, 경험을 누리세요.",
+      "ratingChip": "{rating} · Google 리뷰 {count}개",
+      "instantChip": "즉시 확정",
+      "valueProps": {
+        "sets": "투어 등급 Callaway·Majesty 세트",
+        "instant": "카드 결제로 즉시 확정",
+        "noDeposit": "보증금 없음",
+        "delivery": "호텔·골프장으로 배송 · 왕복 ฿500",
+        "savings": "여러 날 패키지로 최대 50% 절약"
+      },
+      "featuredPrefix": "추천",
+      "featuredMeta": "Premium+ 투어 등급 · ฿{price}/일부터",
+      "cardHeading": "대여 시작하기",
+      "cardSubtitle": "날짜를 선택하면 예약 가능 여부를 확인해 드려요.",
+      "checkAvailability": "예약 확인",
+      "instantPayTitle": "카드 결제로 즉시 확정",
+      "instantPaySubtitle": "안전한 온라인 결제",
+      "trustDelivery": "호텔·코스 배송",
+      "trustSavings": "최대 50% 절약",
+      "showcaseHeadingA": "세트",
+      "showcaseHeadingB": "선택",
+      "fromPerDay": "฿{price}/일부터",
+      "group": {
+        "eyebrow": "단체 대여",
+        "heading": "단체로 대여하시나요?",
+        "body": "여러 세트나 대규모 일행이라면 단체 할인이 포함된 맞춤 견적을 준비해 드립니다.",
+        "lineCta": "LINE @lengolf",
+        "emailCta": "이메일 문의",
+        "phonePrefix": "전화가 편하신가요?"
+      }
+    },
     "page": {
       "backAriaLabel": "뒤로",
       "headingConfirmed": "예약이 확정되었습니다!",
@@ -840,7 +873,12 @@
       "savings": "일일 요금 대비 ฿{amount} 절약",
       "selected": "선택됨",
       "fullDetailsLink": "len.golf에서 클럽 상세 정보 보기",
-      "continue": "계속"
+      "continue": "계속",
+      "add": "추가",
+      "decreaseQty": "하나 줄이기",
+      "increaseQty": "하나 추가",
+      "availableCount": "{count}개 남음",
+      "unitsSelected": "{count, plural, other {#개 세트 선택됨}}"
     },
     "delivery": {
       "methodLabel": "클럽을 어떻게 받으시겠습니까?",
@@ -859,7 +897,8 @@
       "paymentLinkTitle": "온라인 결제",
       "paymentLinkHint": "신용/체크카드 또는 ShopeePay 월렛으로 지금 결제",
       "addressRequiredHint": "계속하려면 위에 배송 주소를 입력해 주세요",
-      "continue": "계속"
+      "continue": "계속",
+      "deliveryFeeNote": "1~2세트는 ฿500, 세트당 ฿250 추가"
     },
     "contact": {
       "nameLabel": "성명",
@@ -907,7 +946,8 @@
       "submitting": "전송 중...",
       "confirmReservation": "예약 확정",
       "payWithShopeepay": "ShopeePay로 ฿{total} 결제",
-      "securedByShopeepay": "ShopeePay 보안 결제"
+      "securedByShopeepay": "ShopeePay 보안 결제",
+      "setQty": "× {count}"
     },
     "confirmation": {
       "rentalCodeLabel": "렌탈 코드",
@@ -1132,7 +1172,7 @@
       "refundDateLabel": "Refund Date",
       "refundReferenceLabel": "Refund Reference",
       "whatsNextHeading": "When will I see the refund?",
-      "whatsNextBody": "The refund should appear in your ShopeePay account within 5-7 business days. If you don't see it after that, please contact us using the details below.",
+      "whatsNextBody": "환불금은 5-7 영업일 이내에 원래 결제 수단으로 반환됩니다. 그 이후에도 확인되지 않는다면 아래 연락처로 문의해 주세요.",
       "footerPhoneLabel": "Phone Number:",
       "footerLineLabel": "LINE:",
       "footerAddressLabel": "Address:",

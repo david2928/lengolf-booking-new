@@ -116,7 +116,13 @@ export default function LiffBookingPage() {
     if (!phone || phone.length < 8) return;
     let cancelled = false;
     const timer = setTimeout(() => {
-      fetch(`/api/user/has-bookings?phone=${encodeURIComponent(phone)}`)
+      // Send the LINE user id so /api/user/has-bookings can authenticate the
+      // LIFF caller — LIFF has no NextAuth session, so without this header the
+      // endpoint returns hasBookings:false and B1G1 would be shown to every
+      // LIFF customer regardless of history.
+      fetch(`/api/user/has-bookings?phone=${encodeURIComponent(phone)}`, {
+        headers: lineUserId ? { 'x-line-user-id': lineUserId } : undefined,
+      })
         .then(res => res.json())
         .then(hbData => {
           if (cancelled) return;
@@ -131,7 +137,7 @@ export default function LiffBookingPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [formData.phone]);
+  }, [formData.phone, lineUserId]);
 
   const initializeLiff = async () => {
     try {
