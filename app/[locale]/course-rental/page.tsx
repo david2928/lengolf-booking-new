@@ -7,6 +7,8 @@ import { useTranslations, useFormatter } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
+import { DeliveryAddressAutocomplete } from '@/components/course-rental/DeliveryAddressAutocomplete';
+import { RentalPriceSummaryBar } from '@/components/course-rental/RentalPriceSummaryBar';
 import { ArrowLeftIcon, CheckIcon, InformationCircleIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
@@ -83,6 +85,9 @@ export default function CourseRentalPage() {
   const [returnTime, setReturnTime] = useState('');
   const [deliveryRequested, setDeliveryRequested] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
+  const [deliveryLng, setDeliveryLng] = useState<number | null>(null);
+  const [addressFallback, setAddressFallback] = useState(false);
   const [addOns, setAddOns] = useState<ClubRentalAddOn[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
   const [preferredContact, setPreferredContact] = useState<'line' | 'email' | 'whatsapp'>('line');
@@ -250,6 +255,8 @@ export default function CourseRentalPage() {
           add_ons: addOns,
           delivery_requested: deliveryRequested,
           delivery_address: deliveryRequested ? deliveryAddress : undefined,
+          delivery_lat: deliveryRequested && deliveryLat != null ? deliveryLat : undefined,
+          delivery_lng: deliveryRequested && deliveryLng != null ? deliveryLng : undefined,
           delivery_time: pickupTime || undefined,
           return_time: returnTime || undefined,
           // Notes is now strictly customer-typed free text. Payment choice
@@ -335,7 +342,7 @@ export default function CourseRentalPage() {
 
   return (
     <Layout hidePromotionBar hideNav>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-24">
         {/* Header with back button */}
         <div className="mb-6 flex items-start">
           {stepIndex > 0 && !isConfirmation && (
@@ -708,7 +715,12 @@ export default function CourseRentalPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setDeliveryRequested(false)}
+                  onClick={() => {
+                    setDeliveryRequested(false);
+                    setDeliveryAddress('');
+                    setDeliveryLat(null);
+                    setDeliveryLng(null);
+                  }}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     !deliveryRequested
                       ? 'border-green-600 bg-green-50'
@@ -743,13 +755,24 @@ export default function CourseRentalPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {t('delivery.addressLabel')} <span className="text-red-500">*</span>
                   </label>
-                  <textarea
-                    value={deliveryAddress}
-                    onChange={e => setDeliveryAddress(e.target.value)}
-                    placeholder={t('delivery.addressPlaceholder')}
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
-                  />
+                  {addressFallback ? (
+                    <textarea
+                      value={deliveryAddress}
+                      onChange={e => setDeliveryAddress(e.target.value)}
+                      placeholder={t('delivery.addressPlaceholder')}
+                      rows={3}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
+                    />
+                  ) : (
+                    <DeliveryAddressAutocomplete
+                      onSelect={({ address, lat, lng }) => {
+                        setDeliveryAddress(address);
+                        setDeliveryLat(lat);
+                        setDeliveryLng(lng);
+                      }}
+                      onLoadError={() => setAddressFallback(true)}
+                    />
+                  )}
                 </div>
               </div>
             )}
@@ -1276,6 +1299,17 @@ export default function CourseRentalPage() {
             </>
           )}
         </div>
+      )}
+
+      {/* Sticky price bar — only show from step 2 onwards */}
+      {step !== 'dates' && step !== 'confirmation' && (
+        <RentalPriceSummaryBar
+          selectedSet={selectedSet}
+          durationDays={durationDays}
+          deliveryRequested={deliveryRequested}
+          addOnsTotal={addOnsTotal}
+          currentStep={step}
+        />
       )}
     </Layout>
   );
