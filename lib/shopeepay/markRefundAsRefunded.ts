@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendCourseRentalRefundEmail, resolveEmailLocale } from '@/lib/emailService';
+import { resolveRentalCustomer } from '@/lib/club-rental/resolve-customer';
 
 /**
  * Atomically claims the refund-email send and dispatches the customer
@@ -61,7 +62,7 @@ export async function claimAndSendRefundEmail(
 
   const { data: rental, error: rentalErr } = await supabase
     .from('club_rentals')
-    .select('rental_code, customer_name, customer_email, customer_id, total_price')
+    .select('rental_code, customer_name, customer_email, customer_id, total_price, order_id')
     .eq('id', txn.club_rental_id)
     .single();
 
@@ -74,17 +75,37 @@ export async function claimAndSendRefundEmail(
     return { sent: false, reason: 'rental_not_found' };
   }
 
-  if (!rental.customer_email) {
+  // Customer is order-canonical for course refunds: read it off the order header
+  // when the line belongs to an order, falling back to the line. (Option B, customer family.)
+  let orderCustomer:
+    | { customer_id: string | null; customer_name: string | null; customer_email: string | null }
+    | null = null;
+  if (rental.order_id) {
+    const { data: o } = await supabase
+      .from('club_rental_orders')
+      .select('customer_id, customer_name, customer_email')
+      .eq('id', rental.order_id as string)
+      .maybeSingle();
+    orderCustomer = o ?? null;
+  }
+  const cust = resolveRentalCustomer({
+    customer_id: rental.customer_id,
+    customer_name: rental.customer_name,
+    customer_email: rental.customer_email,
+    order: orderCustomer,
+  });
+
+  if (!cust.email) {
     // Keep the claim — no point retrying when there's no address.
     return { sent: false, reason: 'no_customer_email' };
   }
 
   let language: string | null = null;
-  if (rental.customer_id) {
+  if (cust.id) {
     const { data: customerLang } = await supabase
       .from('customers')
       .select('preferred_language')
-      .eq('id', rental.customer_id)
+      .eq('id', cust.id)
       .single();
     language = customerLang?.preferred_language ?? null;
   }
@@ -98,8 +119,8 @@ export async function claimAndSendRefundEmail(
 
   try {
     await sendCourseRentalRefundEmail({
-      customerName: rental.customer_name,
-      email: rental.customer_email,
+      customerName: (cust.name ?? rental.customer_name) as string,
+      email: (cust.email ?? rental.customer_email) as string,
       rentalCode: rental.rental_code,
       refundSn: context.refundSn ?? undefined,
       originalAmountThb,
