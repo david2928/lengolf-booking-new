@@ -25,9 +25,11 @@ interface LayoutProps {
   compactHeader?: boolean;
   /** Drop the centered/padded <main> wrapper so the page controls full-bleed layout. */
   flushMain?: boolean;
+  /** Hide the long shared footer (used by focused checkout flows like course-rental). */
+  hideFooter?: boolean;
 }
 
-export function Layout({ children, hidePromotionBar, hideNav, compactHeader, flushMain }: LayoutProps) {
+export function Layout({ children, hidePromotionBar, hideNav, compactHeader, flushMain, hideFooter }: LayoutProps) {
   const t = useTranslations('bookings.layout');
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
@@ -593,7 +595,7 @@ export function Layout({ children, hidePromotionBar, hideNav, compactHeader, flu
         {children}
       </main>
 
-      <SharedFooter />
+      {!hideFooter && <SharedFooter />}
     </div>
   );
 } 

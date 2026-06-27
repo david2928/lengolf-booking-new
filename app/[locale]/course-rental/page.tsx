@@ -215,6 +215,13 @@ export default function CourseRentalPage() {
     });
   }, [step]);
 
+  // Each step is a fresh "page" — reset scroll to the top so the customer never
+  // lands mid-page (or at the footer) after tapping Continue at the bottom of
+  // the previous step, or after the saved-flow restore re-enters a later step.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [step]);
+
   // Prefill contact fields for logged-in customers from VIP profile.
   // Mirrors the BookingDetails approach (sessionStorage cache + /api/vip/profile).
   useEffect(() => {
@@ -484,7 +491,7 @@ export default function CourseRentalPage() {
   const isConfirmation = step === 'confirmation';
 
   return (
-    <Layout hidePromotionBar hideNav compactHeader flushMain>
+    <Layout hidePromotionBar hideNav compactHeader flushMain hideFooter>
       <div className={step === 'dates' ? 'w-full' : 'max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24'}>
         {/* Header with back button — hidden on the dates landing (the hero is the header) */}
         {step !== 'dates' && (
