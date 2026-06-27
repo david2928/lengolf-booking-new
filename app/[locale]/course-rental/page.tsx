@@ -7,12 +7,16 @@ import { useTranslations, useFormatter } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
-import { ArrowLeftIcon, CheckIcon, InformationCircleIcon, MapPinIcon, TruckIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import { DeliveryAddressAutocomplete } from '@/components/course-rental/DeliveryAddressAutocomplete';
+import { RentalPriceSummaryBar } from '@/components/course-rental/RentalPriceSummaryBar';
+import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon, UserGroupIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
-import type { RentalClubSetWithAvailability, ClubRentalAddOn } from '@/types/golf-club-rental';
+import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
+import { useFlowPersistence, clearFlowPersistence } from '@/lib/use-flow-persistence';
 import { pushEventToGtm } from '@/utils/gtm';
+import { courseDeliveryFee } from '@/lib/club-rental/order-pricing';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
 
@@ -28,8 +32,17 @@ const SET_IMAGES: Record<string, { src: string; alt: string }[]> = {
     { src: `${STORAGE_BASE}/clubs/premium-plus/12.png`, alt: 'Ventus TR shaft' },
     { src: `${STORAGE_BASE}/clubs/premium-plus/1.png`, alt: 'Callaway golf bag' },
   ],
+  // Mirrors the Paradym (premium-plus_mens) angle sequence: full set → driver →
+  // irons → fairway wood → putter → shaft → bag. Warbird has no wedges, so the
+  // Paradym wedge slot is omitted rather than substituted.
   'premium_mens': [
-    { src: `${STORAGE_BASE}/clubs/warbird/warbird-full-set.webp`, alt: 'Callaway Warbird full set' },
+    { src: `${STORAGE_BASE}/clubs/premium/2.png`, alt: 'Callaway Warbird full set in golf bag' },
+    { src: `${STORAGE_BASE}/clubs/premium/4.png`, alt: 'Callaway Warbird driver 10.5°' },
+    { src: `${STORAGE_BASE}/clubs/premium/11.png`, alt: 'Callaway Warbird irons set' },
+    { src: `${STORAGE_BASE}/clubs/premium/9.png`, alt: 'Callaway Warbird 5W fairway wood' },
+    { src: `${STORAGE_BASE}/clubs/premium/13.png`, alt: 'Odyssey putter' },
+    { src: `${STORAGE_BASE}/clubs/premium/7.png`, alt: 'Callaway Warbird S-flex shaft' },
+    { src: `${STORAGE_BASE}/clubs/premium/1.png`, alt: 'Callaway Warbird golf bag' },
   ],
   'premium_womens': [
     { src: `${STORAGE_BASE}/clubs/premium-womens/majesty-shuttle-full-set.jpg`, alt: 'Majesty Shuttle full set' },
@@ -46,10 +59,17 @@ function getSetImageKey(set: { tier: string; gender: string }): string {
 // booking selector and the rental-options modal. Set names are brand names
 // kept untranslated; meta strings resolve via i18n at render time.
 const PREVIEW_SETS = [
-  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'mens' }), name: 'Callaway Warbird', metaKey: 'metaMensPremium' as const },
-  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'womens' }), name: 'Majesty Shuttle', metaKey: 'metaLadiesPremium' as const },
-  { img: getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' }), name: 'Callaway Paradym', metaKey: 'metaMensPremiumPlus' as const },
+  { img: getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' }), name: 'Callaway Paradym', tier: 'premium-plus', gender: 'mens', fromPrice: 1800, featured: true, metaKey: 'metaMensPremiumPlus' as const },
+  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'mens' }), name: 'Callaway Warbird', tier: 'premium', gender: 'mens', fromPrice: 1200, featured: false, metaKey: 'metaMensPremium' as const },
+  { img: getSetThumbnailUrl({ tier: 'premium', gender: 'womens' }), name: 'Majesty Shuttle', tier: 'premium', gender: 'womens', fromPrice: 1200, featured: false, metaKey: 'metaLadiesPremium' as const },
 ];
+
+const HERO_IMAGE = `${STORAGE_BASE}/golf/hero-course-rental.webp`;
+
+// Google review stats shown in the hero. Keep in sync with len.golf BUSINESS_INFO
+// (googleRating 5.0 / googleReviewCount). Wire to a shared/live source if it drifts.
+const GOOGLE_RATING = '5.0';
+const GOOGLE_REVIEW_COUNT = 579;
 
 const TIME_OPTIONS = [
   '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
@@ -71,19 +91,27 @@ export default function CourseRentalPage() {
   const [step, setStep] = useState<Step>('dates');
   const [availableSets, setAvailableSets] = useState<RentalClubSetWithAvailability[]>([]);
   const [setsLoading, setSetsLoading] = useState(true);
-  const [heroIndex, setHeroIndex] = useState(0);
+  // Per-set hero image index (multiple sets can be expanded at once).
+  const [heroIndexBySet, setHeroIndexBySet] = useState<Record<string, number>>({});
   const [lightboxImages, setLightboxImages] = useState<{ src: string; alt: string }[] | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  // Selections
-  const [selectedSet, setSelectedSet] = useState<RentalClubSetWithAvailability | null>(null);
+  // Selections — quantity per set id (0 = not selected). One order can hold
+  // multiple sets; each unit becomes a club_rentals line under one order.
+  const [selectedQty, setSelectedQty] = useState<Record<string, number>>({});
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
   const [returnTime, setReturnTime] = useState('');
   const [deliveryRequested, setDeliveryRequested] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [addOns, setAddOns] = useState<ClubRentalAddOn[]>([]);
+  const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
+  const [deliveryLng, setDeliveryLng] = useState<number | null>(null);
+  const [addressFallback, setAddressFallback] = useState(false);
+  // Add-on quantity per item id (gloves / balls). Order-level; each capped at the
+  // number of sets (one per player). Stored expanded (repeated) so add_ons_total
+  // and the forms reader stay correct.
+  const [addOnQty, setAddOnQty] = useState<Record<string, number>>({});
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('card');
   const [preferredContact, setPreferredContact] = useState<'line' | 'email' | 'whatsapp'>('line');
   const [contactName, setContactName] = useState('');
@@ -96,6 +124,41 @@ export default function CourseRentalPage() {
   const [submitting, setSubmitting] = useState(false);
   const [rentalCode, setRentalCode] = useState('');
   const [error, setError] = useState('');
+
+  // Persist the in-progress flow so switching language (which remounts this page
+  // under a different /[locale] route) doesn't bounce the customer back to step 1.
+  // Stops persisting and clears the snapshot once a rental is created or we reach
+  // the confirmation step, so a fresh visit always starts over.
+  useFlowPersistence(
+    'lengolf.courseRentalFlow',
+    { step, selectedQty, startDate, endDate, pickupTime, returnTime, deliveryRequested, deliveryAddress, addOnQty, paymentMethod, preferredContact, contactName, contactPhone, contactEmail, notes },
+    (s) => {
+      // Clamp the restored step to what the saved data can actually render, so a
+      // partial/corrupt snapshot can't strand the customer on a blank step.
+      {
+        const want = s.step || 'dates';
+        const hasDates = !!(s.startDate && s.endDate && s.pickupTime && s.returnTime);
+        const needsSet = want === 'delivery' || want === 'contact' || want === 'review';
+        const hasSets = Object.keys(s.selectedQty || {}).length > 0;
+        setStep(want !== 'dates' && !hasDates ? 'dates' : needsSet && !hasSets ? 'set' : want);
+      }
+      if (s.selectedQty) setSelectedQty(s.selectedQty);
+      if (s.startDate) setStartDate(s.startDate);
+      if (s.endDate) setEndDate(s.endDate);
+      if (s.pickupTime) setPickupTime(s.pickupTime);
+      if (s.returnTime) setReturnTime(s.returnTime);
+      if (typeof s.deliveryRequested === 'boolean') setDeliveryRequested(s.deliveryRequested);
+      if (s.deliveryAddress) setDeliveryAddress(s.deliveryAddress);
+      if (s.addOnQty) setAddOnQty(s.addOnQty);
+      if (s.paymentMethod) setPaymentMethod(s.paymentMethod);
+      if (s.preferredContact) setPreferredContact(s.preferredContact);
+      if (s.contactName) setContactName(s.contactName);
+      if (s.contactPhone) setContactPhone(s.contactPhone);
+      if (s.contactEmail) setContactEmail(s.contactEmail);
+      if (s.notes) setNotes(s.notes);
+    },
+    { enabled: step !== 'confirmation' && !rentalCode },
+  );
 
   // Calculate billable duration from pickup/return time, not just calendar dates.
   // Without this, e.g. pickup 09:00 Sun + return 20:00 Mon (35h) would bill as 1d.
@@ -138,10 +201,17 @@ export default function CourseRentalPage() {
     fetchSets();
   }, [fetchSets]);
 
-  // Reset hero index when selected set changes
+  // Funnel telemetry: push a step-viewed event whenever the user advances.
+  // GTM trigger "Course Rental Step Viewed" fans this out to GA4
+  // (event: course_rental_step_viewed) so we can build a per-step drop-off
+  // funnel alongside the existing course_rental_confirmed conversion.
   useEffect(() => {
-    setHeroIndex(0);
-  }, [selectedSet?.id]);
+    pushEventToGtm('course_rental_step_viewed', {
+      step,
+      step_index: step === 'confirmation' ? STEP_ORDER.length : STEP_ORDER.indexOf(step),
+      total_steps: STEP_ORDER.length,
+    });
+  }, [step]);
 
   // Prefill contact fields for logged-in customers from VIP profile.
   // Mirrors the BookingDetails approach (sessionStorage cache + /api/vip/profile).
@@ -205,20 +275,73 @@ export default function CourseRentalPage() {
     };
   }, [authStatus, session?.user?.id, profilePrefilled]);
 
-  // Pricing — optimal combo
-  const breakdown = (selectedSet && durationDays > 0) ? getCoursePriceBreakdown(selectedSet, durationDays) : null;
-  const rentalPrice = breakdown?.total || 0;
-  const addOnsTotal = addOns.reduce((sum, a) => sum + a.price, 0);
-  const deliveryFee = deliveryRequested ? 500 : 0;
+  // Selection derived state — sets with quantity > 0, and the total unit count.
+  const selectedEntries = availableSets.filter((s) => (selectedQty[s.id] ?? 0) > 0);
+  const totalUnits = selectedEntries.reduce((sum, s) => sum + (selectedQty[s.id] ?? 0), 0);
+
+  // Pricing — optimal combo per set × quantity; delivery charged ONCE (tiered by
+  // set count). Mirrors the server-side allocateOrderMoney rollup.
+  const rentalPrice =
+    durationDays > 0
+      ? selectedEntries.reduce(
+          (sum, s) => sum + getCoursePriceBreakdown(s, durationDays).total * (selectedQty[s.id] ?? 0),
+          0,
+        )
+      : 0;
+  const totalSavings =
+    durationDays > 0
+      ? selectedEntries.reduce(
+          (sum, s) => sum + getCoursePriceBreakdown(s, durationDays).savings * (selectedQty[s.id] ?? 0),
+          0,
+        )
+      : 0;
+  // Add-ons (gloves / balls): order-level, charged price × quantity.
+  const addOnItems = GEAR_UP_ITEMS.filter((item) => item.id !== 'delivery');
+  const addOnsTotal = addOnItems.reduce(
+    (sum, item) => sum + item.price * (addOnQty[item.id] ?? 0),
+    0,
+  );
+  const deliveryFee = deliveryRequested ? courseDeliveryFee(totalUnits) : 0;
   const totalPrice = rentalPrice + addOnsTotal + deliveryFee;
 
-  const toggleAddOn = (key: string, label: string, price: number) => {
-    setAddOns(prev =>
-      prev.find(a => a.key === key)
-        ? prev.filter(a => a.key !== key)
-        : [...prev, { key, label, price }]
-    );
+  // Adjust the quantity for a set, clamped to [0, available_count].
+  const setQty = (setId: string, next: number, max: number) => {
+    const clamped = Math.max(0, Math.min(next, max));
+    setSelectedQty((prev) => {
+      const updated = { ...prev };
+      if (clamped <= 0) delete updated[setId];
+      else updated[setId] = clamped;
+      return updated;
+    });
   };
+
+  // Adjust an add-on quantity, clamped to [0, max] (max = number of sets).
+  const setAddOnQtyClamped = (key: string, next: number, max: number) => {
+    const clamped = Math.max(0, Math.min(next, max));
+    setAddOnQty((prev) => {
+      const updated = { ...prev };
+      if (clamped <= 0) delete updated[key];
+      else updated[key] = clamped;
+      return updated;
+    });
+  };
+
+  // If the customer reduces the number of sets below an add-on quantity, clamp it
+  // (the cap is the set count). The server enforces the same cap.
+  useEffect(() => {
+    setAddOnQty((prev) => {
+      let changed = false;
+      const next: Record<string, number> = { ...prev };
+      for (const k of Object.keys(next)) {
+        if (next[k] > totalUnits) {
+          changed = true;
+          if (totalUnits <= 0) delete next[k];
+          else next[k] = totalUnits;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [totalUnits]);
 
   const goBack = () => {
     const idx = STEP_ORDER.indexOf(step);
@@ -234,34 +357,45 @@ export default function CourseRentalPage() {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch('/api/clubs/reserve', {
+      // One order, N lines (one per selected unit). The bearer line carries the
+      // shared delivery fee + add-ons; the server (allocateOrderMoney) enforces this.
+      const orderLines = selectedEntries.flatMap((s) =>
+        Array.from({ length: selectedQty[s.id] ?? 0 }, () => ({ rental_club_set_id: s.id })),
+      );
+      const localePrefix = window.location.pathname.match(/^\/(en|th|ko|ja|zh)(\/|$)/)?.[1];
+
+      const res = await fetch('/api/clubs/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          rental_club_set_id: selectedSet!.id,
-          rental_type: 'course',
+          lines: orderLines,
           start_date: startDate,
           end_date: endDate,
           start_time: pickupTime || undefined,
-          duration_days: durationDays,
+          return_time: returnTime || undefined,
+          delivery_time: pickupTime || undefined,
           customer_name: contactName,
           customer_email: contactEmail || undefined,
           customer_phone: contactPhone,
-          add_ons: addOns,
+          // Expand add-on quantities to one entry per unit; the server re-resolves
+          // price/label by key and sums them (price × quantity).
+          add_ons: addOnItems.flatMap((item) =>
+            Array.from({ length: addOnQty[item.id] ?? 0 }, () => ({ key: item.id })),
+          ),
           delivery_requested: deliveryRequested,
           delivery_address: deliveryRequested ? deliveryAddress : undefined,
-          delivery_time: pickupTime || undefined,
-          return_time: returnTime || undefined,
-          // Notes is now strictly customer-typed free text. Payment choice
-          // + contact preference travel as their own fields so they can be
-          // surfaced cleanly to staff (LINE / backoffice) without leaking
-          // into the customer-facing email's "Notes" block.
+          delivery_lat: deliveryRequested && deliveryLat != null ? deliveryLat : undefined,
+          delivery_lng: deliveryRequested && deliveryLng != null ? deliveryLng : undefined,
+          // Notes is strictly customer-typed free text. Payment choice + contact
+          // preference travel as their own fields so they can be surfaced cleanly
+          // to staff (LINE / backoffice) without leaking into the customer email.
           notes: notes || undefined,
           payment_method_chosen:
             paymentMethod === 'cash' ? 'cash_at_pickup' : 'online_shopeepay',
           contact_preference: preferredContact, // 'line' | 'email' | 'whatsapp'
           source: 'website' as const,
           payment_method: paymentMethod,
+          language: localePrefix || undefined,
         }),
       });
 
@@ -272,7 +406,14 @@ export default function CourseRentalPage() {
         return;
       }
 
-      setRentalCode(data.rental_code);
+      // The order code is the customer-facing reference (searchable by staff).
+      setRentalCode(data.order_code);
+
+      // An order now exists — clear the persisted flow immediately (imperatively,
+      // not via the effect) so stale state can't restore if the customer returns
+      // after the ShopeePay redirect below, which leaves the tab before React
+      // commits the enabled=false cleanup (would otherwise risk a re-submit).
+      clearFlowPersistence('lengolf.courseRentalFlow');
 
       // Push conversion event to GTM for Google Ads tracking
       pushEventToGtm('course_rental_confirmed', {
@@ -282,20 +423,18 @@ export default function CourseRentalPage() {
         },
         conversion_value: totalPrice,
         currency: 'THB',
-        rental_code: data.rental_code,
-        club_set: selectedSet?.name,
+        order_code: data.order_code,
+        rental_code: data.order_code,
+        club_set: selectedEntries.map((s) => s.name).join(', '),
+        num_sets: totalUnits,
         duration_days: durationDays,
         delivery_requested: deliveryRequested,
       });
 
-      // If the customer chose card (and for delivery, this is forced),
-      // hand off to the ShopeePay flow. Otherwise stay on the in-page
-      // confirmation step as today.
+      // If the customer chose card (delivery forces it), hand off to ShopeePay.
+      // The handoff keys off the order's bearer-line rental_code; the server
+      // charges the ORDER total and marks every line paid (order-level payment).
       if (data.requires_prepay) {
-        // Call ShopeePay create while the submit spinner is still showing,
-        // then navigate directly to ShopeePay — no intermediate /payment/start
-        // page. /payment/start still handles direct URL access (recovery links).
-        const localePrefix = window.location.pathname.match(/^\/(en|th|ko|ja|zh)(\/|$)/)?.[1];
         const prefix = localePrefix ? `/${localePrefix}` : '';
         const platformType: 'mweb' | 'pc' =
           typeof window !== 'undefined' && window.innerWidth < 768 ? 'mweb' : 'pc';
@@ -311,6 +450,13 @@ export default function CourseRentalPage() {
           });
           const payData = await payRes.json();
           if (payRes.ok && payData?.redirect_url) {
+            pushEventToGtm('course_rental_payment_redirect', {
+              rental_code: data.rental_code,
+              order_code: data.order_code,
+              conversion_value: totalPrice,
+              currency: 'THB',
+              platform_type: platformType,
+            });
             window.location.href = payData.redirect_url;
             return;
           }
@@ -334,9 +480,10 @@ export default function CourseRentalPage() {
   const isConfirmation = step === 'confirmation';
 
   return (
-    <Layout hidePromotionBar hideNav>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6">
-        {/* Header with back button */}
+    <Layout hidePromotionBar hideNav compactHeader flushMain>
+      <div className={step === 'dates' ? 'w-full' : 'max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24'}>
+        {/* Header with back button — hidden on the dates landing (the hero is the header) */}
+        {step !== 'dates' && (
         <div className="mb-6 flex items-start">
           {stepIndex > 0 && !isConfirmation && (
             <button
@@ -352,7 +499,6 @@ export default function CourseRentalPage() {
               {isConfirmation ? t('page.headingConfirmed') : t(`stepLabels.${step}`)}
             </h2>
             <p className="text-gray-600 mt-1 text-sm">
-              {step === 'dates' && t('page.subtitleDates')}
               {step === 'set' && t('page.subtitleSet')}
               {step === 'delivery' && t('page.subtitleDelivery')}
               {step === 'contact' && t('page.subtitleContact')}
@@ -361,6 +507,7 @@ export default function CourseRentalPage() {
             </p>
           </div>
         </div>
+        )}
 
         {/* Step 2: Set Selection */}
         {step === 'set' && (
@@ -394,32 +541,30 @@ export default function CourseRentalPage() {
             ) : (
               availableSets.map(set => {
                 const isAvailable = set.available_count > 0;
-                const isSelected = selectedSet?.id === set.id;
+                const qty = selectedQty[set.id] ?? 0;
+                const isSelected = qty > 0;
                 const images = SET_IMAGES[getSetImageKey(set)] || [];
                 const heroImg = images[0];
-                const activeImg = isSelected && images.length > 1 ? images[heroIndex % images.length] : heroImg;
+                const heroIdx = heroIndexBySet[set.id] ?? 0;
+                const activeImg = isSelected && images.length > 1 ? images[heroIdx % images.length] : heroImg;
                 return (
                   <div key={set.id} className="space-y-2">
-                    <button
-                      type="button"
-                      disabled={!isAvailable}
-                      onClick={() => setSelectedSet(set)}
-                      className={`w-full text-left rounded-xl border-2 transition-all overflow-hidden ${
+                    <div
+                      className={`w-full rounded-xl border-2 transition-all overflow-hidden ${
                         isSelected
                           ? 'border-green-600 bg-white shadow-md'
                           : isAvailable
                           ? 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
-                          : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                          : 'border-gray-100 bg-gray-50 opacity-50'
                       }`}
                     >
                       <div className="flex">
                         {/* Square thumbnail on left */}
                         <div
                           className={`relative w-28 sm:w-36 flex-shrink-0 bg-gray-50 flex items-center justify-center ${heroImg ? '' : 'bg-gray-100'} ${isSelected && images.length > 1 ? 'cursor-zoom-in' : ''}`}
-                          onClick={isSelected && images.length > 1 ? (e) => {
-                            e.stopPropagation();
+                          onClick={isSelected && images.length > 1 ? () => {
                             setLightboxImages(images);
-                            setLightboxIndex(heroIndex % images.length);
+                            setLightboxIndex(heroIdx % images.length);
                           } : undefined}
                         >
                           {heroImg ? (
@@ -487,16 +632,54 @@ export default function CourseRentalPage() {
                               </div>
                             );
                           })()}
-                          {isSelected && (
-                            <div className="mt-1.5">
-                              <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
-                                <CheckIcon className="w-3.5 h-3.5" /> {t('set.selected')}
-                              </span>
+                          {/* Quantity stepper — selecting qty >= 1 adds the set to the order */}
+                          {isAvailable && (
+                            <div className="mt-2">
+                              {qty === 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setQty(set.id, 1, set.available_count)}
+                                  className="inline-flex items-center gap-1 rounded-lg border-2 border-green-600 text-green-700 px-3 py-1.5 text-sm font-semibold hover:bg-green-50"
+                                >
+                                  <span className="text-base leading-none">+</span> {t('set.add')}
+                                </button>
+                              ) : (
+                                <div className="inline-flex items-center gap-3">
+                                  <div className="inline-flex items-center rounded-lg border-2 border-green-600 overflow-hidden">
+                                    <button
+                                      type="button"
+                                      aria-label={t('set.decreaseQty')}
+                                      onClick={() => setQty(set.id, qty - 1, set.available_count)}
+                                      className="px-3 py-1.5 text-green-700 hover:bg-green-50 text-lg leading-none"
+                                    >
+                                      &minus;
+                                    </button>
+                                    <span className="px-3 text-sm font-semibold text-gray-900 min-w-[2ch] text-center">{qty}</span>
+                                    <button
+                                      type="button"
+                                      aria-label={t('set.increaseQty')}
+                                      disabled={qty >= set.available_count}
+                                      onClick={() => setQty(set.id, qty + 1, set.available_count)}
+                                      className="px-3 py-1.5 text-green-700 hover:bg-green-50 disabled:text-gray-300 disabled:hover:bg-transparent text-lg leading-none"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                  <span className="inline-flex items-center gap-1 text-xs text-green-700 font-medium">
+                                    <CheckIcon className="w-3.5 h-3.5" /> {t('set.selected')}
+                                  </span>
+                                </div>
+                              )}
+                              {set.available_count > 1 && (
+                                <p className="text-[10px] text-gray-400 mt-1">
+                                  {t('set.availableCount', { count: set.available_count })}
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>
                       </div>
-                    </button>
+                    </div>
 
                     {/* Thumbnail carousel for selected set with multiple images */}
                     {isSelected && images.length > 1 && (
@@ -505,9 +688,9 @@ export default function CourseRentalPage() {
                           <button
                             key={i}
                             type="button"
-                            onClick={() => setHeroIndex(i)}
+                            onClick={() => setHeroIndexBySet(prev => ({ ...prev, [set.id]: i }))}
                             className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                              heroIndex % images.length === i
+                              heroIdx % images.length === i
                                 ? 'border-green-600 shadow-sm'
                                 : 'border-gray-200 opacity-50 hover:opacity-100'
                             }`}
@@ -531,9 +714,15 @@ export default function CourseRentalPage() {
               {t('set.fullDetailsLink')}
             </a>
 
+            {totalUnits > 0 && (
+              <p className="text-center text-sm font-medium text-green-700">
+                {t('set.unitsSelected', { count: totalUnits })}
+              </p>
+            )}
+
             <button
               onClick={goNext}
-              disabled={!selectedSet}
+              disabled={totalUnits === 0}
               className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               {t('set.continue')}
@@ -541,9 +730,53 @@ export default function CourseRentalPage() {
           </div>
         )}
 
-        {/* Step 1: Dates & Duration */}
+        {/* Step 1: Dates & Duration — premium landing (hero + booking card + showcase) */}
         {step === 'dates' && (
-          <div className="space-y-6">
+          <div className="space-y-6 pb-10">
+            {/* Hero + booking card: full-bleed on mobile, centered rounded card on desktop */}
+            <div className="md:mx-auto md:max-w-5xl md:px-6 md:pt-6">
+              <div className="md:grid md:grid-cols-[1.1fr_1fr] md:overflow-hidden md:rounded-2xl md:border md:border-gray-100 md:shadow-sm">
+              {/* Hero panel — mirrors the len.golf course-rental ad page */}
+              <div className="relative min-h-[260px] p-6 pb-16 text-white sm:p-8 sm:pb-20 md:min-h-[460px] md:pb-8" style={{ backgroundColor: '#00371c' }}>
+                <Image src={HERO_IMAGE} alt="" fill priority sizes="(max-width: 768px) 100vw, 640px" className="object-cover" style={{ objectPosition: 'center 38%' }} />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(0,55,28,0.88) 0%, rgba(0,82,46,0.62) 48%, rgba(0,82,46,0.42) 100%)' }} />
+                <div className="relative">
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded bg-white/95 px-2.5 py-1 text-xs font-semibold text-gray-900">
+                      <span style={{ color: '#f5a623', letterSpacing: '-1px' }}>★★★★★</span>
+                      {t('landing.ratingChip', { rating: GOOGLE_RATING, count: format.number(GOOGLE_REVIEW_COUNT) })}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,45,24,0.55)' }}>
+                      <BoltIcon className="h-3.5 w-3.5" style={{ color: '#7CB342' }} />
+                      {t('landing.instantChip')}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-extrabold uppercase leading-tight text-white sm:text-3xl lg:text-4xl">{t('landing.heroHeadline')}</h2>
+                  <p className="mt-2 text-sm italic text-white/90 sm:text-base">{t('landing.heroTagline')}</p>
+                  <ul className="mt-5 hidden flex-col gap-2.5 md:flex">
+                    {(['sets', 'instant', 'noDeposit', 'delivery', 'savings'] as const).map((k) => (
+                      <li key={k} className="flex items-center gap-2.5 text-sm text-white/90">
+                        <CheckIcon className="h-4 w-4 flex-none" style={{ color: '#9fe1cb' }} />
+                        {t(`landing.valueProps.${k}`)}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-5 hidden max-w-xs items-center gap-3 rounded-xl border border-white/20 bg-white/10 p-2.5 md:flex">
+                    <div className="relative h-12 w-12 flex-none overflow-hidden rounded-lg bg-white">
+                      <Image src={getSetThumbnailUrl({ tier: 'premium-plus', gender: 'mens' })} alt="Callaway Paradym" fill className="object-contain" sizes="48px" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-white">{t('landing.featuredPrefix')}: Callaway Paradym</p>
+                      <p className="text-[11px] text-white/70">{t('landing.featuredMeta', { price: format.number(1800) })}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Booking card — the real date picker. On mobile it lifts up and
+                  overlaps the hero (floating, inset, rounded); flush in the grid on desktop. */}
+              <div className="relative z-10 -mt-12 mx-4 flex flex-col justify-center rounded-2xl border border-gray-100 bg-white p-5 shadow-lg sm:-mt-16 sm:mx-6 sm:p-7 md:mt-0 md:mx-0 md:rounded-none md:border-0 md:p-6 md:shadow-none">
+                <h2 className="text-lg font-bold text-gray-900">{t('landing.cardHeading')}</h2>
+                <p className="mb-4 mt-0.5 text-sm text-gray-500">{t('landing.cardSubtitle')}</p>
             {/* Date pickers */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -555,7 +788,7 @@ export default function CourseRentalPage() {
                   onChange={e => {
                     setStartDate(e.target.value);
                     if (endDate && e.target.value > endDate) setEndDate('');
-                    setSelectedSet(null);
+                    setSelectedQty({});
                   }}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
                 />
@@ -569,7 +802,7 @@ export default function CourseRentalPage() {
                   disabled={!startDate}
                   onChange={e => {
                     setEndDate(e.target.value);
-                    setSelectedSet(null);
+                    setSelectedQty({});
                   }}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
@@ -577,7 +810,7 @@ export default function CourseRentalPage() {
             </div>
 
             {/* Time pickers */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">{t('dates.pickupTimeLabel')} <span className="text-red-500">*</span></label>
                 <select
@@ -605,98 +838,161 @@ export default function CourseRentalPage() {
               </div>
             </div>
 
+                <button
+                  onClick={goNext}
+                  disabled={!startDate || !endDate || !pickupTime || !returnTime}
+                  className="mt-5 w-full rounded-xl bg-[#007429] py-3 font-semibold text-white transition-colors hover:bg-[#045923] disabled:cursor-not-allowed disabled:bg-gray-300"
+                >
+                  {t('landing.checkAvailability')}
+                </button>
+                <div className="mt-3 flex items-center gap-2.5 rounded-xl border px-3 py-2.5" style={{ backgroundColor: '#F1FAF4', borderColor: '#cfe8da' }}>
+                  <BoltIcon className="h-5 w-5 flex-none" style={{ color: '#007429' }} />
+                  <div>
+                    <p className="text-xs font-bold" style={{ color: '#005a32' }}>{t('landing.instantPayTitle')}</p>
+                    <p className="text-[11px] text-gray-500">{t('landing.instantPaySubtitle')}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+
+            <div className="mx-auto max-w-5xl space-y-6 px-4 sm:px-6">
+            {/* Benefits bar (mobile; desktop shows these in the hero value list) */}
+            <div className="grid grid-cols-2 gap-2 md:hidden">
+              {([
+                { Icon: BoltIcon, label: t('landing.instantChip') },
+                { Icon: ShieldCheckIcon, label: t('landing.valueProps.noDeposit') },
+                { Icon: TruckIcon, label: t('landing.trustDelivery') },
+                { Icon: ReceiptPercentIcon, label: t('landing.trustSavings') },
+              ]).map(({ Icon, label }, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ backgroundColor: '#F6FFFA', border: '1px solid #e4f0e9' }}>
+                  <Icon className="h-4 w-4 flex-none" style={{ color: '#007429' }} />
+                  <span className="text-xs font-semibold leading-tight" style={{ color: '#005a32' }}>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Club showcase (orientation only — availability-filtered selection is the next step) */}
+            <div>
+              <h2 className="mb-3 text-lg font-bold uppercase italic">
+                <span style={{ color: '#007429' }}>{t('landing.showcaseHeadingA')}</span>{' '}
+                <span className="text-gray-900">{t('landing.showcaseHeadingB')}</span>
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {PREVIEW_SETS.map((s) => (
+                  <div
+                    key={s.name}
+                    className="overflow-hidden rounded-xl bg-white"
+                    style={s.featured ? { border: '2px solid #c8a96e' } : { border: '1px solid #e2e2e2' }}
+                  >
+                    <div className="flex items-stretch">
+                      {/* Square photo on the left */}
+                      <div className="relative w-24 flex-none bg-gray-50 sm:w-28">
+                        <Image src={s.img} alt={s.name} fill className="object-contain p-2" loading="lazy" sizes="112px" />
+                      </div>
+                      {/* Details on the right */}
+                      <div className="flex min-h-[108px] flex-1 flex-col justify-center p-3">
+                        <span
+                          className="mb-1 self-start rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={s.tier === 'premium-plus' ? { backgroundColor: '#005a32', color: '#fff' } : { backgroundColor: '#e4f0e9', color: '#005a32' }}
+                        >
+                          {s.tier === 'premium-plus' ? t('set.tierPremiumPlus') : t('set.tierPremium')}
+                        </span>
+                        <p className="text-sm font-semibold leading-tight text-gray-900">{s.name}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">{t(`dates.preview.${s.metaKey}`)}</p>
+                        <p className="mt-1 text-sm font-bold" style={{ color: '#007429' }}>{t('landing.fromPerDay', { price: format.number(s.fromPrice) })}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Group / multi-set CTA — the self-serve flow books ONE set per
+                reservation; larger parties or several sets are quoted manually
+                by staff (custom quotation + group discount). */}
+            <div
+              className="rounded-2xl p-5 sm:p-6"
+              style={{ backgroundColor: '#F6FFFA', border: '1px solid #cfe8da' }}
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full" style={{ backgroundColor: '#e4f0e9' }}>
+                    <UserGroupIcon className="h-5 w-5" style={{ color: '#007429' }} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[#c8a96e]">{t('landing.group.eyebrow')}</p>
+                    <h3 className="text-base font-bold text-gray-900 sm:text-lg">{t('landing.group.heading')}</h3>
+                    <p className="mt-1 max-w-md text-sm text-gray-600">{t('landing.group.body')}</p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-none sm:flex-row">
+                  <a
+                    href="https://lin.ee/uxQpIXn"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#005a32] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#007429]"
+                  >
+                    <FaLine className="text-lg" />
+                    {t('landing.group.lineCta')}
+                  </a>
+                  <a
+                    href="mailto:info@len.golf"
+                    className="flex items-center justify-center gap-2 rounded-xl border border-[#cfe8da] bg-white px-4 py-2.5 text-sm font-semibold text-[#005a32] transition-colors hover:bg-[#f0f9f4]"
+                  >
+                    <EnvelopeIcon className="h-4 w-4" />
+                    {t('landing.group.emailCta')}
+                  </a>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-gray-400 sm:mt-4">
+                {t('landing.group.phonePrefix')}{' '}
+                <a href="tel:+66966682335" className="font-medium text-[#007429] underline underline-offset-2">096-668-2335</a>
+              </p>
+            </div>
+
             {/* Collapsible pricing guide — matches len.golf styling */}
             <details className="group">
               <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
                 <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 {t('dates.pricingGuideToggle')}
               </summary>
-              <div className="mt-3 overflow-hidden rounded-xl border border-gray-200/60">
-                <table className="w-full text-left">
+              <div className="mt-3 overflow-hidden rounded-xl border border-gray-200">
+                <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="bg-[#1B5E20] text-white">
-                      <th className="px-5 py-3 text-sm font-semibold">{t('dates.pricingTable.durationHeader')}</th>
-                      <th className="px-5 py-3 text-sm font-semibold text-center">{t('dates.pricingTable.premiumHeader')}</th>
-                      <th className="px-5 py-3 text-sm font-semibold text-center">{t('dates.pricingTable.premiumPlusHeader')}</th>
+                    <tr className="text-white" style={{ backgroundColor: '#005a32' }}>
+                      <th className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide sm:px-5">{t('dates.pricingTable.durationHeader')}</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide sm:px-5">{t('dates.pricingTable.premiumHeader')}</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide sm:px-5" style={{ backgroundColor: 'rgba(255,255,255,0.10)' }}>{t('dates.pricingTable.premiumPlusHeader')}</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr className="bg-white">
-                      <td className="px-5 py-4 text-sm font-medium text-gray-900">{t('dates.pricingTable.oneDay')}</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>1,200 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>1,800 THB</td>
-                    </tr>
-                    <tr className="bg-gray-50/50">
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.threeDays')}</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay2Get1')}</span>
-                      </td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>2,400 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>3,600 THB</td>
-                    </tr>
-                    <tr className="bg-white">
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.sevenDays')}</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay4Get3')}</span>
-                      </td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>4,800 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>7,200 THB</td>
-                    </tr>
-                    <tr className="bg-gray-50/50">
-                      <td className="px-5 py-4">
-                        <span className="text-sm font-medium text-gray-900">{t('dates.pricingTable.fourteenDays')}</span>
-                        <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">{t('dates.pricingTable.offerPay7Get7')}</span>
-                      </td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>8,400 THB</td>
-                      <td className="px-5 py-4 text-sm font-bold text-center" style={{ color: '#007429' }}>12,600 THB</td>
-                    </tr>
+                  <tbody className="divide-y divide-gray-100">
+                    {([
+                      { dur: t('dates.pricingTable.oneDay'), premium: '1,200', plus: '1,800', offer: null },
+                      { dur: t('dates.pricingTable.threeDays'), premium: '2,400', plus: '3,600', offer: t('dates.pricingTable.offerPay2Get1') },
+                      { dur: t('dates.pricingTable.sevenDays'), premium: '4,800', plus: '7,200', offer: t('dates.pricingTable.offerPay4Get3') },
+                      { dur: t('dates.pricingTable.fourteenDays'), premium: '8,400', plus: '12,600', offer: t('dates.pricingTable.offerPay7Get7') },
+                    ] as const).map((row, i) => (
+                      <tr key={i} className="bg-white">
+                        <td className="px-3 py-3 align-middle sm:px-5">
+                          <div className="font-medium text-gray-900">{row.dur}</div>
+                          {row.offer && (
+                            <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 sm:text-xs">{row.offer}</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-sm font-bold sm:px-5 sm:text-base" style={{ color: '#007429' }}>{row.premium} THB</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-center align-middle text-sm font-bold sm:px-5 sm:text-base" style={{ color: '#005a32', backgroundColor: 'rgba(0,90,50,0.05)' }}>{row.plus} THB</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
-                <p className="text-xs text-gray-400 italic px-5 py-2.5">
+                <p className="border-t border-gray-100 px-3 py-2.5 text-xs italic text-gray-400 sm:px-5">
                   {t('dates.pricingTable.footnote')}
                 </p>
               </div>
             </details>
-
-            {/* FYI strip - shows the sets that can be rented. Availability is checked on Step 2. */}
-            <div>
-              <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-2">
-                <InformationCircleIcon className="w-3.5 h-3.5" />
-                <span>{t('dates.preview.label')}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {PREVIEW_SETS.map((s, idx) => (
-                  <div key={s.name} className="flex flex-col items-center">
-                    <div className="relative h-16 sm:h-20 w-full bg-white rounded-lg border border-gray-100 flex items-center justify-center overflow-hidden">
-                      <Image
-                        src={s.img}
-                        alt={s.name}
-                        fill
-                        className="object-contain p-1"
-                        priority={idx === 0}
-                        fetchPriority={idx === 0 ? 'high' : 'auto'}
-                        sizes="(max-width: 640px) 33vw, 200px"
-                      />
-                    </div>
-                    <div className="text-center mt-1.5">
-                      <div className="text-[10px] sm:text-[11px] font-medium text-gray-700 leading-tight">{s.name}</div>
-                      <div className="text-[9px] sm:text-[10px] text-gray-400">{t(`dates.preview.${s.metaKey}`)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-gray-400 mt-2 text-center">
-                {t('dates.preview.helper')}
-              </p>
             </div>
 
-            <button
-              onClick={goNext}
-              disabled={!startDate || !endDate || !pickupTime || !returnTime}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
-              {t('dates.continue')}
-            </button>
           </div>
         )}
 
@@ -708,7 +1004,12 @@ export default function CourseRentalPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setDeliveryRequested(false)}
+                  onClick={() => {
+                    setDeliveryRequested(false);
+                    setDeliveryAddress('');
+                    setDeliveryLat(null);
+                    setDeliveryLng(null);
+                  }}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     !deliveryRequested
                       ? 'border-green-600 bg-green-50'
@@ -732,7 +1033,10 @@ export default function CourseRentalPage() {
                   <TruckIcon className="h-6 w-6 text-green-600 mb-2" />
                   <p className="font-semibold text-gray-900">{t('delivery.deliveryTitle')}</p>
                   <p className="text-xs text-gray-500 mt-1">{t('delivery.deliveryDescription')}</p>
-                  <p className="text-sm font-bold text-green-700 mt-2">{t('delivery.deliveryPrice')}</p>
+                  <p className="text-sm font-bold text-green-700 mt-2">฿{format.number(courseDeliveryFee(totalUnits))}</p>
+                  {totalUnits >= 2 && (
+                    <p className="text-[10px] text-gray-400 mt-1">{t('delivery.deliveryFeeNote')}</p>
+                  )}
                 </button>
               </div>
             </div>
@@ -743,13 +1047,24 @@ export default function CourseRentalPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {t('delivery.addressLabel')} <span className="text-red-500">*</span>
                   </label>
-                  <textarea
-                    value={deliveryAddress}
-                    onChange={e => setDeliveryAddress(e.target.value)}
-                    placeholder={t('delivery.addressPlaceholder')}
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
-                  />
+                  {addressFallback ? (
+                    <textarea
+                      value={deliveryAddress}
+                      onChange={e => setDeliveryAddress(e.target.value)}
+                      placeholder={t('delivery.addressPlaceholder')}
+                      rows={3}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
+                    />
+                  ) : (
+                    <DeliveryAddressAutocomplete
+                      onSelect={({ address, lat, lng }) => {
+                        setDeliveryAddress(address);
+                        setDeliveryLat(lat);
+                        setDeliveryLng(lng);
+                      }}
+                      onLoadError={() => setAddressFallback(true)}
+                    />
+                  )}
                 </div>
               </div>
             )}
@@ -757,14 +1072,12 @@ export default function CourseRentalPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">{t('delivery.addOnsLabel')}</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {GEAR_UP_ITEMS.filter(item => item.id !== 'delivery').map(item => {
-                  const isSelected = addOns.some(a => a.key === item.id);
+                {addOnItems.map(item => {
+                  const qty = addOnQty[item.id] ?? 0;
+                  const isSelected = qty > 0;
                   return (
-                    <button
+                    <div
                       key={item.id}
-                      type="button"
-                      onClick={() => toggleAddOn(item.id, item.name, item.price)}
-                      aria-pressed={isSelected}
                       className={`group relative flex flex-col overflow-hidden rounded-xl border-2 text-left transition-all ${
                         isSelected
                           ? 'border-green-600 bg-green-50 shadow-md'
@@ -781,13 +1094,13 @@ export default function CourseRentalPage() {
                           sizes="(max-width: 640px) 100vw, 50vw"
                           className="object-contain p-3 transition-transform duration-200 group-hover:scale-105"
                         />
-                        <div className={`absolute top-2 right-2 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
-                          isSelected ? 'bg-green-600 border-green-600' : 'bg-white border-gray-300'
-                        }`}>
-                          {isSelected && <CheckIcon className="h-4 w-4 text-white stroke-[3]" />}
-                        </div>
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 h-6 min-w-6 px-1.5 rounded-md bg-green-600 text-white text-xs font-bold flex items-center justify-center">
+                            &times;{qty}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-start justify-between gap-2 px-4 py-3">
+                      <div className="flex items-start justify-between gap-2 px-4 pt-3">
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-sm text-gray-900 leading-tight">{item.name}</p>
                           {item.description && (
@@ -796,7 +1109,40 @@ export default function CourseRentalPage() {
                         </div>
                         <p className="text-sm font-bold text-green-700 whitespace-nowrap">฿{format.number(item.price)}</p>
                       </div>
-                    </button>
+                      {/* Quantity stepper — capped at the number of sets */}
+                      <div className="px-4 pb-3 pt-2">
+                        {qty === 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setAddOnQtyClamped(item.id, 1, totalUnits)}
+                            className="inline-flex items-center gap-1 rounded-lg border-2 border-green-600 text-green-700 px-3 py-1.5 text-sm font-semibold hover:bg-green-50"
+                          >
+                            <span className="text-base leading-none">+</span> {t('set.add')}
+                          </button>
+                        ) : (
+                          <div className="inline-flex items-center rounded-lg border-2 border-green-600 overflow-hidden">
+                            <button
+                              type="button"
+                              aria-label={t('set.decreaseQty')}
+                              onClick={() => setAddOnQtyClamped(item.id, qty - 1, totalUnits)}
+                              className="px-3 py-1.5 text-green-700 hover:bg-green-50 text-lg leading-none"
+                            >
+                              &minus;
+                            </button>
+                            <span className="px-3 text-sm font-semibold text-gray-900 min-w-[2ch] text-center">{qty}</span>
+                            <button
+                              type="button"
+                              aria-label={t('set.increaseQty')}
+                              disabled={qty >= totalUnits}
+                              onClick={() => setAddOnQtyClamped(item.id, qty + 1, totalUnits)}
+                              className="px-3 py-1.5 text-green-700 hover:bg-green-50 disabled:text-gray-300 disabled:hover:bg-transparent text-lg leading-none"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -954,25 +1300,36 @@ export default function CourseRentalPage() {
         )}
 
         {/* Step 5: Review & Confirm */}
-        {step === 'review' && selectedSet && (
+        {step === 'review' && selectedEntries.length > 0 && (
           <div className="space-y-5">
-            {/* Club set */}
+            {/* Club sets */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <h3 className="text-sm font-medium text-gray-500 mb-2">{t('review.clubSetHeading')}</h3>
-              <p className="font-semibold text-gray-900">{selectedSet.name}</p>
-              <div className="flex gap-2 mt-1">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  selectedSet.tier === 'premium-plus' ? 'bg-green-800 text-white' : 'bg-green-100 text-green-800'
-                }`}>
-                  {selectedSet.tier === 'premium-plus' ? t('review.tierPremiumPlus') : t('review.tierPremium')}
-                </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  selectedSet.gender === 'mens'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'bg-pink-50 text-pink-700'
-                }`}>
-                  {selectedSet.gender === 'mens' ? t('review.genderMens') : t('review.genderWomens')}
-                </span>
+              <div className="space-y-3">
+                {selectedEntries.map(s => (
+                  <div key={s.id}>
+                    <p className="font-semibold text-gray-900">
+                      {s.name}
+                      {(selectedQty[s.id] ?? 0) > 1 && (
+                        <span className="ml-1.5 text-sm font-normal text-gray-500">
+                          {t('review.setQty', { count: selectedQty[s.id] ?? 0 })}
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex gap-2 mt-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        s.tier === 'premium-plus' ? 'bg-green-800 text-white' : 'bg-green-100 text-green-800'
+                      }`}>
+                        {s.tier === 'premium-plus' ? t('review.tierPremiumPlus') : t('review.tierPremium')}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        s.gender === 'mens' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700'
+                      }`}>
+                        {s.gender === 'mens' ? t('review.genderMens') : t('review.genderWomens')}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1017,15 +1374,18 @@ export default function CourseRentalPage() {
             </div>
 
             {/* Add-ons */}
-            {addOns.length > 0 && (
+            {addOnItems.some(item => (addOnQty[item.id] ?? 0) > 0) && (
               <div className="bg-white rounded-xl border border-gray-200 p-4">
                 <h3 className="text-sm font-medium text-gray-500 mb-2">{t('review.addOnsHeading')}</h3>
-                {addOns.map(a => (
-                  <div key={a.key} className="flex justify-between text-sm">
-                    <span className="text-gray-900">{a.label}</span>
-                    <span className="text-gray-600">฿{format.number(a.price)}</span>
-                  </div>
-                ))}
+                {addOnItems.filter(item => (addOnQty[item.id] ?? 0) > 0).map(item => {
+                  const q = addOnQty[item.id] ?? 0;
+                  return (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-gray-900">{item.name}{q > 1 ? ` ${t('review.setQty', { count: q })}` : ''}</span>
+                      <span className="text-gray-600">฿{format.number(item.price * q)}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -1051,27 +1411,37 @@ export default function CourseRentalPage() {
             <div className="bg-green-50 rounded-xl border border-green-200 p-4">
               <h3 className="text-sm font-medium text-green-800 mb-3">{t('review.pricingHeading')}</h3>
               <div className="space-y-1 text-sm">
-                {breakdown && breakdown.packs.map((pack, i) => (
-                  <div key={i} className="flex justify-between">
-                    <span className="text-gray-700">{pack.label}</span>
-                    <span className="text-gray-900">฿{format.number(pack.price)}</span>
-                  </div>
-                ))}
+                {selectedEntries.map(s => {
+                  const q = selectedQty[s.id] ?? 0;
+                  const bd = getCoursePriceBreakdown(s, durationDays);
+                  return (
+                    <div key={s.id} className="flex justify-between">
+                      <span className="text-gray-700">
+                        {s.name}
+                        {q > 1 ? ` ${t('review.setQty', { count: q })}` : ''}
+                      </span>
+                      <span className="text-gray-900">฿{format.number(bd.total * q)}</span>
+                    </div>
+                  );
+                })}
                 {deliveryRequested && (
                   <div className="flex justify-between">
                     <span className="text-gray-700">{t('review.deliveryAndReturn')}</span>
                     <span className="text-gray-900">฿{format.number(deliveryFee)}</span>
                   </div>
                 )}
-                {addOns.map(a => (
-                  <div key={a.key} className="flex justify-between">
-                    <span className="text-gray-700">{a.label}</span>
-                    <span className="text-gray-900">฿{format.number(a.price)}</span>
-                  </div>
-                ))}
-                {breakdown && breakdown.savings > 0 && (
+                {addOnItems.filter(item => (addOnQty[item.id] ?? 0) > 0).map(item => {
+                  const q = addOnQty[item.id] ?? 0;
+                  return (
+                    <div key={item.id} className="flex justify-between">
+                      <span className="text-gray-700">{item.name}{q > 1 ? ` ${t('review.setQty', { count: q })}` : ''}</span>
+                      <span className="text-gray-900">฿{format.number(item.price * q)}</span>
+                    </div>
+                  );
+                })}
+                {totalSavings > 0 && (
                   <div className="flex justify-between text-green-600 text-xs">
-                    <span>{t('review.savings', { amount: format.number(breakdown.savings) })}</span>
+                    <span>{t('review.savings', { amount: format.number(totalSavings) })}</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-2 border-t border-green-300 font-bold text-base">
@@ -1141,7 +1511,16 @@ export default function CourseRentalPage() {
             <div className="bg-white rounded-xl border border-gray-200 p-5 text-left space-y-3">
               <div>
                 <p className="text-xs text-gray-500">{t('confirmation.clubSetLabel')}</p>
-                <p className="font-semibold text-gray-900">{selectedSet?.name}</p>
+                {selectedEntries.map(s => (
+                  <p key={s.id} className="font-semibold text-gray-900">
+                    {s.name}
+                    {(selectedQty[s.id] ?? 0) > 1 && (
+                      <span className="ml-1.5 text-sm font-normal text-gray-500">
+                        {t('review.setQty', { count: selectedQty[s.id] ?? 0 })}
+                      </span>
+                    )}
+                  </p>
+                ))}
               </div>
               <div>
                 <p className="text-xs text-gray-500">{t('confirmation.datesLabel')}</p>
@@ -1276,6 +1655,18 @@ export default function CourseRentalPage() {
             </>
           )}
         </div>
+      )}
+
+      {/* Sticky price bar — only show from step 2 onwards */}
+      {step !== 'dates' && step !== 'confirmation' && (
+        <RentalPriceSummaryBar
+          rentalPrice={rentalPrice}
+          savings={totalSavings}
+          durationDays={durationDays}
+          deliveryFee={deliveryFee}
+          addOnsTotal={addOnsTotal}
+          currentStep={step}
+        />
       )}
     </Layout>
   );
