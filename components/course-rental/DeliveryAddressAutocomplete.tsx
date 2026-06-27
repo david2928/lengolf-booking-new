@@ -1,101 +1,64 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { loadGoogleMaps, type PlaceSelectEvent } from '@/lib/google-maps-loader';
+import { loadGoogleMaps } from '@/lib/google-maps-loader';
 
 interface DeliveryAddressAutocompleteProps {
   onSelect: (value: { address: string; lat: number; lng: number }) => void;
   onLoadError?: (message: string) => void;
+  placeholder?: string;
 }
 
 export function DeliveryAddressAutocomplete({
   onSelect,
   onLoadError,
+  placeholder = 'Hotel name, street address, district...',
 }: DeliveryAddressAutocompleteProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const elementRef = useRef<HTMLElement | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const onLoadErrorRef = useRef(onLoadError);
   onLoadErrorRef.current = onLoadError;
 
-  const [pinned, setPinned] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     loadGoogleMaps()
-      .then(async maps => {
-        if (cancelled || !containerRef.current) return;
-        const { PlaceAutocompleteElement } = await maps.importLibrary('places');
-        if (cancelled || !containerRef.current) return;
-
-        const element = new PlaceAutocompleteElement({ includedRegionCodes: ['th'] });
-        element.style.width = '100%';
-        elementRef.current = element;
-
-        const handler = async (e: Event) => {
-          // Google fires gmp-placeselect with place on the event directly,
-          // but some versions put it under event.detail — handle both.
-          const ev = e as PlaceSelectEvent;
-          const detail = (e as CustomEvent).detail as PlaceSelectEvent | undefined;
-          const rawPlace =
-            ev.placePrediction?.toPlace() ??
-            ev.place ??
-            detail?.placePrediction?.toPlace() ??
-            detail?.place;
-
-          // Fallback: at minimum capture the text the user selected
-          const inputText = (element as HTMLInputElement).value ?? '';
-
-          if (!rawPlace) {
-            // No place object — use visible text so button at least unblocks
-            if (inputText) {
-              setPinned(inputText);
-              onSelectRef.current({ address: inputText, lat: 0, lng: 0 });
-            }
-            return;
-          }
-
-          try {
-            await rawPlace.fetchFields({ fields: ['location', 'formattedAddress', 'displayName'] });
-            const loc = rawPlace.location;
-            const address = rawPlace.formattedAddress ?? rawPlace.displayName ?? inputText;
-            setPinned(address);
-            onSelectRef.current({ address, lat: loc ? loc.lat() : 0, lng: loc ? loc.lng() : 0 });
-          } catch (err) {
-            // fetchFields failed — still unblock the user with the visible text
-            console.error('[DeliveryAddressAutocomplete] fetchFields failed', err);
-            const address = inputText;
-            if (address) {
-              setPinned(address);
-              onSelectRef.current({ address, lat: 0, lng: 0 });
-            }
-          }
-        };
-
-        element.addEventListener('gmp-placeselect', handler);
-        containerRef.current.appendChild(element);
+      .then(maps => {
+        if (cancelled || !inputRef.current) return;
+        const autocomplete = new maps.places.Autocomplete(inputRef.current, {
+          componentRestrictions: { country: 'th' },
+          fields: ['geometry', 'formatted_address', 'name'],
+        });
+        autocomplete.addListener('place_changed', () => {
+          if (cancelled) return;
+          const place = autocomplete.getPlace();
+          const address = place.formatted_address ?? place.name ?? inputRef.current?.value ?? '';
+          const lat = place.geometry?.location?.lat() ?? 0;
+          const lng = place.geometry?.location?.lng() ?? 0;
+          setConfirmed(address);
+          onSelectRef.current({ address, lat, lng });
+        });
       })
       .catch(err => {
         if (!cancelled) onLoadErrorRef.current?.((err as Error).message);
       });
 
-    return () => {
-      cancelled = true;
-      const el = elementRef.current;
-      if (el?.parentNode) el.parentNode.removeChild(el);
-      elementRef.current = null;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   return (
     <div>
-      <div ref={containerRef} className="gmp-autocomplete-host" />
-      {pinned && (
-        <p className="mt-1 text-xs text-green-700">
-          {pinned}
-        </p>
+      <input
+        ref={inputRef}
+        type="text"
+        placeholder={placeholder}
+        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400 text-sm"
+      />
+      {confirmed && (
+        <p className="mt-1 text-xs text-green-700">{confirmed}</p>
       )}
     </div>
   );
