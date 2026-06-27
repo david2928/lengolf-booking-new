@@ -262,8 +262,8 @@
       "clubRentalStandardFreeNote": "スタンダードクラブはすべてのベイ予約で無料",
       "clubRentalHandednessNote": "表示されているプレミアムセットは右利き用です。左利き用のプレミアムセットをご希望ですか？LINE @lengolfまでご連絡ください。",
       "clubRentalStandardCardTitle": "スタンダードセット",
-      "clubRentalStandardCardSubtitle": "高品質ハウスセット — カジュアルなプレーに最適",
-      "clubRentalStandardCardSubtitle2": "ハウスセット — メンズ＆レディース",
+      "clubRentalStandardCardSubtitle": "高品質ハウスセット - カジュアルなプレーに最適",
+      "clubRentalStandardCardSubtitle2": "ハウスセット - メンズ＆レディース",
       "clubRentalStandardItem1": "ドライバー、アイアン（5–PW）、パター",
       "clubRentalStandardItem2": "ゴルフバッグ付き",
       "clubRentalStandardFreeWithBooking": "ご予約で無料",
@@ -272,9 +272,9 @@
       "clubRentalPremiumImageWomensAlt": "Majesty Shuttle フルセット",
       "clubRentalPremiumCardTitle": "プレミアムセット",
       "clubRentalPremiumCardSubtitle": "Callaway Warbird（メンズ）· Majesty Shuttle（レディース）",
-      "clubRentalPremiumMensTitle": "メンズ — Callaway Warbird",
+      "clubRentalPremiumMensTitle": "メンズ - Callaway Warbird",
       "clubRentalPremiumMensSpecs": "ドライバー、5番ウッド、アイアン 5-9、PW、SW",
-      "clubRentalPremiumWomensTitle": "レディース — Majesty Shuttle",
+      "clubRentalPremiumWomensTitle": "レディース - Majesty Shuttle",
       "clubRentalPremiumWomensSpecs": "12.5°ドライバー、アイアン 7-9、PW、56°SW",
       "clubRentalStartingFromPremium": "฿150〜",
       "clubRentalPremiumPlusBadge": "プレミアム+",
@@ -671,12 +671,12 @@
     "about": {
       "heading": "Play & Food パッケージについて",
       "paragraph1": "ゴルフシミュレーションと美味しい料理・ドリンクを組み合わせたオールインワンパッケージで、究極のゴルフエンタメをお楽しみください！",
-      "paragraph2": "各パッケージは最大5名のグループ向けに設計されており、完璧なお出かけに必要なすべて——ゴルフシミュレーターの時間、店内キッチンで作る新鮮な料理、ドリンク——が含まれています。少人数でもお楽しみいただけます！隠れた費用はなく、サプライズもありません——純粋なエンターテイメント価値だけです。",
-      "paragraph3": "友人グループ、家族のお出かけ、お祝い、チームビルディングに最適。ゴルフ未経験でも OK——フレンドリーなスタッフがサポートします！"
+      "paragraph2": "各パッケージは最大5名のグループ向けに設計されており、完璧なお出かけに必要なすべて -  - ゴルフシミュレーターの時間、店内キッチンで作る新鮮な料理、ドリンク -  - が含まれています。少人数でもお楽しみいただけます！隠れた費用はなく、サプライズもありません -  - 純粋なエンターテイメント価値だけです。",
+      "paragraph3": "友人グループ、家族のお出かけ、お祝い、チームビルディングに最適。ゴルフ未経験でも OK -  - フレンドリーなスタッフがサポートします！"
     },
     "info": {
       "heading": "グループに最適",
-      "body": "すべてのパッケージには5名分のゴルフシミュレーション、料理、ドリンクが含まれます。ゴルフ経験は不要——スタッフがサポートします！",
+      "body": "すべてのパッケージには5名分のゴルフシミュレーション、料理、ドリンクが含まれます。ゴルフ経験は不要 -  - スタッフがサポートします！",
       "regularBooking": "通常予約",
       "contactUs": "ご質問はこちら"
     }
@@ -723,11 +723,11 @@
       "premiumBadge": "฿150/時〜",
       "premiumTitle": "プレミアムセット",
       "premiumSubtitle": "Callaway Warbird & Majesty Shuttle",
-      "premiumMensTitle": "メンズ — Callaway Warbird",
+      "premiumMensTitle": "メンズ - Callaway Warbird",
       "premiumMensDescription": "Uniflex シャフトのフルセット",
       "premiumMensSpecs": "ドライバー、5番ウッド、アイアン 5-9、PW、SW",
       "premiumMensBag": "プレミアム Callaway ゴルフバッグ",
-      "premiumWomensTitle": "レディース — Majesty Shuttle",
+      "premiumWomensTitle": "レディース - Majesty Shuttle",
       "premiumWomensDescription": "プレミアムデザインのレディースフレックス",
       "premiumWomensSpecs": "12.5°ドライバー、アイアン 7-9、PW、56°SW",
       "premiumWomensBag": "プレミアムレディースゴルフバッグ",
@@ -738,8 +738,8 @@
       "premiumPlusParadymAlt": "Paradym 写真 {index}",
       "premiumPlusCardTitle": "Callaway Paradym",
       "premiumPlusDescription": "ツアーレベルの装備",
-      "premiumPlusItem1": "ドライバー(10.5°) + 3W + 5W + 4H — Ventus TR シャフト",
-      "premiumPlusItem2": "アイアン 5–PW — タングステンウェイト搭載",
+      "premiumPlusItem1": "ドライバー(10.5°) + 3W + 5W + 4H - Ventus TR シャフト",
+      "premiumPlusItem2": "アイアン 5–PW - タングステンウェイト搭載",
       "premiumPlusItem3": "Jaws Raw ウェッジ (52°、56°)",
       "premiumPlusItem4": "Odyssey パター + Callaway カモバッグ",
       "premiumPlusCta": "プレミアム+ クラブで予約",
@@ -753,7 +753,7 @@
       "feature2Title": "スタンダードセット無料",
       "feature2Body": "すべてのベイ予約にスタンダードクラブが無料で含まれます。セッション中いつでもプレミアムまたはプレミアム+ にアップグレードできます。",
       "feature3Title": "柔軟な利用時間",
-      "feature3Body": "プレミアムクラブを時間単位でレンタル — 1、2、4時間オプションあり。最低利用なし、ベイセッションをアップグレードするだけ。",
+      "feature3Body": "プレミアムクラブを時間単位でレンタル - 1、2、4時間オプションあり。最低利用なし、ベイセッションをアップグレードするだけ。",
       "feature4Title": "オンライン予約簡単",
       "feature4Body": "シミュレーターベイをオンライン予約する際にお好みのクラブを選択。デポジット不要、来店してプレーするだけ！"
     },
@@ -762,7 +762,7 @@
       "q1Title": "スタンダード、プレミアム、プレミアム+ の違いは？",
       "q1Body": "スタンダードクラブはすべてのご予約に無料で含まれるハウスセットです。プレミアムセットは Callaway Warbird（メンズ）と Majesty Shuttle（レディース）で฿150/時〜。プレミアム+ はツアーレベルの Callaway Paradym Forged Carbon クラブで฿250/時〜。",
       "q2Title": "観光客でも LENGOLF でゴルフクラブを借りられますか？",
-      "q2Body": "はい！ゴルフクラブレンタルサービスはバンコクにお越しの観光客の方にも最適です。会員登録不要——オンライン予約してご来店中にプレミアムクラブをお楽しみください。",
+      "q2Body": "はい！ゴルフクラブレンタルサービスはバンコクにお越しの観光客の方にも最適です。会員登録不要 -  - オンライン予約してご来店中にプレミアムクラブをお楽しみください。",
       "q3Title": "事前にクラブを予約する必要がありますか？",
       "q3Body": "ベイのオンライン予約時にお好みのクラブを選ぶか、来店時にリクエストすることもできます。プレミアムとプレミアム+ セットは在庫状況によります。",
       "q4Title": "レンタルクラブを LENGOLF 外で使用できますか？",
@@ -770,7 +770,7 @@
       "q4Link": "ゴルフコース用クラブレンタル",
       "q4BodyAfter": " ページをご覧ください。",
       "q5Title": "左利き用のクラブはありますか？",
-      "q5Body": "はい — スタンダードの左利き用クラブはベイ予約時に無料でご利用いただけます。さらに左利き用プレミアムレンタルセットを1セットご用意しており、通常のプレミアム料金でリクエスト可能です。プレミアム+ Paradymは右利き専用です。LINE @lengolfまで事前にご連絡いただければ、左利き用プレミアムセットをお取り置きいたします。"
+      "q5Body": "はい - スタンダードの左利き用クラブはベイ予約時に無料でご利用いただけます。さらに左利き用プレミアムレンタルセットを1セットご用意しており、通常のプレミアム料金でリクエスト可能です。プレミアム+ Paradymは右利き専用です。LINE @lengolfまで事前にご連絡いただければ、左利き用プレミアムセットをお取り置きいたします。"
     },
     "cta": {
       "heading": "プレミアムクラブでプレーする準備はできましたか？",
@@ -838,13 +838,13 @@
       "colCourse": "ゴルフ場でレンタル",
       "rows": {
         "trip": { "label": "3ラウンドの旅行", "lengolf": "฿2,900 配送込み", "course": "~฿4,500（฿1,500 × 3）" },
-        "discount": { "label": "連泊割引", "lengolf": "あり — 3日で2日分", "course": "なし — 毎ラウンド課金" },
+        "discount": { "label": "連泊割引", "lengolf": "あり - 3日で2日分", "course": "なし - 毎ラウンド課金" },
         "set": { "label": "使用セット", "lengolf": "旅行中ずっと同じプレミアムセット", "course": "ゴルフ場ごとに異なるレンタル" },
         "quality": { "label": "品質", "lengolf": "正規Callaway・Majesty、ツアー仕様Paradym", "course": "多くは汎用・劣化・偽物" },
         "pick": { "label": "セット選択", "lengolf": "予約前に写真とスペックを確認", "course": "当日残っているもののみ" },
         "delivery": { "label": "配送", "lengolf": "ホテルやゴルフ場へ ฿500 往復", "course": "各プロショップで受取り" }
       },
-      "footnote": "1ラウンドだけ？ゴルフ場レンタルの方が安い場合があります — LENGOLFは複数ラウンドの旅行ときちんとしたセットを求める方向けです。"
+      "footnote": "1ラウンドだけのレンタルでも、信頼できる正規のプレミアムセットを、品質に見合った価格でご利用いただけます。"
     },
     "dates": {
       "startDateLabel": "開始日",
@@ -1033,7 +1033,7 @@
       "checkingTitle": "お支払いを確認中",
       "checkingBody": "ShopeePay でお支払いの確認を行っています。通常数秒で完了します。",
       "confirmingLateTitle": "ShopeePay で確認中",
-      "confirmingLateBody": "通常より少し時間がかかっています。ここで決済が確定しない限り料金は引き落とされません。このページを開いたままにしてください — 決済が完了した場合にメールで確認書をお送りします。",
+      "confirmingLateBody": "通常より少し時間がかかっています。ここで決済が確定しない限り料金は引き落とされません。このページを開いたままにしてください - 決済が完了した場合にメールで確認書をお送りします。",
       "successTitle": "お支払いを受領しました",
       "successBody": "ありがとうございます。ご予約が確定しました。レシートをメールでお送りしました。",
       "successRentalCodeLabel": "レンタルコード",

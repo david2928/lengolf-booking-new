@@ -262,8 +262,8 @@
       "clubRentalStandardFreeNote": "스탠다드 클럽은 모든 베이 예약에 무료로 제공됩니다",
       "clubRentalHandednessNote": "표시된 프리미엄 세트는 오른손잡이용입니다. 왼손잡이용 프리미엄 세트가 필요하신가요? LINE @lengolf으로 연락 주세요.",
       "clubRentalStandardCardTitle": "스탠다드 세트",
-      "clubRentalStandardCardSubtitle": "고품질 하우스 세트 — 캐주얼한 플레이에 적합",
-      "clubRentalStandardCardSubtitle2": "하우스 세트 — 남성용 & 여성용",
+      "clubRentalStandardCardSubtitle": "고품질 하우스 세트 - 캐주얼한 플레이에 적합",
+      "clubRentalStandardCardSubtitle2": "하우스 세트 - 남성용 & 여성용",
       "clubRentalStandardItem1": "드라이버, 아이언(5–PW), 퍼터",
       "clubRentalStandardItem2": "골프백 포함",
       "clubRentalStandardFreeWithBooking": "예약 시 무료",
@@ -272,9 +272,9 @@
       "clubRentalPremiumImageWomensAlt": "Majesty Shuttle 풀세트",
       "clubRentalPremiumCardTitle": "프리미엄 세트",
       "clubRentalPremiumCardSubtitle": "Callaway Warbird(남성용) · Majesty Shuttle(여성용)",
-      "clubRentalPremiumMensTitle": "남성용 — Callaway Warbird",
+      "clubRentalPremiumMensTitle": "남성용 - Callaway Warbird",
       "clubRentalPremiumMensSpecs": "드라이버, 5번 우드, 아이언 5-9, PW, SW",
-      "clubRentalPremiumWomensTitle": "여성용 — Majesty Shuttle",
+      "clubRentalPremiumWomensTitle": "여성용 - Majesty Shuttle",
       "clubRentalPremiumWomensSpecs": "12.5° 드라이버, 아이언 7-9, PW, 56° SW",
       "clubRentalStartingFromPremium": "฿150부터",
       "clubRentalPremiumPlusBadge": "프리미엄+",
@@ -723,11 +723,11 @@
       "premiumBadge": "฿150/시간부터",
       "premiumTitle": "프리미엄 세트",
       "premiumSubtitle": "Callaway Warbird & Majesty Shuttle",
-      "premiumMensTitle": "남성용 — Callaway Warbird",
+      "premiumMensTitle": "남성용 - Callaway Warbird",
       "premiumMensDescription": "Uniflex 샤프트의 풀세트",
       "premiumMensSpecs": "드라이버, 5번 우드, 아이언 5-9, PW, SW",
       "premiumMensBag": "프리미엄 Callaway 골프백",
-      "premiumWomensTitle": "여성용 — Majesty Shuttle",
+      "premiumWomensTitle": "여성용 - Majesty Shuttle",
       "premiumWomensDescription": "프리미엄 디자인의 여성용 플렉스",
       "premiumWomensSpecs": "12.5° 드라이버, 아이언 7-9, PW, 56° SW",
       "premiumWomensBag": "프리미엄 여성용 골프백",
@@ -738,13 +738,13 @@
       "premiumPlusParadymAlt": "Paradym 사진 {index}",
       "premiumPlusCardTitle": "Callaway Paradym",
       "premiumPlusDescription": "투어 레벨 장비",
-      "premiumPlusItem1": "드라이버 (10.5°) + 3W + 5W + 4H — Ventus TR 샤프트",
-      "premiumPlusItem2": "아이언 5–PW — 텅스텐 웨이트",
+      "premiumPlusItem1": "드라이버 (10.5°) + 3W + 5W + 4H - Ventus TR 샤프트",
+      "premiumPlusItem2": "아이언 5–PW - 텅스텐 웨이트",
       "premiumPlusItem3": "Jaws Raw 웨지 (52°, 56°)",
       "premiumPlusItem4": "Odyssey 퍼터 + Callaway 카모 백",
       "premiumPlusCta": "프리미엄+ 클럽으로 예약",
       "handednessNoteTitle": "기본값은 오른손잡이용",
-      "handednessNote": "표시된 모든 세트는 오른손잡이용입니다. 왼손잡이용 프리미엄 세트 1개를 요청 시 이용 가능합니다 — LINE @lengolf으로 문의해 주세요."
+      "handednessNote": "표시된 모든 세트는 오른손잡이용입니다. 왼손잡이용 프리미엄 세트 1개를 요청 시 이용 가능합니다 - LINE @lengolf으로 문의해 주세요."
     },
     "why": {
       "heading": "왜 LENGOLF 골프 클럽 렌탈을 선택해야 할까요?",
@@ -753,7 +753,7 @@
       "feature2Title": "무료 스탠다드 세트",
       "feature2Body": "모든 베이 예약에 추가 비용 없이 스탠다드 클럽이 무료로 포함됩니다. 세션 중 언제든지 프리미엄 또는 프리미엄+로 업그레이드 가능합니다.",
       "feature3Title": "유연한 이용 시간",
-      "feature3Body": "프리미엄 클럽을 시간 단위로 렌탈 — 1시간, 2시간 또는 4시간 옵션 제공. 최소 약정 없이 베이 세션만 업그레이드하시면 됩니다.",
+      "feature3Body": "프리미엄 클럽을 시간 단위로 렌탈 - 1시간, 2시간 또는 4시간 옵션 제공. 최소 약정 없이 베이 세션만 업그레이드하시면 됩니다.",
       "feature4Title": "간편한 온라인 예약",
       "feature4Body": "시뮬레이터 베이를 온라인으로 예약하실 때 원하시는 클럽을 선택하세요. 보증금 불필요, 그냥 오셔서 플레이하세요!"
     },
@@ -762,7 +762,7 @@
       "q1Title": "스탠다드, 프리미엄, 프리미엄+의 차이점은 무엇인가요?",
       "q1Body": "스탠다드 클럽은 모든 예약에 무료로 포함되는 하우스 세트입니다. 프리미엄 세트는 Callaway Warbird(남성용)와 Majesty Shuttle(여성용)으로 ฿150/시간부터 시작합니다. 프리미엄+는 투어 레벨 Callaway Paradym Forged Carbon 클럽으로 ฿250/시간부터 제공됩니다.",
       "q2Title": "관광객도 LENGOLF에서 골프 클럽을 빌릴 수 있나요?",
-      "q2Body": "네! 저희 골프 클럽 렌탈 서비스는 방콕을 방문하는 관광객에게 완벽합니다. 멤버십 필요 없음 — 온라인으로 예약하고 방문 중에 프리미엄 클럽을 즐겨보세요.",
+      "q2Body": "네! 저희 골프 클럽 렌탈 서비스는 방콕을 방문하는 관광객에게 완벽합니다. 멤버십 필요 없음 - 온라인으로 예약하고 방문 중에 프리미엄 클럽을 즐겨보세요.",
       "q3Title": "사전에 클럽을 예약해야 하나요?",
       "q3Body": "베이를 온라인으로 예약하실 때 원하시는 클럽을 선택하시거나, 도착 시 요청하실 수 있습니다. 프리미엄과 프리미엄+ 세트는 재고에 따라 이용 가능합니다.",
       "q4Title": "렌탈 클럽을 LENGOLF 외부에서 사용할 수 있나요?",
@@ -770,7 +770,7 @@
       "q4Link": "골프 코스 클럽 렌탈",
       "q4BodyAfter": " 페이지를 참조해 주세요.",
       "q5Title": "왼손잡이용 클럽이 있나요?",
-      "q5Body": "네 — 베이 예약 시 표준 왼손잡이용 클럽은 무료로 제공됩니다. 또한 왼손잡이용 프리미엄 렌탈 세트가 1개 있으며, 일반 프리미엄 요금으로 요청 가능합니다. 프리미엄+ Paradym은 오른손잡이 전용입니다. LINE @lengolf으로 미리 연락하여 왼손잡이용 프리미엄 세트를 예약해 주세요."
+      "q5Body": "네 - 베이 예약 시 표준 왼손잡이용 클럽은 무료로 제공됩니다. 또한 왼손잡이용 프리미엄 렌탈 세트가 1개 있으며, 일반 프리미엄 요금으로 요청 가능합니다. 프리미엄+ Paradym은 오른손잡이 전용입니다. LINE @lengolf으로 미리 연락하여 왼손잡이용 프리미엄 세트를 예약해 주세요."
     },
     "cta": {
       "heading": "프리미엄 클럽으로 플레이할 준비가 되셨나요?",
@@ -838,13 +838,13 @@
       "colCourse": "골프장 대여",
       "rows": {
         "trip": { "label": "3라운드 여행", "lengolf": "฿2,900 배송 포함", "course": "~฿4,500 (฿1,500 × 3)" },
-        "discount": { "label": "여러 날 할인", "lengolf": "있음 — 3일에 2일 요금", "course": "없음 — 라운드마다 부과" },
+        "discount": { "label": "여러 날 할인", "lengolf": "있음 - 3일에 2일 요금", "course": "없음 - 라운드마다 부과" },
         "set": { "label": "사용 세트", "lengolf": "여행 내내 동일한 프리미엄 세트", "course": "골프장마다 다른 대여 세트" },
         "quality": { "label": "품질", "lengolf": "정품 Callaway, Majesty 또는 투어급 Paradym", "course": "대개 일반 브랜드, 노후 또는 가품" },
         "pick": { "label": "세트 선택", "lengolf": "예약 전 사진과 사양 확인", "course": "당일 남은 것만 사용" },
         "delivery": { "label": "배송", "lengolf": "호텔 또는 골프장, ฿500 왕복", "course": "각 프로샵에서 직접 수령" }
       },
-      "footnote": "한 라운드만 치시나요? 골프장 대여가 더 저렴할 수 있습니다 — LENGOLF는 여러 라운드 여행과 제대로 된 세트를 원하는 분들을 위한 서비스입니다."
+      "footnote": "한 라운드만 빌리시나요? 신뢰할 수 있는 정품 프리미엄 세트를 품질 대비 합리적인 가격에 이용하실 수 있습니다."
     },
     "dates": {
       "startDateLabel": "시작일",
@@ -1033,7 +1033,7 @@
       "checkingTitle": "결제 확인 중",
       "checkingBody": "ShopeePay에서 결제를 확인하고 있습니다. 보통 몇 초밖에 걸리지 않습니다.",
       "confirmingLateTitle": "ShopeePay에서 확인 중",
-      "confirmingLateBody": "평소보다 시간이 조금 더 걸리고 있습니다. 결제가 여기서 확인되지 않으면 청구되지 않습니다. 이 페이지를 열어두세요 — 결제가 완료되면 이메일로 확인서를 보내드립니다.",
+      "confirmingLateBody": "평소보다 시간이 조금 더 걸리고 있습니다. 결제가 여기서 확인되지 않으면 청구되지 않습니다. 이 페이지를 열어두세요 - 결제가 완료되면 이메일로 확인서를 보내드립니다.",
       "successTitle": "결제가 완료되었습니다",
       "successBody": "감사합니다! 예약이 확정되었습니다. 영수증을 이메일로 보내드렸습니다.",
       "successRentalCodeLabel": "대여 코드",
