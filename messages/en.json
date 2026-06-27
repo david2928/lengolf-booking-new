@@ -838,6 +838,13 @@
       "pickupTimeLabel": "Pickup Time",
       "returnTimeLabel": "Return Time",
       "timeSelectPlaceholder": "Select",
+      "rangeLabel": "Rental Dates",
+      "rangePlaceholder": "Select your rental dates",
+      "rangeModalTitle": "Select rental dates",
+      "rangeHintPickStart": "Tap your pickup date",
+      "rangeHintPickEnd": "Now tap your return date",
+      "rangeDone": "Done",
+      "rangeClose": "Close",
       "pricingGuideToggle": "View pricing guide",
       "pricingTable": {
         "durationHeader": "Duration",

@@ -838,6 +838,13 @@
       "pickupTimeLabel": "수령 시간",
       "returnTimeLabel": "반납 시간",
       "timeSelectPlaceholder": "선택",
+      "rangeLabel": "대여 날짜",
+      "rangePlaceholder": "대여 날짜를 선택하세요",
+      "rangeModalTitle": "대여 날짜 선택",
+      "rangeHintPickStart": "수령 날짜를 선택하세요",
+      "rangeHintPickEnd": "반납 날짜를 선택하세요",
+      "rangeDone": "완료",
+      "rangeClose": "닫기",
       "pricingGuideToggle": "요금 안내 보기",
       "pricingTable": {
         "durationHeader": "기간",

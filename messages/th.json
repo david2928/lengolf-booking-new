@@ -838,6 +838,13 @@
       "pickupTimeLabel": "เวลารับ",
       "returnTimeLabel": "เวลาคืน",
       "timeSelectPlaceholder": "เลือก",
+      "rangeLabel": "วันที่เช่า",
+      "rangePlaceholder": "เลือกวันที่เช่าของคุณ",
+      "rangeModalTitle": "เลือกวันที่เช่า",
+      "rangeHintPickStart": "แตะวันที่รับอุปกรณ์",
+      "rangeHintPickEnd": "แตะวันที่คืนอุปกรณ์",
+      "rangeDone": "เสร็จสิ้น",
+      "rangeClose": "ปิด",
       "pricingGuideToggle": "ดูตารางราคา",
       "pricingTable": {
         "durationHeader": "ระยะเวลา",

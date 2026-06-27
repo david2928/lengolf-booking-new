@@ -838,6 +838,13 @@
       "pickupTimeLabel": "受け取り時間",
       "returnTimeLabel": "返却時間",
       "timeSelectPlaceholder": "選択",
+      "rangeLabel": "レンタル日",
+      "rangePlaceholder": "レンタル日を選択",
+      "rangeModalTitle": "レンタル日を選択",
+      "rangeHintPickStart": "受取日をタップ",
+      "rangeHintPickEnd": "返却日をタップ",
+      "rangeDone": "完了",
+      "rangeClose": "閉じる",
       "pricingGuideToggle": "料金表を見る",
       "pricingTable": {
         "durationHeader": "期間",

@@ -838,6 +838,13 @@
       "pickupTimeLabel": "取件时间",
       "returnTimeLabel": "归还时间",
       "timeSelectPlaceholder": "选择",
+      "rangeLabel": "租赁日期",
+      "rangePlaceholder": "请选择租赁日期",
+      "rangeModalTitle": "选择租赁日期",
+      "rangeHintPickStart": "点击取件日期",
+      "rangeHintPickEnd": "点击归还日期",
+      "rangeDone": "完成",
+      "rangeClose": "关闭",
       "pricingGuideToggle": "查看价格表",
       "pricingTable": {
         "durationHeader": "时长",
