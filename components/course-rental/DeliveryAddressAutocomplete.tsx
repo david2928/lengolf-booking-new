@@ -36,7 +36,6 @@ export function DeliveryAddressAutocomplete({
   onSelectRef.current = onSelect;
   const onLoadErrorRef = useRef(onLoadError);
   onLoadErrorRef.current = onLoadError;
-  const addressRef = useRef<string>('');
 
   const [pinned, setPinned] = useState<string | null>(null);
 
@@ -60,16 +59,10 @@ export function DeliveryAddressAutocomplete({
           clickableIcons: false,
           gestureHandling: 'cooperative',
         });
+        // Read-only confirmation pin — shows where the selected address resolves.
         markerRef.current = new Marker({
           position: center,
           map: mapRef.current,
-          draggable: true,
-        });
-        markerRef.current.addListener('dragend', () => {
-          const pos = markerRef.current?.getPosition();
-          if (pos) {
-            onSelectRef.current({ address: addressRef.current, lat: pos.lat(), lng: pos.lng() });
-          }
         });
       } else {
         mapRef.current.setCenter(center);
@@ -104,7 +97,6 @@ export function DeliveryAddressAutocomplete({
                 : formatted ?? name ?? '';
             const lat = loc.lat();
             const lng = loc.lng();
-            addressRef.current = address;
             setPinned(address);
             onSelectRef.current({ address, lat, lng });
             await renderMap(maps, lat, lng);
@@ -135,15 +127,6 @@ export function DeliveryAddressAutocomplete({
         ref={mapElRef}
         className={`w-full h-48 rounded-xl overflow-hidden border border-gray-200 ${pinned ? '' : 'hidden'}`}
       />
-      {pinned && (
-        <p className="text-xs text-green-700 flex items-start gap-1">
-          <span aria-hidden>📍</span>
-          <span>{pinned}</span>
-        </p>
-      )}
-      {pinned && (
-        <p className="text-[11px] text-gray-400">Drag the pin to adjust the exact drop-off point.</p>
-      )}
     </div>
   );
 }
