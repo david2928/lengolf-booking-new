@@ -9,7 +9,7 @@ import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
 import { DeliveryAddressAutocomplete } from '@/components/course-rental/DeliveryAddressAutocomplete';
 import { RentalPriceSummaryBar } from '@/components/course-rental/RentalPriceSummaryBar';
-import { ArrowLeftIcon, CheckIcon, InformationCircleIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon, UserGroupIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon, UserGroupIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
 import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/types/golf-club-rental';
