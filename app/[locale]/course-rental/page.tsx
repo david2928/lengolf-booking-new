@@ -1061,6 +1061,7 @@ export default function CourseRentalPage() {
                     />
                   ) : (
                     <DeliveryAddressAutocomplete
+                      placeholder={t('delivery.addressPlaceholder')}
                       onSelect={({ address, lat, lng }) => {
                         setDeliveryAddress(address);
                         setDeliveryLat(lat);

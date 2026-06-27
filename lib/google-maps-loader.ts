@@ -1,9 +1,10 @@
 /**
  * Loads the Google Maps JavaScript API once, on demand, in the browser.
  * Uses the modern importLibrary() bootstrap so we can pull the new Places
- * web component (`PlaceAutocompleteElement`) AND the maps/marker libraries
- * for the delivery confirmation map.
- * Mirrors lengolf-forms (src/lib/google-maps-loader.ts).
+ * Autocomplete Data API (fetchAutocompleteSuggestions) for a custom inline
+ * dropdown — avoids the fullscreen mobile takeover of the PlaceAutocomplete
+ * Element web component — plus the maps/marker libraries for the delivery
+ * confirmation map.
  * Key: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (HTTP-referrer-restricted in GCP Console).
  */
 
@@ -19,21 +20,46 @@ export interface GooglePlace {
   fetchFields(req: { fields: string[] }): Promise<unknown>;
 }
 
+// ─── Places Autocomplete Data API (new) ──────────────────────────────────────
+
+/** A piece of prediction text — `.text` is the plain string. */
+export interface FormattableText {
+  text: string;
+}
+
 export interface PlacePrediction {
+  /** Full prediction text. */
+  text: FormattableText;
+  /** Primary line, e.g. "Terminal 21". */
+  mainText?: FormattableText | null;
+  /** Secondary line, e.g. "Soi Sukhumvit 19, Khlong Toei Nuea, ...". */
+  secondaryText?: FormattableText | null;
+  placeId?: string;
+  /** Converts the prediction into a Place you can fetchFields on. */
   toPlace(): GooglePlace;
 }
 
-/**
- * The current API fires `gmp-select` with `placePrediction`; older builds fired
- * `gmp-placeselect` with `place`. We read both defensively.
- */
-export interface PlaceSelectEvent extends Event {
-  placePrediction?: PlacePrediction;
-  place?: GooglePlace;
+export interface PlaceSuggestion {
+  placePrediction?: PlacePrediction | null;
+}
+
+export interface AutocompleteRequest {
+  input: string;
+  sessionToken?: object;
+  includedRegionCodes?: string[];
+  language?: string;
+  region?: string;
+}
+
+export interface AutocompleteSuggestionStatic {
+  fetchAutocompleteSuggestions(
+    req: AutocompleteRequest
+  ): Promise<{ suggestions: PlaceSuggestion[] }>;
 }
 
 export interface PlacesLibrary {
-  PlaceAutocompleteElement: new (opts?: Record<string, unknown>) => HTMLElement;
+  AutocompleteSessionToken: new () => object;
+  AutocompleteSuggestion: AutocompleteSuggestionStatic;
 }
 
 // ─── Maps + marker (delivery confirmation map) ───────────────────────────────
@@ -47,7 +73,6 @@ export interface GoogleMarker {
   setPosition(latLng: { lat: number; lng: number }): void;
   setMap(map: GoogleMap | null): void;
   getPosition(): GoogleLatLng | null;
-  addListener(event: string, handler: () => void): void;
 }
 
 export interface MapsLibrary {
