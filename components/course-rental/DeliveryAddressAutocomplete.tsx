@@ -13,6 +13,7 @@ export function DeliveryAddressAutocomplete({
   onLoadError,
 }: DeliveryAddressAutocompleteProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const elementRef = useRef<HTMLElement | null>(null);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const onLoadErrorRef = useRef(onLoadError);
@@ -22,7 +23,6 @@ export function DeliveryAddressAutocomplete({
 
   useEffect(() => {
     let cancelled = false;
-    let element: HTMLElement | null = null;
 
     loadGoogleMaps()
       .then(async maps => {
@@ -30,22 +30,47 @@ export function DeliveryAddressAutocomplete({
         const { PlaceAutocompleteElement } = await maps.importLibrary('places');
         if (cancelled || !containerRef.current) return;
 
-        element = new PlaceAutocompleteElement({ includedRegionCodes: ['th'] });
+        const element = new PlaceAutocompleteElement({ includedRegionCodes: ['th'] });
         element.style.width = '100%';
+        elementRef.current = element;
 
         const handler = async (e: Event) => {
+          // Google fires gmp-placeselect with place on the event directly,
+          // but some versions put it under event.detail — handle both.
           const ev = e as PlaceSelectEvent;
+          const detail = (e as CustomEvent).detail as PlaceSelectEvent | undefined;
+          const rawPlace =
+            ev.placePrediction?.toPlace() ??
+            ev.place ??
+            detail?.placePrediction?.toPlace() ??
+            detail?.place;
+
+          // Fallback: at minimum capture the text the user selected
+          const inputText = (element as HTMLInputElement).value ?? '';
+
+          if (!rawPlace) {
+            // No place object — use visible text so button at least unblocks
+            if (inputText) {
+              setPinned(inputText);
+              onSelectRef.current({ address: inputText, lat: 0, lng: 0 });
+            }
+            return;
+          }
+
           try {
-            const place = ev.placePrediction ? ev.placePrediction.toPlace() : ev.place;
-            if (!place) return;
-            await place.fetchFields({ fields: ['location', 'formattedAddress', 'displayName'] });
-            const loc = place.location;
-            if (!loc) return;
-            const address = place.formattedAddress ?? place.displayName ?? '';
+            await rawPlace.fetchFields({ fields: ['location', 'formattedAddress', 'displayName'] });
+            const loc = rawPlace.location;
+            const address = rawPlace.formattedAddress ?? rawPlace.displayName ?? inputText;
             setPinned(address);
-            onSelectRef.current({ address, lat: loc.lat(), lng: loc.lng() });
+            onSelectRef.current({ address, lat: loc ? loc.lat() : 0, lng: loc ? loc.lng() : 0 });
           } catch (err) {
-            console.debug('[DeliveryAddressAutocomplete] fetchFields failed', err);
+            // fetchFields failed — still unblock the user with the visible text
+            console.error('[DeliveryAddressAutocomplete] fetchFields failed', err);
+            const address = inputText;
+            if (address) {
+              setPinned(address);
+              onSelectRef.current({ address, lat: 0, lng: 0 });
+            }
           }
         };
 
@@ -58,7 +83,9 @@ export function DeliveryAddressAutocomplete({
 
     return () => {
       cancelled = true;
-      if (element?.parentNode) element.parentNode.removeChild(element);
+      const el = elementRef.current;
+      if (el?.parentNode) el.parentNode.removeChild(el);
+      elementRef.current = null;
     };
   }, []);
 
