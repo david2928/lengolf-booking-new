@@ -9,6 +9,7 @@ import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
 import { DeliveryAddressAutocomplete } from '@/components/course-rental/DeliveryAddressAutocomplete';
 import { DateRangeField } from '@/components/course-rental/DateRangeField';
+import { WhyRentSection } from '@/components/course-rental/WhyRentSection';
 import { RentalPriceSummaryBar } from '@/components/course-rental/RentalPriceSummaryBar';
 import { ArrowLeftIcon, CheckIcon, MapPinIcon, TruckIcon, PhoneIcon, BoltIcon, ShieldCheckIcon, ReceiptPercentIcon, UserGroupIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { FaLine } from 'react-icons/fa';
@@ -951,6 +952,9 @@ export default function CourseRentalPage() {
                 ))}
               </div>
             </div>
+
+            {/* Why rent with LENGOLF vs. renting at the course (research-backed) */}
+            <WhyRentSection />
 
             {/* Group / multi-set CTA — the self-serve flow books ONE set per
                 reservation; larger parties or several sets are quoted manually

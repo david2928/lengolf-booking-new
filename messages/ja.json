@@ -832,6 +832,20 @@
       "review": "確認・確定",
       "confirmation": "確定"
     },
+    "whyRent": {
+      "heading": "ゴルフ場で借りるより LENGOLF が選ばれる理由",
+      "savingsHeadline": "3ラウンドの旅行で最大 ~36% お得",
+      "colCourse": "ゴルフ場でレンタル",
+      "rows": {
+        "trip": { "label": "3ラウンドの旅行", "lengolf": "฿2,900 配送込み", "course": "~฿4,500（฿1,500 × 3）" },
+        "discount": { "label": "連泊割引", "lengolf": "あり — 3日で2日分", "course": "なし — 毎ラウンド課金" },
+        "set": { "label": "使用セット", "lengolf": "旅行中ずっと同じプレミアムセット", "course": "ゴルフ場ごとに異なるレンタル" },
+        "quality": { "label": "品質", "lengolf": "正規Callaway・Majesty、ツアー仕様Paradym", "course": "多くは汎用・劣化・偽物" },
+        "pick": { "label": "セット選択", "lengolf": "予約前に写真とスペックを確認", "course": "当日残っているもののみ" },
+        "delivery": { "label": "配送", "lengolf": "ホテルやゴルフ場へ ฿500 往復", "course": "各プロショップで受取り" }
+      },
+      "footnote": "1ラウンドだけ？ゴルフ場レンタルの方が安い場合があります — LENGOLFは複数ラウンドの旅行ときちんとしたセットを求める方向けです。"
+    },
     "dates": {
       "startDateLabel": "開始日",
       "endDateLabel": "終了日",

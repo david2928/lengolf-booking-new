@@ -832,6 +832,20 @@
       "review": "Review & Confirm",
       "confirmation": "Confirmed"
     },
+    "whyRent": {
+      "heading": "Why rent with LENGOLF, not at the course?",
+      "savingsHeadline": "Save up to ~36% on a 3-round trip",
+      "colCourse": "At the course",
+      "rows": {
+        "trip": { "label": "3-round trip", "lengolf": "฿2,900 delivered", "course": "~฿4,500 (฿1,500 × 3)" },
+        "discount": { "label": "Multi-day discount", "lengolf": "Yes — 3 days = pay 2", "course": "None — charged every round" },
+        "set": { "label": "Your set", "lengolf": "One premium set, the whole trip", "course": "A different loaner at each course" },
+        "quality": { "label": "Quality", "lengolf": "Genuine Callaway, Majesty or tour-grade Paradym", "course": "Often generic, aged, or fake" },
+        "pick": { "label": "Pick your set", "lengolf": "Photos and specs before you book", "course": "Whatever's left on the day" },
+        "delivery": { "label": "Delivery", "lengolf": "Hotel or course, ฿500 round trip", "course": "Collect at each pro shop" }
+      },
+      "footnote": "Playing a single round? A course loaner can be cheaper — we're built for multi-round trips and players who want a proper set."
+    },
     "dates": {
       "startDateLabel": "Start Date",
       "endDateLabel": "End Date",

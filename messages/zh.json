@@ -832,6 +832,20 @@
       "review": "查看并确认",
       "confirmation": "已确认"
     },
+    "whyRent": {
+      "heading": "为什么选择 LENGOLF 而不是在球场租借？",
+      "savingsHeadline": "3 个回合的行程最多省约 36%",
+      "colCourse": "在球场租借",
+      "rows": {
+        "trip": { "label": "3 回合行程", "lengolf": "฿2,900 含配送", "course": "~฿4,500（฿1,500 × 3）" },
+        "discount": { "label": "多日折扣", "lengolf": "有 — 3 天付 2 天", "course": "无 — 每回合收费" },
+        "set": { "label": "您的球杆", "lengolf": "整趟行程同一套高级球杆", "course": "每个球场不同的租借套装" },
+        "quality": { "label": "品质", "lengolf": "正品 Callaway、Majesty 或巡回级 Paradym", "course": "多为通用、老旧或假冒" },
+        "pick": { "label": "挑选套装", "lengolf": "预订前查看照片与规格", "course": "只能用当天剩下的" },
+        "delivery": { "label": "配送", "lengolf": "送至酒店或球场，฿500 往返", "course": "需到各球场专卖店自取" }
+      },
+      "footnote": "只打一个回合？在球场租借可能更便宜 — 我们专为多回合行程和想要好球杆的球友打造。"
+    },
     "dates": {
       "startDateLabel": "开始日期",
       "endDateLabel": "结束日期",
