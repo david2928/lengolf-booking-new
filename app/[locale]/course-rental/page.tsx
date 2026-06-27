@@ -788,8 +788,10 @@ export default function CourseRentalPage() {
               <div className="relative z-10 -mt-12 mx-4 flex flex-col justify-center rounded-2xl border border-gray-100 bg-white p-5 shadow-lg sm:-mt-16 sm:mx-6 sm:p-7 md:mt-0 md:mx-0 md:rounded-none md:border-0 md:p-6 md:shadow-none">
                 <h2 className="text-lg font-bold text-gray-900">{t('landing.cardHeading')}</h2>
                 <p className="mb-4 mt-0.5 text-sm text-gray-500">{t('landing.cardSubtitle')}</p>
-            {/* Date pickers */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Date pickers — stacked on mobile (native date inputs clip below
+                ~150px wide), side-by-side from sm up. text-base keeps font ≥16px
+                so iOS doesn't auto-zoom on focus. */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">{t('dates.startDateLabel')}</label>
                 <input
@@ -801,7 +803,7 @@ export default function CourseRentalPage() {
                     if (endDate && e.target.value > endDate) setEndDate('');
                     setSelectedQty({});
                   }}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 text-base"
                 />
               </div>
               <div>
@@ -815,7 +817,7 @@ export default function CourseRentalPage() {
                     setEndDate(e.target.value);
                     setSelectedQty({});
                   }}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
