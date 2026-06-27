@@ -86,6 +86,13 @@
   }
 }
 
+/* Reserve the scrollbar gutter so content-height changes (e.g. expanding the
+   course-rental pricing guide) don't toggle the vertical scrollbar and shift
+   centered layouts horizontally. No-op on mobile overlay scrollbars. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   @apply min-h-screen;
   font-feature-settings: "rlig" 1, "calt" 1;

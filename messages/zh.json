@@ -781,6 +781,39 @@
     }
   },
   "courseRental": {
+    "landing": {
+      "heroHeadline": "畅打曼谷任何球场的高级球杆",
+      "heroTagline": "拥有体验，而非装备。",
+      "ratingChip": "{rating} · {count} 条 Google 评价",
+      "instantChip": "即时确认",
+      "valueProps": {
+        "sets": "巡回赛级 Callaway 与 Majesty 套杆",
+        "instant": "刷卡支付，即时确认",
+        "noDeposit": "无需押金",
+        "delivery": "送至酒店或高尔夫球场 · ฿500 往返",
+        "savings": "多日套餐最高省 50%"
+      },
+      "featuredPrefix": "推荐",
+      "featuredMeta": "Premium+ 巡回赛级 · ฿{price}/天起",
+      "cardHeading": "开始租赁",
+      "cardSubtitle": "选择日期，我们将为您查询可租情况。",
+      "checkAvailability": "查询可租情况",
+      "instantPayTitle": "刷卡支付，即时确认",
+      "instantPaySubtitle": "安全的在线支付",
+      "trustDelivery": "酒店/球场配送",
+      "trustSavings": "最高省 50%",
+      "showcaseHeadingA": "选择",
+      "showcaseHeadingB": "您的套杆",
+      "fromPerDay": "฿{price}/天起",
+      "group": {
+        "eyebrow": "团体租赁",
+        "heading": "团体租赁？",
+        "body": "需要多套球杆或人数较多？我们可为您提供含团体折扣的专属报价。",
+        "lineCta": "LINE @lengolf",
+        "emailCta": "邮件联系",
+        "phonePrefix": "想要来电咨询？"
+      }
+    },
     "page": {
       "backAriaLabel": "返回",
       "headingConfirmed": "预订已确认！",
@@ -840,7 +873,12 @@
       "savings": "比日租价节省 ฿{amount}",
       "selected": "已选择",
       "fullDetailsLink": "在 len.golf 查看球杆详情",
-      "continue": "继续"
+      "continue": "继续",
+      "add": "添加",
+      "decreaseQty": "减少一个",
+      "increaseQty": "增加一个",
+      "availableCount": "剩余 {count} 套",
+      "unitsSelected": "{count, plural, other {已选 # 套}}"
     },
     "delivery": {
       "methodLabel": "您希望如何获取球杆？",
@@ -859,7 +897,8 @@
       "paymentLinkTitle": "在线支付",
       "paymentLinkHint": "立即使用信用卡/借记卡或 ShopeePay 钱包支付",
       "addressRequiredHint": "请在上方填写配送地址以继续",
-      "continue": "继续"
+      "continue": "继续",
+      "deliveryFeeNote": "1–2 套 ฿500，每增加一套加 ฿250"
     },
     "contact": {
       "nameLabel": "姓名",
@@ -907,7 +946,8 @@
       "submitting": "提交中...",
       "confirmReservation": "确认预订",
       "payWithShopeepay": "使用 ShopeePay 支付 ฿{total}",
-      "securedByShopeepay": "由 ShopeePay 安全保障"
+      "securedByShopeepay": "由 ShopeePay 安全保障",
+      "setQty": "× {count}"
     },
     "confirmation": {
       "rentalCodeLabel": "您的租赁编号",
@@ -1132,7 +1172,7 @@
       "refundDateLabel": "Refund Date",
       "refundReferenceLabel": "Refund Reference",
       "whatsNextHeading": "When will I see the refund?",
-      "whatsNextBody": "The refund should appear in your ShopeePay account within 5-7 business days. If you don't see it after that, please contact us using the details below.",
+      "whatsNextBody": "退款将在 5-7 个工作日内退还至您的原始付款方式。如超期后仍未收到，请通过以下方式联系我们。",
       "footerPhoneLabel": "Phone Number:",
       "footerLineLabel": "LINE:",
       "footerAddressLabel": "Address:",

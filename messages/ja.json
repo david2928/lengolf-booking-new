@@ -781,6 +781,39 @@
     }
   },
   "courseRental": {
+    "landing": {
+      "heroHeadline": "バンコクのどのコースにもプレミアムクラブを",
+      "heroTagline": "道具ではなく、体験を手に入れよう。",
+      "ratingChip": "{rating} · Google レビュー {count}件",
+      "instantChip": "即時確定",
+      "valueProps": {
+        "sets": "ツアーグレードの Callaway・Majesty セット",
+        "instant": "カード決済で即時確定",
+        "noDeposit": "デポジット不要",
+        "delivery": "ホテル・ゴルフ場へお届け · 往復 ฿500",
+        "savings": "複数日パッケージで最大50%お得"
+      },
+      "featuredPrefix": "おすすめ",
+      "featuredMeta": "Premium+ ツアーグレード · ฿{price}/日〜",
+      "cardHeading": "レンタルを始める",
+      "cardSubtitle": "日付を選ぶと空き状況を確認します。",
+      "checkAvailability": "空き状況を確認",
+      "instantPayTitle": "カード決済で即時確定",
+      "instantPaySubtitle": "安全なオンライン決済",
+      "trustDelivery": "ホテル・コース配送",
+      "trustSavings": "最大50%お得",
+      "showcaseHeadingA": "セットを",
+      "showcaseHeadingB": "選ぶ",
+      "fromPerDay": "฿{price}/日〜",
+      "group": {
+        "eyebrow": "グループレンタル",
+        "heading": "グループでのレンタルをご希望ですか？",
+        "body": "複数セットや大人数でのご利用なら、グループ割引付きのお見積もりをご用意します。",
+        "lineCta": "LINE @lengolf",
+        "emailCta": "メールで問い合わせ",
+        "phonePrefix": "お電話をご希望ですか？"
+      }
+    },
     "page": {
       "backAriaLabel": "戻る",
       "headingConfirmed": "ご予約が確定しました！",
@@ -840,7 +873,12 @@
       "savings": "通常料金より ฿{amount} お得",
       "selected": "選択中",
       "fullDetailsLink": "len.golfでクラブの詳細を見る",
-      "continue": "次へ"
+      "continue": "次へ",
+      "add": "追加",
+      "decreaseQty": "1つ減らす",
+      "increaseQty": "1つ増やす",
+      "availableCount": "残り{count}セット",
+      "unitsSelected": "{count, plural, other {#セット選択中}}"
     },
     "delivery": {
       "methodLabel": "クラブの受け取り方法は？",
@@ -859,7 +897,8 @@
       "paymentLinkTitle": "オンライン決済",
       "paymentLinkHint": "クレジット/デビットカード、または ShopeePay ウォレットで今すぐお支払い",
       "addressRequiredHint": "続行するには配送先住所をご入力ください",
-      "continue": "次へ"
+      "continue": "次へ",
+      "deliveryFeeNote": "1〜2セットは฿500、追加1セットごとに฿250"
     },
     "contact": {
       "nameLabel": "お名前（フルネーム）",
@@ -907,7 +946,8 @@
       "submitting": "送信中...",
       "confirmReservation": "予約を確定する",
       "payWithShopeepay": "ShopeePay で ฿{total} をお支払い",
-      "securedByShopeepay": "ShopeePay で安全にお支払い"
+      "securedByShopeepay": "ShopeePay で安全にお支払い",
+      "setQty": "× {count}"
     },
     "confirmation": {
       "rentalCodeLabel": "レンタルコード",
@@ -1132,7 +1172,7 @@
       "refundDateLabel": "Refund Date",
       "refundReferenceLabel": "Refund Reference",
       "whatsNextHeading": "When will I see the refund?",
-      "whatsNextBody": "The refund should appear in your ShopeePay account within 5-7 business days. If you don't see it after that, please contact us using the details below.",
+      "whatsNextBody": "返金は5〜7営業日以内に元のお支払い方法に戻されます。期日を過ぎても確認できない場合は、下記の連絡先よりお問い合わせください。",
       "footerPhoneLabel": "Phone Number:",
       "footerLineLabel": "LINE:",
       "footerAddressLabel": "Address:",

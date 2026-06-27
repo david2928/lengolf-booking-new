@@ -110,6 +110,7 @@ EMAIL_SECURE=             # Use SSL/TLS (default: false)
 EMAIL_USER=               # SMTP username
 EMAIL_PASSWORD=           # SMTP password
 EMAIL_TLS_REJECT_UNAUTHORIZED=false  # Set to false to allow self-signed certificates (default: true)
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=  # Browser-restricted Maps JS API key; enables Places autocomplete on delivery address. HTTP-referrer-restricted in GCP Console (booking.len.golf/* + localhost:3000/*). Same project as lengolf-forms.
 ```
 
 ## Marketing-consent deploy notes (PR #18, merged 2026-04-26)
