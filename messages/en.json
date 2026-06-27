@@ -890,6 +890,8 @@
       "deliveryPrice": "฿500",
       "addressLabel": "Delivery Address",
       "addressPlaceholder": "Hotel name, street address, district...",
+      "deliveryNotesLabel": "Delivery Notes",
+      "deliveryNotesPlaceholder": "Floor, room number, gate code, or any access instructions (optional)",
       "addOnsLabel": "Optional Add-ons",
       "paymentLabel": "Payment Method",
       "paymentCashTitle": "Cash",

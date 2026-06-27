@@ -108,6 +108,7 @@ export default function CourseRentalPage() {
   const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
   const [deliveryLng, setDeliveryLng] = useState<number | null>(null);
   const [addressFallback, setAddressFallback] = useState(false);
+  const [deliveryNotes, setDeliveryNotes] = useState('');
   // Add-on quantity per item id (gloves / balls). Order-level; each capped at the
   // number of sets (one per player). Stored expanded (repeated) so add_ons_total
   // and the forms reader stay correct.
@@ -131,7 +132,7 @@ export default function CourseRentalPage() {
   // the confirmation step, so a fresh visit always starts over.
   useFlowPersistence(
     'lengolf.courseRentalFlow',
-    { step, selectedQty, startDate, endDate, pickupTime, returnTime, deliveryRequested, deliveryAddress, addOnQty, paymentMethod, preferredContact, contactName, contactPhone, contactEmail, notes },
+    { step, selectedQty, startDate, endDate, pickupTime, returnTime, deliveryRequested, deliveryAddress, deliveryNotes, addOnQty, paymentMethod, preferredContact, contactName, contactPhone, contactEmail, notes },
     (s) => {
       // Clamp the restored step to what the saved data can actually render, so a
       // partial/corrupt snapshot can't strand the customer on a blank step.
@@ -149,6 +150,7 @@ export default function CourseRentalPage() {
       if (s.returnTime) setReturnTime(s.returnTime);
       if (typeof s.deliveryRequested === 'boolean') setDeliveryRequested(s.deliveryRequested);
       if (s.deliveryAddress) setDeliveryAddress(s.deliveryAddress);
+      if (s.deliveryNotes) setDeliveryNotes(s.deliveryNotes);
       if (s.addOnQty) setAddOnQty(s.addOnQty);
       if (s.paymentMethod) setPaymentMethod(s.paymentMethod);
       if (s.preferredContact) setPreferredContact(s.preferredContact);
@@ -386,10 +388,12 @@ export default function CourseRentalPage() {
           delivery_address: deliveryRequested ? deliveryAddress : undefined,
           delivery_lat: deliveryRequested && deliveryLat != null ? deliveryLat : undefined,
           delivery_lng: deliveryRequested && deliveryLng != null ? deliveryLng : undefined,
-          // Notes is strictly customer-typed free text. Payment choice + contact
-          // preference travel as their own fields so they can be surfaced cleanly
-          // to staff (LINE / backoffice) without leaking into the customer email.
-          notes: notes || undefined,
+          // Prepend delivery notes so staff sees access instructions alongside
+          // the address in the LINE notification and backoffice.
+          notes: [
+            deliveryRequested && deliveryNotes ? `Delivery note: ${deliveryNotes}` : '',
+            notes,
+          ].filter(Boolean).join('\n') || undefined,
           payment_method_chosen:
             paymentMethod === 'cash' ? 'cash_at_pickup' : 'online_shopeepay',
           contact_preference: preferredContact, // 'line' | 'email' | 'whatsapp'
@@ -1066,6 +1070,18 @@ export default function CourseRentalPage() {
                     />
                   )}
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('delivery.deliveryNotesLabel')}
+                  </label>
+                  <textarea
+                    value={deliveryNotes}
+                    onChange={e => setDeliveryNotes(e.target.value)}
+                    placeholder={t('delivery.deliveryNotesPlaceholder')}
+                    rows={2}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400 text-sm resize-none"
+                  />
+                </div>
               </div>
             )}
 
@@ -1357,6 +1373,7 @@ export default function CourseRentalPage() {
                 <>
                   <p className="font-semibold text-gray-900">{t('review.deliveryTitle')}</p>
                   <p className="text-sm text-gray-500 mt-1">{deliveryAddress}</p>
+                  {deliveryNotes && <p className="text-sm text-gray-400 mt-0.5 italic">{deliveryNotes}</p>}
                 </>
               ) : (
                 <>
