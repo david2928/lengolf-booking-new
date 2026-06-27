@@ -1,13 +1,14 @@
 /**
- * Customer/user resolution for the booking-app order write path.
+ * Customer resolution for club rentals (booking app).
  *
- * Mirrors lengolf-forms `src/lib/club-rental/resolve-customer.ts`: prefer a
- * caller-supplied customer_id; otherwise attempt a UNIQUE phone match (never
- * auto-create); then resolve the booking-app user_id via the profiles table.
- *
- * This is an improvement over the legacy website reserve route, which left
- * customer_id NULL — linking the order to a known customer lets the forms staff
- * tooling (customer history, sidebar) surface website orders.
+ * Mirrors lengolf-forms `src/lib/club-rental/resolve-customer.ts`:
+ *  - WRITE path (`resolveCustomerId` / `resolveUserId`): prefer a caller-supplied
+ *    customer_id; else a UNIQUE phone match (never auto-create); then the
+ *    booking-app user_id. Lets forms staff tooling surface website orders instead
+ *    of leaving customer_id NULL like the legacy reserve route.
+ *  - READ path (`resolveRentalCustomer`): given a rental line + its parent order
+ *    header, return the customer to display — the order is canonical for course
+ *    rentals, the line is the indoor/orphan fallback (Option B, customer family).
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -83,4 +84,50 @@ export async function resolveUserId(
     console.error('[ClubOrder] resolveUserId failed (non-blocking):', err);
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// READ path — resolve which customer a rental shows (order-canonical for course)
+// ---------------------------------------------------------------------------
+
+export interface RentalCustomerColumns {
+  customer_id?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_email?: string | null;
+}
+
+export interface RentalRowWithOrderCustomer extends RentalCustomerColumns {
+  /** Parent order header (course rentals only; null/undefined for indoor). */
+  order?: RentalCustomerColumns | null;
+}
+
+export interface ResolvedRentalCustomer {
+  id: string | null;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+/**
+ * Resolve a rental's customer, preferring the parent order header.
+ *
+ * For COURSE rentals the `club_rental_orders` header is the canonical source of
+ * the (denormalised) customer fields; INDOOR rentals have no order and fall back
+ * to the line. The `??` chain IS the backward-compat: a missing order — or a null
+ * field on the order — falls through to the line. Mirrors lengolf-forms
+ * `resolveRentalCustomer` so both apps display the same order customer. Writers
+ * still denormalise customer onto both header and line; this only flips reads.
+ *
+ * In this app the header is usually loaded SEPARATELY from the line (not a
+ * PostgREST embed), so callers pass `{ ...lineCustomerCols, order: headerCols }`.
+ */
+export function resolveRentalCustomer(row: RentalRowWithOrderCustomer): ResolvedRentalCustomer {
+  const o = row.order ?? null;
+  return {
+    id: o?.customer_id ?? row.customer_id ?? null,
+    name: o?.customer_name ?? row.customer_name ?? null,
+    phone: o?.customer_phone ?? row.customer_phone ?? null,
+    email: o?.customer_email ?? row.customer_email ?? null,
+  };
 }

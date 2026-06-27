@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
 import { groupAddOns, groupSetNames } from '@/lib/club-rental/order-pricing';
+import { resolveRentalCustomer } from '@/lib/club-rental/resolve-customer';
 
 /**
  * Marks a payment transaction + its rental as paid, and fires the
@@ -62,18 +63,23 @@ export async function claimAndSendConfirmationEmail(
     return { sent: false, reason: 'rental_not_found' };
   }
 
-  if (!rental.customer_email) {
-    // Nothing to send — but keep the claim so we don't retry forever.
-    return { sent: false, reason: 'no_customer_email' };
-  }
-
-  // Order-level: if this line belongs to an order, send ONE order-summary email
-  // (joined set names + order rollup totals) instead of the single bearer-line
-  // email. The claim above (per-txn, one txn per order) still dedups it.
+  // Order-level FIRST: if this line belongs to an order, send ONE order-summary
+  // email (joined set names + rollup totals) with the ORDER-canonical customer.
+  // This must run BEFORE the line-email guard below: the order resolves its
+  // recipient order-first, so it works even when the bearer LINE's email is null
+  // but the header's is set (Option B divergence). The per-txn claim above still
+  // dedups it. sendOrderConfirmationEmail returns null ONLY when the order can't be
+  // loaded — then we fall through to the single-rental backstop. It has its own
+  // !cust.email guard, so a genuinely email-less order returns no_customer_email.
   if (rental.order_id) {
     const orderResult = await sendOrderConfirmationEmail(supabase, rental, options);
     if (orderResult) return orderResult;
-    // Order load failed — fall through to the single-rental email as a backstop.
+  }
+
+  if (!rental.customer_email) {
+    // Single-rental (indoor / orphan / order-load-failed backstop) path: nothing
+    // to send without a line email — keep the claim so we don't retry forever.
+    return { sent: false, reason: 'no_customer_email' };
   }
 
   let language: string | null = null;
@@ -167,7 +173,7 @@ async function sendOrderConfirmationEmail(
   const { data: order } = await supabase
     .from('club_rental_orders')
     .select(
-      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time',
+      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_id, customer_name, customer_email',
     )
     .eq('id', orderId)
     .maybeSingle();
@@ -189,12 +195,28 @@ async function sendOrderConfirmationEmail(
     price: g.price,
   }));
 
+  // Customer is order-canonical for course rentals: read it off the loaded header,
+  // falling back to the bearer line. (resolveRentalCustomer — Option B, customer family.)
+  const cust = resolveRentalCustomer({
+    customer_id: rental.customer_id as string | null,
+    customer_name: rental.customer_name as string | null,
+    customer_email: rental.customer_email as string | null,
+    order,
+  });
+
+  if (!cust.email) {
+    // No order-canonical email — keep the claim (no point retrying). Mirrors the
+    // refund path's guard; load-bearing now that the order path runs before the
+    // caller's line-email guard.
+    return { sent: false, reason: 'no_customer_email' };
+  }
+
   let language: string | null = null;
-  if (rental.customer_id) {
+  if (cust.id) {
     const { data: customerLang } = await supabase
       .from('customers')
       .select('preferred_language')
-      .eq('id', rental.customer_id as string)
+      .eq('id', cust.id)
       .single();
     language = customerLang?.preferred_language ?? null;
   }
@@ -212,8 +234,8 @@ async function sendOrderConfirmationEmail(
 
   try {
     await sendCourseRentalConfirmationEmail({
-      customerName: rental.customer_name as string,
-      email: rental.customer_email as string,
+      customerName: (cust.name ?? rental.customer_name) as string,
+      email: (cust.email ?? rental.customer_email) as string,
       rentalCode: order.order_code,
       clubSetName: setNames,
       clubSetTier: (firstSet.tier as string) ?? 'premium',
