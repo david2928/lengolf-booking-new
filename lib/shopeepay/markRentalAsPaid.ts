@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
 import { groupAddOns, groupSetNames } from '@/lib/club-rental/order-pricing';
 import { resolveRentalCustomer } from '@/lib/club-rental/resolve-customer';
+import { resolveRentalDelivery } from '@/lib/club-rental/resolve-delivery';
 
 /**
  * Marks a payment transaction + its rental as paid, and fires the
@@ -221,11 +222,20 @@ async function sendOrderConfirmationEmail(
     language = customerLang?.preferred_language ?? null;
   }
 
+  // Delivery is order-canonical for course rentals (Option B): read it off the
+  // header, falling back per-field to the bearer line. (resolveRentalDelivery.)
+  const delivery = resolveRentalDelivery({
+    delivery_requested: rental.delivery_requested as boolean | null,
+    delivery_address: rental.delivery_address as string | null,
+    delivery_time: rental.delivery_time as string | null,
+    return_time: rental.return_time as string | null,
+    order,
+  });
   const deliveryTimeStr = [
-    order.delivery_time
-      ? `${order.delivery_requested ? 'Delivery' : 'Pickup'}: ${order.delivery_time}`
+    delivery.deliveryTime
+      ? `${delivery.requested ? 'Delivery' : 'Pickup'}: ${delivery.deliveryTime}`
       : '',
-    order.return_time ? `Return: ${order.return_time}` : '',
+    delivery.returnTime ? `Return: ${delivery.returnTime}` : '',
   ]
     .filter(Boolean)
     .join(', ');
@@ -243,8 +253,8 @@ async function sendOrderConfirmationEmail(
       startDate: rental.start_date as string,
       endDate: rental.end_date as string,
       durationDays: (rental.duration_days as number) || 1,
-      deliveryRequested: !!order.delivery_requested,
-      deliveryAddress: order.delivery_address ?? undefined,
+      deliveryRequested: delivery.requested,
+      deliveryAddress: delivery.address ?? undefined,
       deliveryTime: deliveryTimeStr || undefined,
       addOns,
       rentalPrice: Number(order.rental_subtotal),
