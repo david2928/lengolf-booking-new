@@ -885,7 +885,9 @@
       "decreaseQty": "Remove one",
       "increaseQty": "Add one",
       "availableCount": "{count} available",
-      "unitsSelected": "{count, plural, =1 {1 set selected} other {# sets selected}}"
+      "unitsSelected": "{count, plural, =1 {1 set selected} other {# sets selected}}",
+      "selectPrompt": "Select your clubs",
+      "selectAtLeastOne": "Please select at least one set to continue."
     },
     "delivery": {
       "methodLabel": "How would you like to get the clubs?",
@@ -912,6 +914,7 @@
     "contact": {
       "nameLabel": "Full Name",
       "namePlaceholder": "Your full name",
+      "nameRequired": "Please enter your name.",
       "phoneLabel": "Phone Number",
       "phonePlaceholder": "Enter phone number",
       "phoneCountryHelper": "Please select your country code and enter your phone number.",
@@ -954,6 +957,7 @@
       "paymentLinkBody": "You'll complete payment on ShopeePay's secure page and return here automatically.",
       "submitting": "Submitting...",
       "confirmReservation": "Confirm Reservation",
+      "payNow": "Pay now",
       "payWithShopeepay": "Pay ฿{total} with ShopeePay",
       "securedByShopeepay": "Secured by ShopeePay",
       "setQty": "× {count}"

@@ -110,6 +110,9 @@ export default function CourseRentalPage() {
   const [deliveryLng, setDeliveryLng] = useState<number | null>(null);
   const [addressFallback, setAddressFallback] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
+  // Which required field the sticky CTA flagged as incomplete (drives scroll +
+  // highlight). Cleared on step change and once the field is filled.
+  const [errorField, setErrorField] = useState<string | null>(null);
   // Add-on quantity per item id (gloves / balls). Order-level; each capped at the
   // number of sets (one per player). Stored expanded (repeated) so add_ons_total
   // and the forms reader stay correct.
@@ -221,6 +224,7 @@ export default function CourseRentalPage() {
   // the previous step, or after the saved-flow restore re-enters a later step.
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
+    setErrorField(null);
   }, [step]);
 
   // Prefill contact fields for logged-in customers from VIP profile.
@@ -488,6 +492,56 @@ export default function CourseRentalPage() {
     }
   };
 
+  // Returns the id of the first incomplete required field on the current step,
+  // or null if the step is valid. Drives the sticky CTA's jump-to-error.
+  const firstInvalidField = (): string | null => {
+    if (step === 'set') return totalUnits === 0 ? 'cr-set' : null;
+    if (step === 'delivery') return deliveryRequested && !deliveryAddress.trim() ? 'cr-address' : null;
+    if (step === 'contact') {
+      if (!contactName.trim()) return 'cr-name';
+      if (!contactPhone || !isValidPhoneNumber(contactPhone)) return 'cr-phone';
+      return null;
+    }
+    return null;
+  };
+
+  // Sticky-bar primary action: submit on review, else validate → advance or
+  // scroll to + focus the first incomplete field (no silent disabled button).
+  const handlePrimaryCta = () => {
+    if (step === 'review') {
+      handleSubmit();
+      return;
+    }
+    const bad = firstInvalidField();
+    if (bad) {
+      setErrorField(bad);
+      const el = document.getElementById(bad);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const input = el.querySelector('input, textarea, select') as HTMLElement | null;
+        window.setTimeout(() => input?.focus({ preventScroll: true }), 350);
+      }
+      return;
+    }
+    setErrorField(null);
+    goNext();
+  };
+
+  const primaryCtaLabel =
+    step === 'set'
+      ? t('set.continue')
+      : step === 'delivery'
+        ? t('delivery.continue')
+        : step === 'contact'
+          ? t('contact.reviewBooking')
+          : step === 'review'
+            ? submitting
+              ? t('review.submitting')
+              : paymentMethod === 'card'
+                ? t('review.payNow')
+                : t('review.confirmReservation')
+            : '';
+
   const stepIndex = STEP_ORDER.indexOf(step);
   const isConfirmation = step === 'confirmation';
 
@@ -541,6 +595,10 @@ export default function CourseRentalPage() {
               <p className="mt-0.5 text-gray-700">{tClubRental('sets.handednessNote')}</p>
             </div>
 
+            <div id="cr-set" className="space-y-4 scroll-mt-24">
+            {errorField === 'cr-set' && totalUnits === 0 && (
+              <p className="text-sm font-medium text-amber-600">{t('set.selectAtLeastOne')}</p>
+            )}
             {setsLoading ? (
               <div className="flex justify-center py-12">
                 <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
@@ -716,6 +774,7 @@ export default function CourseRentalPage() {
                 );
               })
             )}
+            </div>
 
             <a
               href="https://www.len.golf/golf-course-club-rental/"
@@ -731,14 +790,6 @@ export default function CourseRentalPage() {
                 {t('set.unitsSelected', { count: totalUnits })}
               </p>
             )}
-
-            <button
-              onClick={goNext}
-              disabled={totalUnits === 0}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
-              {t('set.continue')}
-            </button>
           </div>
         )}
 
@@ -1036,7 +1087,7 @@ export default function CourseRentalPage() {
 
             {deliveryRequested && (
               <div className="space-y-4">
-                <div>
+                <div id="cr-address" className="scroll-mt-24">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {t('delivery.addressLabel')} <span className="text-red-500">*</span>
                   </label>
@@ -1058,6 +1109,9 @@ export default function CourseRentalPage() {
                       }}
                       onLoadError={() => setAddressFallback(true)}
                     />
+                  )}
+                  {!deliveryAddress.trim() && (
+                    <p className="mt-1.5 text-xs text-amber-600">{t('delivery.addressRequiredHint')}</p>
                   )}
                 </div>
                 <div>
@@ -1187,24 +1241,13 @@ export default function CourseRentalPage() {
               </div>
             </div>
 
-            {deliveryRequested && !deliveryAddress.trim() && (
-              <p className="text-sm text-amber-600 text-center">{t('delivery.addressRequiredHint')}</p>
-            )}
-
-            <button
-              onClick={goNext}
-              disabled={deliveryRequested && !deliveryAddress.trim()}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
-              {t('delivery.continue')}
-            </button>
           </div>
         )}
 
         {/* Step 4: Contact Details */}
         {step === 'contact' && (
           <div className="space-y-5">
-            <div>
+            <div id="cr-name" className="scroll-mt-24">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {t('contact.nameLabel')} <span className="text-red-500">*</span>
               </label>
@@ -1215,9 +1258,12 @@ export default function CourseRentalPage() {
                 placeholder={t('contact.namePlaceholder')}
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 text-gray-900 placeholder:text-gray-400"
               />
+              {errorField === 'cr-name' && !contactName.trim() && (
+                <p className="mt-1.5 text-xs text-amber-600">{t('contact.nameRequired')}</p>
+              )}
             </div>
 
-            <div>
+            <div id="cr-phone" className="scroll-mt-24">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {t('contact.phoneLabel')} <span className="text-red-500">*</span>
               </label>
@@ -1295,13 +1341,6 @@ export default function CourseRentalPage() {
               </div>
             </div>
 
-            <button
-              onClick={goNext}
-              disabled={!contactName.trim() || !contactPhone || !isValidPhoneNumber(contactPhone)}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
-              {t('contact.reviewBooking')}
-            </button>
           </div>
         )}
 
@@ -1474,32 +1513,14 @@ export default function CourseRentalPage() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="w-full py-3 rounded-xl font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 transition-colors flex items-center justify-center gap-2"
-              >
-                {submitting ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    {t('review.submitting')}
-                  </>
-                ) : paymentMethod === 'card' ? (
-                  t('review.payWithShopeepay', { total: format.number(totalPrice) })
-                ) : (
-                  t('review.confirmReservation')
-                )}
-              </button>
-              {paymentMethod === 'card' && !submitting && (
-                <p className="flex items-center justify-center gap-1.5 text-xs text-gray-500">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  {t('review.securedByShopeepay')}
-                </p>
-              )}
-            </div>
+            {paymentMethod === 'card' && (
+              <p className="flex items-center justify-center gap-1.5 text-xs text-gray-500">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                {t('review.securedByShopeepay')}
+              </p>
+            )}
           </div>
         )}
 
@@ -1664,7 +1685,7 @@ export default function CourseRentalPage() {
         </div>
       )}
 
-      {/* Sticky price bar — only show from step 2 onwards */}
+      {/* Sticky action bar — running total + primary CTA, from step 2 onwards */}
       {step !== 'dates' && step !== 'confirmation' && (
         <RentalPriceSummaryBar
           rentalPrice={rentalPrice}
@@ -1673,6 +1694,10 @@ export default function CourseRentalPage() {
           deliveryFee={deliveryFee}
           addOnsTotal={addOnsTotal}
           currentStep={step}
+          ctaLabel={primaryCtaLabel}
+          onCta={handlePrimaryCta}
+          ctaLoading={step === 'review' && submitting}
+          emptyPrompt={t('set.selectPrompt')}
         />
       )}
     </Layout>

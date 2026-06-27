@@ -885,7 +885,9 @@
       "decreaseQty": "ลดจำนวน",
       "increaseQty": "เพิ่มจำนวน",
       "availableCount": "มี {count} ชุด",
-      "unitsSelected": "{count, plural, other {เลือกแล้ว # ชุด}}"
+      "unitsSelected": "{count, plural, other {เลือกแล้ว # ชุด}}",
+      "selectPrompt": "เลือกชุดไม้กอล์ฟ",
+      "selectAtLeastOne": "กรุณาเลือกอย่างน้อย 1 ชุดเพื่อดำเนินการต่อ"
     },
     "delivery": {
       "methodLabel": "คุณต้องการรับไม้กอล์ฟอย่างไร?",
@@ -910,6 +912,7 @@
     "contact": {
       "nameLabel": "ชื่อ-นามสกุล",
       "namePlaceholder": "กรอกชื่อ-นามสกุล",
+      "nameRequired": "กรุณากรอกชื่อของคุณ",
       "phoneLabel": "เบอร์โทร",
       "phonePlaceholder": "กรอกเบอร์โทร",
       "phoneCountryHelper": "กรุณาเลือกรหัสประเทศและกรอกเบอร์โทรของคุณ",
@@ -952,6 +955,7 @@
       "paymentLinkBody": "คุณจะชำระเงินที่หน้าปลอดภัยของ ShopeePay แล้วระบบจะพากลับมาหน้านี้โดยอัตโนมัติ",
       "submitting": "กำลังส่ง...",
       "confirmReservation": "ยืนยันการจอง",
+      "payNow": "ชำระเงินตอนนี้",
       "payWithShopeepay": "ชำระ ฿{total} ผ่าน ShopeePay",
       "securedByShopeepay": "ปลอดภัยด้วย ShopeePay",
       "setQty": "× {count}"

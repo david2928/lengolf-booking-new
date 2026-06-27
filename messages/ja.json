@@ -885,7 +885,9 @@
       "decreaseQty": "1つ減らす",
       "increaseQty": "1つ増やす",
       "availableCount": "残り{count}セット",
-      "unitsSelected": "{count, plural, other {#セット選択中}}"
+      "unitsSelected": "{count, plural, other {#セット選択中}}",
+      "selectPrompt": "クラブを選択",
+      "selectAtLeastOne": "続行するには少なくとも1セットを選択してください。"
     },
     "delivery": {
       "methodLabel": "クラブの受け取り方法は？",
@@ -910,6 +912,7 @@
     "contact": {
       "nameLabel": "お名前（フルネーム）",
       "namePlaceholder": "お名前を入力",
+      "nameRequired": "お名前を入力してください。",
       "phoneLabel": "電話番号",
       "phonePlaceholder": "電話番号を入力",
       "phoneCountryHelper": "国コードを選択し、電話番号を入力してください。",
@@ -952,6 +955,7 @@
       "paymentLinkBody": "ShopeePay の安全な決済ページでお支払いを完了すると、自動的にこのページに戻ります。",
       "submitting": "送信中...",
       "confirmReservation": "予約を確定する",
+      "payNow": "今すぐ支払う",
       "payWithShopeepay": "ShopeePay で ฿{total} をお支払い",
       "securedByShopeepay": "ShopeePay で安全にお支払い",
       "setQty": "× {count}"

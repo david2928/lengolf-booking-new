@@ -885,7 +885,9 @@
       "decreaseQty": "하나 줄이기",
       "increaseQty": "하나 추가",
       "availableCount": "{count}개 남음",
-      "unitsSelected": "{count, plural, other {#개 세트 선택됨}}"
+      "unitsSelected": "{count, plural, other {#개 세트 선택됨}}",
+      "selectPrompt": "클럽을 선택하세요",
+      "selectAtLeastOne": "계속하려면 세트를 하나 이상 선택해 주세요."
     },
     "delivery": {
       "methodLabel": "클럽을 어떻게 받으시겠습니까?",
@@ -910,6 +912,7 @@
     "contact": {
       "nameLabel": "성명",
       "namePlaceholder": "성명을 입력해 주세요",
+      "nameRequired": "성명을 입력해 주세요.",
       "phoneLabel": "전화번호",
       "phonePlaceholder": "전화번호 입력",
       "phoneCountryHelper": "국가 코드를 선택하고 전화번호를 입력해 주세요.",
@@ -952,6 +955,7 @@
       "paymentLinkBody": "ShopeePay의 보안 결제 페이지에서 결제를 완료하시면 자동으로 이 페이지로 돌아옵니다.",
       "submitting": "전송 중...",
       "confirmReservation": "예약 확정",
+      "payNow": "지금 결제",
       "payWithShopeepay": "ShopeePay로 ฿{total} 결제",
       "securedByShopeepay": "ShopeePay 보안 결제",
       "setQty": "× {count}"

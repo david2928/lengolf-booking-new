@@ -885,7 +885,9 @@
       "decreaseQty": "减少一个",
       "increaseQty": "增加一个",
       "availableCount": "剩余 {count} 套",
-      "unitsSelected": "{count, plural, other {已选 # 套}}"
+      "unitsSelected": "{count, plural, other {已选 # 套}}",
+      "selectPrompt": "选择您的球杆",
+      "selectAtLeastOne": "请至少选择一套以继续。"
     },
     "delivery": {
       "methodLabel": "您希望如何获取球杆？",
@@ -910,6 +912,7 @@
     "contact": {
       "nameLabel": "姓名",
       "namePlaceholder": "请输入您的姓名",
+      "nameRequired": "请输入您的姓名。",
       "phoneLabel": "电话号码",
       "phonePlaceholder": "请输入电话号码",
       "phoneCountryHelper": "请选择国家代码并输入您的电话号码。",
@@ -952,6 +955,7 @@
       "paymentLinkBody": "您将在 ShopeePay 的安全付款页面完成支付，完成后将自动返回此页面。",
       "submitting": "提交中...",
       "confirmReservation": "确认预订",
+      "payNow": "立即付款",
       "payWithShopeepay": "使用 ShopeePay 支付 ฿{total}",
       "securedByShopeepay": "由 ShopeePay 安全保障",
       "setQty": "× {count}"
