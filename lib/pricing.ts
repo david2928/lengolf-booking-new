@@ -37,9 +37,12 @@ export interface PricingCatalog {
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
+// Browser: use same-origin proxy to avoid CORS. Server: hit upstream directly.
 const PRICING_API =
   process.env.NEXT_PUBLIC_PRICING_API_URL ||
-  'https://lengolf-forms.vercel.app/api/pricing';
+  (typeof window !== 'undefined'
+    ? '/api/pricing'
+    : 'https://lengolf-forms.vercel.app/api/pricing');
 
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
