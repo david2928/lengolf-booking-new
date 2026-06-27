@@ -16,8 +16,13 @@ export default function ChatWidget() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Hide chat widget on LIFF pages - skip initialization to prevent API calls
+  // Only show chat on the bookings landing page (/bookings and locale-prefixed equivalents)
+  // e.g. /bookings, /th/bookings, /ko/bookings, /ja/bookings, /zh/bookings, or root /
   const isLiffPage = pathname?.startsWith('/liff');
+  const isBookingsPage = pathname
+    ? /^\/(th|ko|ja|zh)?(\/bookings)?\/?$/.test(pathname)
+    : false;
+  const shouldHide = isLiffPage || !isBookingsPage;
 
   const {
     chatSession,
@@ -29,9 +34,9 @@ export default function ChatWidget() {
     markAsRead,
     sendMessage,
     initializeChat,
-  } = useChatSession({ skip: isLiffPage, autoConnect: isOpen });
+  } = useChatSession({ skip: shouldHide, autoConnect: isOpen });
 
-  if (isLiffPage) {
+  if (shouldHide) {
     return null;
   }
 
