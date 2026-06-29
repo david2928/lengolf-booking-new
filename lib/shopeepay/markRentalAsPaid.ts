@@ -4,6 +4,7 @@ import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/ema
 import { groupAddOns, groupSetNames } from '@/lib/club-rental/order-pricing';
 import { resolveRentalCustomer } from '@/lib/club-rental/resolve-customer';
 import { resolveRentalDelivery } from '@/lib/club-rental/resolve-delivery';
+import { resolveRentalAddOns } from '@/lib/club-rental/resolve-add-ons';
 
 /**
  * Marks a payment transaction + its rental as paid, and fires the
@@ -174,7 +175,7 @@ async function sendOrderConfirmationEmail(
   const { data: order } = await supabase
     .from('club_rental_orders')
     .select(
-      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_id, customer_name, customer_email',
+      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_id, customer_name, customer_email, add_ons',
     )
     .eq('id', orderId)
     .maybeSingle();
@@ -189,8 +190,9 @@ async function sendOrderConfirmationEmail(
   type SetRef = { name?: string; tier?: string; gender?: string } | null;
   const setNames = groupSetNames(lineRows.map((r) => (r.rental_club_sets as SetRef)?.name));
   const firstSet = (lineRows[0].rental_club_sets as SetRef) ?? {};
-  // Group the expanded add-ons array ("3 gloves") into "Golf Glove ×3" for the email.
-  const rawAddOns = lineRows.flatMap((r) => (Array.isArray(r.add_ons) ? r.add_ons : []));
+  // Add-ons are order-canonical now (Option B, add-ons family): read them off the
+  // header, not by flat-mapping the lines. The lineRows query stays for set names.
+  const rawAddOns = resolveRentalAddOns({ order: order as { add_ons?: Array<{ key?: string; label: string; price: number }> | null } });
   const addOns = groupAddOns(rawAddOns).map((g) => ({
     label: g.quantity > 1 ? `${g.label} ×${g.quantity}` : g.label,
     price: g.price,
