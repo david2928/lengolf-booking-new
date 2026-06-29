@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
-import { getIndoorPrice, getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
+import { getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
 import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
@@ -103,6 +103,16 @@ export async function POST(request: NextRequest) {
     // Validate rental_type
     if (!['indoor', 'course'].includes(rental_type)) {
       return NextResponse.json({ error: 'Invalid rental type' }, { status: 400 });
+    }
+
+    // Indoor club choice now lives on bookings.rental_club_set_id (written by
+    // /api/bookings/create). This endpoint serves COURSE rentals only — indoor can
+    // no longer create a club_rentals row. Mirrors forms /api/clubs/reserve (#186).
+    if (rental_type !== 'course') {
+      return NextResponse.json(
+        { error: 'This endpoint now serves course rentals only. Indoor club choice is stored on the booking.' },
+        { status: 400 }
+      );
     }
 
     // Validate UUID format for club set ID
@@ -259,11 +269,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Club set not found' }, { status: 404 });
     }
 
-    // Calculate pricing
+    // Calculate pricing (course-only endpoint — indoor lives on bookings.rental_club_set_id)
     let rental_price = 0;
-    if (rental_type === 'indoor' && duration_hours) {
-      rental_price = getIndoorPrice(clubSet, duration_hours);
-    } else if (rental_type === 'course' && effective_duration_days) {
+    if (effective_duration_days) {
       rental_price = getCoursePrice(clubSet, effective_duration_days);
     }
 
