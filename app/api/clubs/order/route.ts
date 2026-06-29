@@ -310,6 +310,7 @@ export async function POST(request: NextRequest) {
         payment_method_chosen: paymentMethodChosen,
         contact_preference: contactPreference,
         rental_subtotal: rollup.rentalSubtotal,
+        add_ons: validatedAddOns,
         add_ons_total: rollup.addOnsTotal,
         discount_amount: rollup.discountAmount,
         total_price: rollup.totalPrice,
