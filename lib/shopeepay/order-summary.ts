@@ -1,6 +1,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { resolveRentalDelivery } from '@/lib/club-rental/resolve-delivery';
+import { resolveRentalWindow } from '@/lib/club-rental/resolve-window';
 
 /**
  * Shape returned to the client for the payment summary card on
@@ -48,7 +49,7 @@ export async function loadRentalOrderSummary(
   if (rental.order_id) {
     const { data: order } = await supabase
       .from('club_rental_orders')
-      .select('rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address')
+      .select('rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, start_date, end_date, duration_days')
       .eq('id', rental.order_id)
       .maybeSingle();
     const { data: lineRows } = await supabase
@@ -67,12 +68,20 @@ export async function loadRentalOrderSummary(
         delivery_address: rental.delivery_address,
         order,
       });
+      // Window is order-canonical for course rentals (Option B incr 3b): read it
+      // off the header, falling back per-field to the bearer line.
+      const window = resolveRentalWindow({
+        start_date: rental.start_date,
+        end_date: rental.end_date,
+        duration_days: rental.duration_days,
+        order,
+      });
       return {
         rental_code: rental.rental_code,
         club_set_name: names || null,
-        start_date: rental.start_date,
-        end_date: rental.end_date,
-        duration_days: rental.duration_days || 1,
+        start_date: (window.startDate ?? rental.start_date) as string,
+        end_date: (window.endDate ?? rental.end_date) as string,
+        duration_days: window.durationDays ?? (rental.duration_days || 1),
         delivery_requested: delivery.requested,
         delivery_address: delivery.address,
         rental_price: Number(order.rental_subtotal),

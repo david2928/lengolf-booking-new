@@ -5,6 +5,7 @@ import { groupAddOns, groupSetNames } from '@/lib/club-rental/order-pricing';
 import { resolveRentalCustomer } from '@/lib/club-rental/resolve-customer';
 import { resolveRentalDelivery } from '@/lib/club-rental/resolve-delivery';
 import { resolveRentalAddOns } from '@/lib/club-rental/resolve-add-ons';
+import { resolveRentalWindow } from '@/lib/club-rental/resolve-window';
 
 /**
  * Marks a payment transaction + its rental as paid, and fires the
@@ -175,7 +176,7 @@ async function sendOrderConfirmationEmail(
   const { data: order } = await supabase
     .from('club_rental_orders')
     .select(
-      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_id, customer_name, customer_email, add_ons',
+      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time, start_date, end_date, start_time, duration_days, customer_id, customer_name, customer_email, add_ons',
     )
     .eq('id', orderId)
     .maybeSingle();
@@ -244,6 +245,17 @@ async function sendOrderConfirmationEmail(
 
   const contactPref = rental.contact_preference as string | null;
 
+  // Window is order-canonical for course rentals (Option B incr 3b): read it off
+  // the header, falling back per-field to the line.
+  const window = resolveRentalWindow({
+    start_date: rental.start_date as string | null,
+    end_date: rental.end_date as string | null,
+    start_time: rental.start_time as string | null,
+    return_time: rental.return_time as string | null,
+    duration_days: rental.duration_days as number | null,
+    order,
+  });
+
   try {
     await sendCourseRentalConfirmationEmail({
       customerName: (cust.name ?? rental.customer_name) as string,
@@ -252,9 +264,9 @@ async function sendOrderConfirmationEmail(
       clubSetName: setNames,
       clubSetTier: (firstSet.tier as string) ?? 'premium',
       clubSetGender: (firstSet.gender as string) ?? 'mens',
-      startDate: rental.start_date as string,
-      endDate: rental.end_date as string,
-      durationDays: (rental.duration_days as number) || 1,
+      startDate: (window.startDate ?? rental.start_date) as string,
+      endDate: (window.endDate ?? rental.end_date) as string,
+      durationDays: window.durationDays ?? ((rental.duration_days as number) || 1),
       deliveryRequested: delivery.requested,
       deliveryAddress: delivery.address ?? undefined,
       deliveryTime: deliveryTimeStr || undefined,
