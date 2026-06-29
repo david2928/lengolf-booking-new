@@ -176,7 +176,7 @@ async function sendOrderConfirmationEmail(
   const { data: order } = await supabase
     .from('club_rental_orders')
     .select(
-      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time, start_date, end_date, start_time, duration_days, customer_id, customer_name, customer_email, add_ons',
+      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time, start_date, end_date, start_time, duration_days, customer_id, customer_name, customer_email, add_ons, notes, contact_preference',
     )
     .eq('id', orderId)
     .maybeSingle();
@@ -243,7 +243,7 @@ async function sendOrderConfirmationEmail(
     .filter(Boolean)
     .join(', ');
 
-  const contactPref = rental.contact_preference as string | null;
+  const contactPref = (order.contact_preference as string | null) ?? (rental.contact_preference as string | null);
 
   // Window is order-canonical for course rentals (Option B incr 3b): read it off
   // the header, falling back per-field to the line.
@@ -274,7 +274,7 @@ async function sendOrderConfirmationEmail(
       rentalPrice: Number(order.rental_subtotal),
       deliveryFee: Number(order.delivery_fee || 0),
       totalPrice: Number(order.total_price),
-      notes: (rental.notes as string) ?? undefined,
+      notes: ((order.notes as string | null) ?? (rental.notes as string | null)) ?? undefined,
       language: resolveEmailLocale(language),
       paymentStatus: 'paid',
       contactPreference:

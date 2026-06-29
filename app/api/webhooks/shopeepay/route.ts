@@ -365,6 +365,10 @@ export async function POST(request: NextRequest) {
       delivery_address: string | null;
       delivery_time: string | null;
       return_time: string | null;
+      customer_name: string | null;
+      customer_phone: string | null;
+      notes: string | null;
+      contact_preference: string | null;
     };
     let lineMessage: string;
 
@@ -380,7 +384,7 @@ export async function POST(request: NextRequest) {
           .eq('order_id', rental.order_id),
         supabase
           .from('club_rental_orders')
-          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time')
+          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_name, customer_phone, notes, contact_preference')
           .eq('id', rental.order_id)
           .maybeSingle(),
       ]);
@@ -391,8 +395,8 @@ export async function POST(request: NextRequest) {
     if (rental.order_id && orderHeader && orderLines && orderLines.length > 1) {
       lineMessage = composeOrderPaidLineMessage({
         order_code: orderHeader.order_code,
-        customer_name: rental.customer_name,
-        customer_phone: rental.customer_phone,
+        customer_name: orderHeader.customer_name ?? rental.customer_name,
+        customer_phone: orderHeader.customer_phone ?? rental.customer_phone,
         customer_email: rental.customer_email,
         start_date: rental.start_date,
         end_date: rental.end_date,
@@ -408,8 +412,8 @@ export async function POST(request: NextRequest) {
         })),
         add_ons: orderLines.flatMap((l) => (Array.isArray(l.add_ons) ? l.add_ons : [])),
         total_price: orderHeader.total_price,
-        notes: rental.notes,
-        contact_preference: rental.contact_preference,
+        notes: orderHeader.notes ?? rental.notes,
+        contact_preference: orderHeader.contact_preference ?? rental.contact_preference,
         transactionSn: transaction_sn,
         uatPrefix: !IS_PROD_ENV,
       });
@@ -420,8 +424,21 @@ export async function POST(request: NextRequest) {
         .eq('id', rental.rental_club_set_id)
         .single();
 
+      // For a single-set order where the header loaded successfully, read
+      // customer/notes/contact_preference order-first so the ping survives
+      // the DROP of those columns on the line.
+      const rentalForLine = orderHeader
+        ? {
+            ...rental,
+            customer_name: orderHeader.customer_name ?? rental.customer_name,
+            customer_phone: orderHeader.customer_phone ?? rental.customer_phone,
+            notes: orderHeader.notes ?? rental.notes,
+            contact_preference: orderHeader.contact_preference ?? rental.contact_preference,
+          }
+        : rental;
+
       lineMessage = composeRentalLineMessage({
-        rental,
+        rental: rentalForLine,
         clubSet,
         status: { kind: 'Paid', transactionSn: transaction_sn },
         uatPrefix: !IS_PROD_ENV,
