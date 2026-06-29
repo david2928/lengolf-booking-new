@@ -702,6 +702,10 @@ export async function POST(request: NextRequest) {
         add_ons: validatedAddOns && validatedAddOns.length > 0
           ? (validatedAddOns as unknown as Json)
           : null,
+        rental_club_set_id:
+          club_set_id && club_rental_type && club_rental_type !== 'none' && club_rental_type !== 'standard'
+            ? club_set_id
+            : null,
         language: isAcceptableBookingLanguage(language) ? language : null
         // REMOVED: stable_hash_id (deprecated)
       })
@@ -831,109 +835,28 @@ export async function POST(request: NextRequest) {
       package_id: derivedPackageId
     });
 
-    // 8.5. Create club rental reservation if a specific club set was selected
-    let clubRentalCode: string | null = null;
+    // 8.5. Indoor club choice now lives on bookings.rental_club_set_id (set in the insert
+    // above). Best-effort post-insert race check: if the set is overbooked, downgrade
+    // (clear the choice) and keep the booking. Never fail the bay booking over a premium set.
     if (club_set_id && club_rental_type && club_rental_type !== 'none' && club_rental_type !== 'standard') {
-      try {
-        // Generate rental code
-        const { data: rentalCode } = await supabase.rpc('generate_rental_code');
-
-        if (rentalCode) {
-          // Get pricing from the club set
-          const { data: clubSet } = await supabase
-            .from('rental_club_sets')
-            .select('indoor_price_1h, indoor_price_2h, indoor_price_3h, indoor_price_4h, indoor_price_5h, name')
-            .eq('id', club_set_id)
-            .single();
-
-          let rentalPrice = 0;
-          if (clubSet) {
-            const dur = parseFloat(duration);
-            if (dur <= 1) rentalPrice = Number(clubSet.indoor_price_1h);
-            else if (dur <= 2) rentalPrice = Number(clubSet.indoor_price_2h);
-            else if (dur <= 3) rentalPrice = Number(clubSet.indoor_price_3h || clubSet.indoor_price_4h);
-            else if (dur <= 4) rentalPrice = Number(clubSet.indoor_price_4h);
-            else rentalPrice = Number(clubSet.indoor_price_5h || clubSet.indoor_price_4h);
-          }
-
-          const { error: rentalError } = await supabase
-            .from('club_rentals')
-            .insert({
-              rental_code: rentalCode,
-              rental_club_set_id: club_set_id,
-              booking_id: booking.id,
-              customer_id: customerId || null,
-              customer_name: name,
-              customer_email: email,
-              customer_phone: phone_number,
-              user_id: userId,
-              rental_type: 'indoor',
-              status: 'reserved',
-              start_date: date,
-              end_date: date,
-              start_time: start_time,
-              duration_hours: parseFloat(duration),
-              rental_price: rentalPrice,
-              total_price: rentalPrice,
-              source: isLiffContext ? 'liff' : 'booking_app',
-            });
-
-          if (rentalError) {
-            console.error('[ClubRental] Failed to create rental:', rentalError);
-            // Delete the booking since club rental was requested but couldn't be fulfilled
-            const { error: deleteError } = await supabase.from('bookings').delete().eq('id', booking.id);
-            if (deleteError) {
-              console.error(`[ClubRental] CRITICAL: Failed to delete booking ${booking.id} after rental failure:`, deleteError);
-            }
-            return NextResponse.json(
-              { error: 'The selected club set is no longer available. Please go back and choose a different option.' },
-              { status: 409 }
-            );
-          } else {
-            // TOCTOU race condition check: re-verify availability after insert
-            const { data: postInsertCount } = await supabase.rpc('check_club_set_availability', {
-              p_set_id: club_set_id,
-              p_start_date: date,
-              p_end_date: date,
-              p_start_time: start_time || null,
-              p_duration_hours: parseFloat(duration) || null,
-              p_rental_type: 'indoor',
-              p_return_time: null,
-            });
-
-            if (postInsertCount !== null && postInsertCount < 0) {
-              console.warn(`[ClubRental] TOCTOU race detected, rolling back rental ${rentalCode} and booking ${booking.id}`);
-              await supabase.from('club_rentals').delete().eq('rental_code', rentalCode);
-              const { error: deleteError } = await supabase.from('bookings').delete().eq('id', booking.id);
-              if (deleteError) {
-                console.error(`[ClubRental] CRITICAL: Failed to delete booking ${booking.id} after TOCTOU rollback:`, deleteError);
-              }
-              return NextResponse.json(
-                { error: 'The selected club set was just booked by someone else. Please try again.' },
-                { status: 409 }
-              );
-            }
-
-            clubRentalCode = rentalCode;
-            console.log(`[ClubRental] Created rental ${rentalCode} for booking ${booking.id}, set: ${clubSet?.name}, price: ฿${rentalPrice}`);
-          }
-        }
-      } catch (clubError) {
-        console.error('[ClubRental] Error creating club rental:', clubError);
-        // Delete the booking since club rental was requested but couldn't be fulfilled
-        const { error: deleteError } = await supabase.from('bookings').delete().eq('id', booking.id);
-        if (deleteError) {
-          console.error(`[ClubRental] CRITICAL: Failed to delete booking ${booking.id} after rental error:`, deleteError);
-        }
-        return NextResponse.json(
-          { error: 'Failed to create club rental reservation. Please try again.' },
-          { status: 500 }
-        );
-      }
-      logTiming('Club rental creation', clubRentalCode ? 'success' : 'error', {
-        clubSetId: club_set_id,
-        rentalCode: clubRentalCode,
+      const { data: postCount, error: postErr } = await supabase.rpc('check_club_set_availability', {
+        p_set_id: club_set_id,
+        p_start_date: date,
+        p_end_date: date,
+        p_start_time: start_time || null,
+        p_duration_hours: parseFloat(duration) || null,
+        p_rental_type: 'indoor',
+        p_return_time: null,
+        p_exclude_booking_id: booking.id,
       });
+      if (postErr) {
+        console.warn(`[ClubRental] post-insert availability check failed; skipping downgrade for booking ${booking.id}`, postErr);
+      } else if (postCount !== null && postCount < 1) {
+        console.warn(`[ClubRental] Indoor set ${club_set_id} overbooked post-insert; downgrading booking ${booking.id}`);
+        const { error: downgradeErr } = await supabase.from('bookings').update({ rental_club_set_id: null }).eq('id', booking.id);
+        if (downgradeErr) console.warn(`[ClubRental] failed to clear rental_club_set_id on downgrade for booking ${booking.id}`, downgradeErr);
+        (booking as Record<string, unknown>).rental_club_set_id = null;
+      }
     }
 
     // If we don't have a customer name from the system, use the booking name
@@ -1146,7 +1069,6 @@ export async function POST(request: NextRequest) {
       customerId: customerId || undefined,
       customerCode: customerCode || undefined,
       notificationsSuccess: notificationResults.success,
-      clubRentalCode: clubRentalCode || undefined,
       processingTime: Date.now() - apiStartTime
     });
   } catch (error) {
