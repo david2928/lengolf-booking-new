@@ -440,13 +440,31 @@ export async function POST(request: NextRequest) {
       const paymentMode: 'online' | 'manual' =
         rental_type === 'course' && requiresPrepay ? 'online' : 'manual';
 
-      // Use the unified composer (our PR's contribution). Drop main's
-      // legacy inline message format — superseded by the per-state
-      // composer that also handles payment-received / refund / expired
-      // / payment-failed states. Preserve main's added error-status
-      // check on the LINE response (HTTP-level failure detection).
+      // Build the ping from the request-body values, NOT the inserted `rental`
+      // row: the shared customer/delivery/notes/payment-choice fields are now
+      // ORDER-canonical and are no longer written to the line (they live on the
+      // order header via wrapCourseRentalInOrder above). Reading them off the line
+      // would show "Customer: null" / "Pickup at LENGOLF" on every reservation.
+      // Mirrors the sibling /api/clubs/order ping.
       const lineMessage = composeRentalLineMessage({
-        rental,
+        rental: {
+          rental_code: rentalCode,
+          customer_name,
+          customer_phone: customer_phone || null,
+          customer_email: customer_email || null,
+          start_date,
+          end_date,
+          duration_days: effective_duration_days || null,
+          delivery_requested,
+          delivery_address: delivery_address || null,
+          delivery_time: delivery_time || null,
+          return_time: return_time || null,
+          total_price,
+          notes: customerNotes || null,
+          add_ons: validatedAddOns,
+          payment_method_chosen: paymentMethodChosen,
+          contact_preference: contactPreference,
+        },
         clubSet: { name: clubSet.name, tier: clubSet.tier, gender: clubSet.gender },
         status: { kind: 'Created', paymentMode },
         uatPrefix: !isProdEnv,
