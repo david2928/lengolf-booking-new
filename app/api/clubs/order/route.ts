@@ -346,11 +346,6 @@ export async function POST(request: NextRequest) {
             rental_code: rentalCode,
             order_id: order.id,
             rental_club_set_id: setId,
-            customer_id: resolvedCustomerId,
-            user_id: userId,
-            customer_name,
-            customer_email: customer_email || null,
-            customer_phone: customer_phone || null,
             rental_type: 'course',
             status: 'reserved',
             start_date,
@@ -361,20 +356,15 @@ export async function POST(request: NextRequest) {
             // Add-ons live only on the bearer line (charged once for the order).
             add_ons: money.isBearer && validatedAddOns.length > 0 ? validatedAddOns : [],
             add_ons_total: money.addOnsTotal,
-            // Delivery address/times denormalised onto every line so Lalamove
-            // dispatch + per-rental reads keep working; the FEE is on the bearer
-            // line only so the order is charged delivery once.
-            delivery_requested,
-            delivery_address: delivery_address || null,
-            delivery_time: delivery_time || null,
+            // Shared customer/delivery/notes/payment-choice/source are
+            // ORDER-canonical (DROP columns on lines) and live on the header
+            // (inserted above) only. return_time (availability RPCs) + delivery_fee
+            // are KEEP and stay on the line; the FEE is on the bearer line only so
+            // the order is charged delivery once.
             return_time: return_time || null,
             delivery_fee: money.deliveryFee,
             discount_amount: money.discountAmount,
             total_price: money.totalPrice,
-            payment_method_chosen: paymentMethodChosen,
-            contact_preference: contactPreference,
-            notes: customerNotes || null,
-            source,
           })
           .select('id')
           .single();

@@ -62,7 +62,9 @@ export async function claimAndSendRefundEmail(
 
   const { data: rental, error: rentalErr } = await supabase
     .from('club_rentals')
-    .select('rental_code, customer_name, customer_email, customer_id, total_price, order_id')
+    // customer_* are ORDER-canonical (DROP columns on lines) — resolved from the
+    // order header below via resolveRentalCustomer.
+    .select('rental_code, total_price, order_id')
     .eq('id', txn.club_rental_id)
     .single();
 
@@ -88,12 +90,7 @@ export async function claimAndSendRefundEmail(
       .maybeSingle();
     orderCustomer = o ?? null;
   }
-  const cust = resolveRentalCustomer({
-    customer_id: rental.customer_id,
-    customer_name: rental.customer_name,
-    customer_email: rental.customer_email,
-    order: orderCustomer,
-  });
+  const cust = resolveRentalCustomer({ order: orderCustomer });
 
   if (!cust.email) {
     // Keep the claim — no point retrying when there's no address.
@@ -119,8 +116,8 @@ export async function claimAndSendRefundEmail(
 
   try {
     await sendCourseRentalRefundEmail({
-      customerName: (cust.name ?? rental.customer_name) as string,
-      email: (cust.email ?? rental.customer_email) as string,
+      customerName: cust.name ?? '',
+      email: cust.email as string,
       rentalCode: rental.rental_code,
       refundSn: context.refundSn ?? undefined,
       originalAmountThb,

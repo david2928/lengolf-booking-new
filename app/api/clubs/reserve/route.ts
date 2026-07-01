@@ -4,6 +4,7 @@ import { getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
 import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
+import { wrapCourseRentalInOrder } from '@/lib/club-rental/orders';
 
 /** Build trusted add-on price/label map at request time for dynamic pricing */
 function getTrustedAddons(): Record<string, { price: number; label: string }> {
@@ -286,18 +287,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to generate rental code' }, { status: 500 });
     }
 
-    // Create the rental reservation
+    // Create the rental reservation.
+    // The shared customer/delivery/notes/payment-choice/source fields are
+    // ORDER-canonical (DROP columns on club_rentals lines) — they are NOT written
+    // to the line; wrapCourseRentalInOrder (below) records them on the order
+    // header. KEEP columns stay on the line: delivery_lat/lng (dispatch),
+    // return_time (availability RPCs), delivery_fee, the window, add_ons, money.
     const { data: rental, error: insertError } = await supabase
       .from('club_rentals')
       .insert({
         rental_code: rentalCode,
         rental_club_set_id,
         booking_id: booking_id || null,
-        customer_id,
-        customer_name,
-        customer_email: customer_email || null,
-        customer_phone: customer_phone || null,
-        user_id,
         rental_type,
         status: 'reserved',
         start_date,
@@ -308,18 +309,11 @@ export async function POST(request: NextRequest) {
         rental_price,
         add_ons: validatedAddOns.length > 0 ? validatedAddOns : [],
         add_ons_total,
-        delivery_requested,
-        delivery_address: delivery_address || null,
         delivery_lat: delivery_lat ?? null,
         delivery_lng: delivery_lng ?? null,
-        delivery_time: delivery_time || null,
         return_time: return_time || null,
         delivery_fee,
         total_price,
-        notes: customerNotes || null,
-        payment_method_chosen: paymentMethodChosen,
-        contact_preference: contactPreference,
-        source,
       })
       .select()
       .single();
@@ -349,6 +343,29 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[ClubReserve] Created rental ${rentalCode} for ${clubSet.name}, total: ฿${total_price}`);
+
+    // Wrap this single course rental in its own 1-line order header. The shared
+    // customer/delivery/notes fields (DROP columns, not written to the line above)
+    // are recorded on the header — keeping every course rental order-backed, which
+    // the course-only column-DROP model requires. Best-effort: a miss degrades to
+    // an order-less rental (reads fall back gracefully) rather than failing here.
+    await wrapCourseRentalInOrder(supabase, {
+      ...rental,
+      customer_id,
+      user_id,
+      customer_name,
+      customer_email: customer_email || null,
+      customer_phone: customer_phone || null,
+      delivery_requested,
+      delivery_address: delivery_address || null,
+      delivery_lat: delivery_lat ?? null,
+      delivery_lng: delivery_lng ?? null,
+      delivery_time: delivery_time || null,
+      notes: customerNotes || null,
+      payment_method_chosen: paymentMethodChosen,
+      contact_preference: contactPreference,
+      source,
+    });
 
     // Send confirmation email for course rentals.
     // Skip when prepay is required — the ShopeePay webhook will send
