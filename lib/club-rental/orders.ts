@@ -14,6 +14,7 @@
  * already-created rental. Downstream reads treat an order-less course rental as
  * an implicit solo order, so a miss degrades gracefully.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export async function wrapCourseRentalInOrder(
   admin: any,
   rental: Record<string, any>,
