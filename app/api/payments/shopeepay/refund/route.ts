@@ -3,6 +3,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { createRefund } from '@/lib/shopeepay/client';
 import { claimAndSendRefundEmail } from '@/lib/shopeepay/markRefundAsRefunded';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
+import { resolveLineMessageRental } from '@/lib/club-rental/orders';
 
 /**
  * POST /api/payments/shopeepay/refund
@@ -387,16 +388,19 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (rentalForLine) {
-      const { data: clubSet } = rentalForLine.rental_club_set_id
+      // Shared customer/delivery/notes fields are order-canonical (DROP columns on
+      // lines) — resolve them off the order header for the staff ping.
+      const rentalForMsg = await resolveLineMessageRental(supabase, rentalForLine);
+      const { data: clubSet } = rentalForMsg.rental_club_set_id
         ? await supabase
             .from('rental_club_sets')
             .select('name, tier, gender')
-            .eq('id', rentalForLine.rental_club_set_id)
+            .eq('id', rentalForMsg.rental_club_set_id)
             .single()
         : { data: null };
 
       const lineMessage = composeRentalLineMessage({
-        rental: rentalForLine,
+        rental: rentalForMsg,
         clubSet,
         status:
           newTxnStatus === 'refunded'

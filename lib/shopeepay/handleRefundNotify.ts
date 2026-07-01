@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { extractReferenceId, isFinalSuccess, type NotifyTransactionPayload } from './types';
 import { claimAndSendRefundEmail } from './markRefundAsRefunded';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
+import { resolveLineMessageRental } from '@/lib/club-rental/orders';
 
 const IS_PROD_ENV = process.env.VERCEL_ENV === 'production';
 
@@ -315,16 +316,19 @@ export async function handleRefundNotify(
       .single();
 
     if (rentalForLine) {
-      const { data: clubSet } = rentalForLine.rental_club_set_id
+      // Shared customer/delivery/notes fields are order-canonical (DROP columns on
+      // lines) — resolve them off the order header for the staff ping.
+      const rentalForMsg = await resolveLineMessageRental(supabase, rentalForLine);
+      const { data: clubSet } = rentalForMsg.rental_club_set_id
         ? await supabase
             .from('rental_club_sets')
             .select('name, tier, gender')
-            .eq('id', rentalForLine.rental_club_set_id)
+            .eq('id', rentalForMsg.rental_club_set_id)
             .single()
         : { data: null };
 
       const lineMessage = composeRentalLineMessage({
-        rental: rentalForLine,
+        rental: rentalForMsg,
         clubSet,
         status:
           newTxnStatus === 'refunded'

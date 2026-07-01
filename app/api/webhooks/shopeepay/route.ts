@@ -367,6 +367,7 @@ export async function POST(request: NextRequest) {
       return_time: string | null;
       customer_name: string | null;
       customer_phone: string | null;
+      customer_email: string | null;
       notes: string | null;
       contact_preference: string | null;
     };
@@ -384,7 +385,7 @@ export async function POST(request: NextRequest) {
           .eq('order_id', rental.order_id),
         supabase
           .from('club_rental_orders')
-          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_name, customer_phone, notes, contact_preference')
+          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_name, customer_phone, customer_email, notes, contact_preference')
           .eq('id', rental.order_id)
           .maybeSingle(),
       ]);
@@ -424,14 +425,19 @@ export async function POST(request: NextRequest) {
         .eq('id', rental.rental_club_set_id)
         .single();
 
-      // For a single-set order where the header loaded successfully, read
-      // customer/notes/contact_preference order-first so the ping survives
-      // the DROP of those columns on the line.
+      // For a single-set order where the header loaded successfully, read the
+      // shared customer/delivery/notes/contact fields order-first so the ping
+      // survives the DROP of those columns on the line (delivery + email included,
+      // else a single-set delivery order would ping "Pickup at LENGOLF" + no email).
       const rentalForLine = orderHeader
         ? {
             ...rental,
             customer_name: orderHeader.customer_name ?? rental.customer_name,
             customer_phone: orderHeader.customer_phone ?? rental.customer_phone,
+            customer_email: orderHeader.customer_email ?? rental.customer_email,
+            delivery_requested: orderHeader.delivery_requested ?? rental.delivery_requested,
+            delivery_address: orderHeader.delivery_address ?? rental.delivery_address,
+            delivery_time: orderHeader.delivery_time ?? rental.delivery_time,
             notes: orderHeader.notes ?? rental.notes,
             contact_preference: orderHeader.contact_preference ?? rental.contact_preference,
           }

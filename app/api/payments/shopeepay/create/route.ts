@@ -152,7 +152,9 @@ export async function POST(request: NextRequest) {
   // transaction.
   const { data: rental, error: rentalError } = await supabase
     .from('club_rentals')
-    .select('id, rental_code, rental_type, status, total_price, payment_status, customer_name, expires_at, order_id')
+    // customer_name is ORDER-canonical (a DROP column on lines) — read from the
+    // order header below (via order_id) for the payment metadata field.
+    .select('id, rental_code, rental_type, status, total_price, payment_status, expires_at, order_id')
     .eq('rental_code', rental_code)
     .single();
 
@@ -276,11 +278,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to record payment intent' }, { status: 500 });
   }
 
+  // customer_name is order-canonical — read it off the order header for the
+  // payment metadata (course rentals are always order-backed).
+  let orderCustomerName: string | null = null;
+  if (rental.order_id) {
+    const { data: o } = await supabase
+      .from('club_rental_orders')
+      .select('customer_name')
+      .eq('id', rental.order_id)
+      .maybeSingle();
+    orderCustomerName = o?.customer_name ?? null;
+  }
+
   // Compose ShopeePay request.
   const additionalInfo = JSON.stringify({
     field1: 'Course Rental',
     field2: rental.rental_code,
-    field3: rental.customer_name,
+    field3: orderCustomerName,
   });
 
   let shopeeResp;
