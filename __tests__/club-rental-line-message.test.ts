@@ -416,11 +416,17 @@ describe('resolveLineMessageRental — header-sourced add_ons (Phase 1 write-sto
     };
     const mockAdmin = {
       from: () => ({
-        select: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({ data: header, error: null }),
-          }),
-        }),
+        // Assert the column list so removing add_ons from the resolver's
+        // header select regresses THIS test, not just prod (the mock would
+        // otherwise hand back add_ons regardless of what was selected).
+        select: (cols: string) => {
+          expect(cols).toContain('add_ons');
+          return {
+            eq: () => ({
+              maybeSingle: async () => ({ data: header, error: null }),
+            }),
+          };
+        },
       }),
     };
 
