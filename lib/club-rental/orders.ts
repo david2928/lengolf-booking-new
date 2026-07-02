@@ -100,13 +100,14 @@ export async function resolveLineMessageRental<T extends Record<string, any>>(
   rental: T,
 ): Promise<T> {
   if (!rental?.order_id) return rental
-  const { data: hdr } = await admin
+  const { data: hdr, error } = await admin
     .from('club_rental_orders')
     .select(
       'customer_name, customer_phone, customer_email, delivery_requested, delivery_address, delivery_time, notes, contact_preference, payment_method_chosen',
     )
     .eq('id', rental.order_id)
     .maybeSingle()
+  if (error) console.warn('[resolveLineMessageRental] header load failed:', error)
   if (!hdr) return rental
   return {
     ...rental,

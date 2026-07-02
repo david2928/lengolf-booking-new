@@ -390,3 +390,26 @@ describe('composeRentalLineMessage — payment_method_chosen + contact_preferenc
     expect(msg).not.toContain('💬 Contact via:');
   });
 });
+
+describe('composeRentalLineMessage — post-DROP line row (shared fields absent)', () => {
+  it('renders without throwing and shows ? for the missing customer name', () => {
+    // Only the columns that still exist on club_rentals after the 2026-07
+    // column-DROP — the shared customer/delivery/notes fields are absent
+    // (they live on the order header). Pins the degenerate resolver-miss
+    // shape: composer must degrade gracefully, never print "undefined".
+    const msg = composeRentalLineMessage({
+      rental: {
+        rental_code: 'CR-20260702-0001',
+        start_date: '2026-07-31',
+        end_date: '2026-08-01',
+        duration_days: 1,
+        return_time: '19:00',
+        total_price: '1200.00',
+      },
+      clubSet: baseClubSet,
+      status: { kind: 'Paid', transactionSn: '140387562504423746' },
+    });
+    expect(msg).toContain('👤 Customer: ?');
+    expect(msg).not.toContain('undefined');
+  });
+});

@@ -426,7 +426,7 @@ export function composeRentalLineMessage(input: RentalLineInput): string {
   const lines: Array<string | null> = [
     header,
     SEPARATOR,
-    `👤 Customer: ${rental.customer_name}`,
+    `👤 Customer: ${rental.customer_name ?? '?'}`,
     rental.customer_phone ? `📞 Phone: ${rental.customer_phone}` : null,
     rental.customer_email ? `📧 Email: ${rental.customer_email}` : null,
     contactPrefLabel ? `💬 Contact via: ${contactPrefLabel}` : null,

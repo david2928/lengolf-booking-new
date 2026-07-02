@@ -376,11 +376,13 @@ export async function POST(request: NextRequest) {
       customer_email: string | null;
       notes: string | null;
       contact_preference: string | null;
+      payment_method_chosen: string | null;
     };
     let lineMessage: string;
 
     // Multi-set order → one order-level Paid ping; single-set (or order-less) →
-    // the per-line composer (byte-identical to the legacy single-rental ping).
+    // the per-line composer, with the shared customer/delivery/notes/payment-choice
+    // fields resolved order-first (they were DROPped from the line 2026-07).
     let orderLines: OrderLineRow[] | null = null;
     let orderHeader: OrderHeaderRow | null = null;
     if (rental.order_id) {
@@ -391,7 +393,7 @@ export async function POST(request: NextRequest) {
           .eq('order_id', rental.order_id),
         supabase
           .from('club_rental_orders')
-          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_name, customer_phone, customer_email, notes, contact_preference')
+          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_name, customer_phone, customer_email, notes, contact_preference, payment_method_chosen')
           .eq('id', rental.order_id)
           .maybeSingle(),
       ]);
@@ -446,6 +448,7 @@ export async function POST(request: NextRequest) {
             delivery_time: orderHeader.delivery_time,
             notes: orderHeader.notes,
             contact_preference: orderHeader.contact_preference,
+            payment_method_chosen: orderHeader.payment_method_chosen,
           }
         : rental;
 
