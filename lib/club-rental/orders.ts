@@ -82,10 +82,11 @@ export async function createCourseOrderHeader(
 
 /**
  * For a LINE-message composer that reads the (denormalised) shared columns off a
- * single club_rentals row, return that row with the shared DROP columns resolved
- * ORDER-FIRST (the order header value when the line belongs to an order; the line
- * value as fallback for order-less rows). Keeps staff refund/lifecycle pings
- * correct after those columns are dropped from the line.
+ * single club_rentals row, return that row with the shared DROP columns — plus
+ * the ORDER-canonical add_ons item list (Phase 1, order-authority inversion) —
+ * resolved ORDER-FIRST (the order header value when the line belongs to an
+ * order; the line value as fallback for order-less rows). Keeps staff
+ * refund/lifecycle pings correct after those columns are dropped from the line.
  *
  * Best-effort: on a header-load miss it returns the row unchanged.
  */
@@ -97,7 +98,7 @@ export async function resolveLineMessageRental<T extends Record<string, any>>(
   const { data: hdr, error } = await admin
     .from('club_rental_orders')
     .select(
-      'customer_name, customer_phone, customer_email, delivery_requested, delivery_address, delivery_time, notes, contact_preference, payment_method_chosen',
+      'customer_name, customer_phone, customer_email, delivery_requested, delivery_address, delivery_time, notes, contact_preference, payment_method_chosen, add_ons',
     )
     .eq('id', rental.order_id)
     .maybeSingle()
@@ -114,5 +115,6 @@ export async function resolveLineMessageRental<T extends Record<string, any>>(
     notes: hdr.notes ?? rental.notes,
     contact_preference: hdr.contact_preference ?? rental.contact_preference,
     payment_method_chosen: hdr.payment_method_chosen ?? rental.payment_method_chosen,
+    add_ons: hdr.add_ons ?? rental.add_ons,
   } as T
 }
