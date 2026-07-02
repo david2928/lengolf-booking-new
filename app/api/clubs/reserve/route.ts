@@ -4,7 +4,7 @@ import { getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
 import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
-import { wrapCourseRentalInOrder } from '@/lib/club-rental/orders';
+import { createCourseOrderHeader } from '@/lib/club-rental/orders';
 
 /** Build trusted add-on price/label map at request time for dynamic pricing */
 function getTrustedAddons(): Record<string, { price: number; label: string }> {
@@ -287,24 +287,59 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to generate rental code' }, { status: 500 });
     }
 
-    // Create the rental reservation.
-    // The shared customer/delivery/notes/payment-choice/source fields are
-    // ORDER-canonical (DROP columns on club_rentals lines) — they are NOT written
-    // to the line; wrapCourseRentalInOrder (below) records them on the order
-    // header. KEEP columns stay on the line: delivery_lat/lng (dispatch),
-    // return_time (availability RPCs), delivery_fee, the window, add_ons, money.
+    // Phase 0 (order-authority-inversion, 2026-07-02) made club_rentals.order_id
+    // NOT NULL: every course line must belong to an order header, so the 1-line
+    // header is created FIRST, then the line points at it. The shared
+    // customer/delivery/notes/payment-choice/source fields are ORDER-canonical
+    // (DROP columns on club_rentals lines) — they are recorded ONLY on the
+    // header. Value-identical to the old wrapCourseRentalInOrder semantics.
+    const order = await createCourseOrderHeader(supabase, {
+      customer_id,
+      user_id,
+      customer_name,
+      customer_email: customer_email || null,
+      customer_phone: customer_phone || null,
+      status: 'reserved',
+      start_date,
+      end_date,
+      start_time: start_time || null,
+      duration_days: effective_duration_days || null,
+      delivery_requested,
+      delivery_address: delivery_address || null,
+      delivery_lat: delivery_lat ?? null,
+      delivery_lng: delivery_lng ?? null,
+      delivery_time: delivery_time || null,
+      return_time: return_time || null,
+      delivery_fee,
+      payment_method_chosen: paymentMethodChosen,
+      contact_preference: contactPreference,
+      rental_price,
+      add_ons: validatedAddOns.length > 0 ? validatedAddOns : [],
+      add_ons_total,
+      total_price,
+      source,
+      notes: customerNotes || null,
+    });
+
+    if (!order) {
+      // Hard requirement post-Phase 0 (order_id NOT NULL) — no order, no line.
+      return NextResponse.json({ error: 'Failed to create rental reservation' }, { status: 500 });
+    }
+
+    // Create the rental line under the header. Only still-existing line columns —
+    // KEEP columns: delivery_lat/lng (dispatch), return_time (availability RPCs),
+    // delivery_fee, the window, add_ons, money.
     const { data: rental, error: insertError } = await supabase
       .from('club_rentals')
       .insert({
         rental_code: rentalCode,
         rental_club_set_id,
-        booking_id: booking_id || null,
+        order_id: order.id,
         rental_type,
         status: 'reserved',
         start_date,
         end_date,
         start_time: start_time || null,
-        duration_hours: duration_hours || null,
         duration_days: effective_duration_days || null,
         rental_price,
         add_ons: validatedAddOns.length > 0 ? validatedAddOns : [],
@@ -320,6 +355,9 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('[ClubReserve] Insert error:', insertError);
+      // Don't leak an empty header when its only line failed to insert.
+      const { error: rollbackErr } = await supabase.from('club_rental_orders').delete().eq('id', order.id);
+      if (rollbackErr) console.error('[ClubReserve] rollback delete of empty header failed:', rollbackErr);
       return NextResponse.json({ error: 'Failed to create rental reservation' }, { status: 500 });
     }
 
@@ -333,9 +371,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!postCheckError && postInsertCount !== null && postInsertCount < 0) {
-      // Overbooking detected — rollback by deleting the just-created rental
+      // Overbooking detected — roll back by deleting the order header; the
+      // club_rentals.order_id FK is ON DELETE CASCADE (verified live 2026-07-02,
+      // club_rentals_order_id_fkey), so the line is removed with it.
       console.warn(`[ClubReserve] TOCTOU race detected for ${rentalCode}, rolling back`);
-      await supabase.from('club_rentals').delete().eq('id', rental.id);
+      const { error: rollbackErr } = await supabase.from('club_rental_orders').delete().eq('id', order.id);
+      if (rollbackErr) console.error('[ClubReserve] TOCTOU rollback delete failed (line may block availability):', rollbackErr);
       return NextResponse.json(
         { error: 'This club set was just booked by someone else. Please try again.' },
         { status: 409 }
@@ -343,29 +384,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[ClubReserve] Created rental ${rentalCode} for ${clubSet.name}, total: ฿${total_price}`);
-
-    // Wrap this single course rental in its own 1-line order header. The shared
-    // customer/delivery/notes fields (DROP columns, not written to the line above)
-    // are recorded on the header — keeping every course rental order-backed, which
-    // the course-only column-DROP model requires. Best-effort: a miss degrades to
-    // an order-less rental (reads fall back gracefully) rather than failing here.
-    await wrapCourseRentalInOrder(supabase, {
-      ...rental,
-      customer_id,
-      user_id,
-      customer_name,
-      customer_email: customer_email || null,
-      customer_phone: customer_phone || null,
-      delivery_requested,
-      delivery_address: delivery_address || null,
-      delivery_lat: delivery_lat ?? null,
-      delivery_lng: delivery_lng ?? null,
-      delivery_time: delivery_time || null,
-      notes: customerNotes || null,
-      payment_method_chosen: paymentMethodChosen,
-      contact_preference: contactPreference,
-      source,
-    });
 
     // Send confirmation email for course rentals.
     // Skip when prepay is required — the ShopeePay webhook will send
@@ -443,8 +461,8 @@ export async function POST(request: NextRequest) {
       // Build the ping from the request-body values, NOT the inserted `rental`
       // row: the shared customer/delivery/notes/payment-choice fields are now
       // ORDER-canonical and are no longer written to the line (they live on the
-      // order header via wrapCourseRentalInOrder above). Reading them off the line
-      // would show "Customer: null" / "Pickup at LENGOLF" on every reservation.
+      // order header created above). Reading them off the line would show
+      // "Customer: null" / "Pickup at LENGOLF" on every reservation.
       // Mirrors the sibling /api/clubs/order ping.
       const lineMessage = composeRentalLineMessage({
         rental: {

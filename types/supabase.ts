@@ -78,6 +78,7 @@ export interface Database {
           cancellation_reason?: string | null
           is_new_customer?: boolean | null
           add_ons?: Json | null
+          rental_club_set_id?: string | null
           created_at: string
           updated_at: string
         }
@@ -106,6 +107,7 @@ export interface Database {
           cancelled_by_identifier?: string | null
           cancellation_reason?: string | null
           add_ons?: Json | null
+          rental_club_set_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -134,6 +136,7 @@ export interface Database {
           cancelled_by_identifier?: string | null
           cancellation_reason?: string | null
           add_ons?: Json | null
+          rental_club_set_id?: string | null
           created_at?: string
           updated_at?: string
         }

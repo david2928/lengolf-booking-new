@@ -9,6 +9,7 @@ import {
 import { claimAndSendConfirmationEmail } from '@/lib/shopeepay/markRentalAsPaid';
 import { handleRefundNotify } from '@/lib/shopeepay/handleRefundNotify';
 import { composeRentalLineMessage, composeOrderPaidLineMessage } from '@/lib/club-rental/lineMessage';
+import { resolveLineMessageRental } from '@/lib/club-rental/orders';
 import { applyOrderPaymentState } from '@/lib/shopeepay/orderPayment';
 
 /**
@@ -263,8 +264,13 @@ export async function POST(request: NextRequest) {
         const failureReason =
           (payload as unknown as { debug_msg?: string }).debug_msg ?? null;
 
+        // Shared customer/delivery/notes fields are order-canonical (DROPped
+        // from the line 2026-07) — resolve them off the order header, same as
+        // the refund pings, else the failed ping renders without customer info.
+        const failedForMsg = await resolveLineMessageRental(supabase, failedRental);
+
         const lineMessage = composeRentalLineMessage({
-          rental: failedRental,
+          rental: failedForMsg,
           clubSet,
           status: { kind: 'PaymentFailed', reason: failureReason },
           uatPrefix: !IS_PROD_ENV,
@@ -365,30 +371,36 @@ export async function POST(request: NextRequest) {
       delivery_address: string | null;
       delivery_time: string | null;
       return_time: string | null;
-      customer_name: string | null;
+      customer_name: string; // NOT NULL on club_rental_orders
       customer_phone: string | null;
       customer_email: string | null;
       notes: string | null;
       contact_preference: string | null;
+      payment_method_chosen: string | null;
     };
     let lineMessage: string;
 
     // Multi-set order → one order-level Paid ping; single-set (or order-less) →
-    // the per-line composer (byte-identical to the legacy single-rental ping).
+    // the per-line composer, with the shared customer/delivery/notes/payment-choice
+    // fields resolved order-first (they were DROPped from the line 2026-07).
     let orderLines: OrderLineRow[] | null = null;
     let orderHeader: OrderHeaderRow | null = null;
     if (rental.order_id) {
-      const [{ data: lns }, { data: hdr }] = await Promise.all([
+      const [{ data: lns, error: lnsErr }, { data: hdr, error: hdrErr }] = await Promise.all([
         supabase
           .from('club_rentals')
           .select('add_ons, rental_club_sets ( name, tier, gender )')
           .eq('order_id', rental.order_id),
         supabase
           .from('club_rental_orders')
-          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_name, customer_phone, customer_email, notes, contact_preference')
+          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_name, customer_phone, customer_email, notes, contact_preference, payment_method_chosen')
           .eq('id', rental.order_id)
           .maybeSingle(),
       ]);
+      // A query error degrades the ping (renders without order context) — log it
+      // so a persistent read failure is distinguishable from "no header".
+      if (lnsErr) console.warn('[ShopeePayWebhook] order lines load failed for paid ping:', lnsErr);
+      if (hdrErr) console.warn('[ShopeePayWebhook] order header load failed for paid ping:', hdrErr);
       orderLines = (lns as unknown as OrderLineRow[]) ?? null;
       orderHeader = (hdr as unknown as OrderHeaderRow | null) ?? null;
     }
@@ -396,9 +408,9 @@ export async function POST(request: NextRequest) {
     if (rental.order_id && orderHeader && orderLines && orderLines.length > 1) {
       lineMessage = composeOrderPaidLineMessage({
         order_code: orderHeader.order_code,
-        customer_name: orderHeader.customer_name ?? rental.customer_name,
-        customer_phone: orderHeader.customer_phone ?? rental.customer_phone,
-        customer_email: rental.customer_email,
+        customer_name: orderHeader.customer_name,
+        customer_phone: orderHeader.customer_phone,
+        customer_email: orderHeader.customer_email,
         start_date: rental.start_date,
         end_date: rental.end_date,
         duration_days: rental.duration_days,
@@ -413,8 +425,8 @@ export async function POST(request: NextRequest) {
         })),
         add_ons: orderLines.flatMap((l) => (Array.isArray(l.add_ons) ? l.add_ons : [])),
         total_price: orderHeader.total_price,
-        notes: orderHeader.notes ?? rental.notes,
-        contact_preference: orderHeader.contact_preference ?? rental.contact_preference,
+        notes: orderHeader.notes,
+        contact_preference: orderHeader.contact_preference,
         transactionSn: transaction_sn,
         uatPrefix: !IS_PROD_ENV,
       });
@@ -432,14 +444,15 @@ export async function POST(request: NextRequest) {
       const rentalForLine = orderHeader
         ? {
             ...rental,
-            customer_name: orderHeader.customer_name ?? rental.customer_name,
-            customer_phone: orderHeader.customer_phone ?? rental.customer_phone,
-            customer_email: orderHeader.customer_email ?? rental.customer_email,
-            delivery_requested: orderHeader.delivery_requested ?? rental.delivery_requested,
-            delivery_address: orderHeader.delivery_address ?? rental.delivery_address,
-            delivery_time: orderHeader.delivery_time ?? rental.delivery_time,
-            notes: orderHeader.notes ?? rental.notes,
-            contact_preference: orderHeader.contact_preference ?? rental.contact_preference,
+            customer_name: orderHeader.customer_name,
+            customer_phone: orderHeader.customer_phone,
+            customer_email: orderHeader.customer_email,
+            delivery_requested: orderHeader.delivery_requested,
+            delivery_address: orderHeader.delivery_address,
+            delivery_time: orderHeader.delivery_time,
+            notes: orderHeader.notes,
+            contact_preference: orderHeader.contact_preference,
+            payment_method_chosen: orderHeader.payment_method_chosen,
           }
         : rental;
 
