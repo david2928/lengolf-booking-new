@@ -386,7 +386,7 @@ export async function POST(request: NextRequest) {
     let orderLines: OrderLineRow[] | null = null;
     let orderHeader: OrderHeaderRow | null = null;
     if (rental.order_id) {
-      const [{ data: lns }, { data: hdr }] = await Promise.all([
+      const [{ data: lns, error: lnsErr }, { data: hdr, error: hdrErr }] = await Promise.all([
         supabase
           .from('club_rentals')
           .select('add_ons, rental_club_sets ( name, tier, gender )')
@@ -397,6 +397,10 @@ export async function POST(request: NextRequest) {
           .eq('id', rental.order_id)
           .maybeSingle(),
       ]);
+      // A query error degrades the ping (renders without order context) — log it
+      // so a persistent read failure is distinguishable from "no header".
+      if (lnsErr) console.warn('[ShopeePayWebhook] order lines load failed for paid ping:', lnsErr);
+      if (hdrErr) console.warn('[ShopeePayWebhook] order header load failed for paid ping:', hdrErr);
       orderLines = (lns as unknown as OrderLineRow[]) ?? null;
       orderHeader = (hdr as unknown as OrderHeaderRow | null) ?? null;
     }

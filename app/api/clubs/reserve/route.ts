@@ -356,7 +356,8 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('[ClubReserve] Insert error:', insertError);
       // Don't leak an empty header when its only line failed to insert.
-      await supabase.from('club_rental_orders').delete().eq('id', order.id);
+      const { error: rollbackErr } = await supabase.from('club_rental_orders').delete().eq('id', order.id);
+      if (rollbackErr) console.error('[ClubReserve] rollback delete of empty header failed:', rollbackErr);
       return NextResponse.json({ error: 'Failed to create rental reservation' }, { status: 500 });
     }
 
@@ -374,7 +375,8 @@ export async function POST(request: NextRequest) {
       // club_rentals.order_id FK is ON DELETE CASCADE (verified live 2026-07-02,
       // club_rentals_order_id_fkey), so the line is removed with it.
       console.warn(`[ClubReserve] TOCTOU race detected for ${rentalCode}, rolling back`);
-      await supabase.from('club_rental_orders').delete().eq('id', order.id);
+      const { error: rollbackErr } = await supabase.from('club_rental_orders').delete().eq('id', order.id);
+      if (rollbackErr) console.error('[ClubReserve] TOCTOU rollback delete failed (line may block availability):', rollbackErr);
       return NextResponse.json(
         { error: 'This club set was just booked by someone else. Please try again.' },
         { status: 409 }
