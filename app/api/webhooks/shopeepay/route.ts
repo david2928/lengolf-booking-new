@@ -10,6 +10,7 @@ import { claimAndSendConfirmationEmail } from '@/lib/shopeepay/markRentalAsPaid'
 import { handleRefundNotify } from '@/lib/shopeepay/handleRefundNotify';
 import { composeRentalLineMessage, composeOrderPaidLineMessage } from '@/lib/club-rental/lineMessage';
 import { resolveLineMessageRental } from '@/lib/club-rental/orders';
+import { resolveRentalAddOns, type RentalAddOnItem } from '@/lib/club-rental/resolve-add-ons';
 import { applyOrderPaymentState } from '@/lib/shopeepay/orderPayment';
 
 /**
@@ -363,7 +364,7 @@ export async function POST(request: NextRequest) {
   const baseUrl = getBaseUrl();
   if (baseUrl) {
     type SetRef = { name: string; tier: string; gender: string } | null;
-    type OrderLineRow = { add_ons: unknown; rental_club_sets: SetRef };
+    type OrderLineRow = { rental_club_sets: SetRef };
     type OrderHeaderRow = {
       order_code: string;
       total_price: number | string;
@@ -377,6 +378,7 @@ export async function POST(request: NextRequest) {
       notes: string | null;
       contact_preference: string | null;
       payment_method_chosen: string | null;
+      add_ons: RentalAddOnItem[] | null;
     };
     let lineMessage: string;
 
@@ -386,14 +388,17 @@ export async function POST(request: NextRequest) {
     let orderLines: OrderLineRow[] | null = null;
     let orderHeader: OrderHeaderRow | null = null;
     if (rental.order_id) {
+      // Add-ons are ORDER-canonical (Phase 1, order-authority inversion): the
+      // item list is read off the header, not the lines. The lines query stays
+      // only for the per-set names.
       const [{ data: lns, error: lnsErr }, { data: hdr, error: hdrErr }] = await Promise.all([
         supabase
           .from('club_rentals')
-          .select('add_ons, rental_club_sets ( name, tier, gender )')
+          .select('rental_club_sets ( name, tier, gender )')
           .eq('order_id', rental.order_id),
         supabase
           .from('club_rental_orders')
-          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_name, customer_phone, customer_email, notes, contact_preference, payment_method_chosen')
+          .select('order_code, total_price, delivery_requested, delivery_address, delivery_time, return_time, customer_name, customer_phone, customer_email, notes, contact_preference, payment_method_chosen, add_ons')
           .eq('id', rental.order_id)
           .maybeSingle(),
       ]);
@@ -423,7 +428,7 @@ export async function POST(request: NextRequest) {
           tier: l.rental_club_sets?.tier ?? 'premium',
           gender: l.rental_club_sets?.gender ?? 'mens',
         })),
-        add_ons: orderLines.flatMap((l) => (Array.isArray(l.add_ons) ? l.add_ons : [])),
+        add_ons: resolveRentalAddOns({ order: orderHeader }),
         total_price: orderHeader.total_price,
         notes: orderHeader.notes,
         contact_preference: orderHeader.contact_preference,
@@ -441,6 +446,7 @@ export async function POST(request: NextRequest) {
       // shared customer/delivery/notes/contact fields order-first so the ping
       // survives the DROP of those columns on the line (delivery + email included,
       // else a single-set delivery order would ping "Pickup at LENGOLF" + no email).
+      // Add-ons are ORDER-canonical too (Phase 1): lines no longer carry them.
       const rentalForLine = orderHeader
         ? {
             ...rental,
@@ -453,6 +459,7 @@ export async function POST(request: NextRequest) {
             notes: orderHeader.notes,
             contact_preference: orderHeader.contact_preference,
             payment_method_chosen: orderHeader.payment_method_chosen,
+            add_ons: resolveRentalAddOns({ order: orderHeader }),
           }
         : rental;
 

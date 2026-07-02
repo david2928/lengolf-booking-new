@@ -183,7 +183,7 @@ async function sendOrderConfirmationEmail(
 
   const { data: lineRows } = await supabase
     .from('club_rentals')
-    .select('add_ons, rental_club_sets ( name, tier, gender )')
+    .select('rental_club_sets ( name, tier, gender )')
     .eq('order_id', orderId);
 
   if (!order || !lineRows || lineRows.length === 0) return null;

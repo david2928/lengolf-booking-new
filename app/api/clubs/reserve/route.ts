@@ -328,7 +328,10 @@ export async function POST(request: NextRequest) {
 
     // Create the rental line under the header. Only still-existing line columns —
     // KEEP columns: delivery_lat/lng (dispatch), return_time (availability RPCs),
-    // delivery_fee, the window, add_ons, money.
+    // delivery_fee, the window, money. Add-ons are ORDER-canonical (Phase 1,
+    // order-authority inversion): authored on the header above, no longer
+    // written to the line. total_price still includes the add-ons money
+    // (unchanged this phase; Phase 2 dismantles the money rollup).
     const { data: rental, error: insertError } = await supabase
       .from('club_rentals')
       .insert({
@@ -342,8 +345,6 @@ export async function POST(request: NextRequest) {
         start_time: start_time || null,
         duration_days: effective_duration_days || null,
         rental_price,
-        add_ons: validatedAddOns.length > 0 ? validatedAddOns : [],
-        add_ons_total,
         delivery_lat: delivery_lat ?? null,
         delivery_lng: delivery_lng ?? null,
         return_time: return_time || null,

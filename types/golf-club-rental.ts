@@ -224,7 +224,7 @@ export interface ClubAvailabilityResponse {
   rental_type: 'indoor' | 'course';
 }
 
-/** Club rental add-on item stored in club_rentals.add_ons */
+/** Club rental add-on item — authored on club_rental_orders.add_ons (order-canonical since Phase 1 of the order-authority inversion) */
 export interface ClubRentalAddOn {
   key: string;
   label: string;

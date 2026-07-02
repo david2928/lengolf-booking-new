@@ -12,6 +12,7 @@ import {
   composeRentalLineMessage,
   type RentalLineInput,
 } from '@/lib/club-rental/lineMessage';
+import { resolveLineMessageRental } from '@/lib/club-rental/orders';
 
 const baseRental: RentalLineInput['rental'] = {
   rental_code: 'CR-20260524-5061',
@@ -388,6 +389,65 @@ describe('composeRentalLineMessage — payment_method_chosen + contact_preferenc
     });
     expect(msg).not.toContain('💳 Payment:');
     expect(msg).not.toContain('💬 Contact via:');
+  });
+});
+
+describe('resolveLineMessageRental — header-sourced add_ons (Phase 1 write-stop)', () => {
+  it('resolves add_ons off the order header so lifecycle pings keep the add-ons line', async () => {
+    // Post write-stop line row: no add_ons on the line (creators stopped
+    // writing them); the ORDER header is the canonical source. The resolver
+    // must merge hdr.add_ons into the row it hands to the composer, else the
+    // PaymentFailed/refund pings silently lose the 🎒 line for new rentals.
+    const header = {
+      customer_name: 'David Geiermann',
+      customer_phone: '+66842695447',
+      customer_email: 'dgeiermann@gmail.com',
+      delivery_requested: false,
+      delivery_address: null,
+      delivery_time: '09:00',
+      notes: null,
+      contact_preference: null,
+      payment_method_chosen: null,
+      // Expanded (one entry per unit) — display grouping is the composer's job.
+      add_ons: [
+        { key: 'glove', label: 'Golf Glove', price: 600 },
+        { key: 'glove', label: 'Golf Glove', price: 600 },
+      ],
+    };
+    const mockAdmin = {
+      from: () => ({
+        // Assert the column list so removing add_ons from the resolver's
+        // header select regresses THIS test, not just prod (the mock would
+        // otherwise hand back add_ons regardless of what was selected).
+        select: (cols: string) => {
+          expect(cols).toContain('add_ons');
+          return {
+            eq: () => ({
+              maybeSingle: async () => ({ data: header, error: null }),
+            }),
+          };
+        },
+      }),
+    };
+
+    const lineRow = {
+      rental_code: 'CR-20260702-0002',
+      order_id: 'order-uuid-1',
+      start_date: '2026-07-31',
+      end_date: '2026-08-01',
+      duration_days: 1,
+      return_time: '19:00',
+      total_price: '2400.00',
+    };
+    const resolved = await resolveLineMessageRental(mockAdmin, lineRow);
+
+    const msg = composeRentalLineMessage({
+      rental: resolved,
+      clubSet: baseClubSet,
+      status: { kind: 'PaymentFailed', reason: 'Card declined by issuer' },
+    });
+    expect(msg).toContain('🎒 Add-ons: Golf Glove ×2 (฿1,200)');
+    expect(msg).toContain('👤 Customer: David Geiermann');
   });
 });
 

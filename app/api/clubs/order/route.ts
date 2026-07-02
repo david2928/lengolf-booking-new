@@ -353,9 +353,11 @@ export async function POST(request: NextRequest) {
             start_time,
             duration_days,
             rental_price: money.rentalPrice,
-            // Add-ons live only on the bearer line (charged once for the order).
-            add_ons: money.isBearer && validatedAddOns.length > 0 ? validatedAddOns : [],
-            add_ons_total: money.addOnsTotal,
+            // Add-ons are ORDER-canonical (Phase 1, order-authority inversion):
+            // the item list + total are AUTHORED on the header (inserted above)
+            // and no longer written to lines. The bearer line's total_price
+            // still includes the add-ons money (unchanged this phase; Phase 2
+            // dismantles the money rollup).
             // Shared customer/delivery/notes/payment-choice/source are
             // ORDER-canonical (DROP columns on lines) and live on the header
             // (inserted above) only. return_time (availability RPCs) + delivery_fee
