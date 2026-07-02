@@ -9,6 +9,7 @@ import {
 import { claimAndSendConfirmationEmail } from '@/lib/shopeepay/markRentalAsPaid';
 import { handleRefundNotify } from '@/lib/shopeepay/handleRefundNotify';
 import { composeRentalLineMessage, composeOrderPaidLineMessage } from '@/lib/club-rental/lineMessage';
+import { resolveLineMessageRental } from '@/lib/club-rental/orders';
 import { applyOrderPaymentState } from '@/lib/shopeepay/orderPayment';
 
 /**
@@ -263,8 +264,13 @@ export async function POST(request: NextRequest) {
         const failureReason =
           (payload as unknown as { debug_msg?: string }).debug_msg ?? null;
 
+        // Shared customer/delivery/notes fields are order-canonical (DROPped
+        // from the line 2026-07) — resolve them off the order header, same as
+        // the refund pings, else the failed ping renders without customer info.
+        const failedForMsg = await resolveLineMessageRental(supabase, failedRental);
+
         const lineMessage = composeRentalLineMessage({
-          rental: failedRental,
+          rental: failedForMsg,
           clubSet,
           status: { kind: 'PaymentFailed', reason: failureReason },
           uatPrefix: !IS_PROD_ENV,
@@ -365,7 +371,7 @@ export async function POST(request: NextRequest) {
       delivery_address: string | null;
       delivery_time: string | null;
       return_time: string | null;
-      customer_name: string | null;
+      customer_name: string; // NOT NULL on club_rental_orders
       customer_phone: string | null;
       customer_email: string | null;
       notes: string | null;
@@ -396,9 +402,9 @@ export async function POST(request: NextRequest) {
     if (rental.order_id && orderHeader && orderLines && orderLines.length > 1) {
       lineMessage = composeOrderPaidLineMessage({
         order_code: orderHeader.order_code,
-        customer_name: orderHeader.customer_name ?? rental.customer_name,
-        customer_phone: orderHeader.customer_phone ?? rental.customer_phone,
-        customer_email: rental.customer_email,
+        customer_name: orderHeader.customer_name,
+        customer_phone: orderHeader.customer_phone,
+        customer_email: orderHeader.customer_email,
         start_date: rental.start_date,
         end_date: rental.end_date,
         duration_days: rental.duration_days,
@@ -413,8 +419,8 @@ export async function POST(request: NextRequest) {
         })),
         add_ons: orderLines.flatMap((l) => (Array.isArray(l.add_ons) ? l.add_ons : [])),
         total_price: orderHeader.total_price,
-        notes: orderHeader.notes ?? rental.notes,
-        contact_preference: orderHeader.contact_preference ?? rental.contact_preference,
+        notes: orderHeader.notes,
+        contact_preference: orderHeader.contact_preference,
         transactionSn: transaction_sn,
         uatPrefix: !IS_PROD_ENV,
       });
@@ -432,14 +438,14 @@ export async function POST(request: NextRequest) {
       const rentalForLine = orderHeader
         ? {
             ...rental,
-            customer_name: orderHeader.customer_name ?? rental.customer_name,
-            customer_phone: orderHeader.customer_phone ?? rental.customer_phone,
-            customer_email: orderHeader.customer_email ?? rental.customer_email,
-            delivery_requested: orderHeader.delivery_requested ?? rental.delivery_requested,
-            delivery_address: orderHeader.delivery_address ?? rental.delivery_address,
-            delivery_time: orderHeader.delivery_time ?? rental.delivery_time,
-            notes: orderHeader.notes ?? rental.notes,
-            contact_preference: orderHeader.contact_preference ?? rental.contact_preference,
+            customer_name: orderHeader.customer_name,
+            customer_phone: orderHeader.customer_phone,
+            customer_email: orderHeader.customer_email,
+            delivery_requested: orderHeader.delivery_requested,
+            delivery_address: orderHeader.delivery_address,
+            delivery_time: orderHeader.delivery_time,
+            notes: orderHeader.notes,
+            contact_preference: orderHeader.contact_preference,
           }
         : rental;
 

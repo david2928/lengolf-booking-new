@@ -41,18 +41,23 @@ export type RentalStatus =
 export interface RentalLineInput {
   rental: {
     rental_code: string;
-    customer_name: string;
-    customer_phone: string | null;
-    customer_email: string | null;
+    // The shared customer/delivery/notes fields below are ORDER-canonical since
+    // the 2026-07 column-DROP on club_rentals — they no longer exist on the line
+    // row. Optional so a post-DROP row type-checks; callers should resolve them
+    // off the order header first (see resolveLineMessageRental in
+    // lib/club-rental/orders.ts) or pass request-body values.
+    customer_name?: string | null;
+    customer_phone?: string | null;
+    customer_email?: string | null;
     start_date: string; // 'YYYY-MM-DD'
     end_date: string;
     duration_days: number | null;
-    delivery_requested: boolean | null;
-    delivery_address: string | null;
-    delivery_time: string | null;
+    delivery_requested?: boolean | null;
+    delivery_address?: string | null;
+    delivery_time?: string | null;
     return_time: string | null;
     total_price: number | string;
-    notes: string | null;
+    notes?: string | null;
     add_ons?: unknown;
     /** Customer's payment choice at booking time. Surfaced to staff as a dedicated line. */
     payment_method_chosen?: string | null;
