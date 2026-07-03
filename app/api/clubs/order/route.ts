@@ -7,7 +7,7 @@ import {
   composeRentalLineMessage,
   composeOrderCreatedLineMessage,
 } from '@/lib/club-rental/lineMessage';
-import { allocateOrderMoney, courseDeliveryFee, groupAddOns, groupSetNames } from '@/lib/club-rental/order-pricing';
+import { allocateOrderMoney, courseDeliveryFee, groupAddOns, groupSetNames, round2 } from '@/lib/club-rental/order-pricing';
 import { resolveCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
 import { logOrderEvent } from '@/lib/club-rental/order-events';
 
@@ -15,15 +15,11 @@ import { logOrderEvent } from '@/lib/club-rental/order-events';
  * POST /api/clubs/order — order-aware course-rental write path.
  *
  * Creates ONE public.club_rental_orders header + N public.club_rentals lines
- * (one per rented set) in a single request, with the shared delivery fee +
- * add-ons charged ONCE on the first "bearer" line and summed onto the header
- * (the "rollup header, lines stay whole" model from lengolf-forms PR #124).
- *
- * This is Phase 1 of the Option B normalisation (docs/technical/CLUB_RENTAL_ORDER_MODEL.md
- * in lengolf-forms): the website becomes a native order writer. Shared fields are
- * still denormalised onto every line so the not-yet-migrated readers (Lalamove
- * dispatch, schedule grid, payment, LINE confirmation, Google Ads view, crons)
- * keep working — matching forms' current Option A model.
+ * (one per rented set) in a single request. Since the order-authority inversion
+ * (Phase 2) the HEADER authors all order money — delivery_fee / discount_amount /
+ * total_price / rental_subtotal / add_ons_total are written to the header only,
+ * and each line stores just its per-set rental_price (the old "bearer line"
+ * money model is retired; those three columns are being dropped from the line).
  *
  * Course rentals only. Indoor/bay rentals stay order-less via /api/bookings/create.
  * The legacy single-set /api/clubs/reserve is left intact as a fallback.
@@ -187,7 +183,7 @@ export async function POST(request: NextRequest) {
     const billableMs = Math.max(0, returnMs - pickupMs - 3_600_000);
     const duration_days = Math.max(1, Math.ceil(billableMs / 86_400_000));
 
-    // Validate + price-enforce add-ons (order-level; charged once on the bearer line).
+    // Validate + price-enforce add-ons (order-level; authored on the header).
     const trustedAddons = getTrustedAddons();
     for (const addon of add_ons) {
       if (addon.key === 'delivery') continue;
@@ -277,7 +273,7 @@ export async function POST(request: NextRequest) {
     const lineRentalPrices = lines.map((l) =>
       getCoursePrice(setById.get(l.rental_club_set_id as string) as unknown as RentalClubSet, duration_days),
     );
-    const { lines: allocated, rollup } = allocateOrderMoney(
+    const rollup = allocateOrderMoney(
       lineRentalPrices,
       add_ons_total,
       delivery_fee,
@@ -335,7 +331,6 @@ export async function POST(request: NextRequest) {
       for (let i = 0; i < lines.length; i++) {
         const setId = lines[i].rental_club_set_id as string;
         const set = setById.get(setId) as Record<string, unknown>;
-        const money = allocated[i];
 
         const { data: rentalCode, error: rcErr } = await supabase.rpc('generate_rental_code');
         if (rcErr || !rentalCode) throw new Error(`rental_code generation failed: ${rcErr?.message}`);
@@ -352,21 +347,15 @@ export async function POST(request: NextRequest) {
             end_date,
             start_time,
             duration_days,
-            rental_price: money.rentalPrice,
-            // Add-ons are ORDER-canonical (Phase 1, order-authority inversion):
-            // the item list + total are AUTHORED on the header (inserted above)
-            // and no longer written to lines. The bearer line's total_price
-            // still includes the add-ons money (unchanged this phase; Phase 2
-            // dismantles the money rollup).
-            // Shared customer/delivery/notes/payment-choice/source are
-            // ORDER-canonical (DROP columns on lines) and live on the header
-            // (inserted above) only. return_time (availability RPCs) + delivery_fee
-            // are KEEP and stay on the line; the FEE is on the bearer line only so
-            // the order is charged delivery once.
+            // Order money is HEADER-authored (Phase 2, order-authority inversion):
+            // delivery_fee / discount_amount / total_price are written on the
+            // header (inserted above) only and are being DROPPED from the line.
+            // The line keeps its per-set rental_price. Add-ons + shared
+            // customer/delivery/notes/payment-choice/source are likewise
+            // ORDER-canonical and live on the header. return_time stays on the
+            // line for the availability RPCs.
+            rental_price: round2(lineRentalPrices[i]),
             return_time: return_time || null,
-            delivery_fee: money.deliveryFee,
-            discount_amount: money.discountAmount,
-            total_price: money.totalPrice,
           })
           .select('id')
           .single();
@@ -562,7 +551,7 @@ export async function POST(request: NextRequest) {
       success: true,
       order_code: orderCode,
       order_id: order.id,
-      // Bearer line's rental_code — single-set callers / the legacy ShopeePay
+      // First line's rental_code — single-set callers / the legacy ShopeePay
       // per-rental create can still key off it.
       rental_code: responseLines[0]?.rental_code,
       lines: responseLines,

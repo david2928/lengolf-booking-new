@@ -66,55 +66,29 @@ describe('courseDeliveryFee (tiered: 500 + max(0,n-2)*250)', () => {
   });
 });
 
-describe('allocateOrderMoney', () => {
+describe('allocateOrderMoney — header rollup only (Phase 2)', () => {
   it('throws on an empty line list', () => {
     expect(() => allocateOrderMoney([], 0, 0, 0)).toThrow();
   });
 
-  it('single line carries everything (bearer is the only line)', () => {
-    const { lines, rollup } = allocateOrderMoney([1200], 600, 500, 0);
-    expect(lines).toHaveLength(1);
-    expect(lines[0].isBearer).toBe(true);
-    expect(lines[0].totalPrice).toBe(1200 + 600 + 500);
-    expect(rollup.totalPrice).toBe(2300);
+  it('computes the rollup from line rental prices + shared charges', () => {
+    const rollup = allocateOrderMoney([2400, 2400], 1000, 500, 200);
+    expect(rollup.rentalSubtotal).toBe(4800);
+    expect(rollup.addOnsTotal).toBe(1000);
+    expect(rollup.deliveryFee).toBe(500);
+    expect(rollup.discountAmount).toBe(200);
+    expect(rollup.totalPrice).toBe(round2(4800 + 1000 + 500 - 200)); // 6100
+  });
+
+  it('handles the single-line order', () => {
+    const rollup = allocateOrderMoney([1200], 600, 500, 0);
     expect(rollup.rentalSubtotal).toBe(1200);
+    expect(rollup.totalPrice).toBe(1200 + 600 + 500);
   });
 
-  it('charges delivery + add-ons ONCE on the bearer line, not per line', () => {
-    const { lines, rollup } = allocateOrderMoney([1200, 1800], 600, 750, 0);
-    // bearer (index 0) carries the shared charges
-    expect(lines[0].deliveryFee).toBe(750);
-    expect(lines[0].addOnsTotal).toBe(600);
-    expect(lines[0].totalPrice).toBe(1200 + 600 + 750);
-    // sibling line carries ONLY its own rental
-    expect(lines[1].deliveryFee).toBe(0);
-    expect(lines[1].addOnsTotal).toBe(0);
-    expect(lines[1].totalPrice).toBe(1800);
-    // header rollups
-    expect(rollup.rentalSubtotal).toBe(3000);
-    expect(rollup.deliveryFee).toBe(750);
-    expect(rollup.addOnsTotal).toBe(600);
-  });
-
-  it('keeps the invariant SUM(line.total) === rollup.total', () => {
-    const cases: Array<[number[], number, number, number]> = [
-      [[1200], 0, 0, 0],
-      [[1200, 1800], 600, 750, 0],
-      [[1200, 1200, 1800], 1000, 1000, 0],
-      [[2400, 3600], 400, 500, 200],
-    ];
-    for (const [prices, addOns, delivery, discount] of cases) {
-      const { lines, rollup } = allocateOrderMoney(prices, addOns, delivery, discount);
-      const sum = round2(lines.reduce((s, l) => s + l.totalPrice, 0));
-      expect(sum).toBe(rollup.totalPrice);
-    }
-  });
-
-  it('applies an order discount once on the bearer line', () => {
-    const { lines, rollup } = allocateOrderMoney([2400, 3600], 0, 500, 200);
-    expect(lines[0].discountAmount).toBe(200);
-    expect(lines[1].discountAmount).toBe(0);
-    expect(lines[0].totalPrice).toBe(2400 + 500 - 200);
-    expect(rollup.totalPrice).toBe(2400 + 3600 + 500 - 200);
+  it('rounds THB at the accumulation points', () => {
+    const rollup = allocateOrderMoney([1200.005, 1200.004], 0, 0, 0);
+    expect(rollup.rentalSubtotal).toBe(2400.01);
+    expect(rollup.totalPrice).toBe(2400.01);
   });
 });

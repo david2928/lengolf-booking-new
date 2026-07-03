@@ -98,7 +98,7 @@ export async function resolveLineMessageRental<T extends Record<string, any>>(
   const { data: hdr, error } = await admin
     .from('club_rental_orders')
     .select(
-      'customer_name, customer_phone, customer_email, delivery_requested, delivery_address, delivery_time, notes, contact_preference, payment_method_chosen, add_ons',
+      'customer_name, customer_phone, customer_email, delivery_requested, delivery_address, delivery_time, notes, contact_preference, payment_method_chosen, add_ons, total_price',
     )
     .eq('id', rental.order_id)
     .maybeSingle()
@@ -116,5 +116,8 @@ export async function resolveLineMessageRental<T extends Record<string, any>>(
     contact_preference: hdr.contact_preference ?? rental.contact_preference,
     payment_method_chosen: hdr.payment_method_chosen ?? rental.payment_method_chosen,
     add_ons: hdr.add_ons ?? rental.add_ons,
+    // Order MONEY is header-authored (Phase 2) and dropped from the line — the
+    // composers read total_price for the 💰 Total line + partial-refund math.
+    total_price: hdr.total_price ?? rental.total_price,
   } as T
 }
