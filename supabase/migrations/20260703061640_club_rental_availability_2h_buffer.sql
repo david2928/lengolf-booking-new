@@ -3,7 +3,11 @@
 -- Both availability functions must stay in lockstep (display vs TOCTOU reserve check),
 -- so the buffer is changed in the course branch of BOTH. Only the `interval '1 hour'`
 -- literals change to `interval '2 hours'`; everything else is reproduced verbatim from
--- the current prod definitions.
+-- the prior prod definitions.
+--
+-- Already applied to the shared prod DB via the Supabase MCP under this same version
+-- (`20260703061640`); this file is the idempotent repo record — CREATE OR REPLACE
+-- re-applies harmlessly on a future `supabase db push`.
 
 CREATE OR REPLACE FUNCTION public.get_available_club_sets(
   p_rental_type text,

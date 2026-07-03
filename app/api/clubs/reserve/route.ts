@@ -245,6 +245,9 @@ export async function POST(request: NextRequest) {
       p_end_date: end_date,
       p_start_time: start_time || null,
       p_duration_hours: duration_hours || null,
+      // Course time-aware branch — keep in sync with the display availability check.
+      p_rental_type: rental_type,
+      p_return_time: return_time || null,
     });
 
     if (availError) {
@@ -367,6 +370,8 @@ export async function POST(request: NextRequest) {
       p_end_date: end_date,
       p_start_time: start_time || null,
       p_duration_hours: duration_hours || null,
+      p_rental_type: rental_type,
+      p_return_time: return_time || null,
     });
 
     if (!postCheckError && postInsertCount !== null && postInsertCount < 0) {

@@ -242,6 +242,10 @@ export async function POST(request: NextRequest) {
         p_end_date: end_date,
         p_start_time: start_time,
         p_duration_hours: null,
+        // Course time-aware branch — mirror the display availability check so a
+        // set shown available on Select Clubs isn't spuriously 409'd here.
+        p_rental_type: 'course',
+        p_return_time: return_time,
       });
       if (availErr) {
         console.error('[ClubOrder] Availability check error:', availErr);
@@ -385,6 +389,8 @@ export async function POST(request: NextRequest) {
         p_end_date: end_date,
         p_start_time: start_time,
         p_duration_hours: null,
+        p_rental_type: 'course',
+        p_return_time: return_time,
       });
       const expected = (preAvailable.get(setId) as number) - (qtyBySet.get(setId) as number);
       if (Number(postAvail ?? 0) < expected) {
