@@ -48,7 +48,9 @@ export async function GET(request: NextRequest) {
   // Find the rental + its most recent payment_transactions row.
   const { data: rental, error: rentalError } = await supabase
     .from('club_rentals')
-    .select('id, rental_code, total_price, payment_status, rental_type, order_id')
+    // total_price is ORDER-canonical (Phase 2 drop) — the receipt total comes
+    // from loadRentalOrderSummary (order-aware), never the line.
+    .select('id, rental_code, payment_status, rental_type, order_id')
     .eq('rental_code', ref)
     .single();
 
@@ -72,7 +74,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ref,
       status: 'unpaid' as const,
-      total_price: Number(rental.total_price),
+      // Line money is order-canonical (Phase 2 drop) and no order summary is
+      // loaded on this path — degrade to null; display-only field.
+      total_price: null,
       failure_reason: null as FailureReason,
     });
   }
@@ -182,9 +186,10 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     ref,
     status,
-    // For order-linked rentals the receipt total is the ORDER total (summary is
-    // order-aware); order-less rentals fall back to the single line's total.
-    total_price: summary ? summary.total_price : Number(rental.total_price),
+    // The receipt total is the ORDER total (summary is order-aware). Line money
+    // is order-canonical (Phase 2 drop) — degrade to null if the summary failed
+    // to load; display-only field.
+    total_price: summary ? summary.total_price : null,
     transaction_sn: transactionSn || null,
     paid_at: paidAt || null,
     failure_reason: failureReason,

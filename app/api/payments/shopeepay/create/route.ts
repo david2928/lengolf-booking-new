@@ -152,9 +152,9 @@ export async function POST(request: NextRequest) {
   // transaction.
   const { data: rental, error: rentalError } = await supabase
     .from('club_rentals')
-    // customer_name is ORDER-canonical (a DROP column on lines) — read from the
-    // order header below (via order_id) for the payment metadata field.
-    .select('id, rental_code, rental_type, status, total_price, payment_status, expires_at, order_id')
+    // customer_name + money (total_price etc.) are ORDER-canonical (DROP columns
+    // on lines) — read from the order header below (via order_id).
+    .select('id, rental_code, rental_type, status, payment_status, expires_at, order_id')
     .eq('rental_code', rental_code)
     .single();
 
@@ -195,13 +195,19 @@ export async function POST(request: NextRequest) {
 
   // Course-rental payment is ORDER-level: one ShopeePay charge covers the whole
   // order (all its lines), so charge order.total_price — not just this bearer
-  // line. Order-less rentals (legacy /api/clubs/reserve, order_id NULL) charge
-  // their own total. The customer-facing ref stays the bearer line's rental_code.
+  // line. Every course rental is order-backed (order_id NOT NULL since Phase 0)
+  // and line money is order-canonical (Phase 2 drop), so an unloadable order is
+  // a hard error — never fall back to a line-derived amount. The customer-facing
+  // ref stays the bearer line's rental_code.
   const orderCtx = await loadOrderChargeContext(supabase, rental.order_id);
-  if (orderCtx && orderCtx.paymentStatus === 'paid') {
+  if (!orderCtx) {
+    console.error('[ShopeePay/create] rental has no loadable parent order:', rental.rental_code);
+    return NextResponse.json({ error: 'Rental has no parent order' }, { status: 500 });
+  }
+  if (orderCtx.paymentStatus === 'paid') {
     return NextResponse.json({ error: 'This rental has already been paid' }, { status: 409 });
   }
-  const chargeTotal = orderCtx ? orderCtx.totalPrice : Number(rental.total_price);
+  const chargeTotal = orderCtx.totalPrice;
 
   // Idempotency: reuse the most recent pending order for this rental
   // if one already exists. This matters when the customer hits the
@@ -249,7 +255,7 @@ export async function POST(request: NextRequest) {
   const returnUrl = `${baseUrl}${return_path || `/payment/result`}?ref=${rental.rental_code}`;
 
   // Convert THB → satang (ShopeePay's wire format). chargeTotal is the order
-  // total for order-linked rentals, else this single line's total.
+  // header's total (line money is order-canonical).
   const amountSatang = Math.round(chargeTotal * 100);
   if (!Number.isFinite(amountSatang) || amountSatang <= 0) {
     return NextResponse.json({ error: 'Rental has an invalid price' }, { status: 500 });
