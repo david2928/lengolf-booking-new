@@ -192,7 +192,12 @@ export default function CourseRentalPage() {
     if (!startDate || !endDate) return;
     setSetsLoading(true);
     try {
-      const url = `/api/clubs/availability?type=course&date=${startDate}&end_date=${endDate}`;
+      // Forward the customer's pickup/return times so availability reflects the
+      // real rental window. Without them the RPC assumes 00:00->23:59 and
+      // over-blocks sets whose only overlap is an adjacent same-day rental.
+      let url = `/api/clubs/availability?type=course&date=${startDate}&end_date=${endDate}`;
+      if (pickupTime) url += `&start_time=${encodeURIComponent(pickupTime)}`;
+      if (returnTime) url += `&return_time=${encodeURIComponent(returnTime)}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
@@ -202,7 +207,7 @@ export default function CourseRentalPage() {
     } finally {
       setSetsLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, pickupTime, returnTime]);
 
   useEffect(() => {
     fetchSets();
@@ -585,8 +590,10 @@ export default function CourseRentalPage() {
                 {t('set.daysCount', { count: durationDays })}
                 <span className="mx-1.5">&middot;</span>
                 {format.dateTime(new Date(`${startDate}T00:00:00+07:00`), { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })}
+                {pickupTime && `, ${pickupTime}`}
                 {' '}-{' '}
                 {format.dateTime(new Date(`${endDate}T00:00:00+07:00`), { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })}
+                {returnTime && `, ${returnTime}`}
               </span>
             </div>
 

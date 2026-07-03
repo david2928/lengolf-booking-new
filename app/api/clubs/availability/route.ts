@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const rentalType = searchParams.get('type') || 'indoor';
     const date = searchParams.get('date');
     const startTime = searchParams.get('start_time') || null;
+    const returnTime = searchParams.get('return_time') || null;
     const durationParam = searchParams.get('duration');
     const durationHours = durationParam ? parseFloat(durationParam) : null;
 
@@ -36,6 +37,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'start_time must be in HH:MM format' }, { status: 400 });
     }
 
+    if (returnTime && !TIME_REGEX.test(returnTime)) {
+      return NextResponse.json({ error: 'return_time must be in HH:MM format' }, { status: 400 });
+    }
+
     if (durationHours !== null && (isNaN(durationHours) || durationHours <= 0 || durationHours > 24)) {
       return NextResponse.json({ error: 'duration must be a positive number up to 24' }, { status: 400 });
     }
@@ -48,6 +53,7 @@ export async function GET(request: NextRequest) {
       p_end_date: endDate,
       p_start_time: startTime,
       p_duration_hours: durationHours,
+      p_return_time: returnTime,
     });
 
     if (error) {
