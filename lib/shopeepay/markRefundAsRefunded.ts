@@ -64,7 +64,7 @@ export async function claimAndSendRefundEmail(
     .from('club_rentals')
     // customer_* are ORDER-canonical (DROP columns on lines) — resolved from the
     // order header below via resolveRentalCustomer.
-    .select('rental_code, total_price, order_id')
+    .select('rental_code, order_id')
     .eq('id', txn.club_rental_id)
     .single();
 

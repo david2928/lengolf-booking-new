@@ -1,17 +1,18 @@
 /**
- * Club-rental ORDER pricing — the "rollup header, lines stay whole" money model.
+ * Club-rental ORDER pricing — header-authored money model.
  *
  * An order groups N course-rental lines (one per club set) under one shared
- * delivery leg and one (optional) order-level discount. The shared charges
- * (delivery fee, add-ons, discount) are placed on a single "bearer" line so that:
- *   - every line.total_price stays the full per-line charged amount, and
- *   - SUM(line.total_price) === order.total_price  (delivery/add-ons counted ONCE).
+ * delivery leg and one (optional) order-level discount. Since the order-authority
+ * inversion (Phase 2) the HEADER authors the money: delivery_fee / discount_amount /
+ * total_price live on club_rental_orders, and each line stores only its rental_price.
+ * There is no longer a "bearer line" — allocateOrderMoney just rolls the per-set
+ * rental prices up with the shared charges into the header rollup.
  *
  * This mirrors lengolf-forms `src/lib/club-rental/order-pricing.ts` (the canonical
- * Option-A model). The one deliberate divergence: booking-new feeds in per-line
- * prices from its OWN optimal-combo `getCoursePrice` (see types/golf-club-rental.ts),
- * NOT the forms simple-tier helper — so the website charges the same per-set amount
- * the customer saw on the page. The allocation below is pricing-function-agnostic.
+ * model). The one deliberate divergence: booking-new feeds in per-line prices from
+ * its OWN optimal-combo `getCoursePrice` (see types/golf-club-rental.ts), NOT the
+ * forms simple-tier helper — so the website charges the same per-set amount the
+ * customer saw on the page. The rollup below is pricing-function-agnostic.
  *
  * THB is rounded at every accumulation point (CLAUDE.md money rule).
  */
@@ -84,21 +85,6 @@ export function groupSetNames(names: Array<string | null | undefined>): string {
     .join(', ');
 }
 
-export interface OrderLineMoney {
-  /** Per-line set rental price (already resolved for the order duration). */
-  rentalPrice: number;
-  /** Add-ons assigned to this line (0 except on the bearer line). */
-  addOnsTotal: number;
-  /** Delivery fee assigned to this line (0 except on the bearer line). */
-  deliveryFee: number;
-  /** Discount assigned to this line (0 except on the bearer line). */
-  discountAmount: number;
-  /** rentalPrice + addOnsTotal + deliveryFee - discountAmount. */
-  totalPrice: number;
-  /** True for the single line that carries the order's shared charges. */
-  isBearer: boolean;
-}
-
 export interface OrderMoneyRollup {
   rentalSubtotal: number;
   addOnsTotal: number;
@@ -107,15 +93,12 @@ export interface OrderMoneyRollup {
   totalPrice: number;
 }
 
-export interface OrderAllocation {
-  lines: OrderLineMoney[];
-  rollup: OrderMoneyRollup;
-}
-
 /**
- * Allocate order-level shared charges onto the first ("bearer") line and produce
- * the header rollups. `lineRentalPrices` is in line order; the order's add-ons,
- * delivery fee, and discount are all attributed to index 0.
+ * Compute a course order's money rollup from its per-set rental prices + the
+ * shared order-level charges. Since the order-authority inversion (Phase 2) the
+ * header AUTHORS this rollup directly — there is no "bearer line": the line stores
+ * only rental_price; delivery_fee / discount_amount / total_price live on the
+ * header. THB rounded at every accumulation point (CLAUDE.md money rule).
  *
  * Throws on an empty line list — callers must validate at least one line first.
  */
@@ -124,42 +107,14 @@ export function allocateOrderMoney(
   addOnsTotal: number,
   deliveryFee: number,
   discountAmount: number,
-): OrderAllocation {
+): OrderMoneyRollup {
   if (lineRentalPrices.length === 0) {
     throw new Error('allocateOrderMoney requires at least one line');
   }
-
-  const sharedAddOns = round2(addOnsTotal);
-  const sharedDelivery = round2(deliveryFee);
-  const sharedDiscount = round2(discountAmount);
-
-  const lines: OrderLineMoney[] = lineRentalPrices.map((rentalPrice, i) => {
-    const isBearer = i === 0;
-    const rp = round2(rentalPrice);
-    const lineAddOns = isBearer ? sharedAddOns : 0;
-    const lineDelivery = isBearer ? sharedDelivery : 0;
-    const lineDiscount = isBearer ? sharedDiscount : 0;
-    return {
-      rentalPrice: rp,
-      addOnsTotal: lineAddOns,
-      deliveryFee: lineDelivery,
-      discountAmount: lineDiscount,
-      totalPrice: round2(rp + lineAddOns + lineDelivery - lineDiscount),
-      isBearer,
-    };
-  });
-
-  const rentalSubtotal = round2(lines.reduce((s, l) => s + l.rentalPrice, 0));
-  const totalPrice = round2(lines.reduce((s, l) => s + l.totalPrice, 0));
-
-  return {
-    lines,
-    rollup: {
-      rentalSubtotal,
-      addOnsTotal: sharedAddOns,
-      deliveryFee: sharedDelivery,
-      discountAmount: sharedDiscount,
-      totalPrice,
-    },
-  };
+  const rentalSubtotal = round2(lineRentalPrices.reduce((s, p) => s + round2(p), 0));
+  const addOns = round2(addOnsTotal);
+  const delivery = round2(deliveryFee);
+  const discount = round2(discountAmount);
+  const totalPrice = round2(rentalSubtotal + addOns + delivery - discount);
+  return { rentalSubtotal, addOnsTotal: addOns, deliveryFee: delivery, discountAmount: discount, totalPrice };
 }
