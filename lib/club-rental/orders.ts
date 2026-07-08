@@ -65,6 +65,10 @@ export async function createCourseOrderHeader(
         total_price: header.total_price ?? 0,
         source: header.source ?? 'booking_app',
         notes: header.notes ?? null,
+        // Booking-time site locale (see 20260708120000 migration). Nullable —
+        // forms-side callers don't pass it; email senders fall back to
+        // customers.preferred_language.
+        language: header.language ?? null,
       })
       .select('id, order_code')
       .single()

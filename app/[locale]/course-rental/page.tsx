@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
-import { useTranslations, useFormatter } from 'next-intl';
+import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
@@ -89,6 +89,7 @@ export default function CourseRentalPage() {
   const t = useTranslations('courseRental');
   const tClubRental = useTranslations('clubRental');
   const format = useFormatter();
+  const locale = useLocale();
   const GEAR_UP_ITEMS = getGearUpItems();
   const [step, setStep] = useState<Step>('dates');
   const [availableSets, setAvailableSets] = useState<RentalClubSetWithAvailability[]>([]);
@@ -417,7 +418,12 @@ export default function CourseRentalPage() {
           contact_preference: preferredContact, // 'line' | 'email' | 'whatsapp'
           source: 'website' as const,
           payment_method: paymentMethod,
-          language: localePrefix || undefined,
+          // The active next-intl locale, NOT a URL-prefix match — English is
+          // unprefixed (localePrefix: 'as-needed'), so a prefix regex yields
+          // undefined for en and the email would fall back to
+          // customers.preferred_language. (localePrefix below is still used
+          // for building redirect URLs, where unprefixed-en is correct.)
+          language: locale,
         }),
       });
 

@@ -80,12 +80,17 @@ export async function claimAndSendRefundEmail(
   // Customer is order-canonical for course refunds: read it off the order header
   // when the line belongs to an order, falling back to the line. (Option B, customer family.)
   let orderCustomer:
-    | { customer_id: string | null; customer_name: string | null; customer_email: string | null }
+    | {
+        customer_id: string | null;
+        customer_name: string | null;
+        customer_email: string | null;
+        language: string | null;
+      }
     | null = null;
   if (rental.order_id) {
     const { data: o } = await supabase
       .from('club_rental_orders')
-      .select('customer_id, customer_name, customer_email')
+      .select('customer_id, customer_name, customer_email, language')
       .eq('id', rental.order_id as string)
       .maybeSingle();
     orderCustomer = o ?? null;
@@ -97,8 +102,12 @@ export async function claimAndSendRefundEmail(
     return { sent: false, reason: 'no_customer_email' };
   }
 
-  let language: string | null = null;
-  if (cust.id) {
+  // Booking-time language first (recorded on the header at order creation), then
+  // customers.preferred_language as the fallback for staff-created/legacy orders.
+  // Without this, a customer who booked on the English site but has a Thai
+  // profile preference got the refund email in Thai.
+  let language: string | null = orderCustomer?.language ?? null;
+  if (!language && cust.id) {
     const { data: customerLang } = await supabase
       .from('customers')
       .select('preferred_language')

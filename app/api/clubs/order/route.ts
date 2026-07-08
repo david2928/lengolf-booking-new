@@ -3,6 +3,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
 import type { ClubRentalAddOn, RentalClubSet } from '@/types/golf-club-rental';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
+import { isValidLocale } from '@/i18n/routing';
 import {
   composeRentalLineMessage,
   composeOrderCreatedLineMessage,
@@ -103,6 +104,13 @@ export async function POST(request: NextRequest) {
       contact_preference: rawContactPreference,
     } = body;
     const lines: LineInput[] = Array.isArray(body.lines) ? body.lines : [];
+
+    // The site locale the customer booked in — persisted on the order header so
+    // webhook-driven emails (paid confirmation, refund) render in the booking
+    // language. NULL when absent/invalid; readers fall back to
+    // customers.preferred_language.
+    const orderLanguage: string | null =
+      typeof bodyLanguage === 'string' && isValidLocale(bodyLanguage) ? bodyLanguage : null;
 
     // ---- Customer-facing booking choices stored in their own columns -----------
     const VALID_PAYMENT_CHOICES = new Set(['online_shopeepay', 'cash_at_pickup']);
@@ -320,6 +328,7 @@ export async function POST(request: NextRequest) {
         total_price: rollup.totalPrice,
         source,
         notes: customerNotes || null,
+        language: orderLanguage,
       })
       .select()
       .single();
@@ -429,7 +438,7 @@ export async function POST(request: NextRequest) {
     // (paid) email. Mirrors /api/clubs/reserve. AWAIT + try/catch (Vercel rule —
     // never fire-and-forget; the forms route's .catch() is the one thing NOT copied).
     if (!requiresPrepay && customer_email) {
-      let resolvedLanguage: string | null = typeof bodyLanguage === 'string' ? bodyLanguage : null;
+      let resolvedLanguage: string | null = orderLanguage;
       if (!resolvedLanguage && resolvedCustomerId) {
         const { data: customerLang } = await supabase
           .from('customers')
