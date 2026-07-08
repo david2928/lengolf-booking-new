@@ -447,6 +447,9 @@ export async function POST(request: NextRequest) {
       // survives the DROP of those columns on the line (delivery + email included,
       // else a single-set delivery order would ping "Pickup at LENGOLF" + no email).
       // Add-ons are ORDER-canonical too (Phase 1): lines no longer carry them.
+      // Money is ORDER-canonical as well (Phase 2 dropped total_price from the
+      // line) — without the header total the ping renders "฿undefined"
+      // (hit live 2026-07-08, CR-20260708-9C75).
       const rentalForLine = orderHeader
         ? {
             ...rental,
@@ -460,6 +463,7 @@ export async function POST(request: NextRequest) {
             contact_preference: orderHeader.contact_preference,
             payment_method_chosen: orderHeader.payment_method_chosen,
             add_ons: resolveRentalAddOns({ order: orderHeader }),
+            total_price: orderHeader.total_price,
           }
         : rental;
 
