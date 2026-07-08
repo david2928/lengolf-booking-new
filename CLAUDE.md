@@ -185,6 +185,8 @@ Plus `payment_method_chosen` (`online_shopeepay` | `cash_at_pickup`) and `contac
 
 The customer confirmation email subject + heading + "what happens next" copy branches per `paymentStatus` ('paid' / 'pay_at_pickup') so we don't claim "Reservation Confirmed!" to a customer who hasn't paid yet. i18n keys for all 5 locales exist; if you add a state, update `messages/{en,th,ko,ja,zh}.json` together.
 
+Course-rental email LANGUAGE resolves from `club_rental_orders.language` first (the site locale the customer booked in — written at order creation, validated via `isValidLocale`), falling back to `customers.preferred_language` for staff-created/legacy orders (NULL), then 'en'. Never derive the locale from the URL prefix client-side — English is unprefixed under `localePrefix: 'as-needed'`; use `useLocale()`. (PR #60, 2026-07-08 — an English-site booking was getting Thai emails via a stale `preferred_language`.)
+
 ### Callback to ShopeePay support
 
 If anything misbehaves at the wire level (404s, wrong field names, missing required fields), email pearpearpearpearpear@seamoney.com with a side-by-side `curl` of a known-working endpoint (e.g. `transaction/check`) vs the failing one. The format that worked was in commit `29542ab` — same host, same auth, same signing setup, only the path differs. That made the diagnosis a ~1-day turnaround instead of a multi-day ticket.
