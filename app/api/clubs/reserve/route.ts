@@ -3,6 +3,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { getCoursePrice, getGearUpItems } from '@/types/golf-club-rental';
 import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rental';
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
+import { isValidLocale } from '@/i18n/routing';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 import { createCourseOrderHeader } from '@/lib/club-rental/orders';
 
@@ -62,6 +63,12 @@ export async function POST(request: NextRequest) {
       payment_method_chosen: rawPaymentMethodChosen,
       contact_preference: rawContactPreference,
     } = body;
+
+    // The site locale the customer booked in — persisted on the order header so
+    // webhook-driven emails render in the booking language. NULL when
+    // absent/invalid; readers fall back to customers.preferred_language.
+    const bookingLanguage: string | null =
+      typeof bodyLanguage === 'string' && isValidLocale(bodyLanguage) ? bodyLanguage : null;
 
     // Customer-facing booking choices stored in their own columns so the
     // free-form `notes` field stays strictly customer-typed (see CLAUDE.md
@@ -322,6 +329,9 @@ export async function POST(request: NextRequest) {
       total_price,
       source,
       notes: customerNotes || null,
+      // Booking-time site locale — lets webhook-driven emails (paid
+      // confirmation, refund) render in the language the customer booked in.
+      language: bookingLanguage,
     });
 
     if (!order) {
@@ -398,7 +408,7 @@ export async function POST(request: NextRequest) {
     if (rental_type === 'course' && customer_email && !requiresPrepay) {
       // Resolve locale: explicit body param first, then fall back to
       // customers.preferred_language if we know the customer.
-      let resolvedLanguage: string | null = typeof bodyLanguage === 'string' ? bodyLanguage : null;
+      let resolvedLanguage: string | null = bookingLanguage;
       if (!resolvedLanguage && customer_id) {
         const { data: customerLang } = await supabase
           .from('customers')

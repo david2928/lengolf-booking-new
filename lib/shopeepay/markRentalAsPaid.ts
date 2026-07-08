@@ -176,7 +176,7 @@ async function sendOrderConfirmationEmail(
   const { data: order } = await supabase
     .from('club_rental_orders')
     .select(
-      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time, start_date, end_date, start_time, duration_days, customer_id, customer_name, customer_email, add_ons, notes, contact_preference',
+      'order_code, rental_subtotal, delivery_fee, total_price, delivery_requested, delivery_address, delivery_time, return_time, start_date, end_date, start_time, duration_days, customer_id, customer_name, customer_email, add_ons, notes, contact_preference, language',
     )
     .eq('id', orderId)
     .maybeSingle();
@@ -215,8 +215,12 @@ async function sendOrderConfirmationEmail(
     return { sent: false, reason: 'no_customer_email' };
   }
 
-  let language: string | null = null;
-  if (cust.id) {
+  // Booking-time language first (recorded on the header at order creation), then
+  // customers.preferred_language as the fallback for staff-created/legacy orders.
+  // Without this, a customer who booked on the English site but has a Thai
+  // profile preference got the paid-confirmation email in Thai.
+  let language: string | null = (order.language as string | null) ?? null;
+  if (!language && cust.id) {
     const { data: customerLang } = await supabase
       .from('customers')
       .select('preferred_language')
