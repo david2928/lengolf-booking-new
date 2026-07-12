@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@/utils/supabase/admin';
+import { RATE_LIMITS, checkRateLimit, getClientIp, rateLimitedResponse } from '@/lib/rate-limit';
 // import { LINE_NOTIFY_TOKEN } from '@/lib/env'; // User's code doesn't use this for Messaging API
 
 interface BaseNotificationPayload {
@@ -93,6 +95,17 @@ function formatDateWithOrdinal(dateString: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Unauthenticated route that pushes straight to the staff LINE group.
+    // Generous limit: legit traffic is internal self-fetches arriving from a
+    // small pool of shared Vercel egress IPs, so this only trips on abuse.
+    // Real lockdown (auth) is tracked separately.
+    const rateLimit = await checkRateLimit(
+      createAdminClient(),
+      `line-notify:${getClientIp(request)}`,
+      RATE_LIMITS.lineNotify,
+    );
+    if (!rateLimit.allowed) return rateLimitedResponse(rateLimit);
+
     const payload: NotificationPayload = await request.json();
     
     const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;

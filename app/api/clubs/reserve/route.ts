@@ -7,6 +7,7 @@ import { isValidLocale } from '@/i18n/routing';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 import { createCourseOrderHeader, PROVISIONAL_PAYMENT_EXPIRY_SECONDS } from '@/lib/club-rental/orders';
 import { resolveOrCreateCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
+import { RATE_LIMITS, checkRateLimit, getClientIp, rateLimitedResponse } from '@/lib/rate-limit';
 
 /** Build trusted add-on price/label map at request time for dynamic pricing */
 function getTrustedAddons(): Record<string, { price: number; label: string }> {
@@ -37,6 +38,15 @@ function getBaseUrl(): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Guest checkout auto-creates customers rows on unmatched phones — throttle
+    // per IP before doing any work. Bucket shared with /api/clubs/order.
+    const rateLimit = await checkRateLimit(
+      createAdminClient(),
+      `clubs-write:${getClientIp(request)}`,
+      RATE_LIMITS.clubsWrite,
+    );
+    if (!rateLimit.allowed) return rateLimitedResponse(rateLimit);
+
     const body: ClubReserveRequest = await request.json();
 
     const {
