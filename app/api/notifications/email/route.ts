@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isInternalRequestAuthorized } from '@/lib/internalAuth';
 import { sendConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
 
 interface EmailConfirmation {
@@ -38,6 +39,12 @@ interface EmailConfirmation {
 
 export async function POST(request: NextRequest) {
   try {
+    // Internal-only route: without this check anyone on the internet can
+    // send LENGOLF-branded confirmation emails to arbitrary addresses.
+    if (!isInternalRequestAuthorized(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { customerNotes, ...bookingData }: EmailConfirmation & { customerNotes?: string } = await request.json();
 
     const emailLocale = resolveEmailLocale(bookingData.language);

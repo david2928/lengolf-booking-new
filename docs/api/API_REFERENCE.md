@@ -957,7 +957,7 @@ POST /api/notifications/email
 
 **Description**: Send email notification.
 
-**Authentication**: Required (system)
+**Authentication**: Required — `Authorization: Bearer <CRON_API_KEY>` (internal self-fetch callers use `internalAuthHeaders()` from `lib/internalAuth.ts`)
 
 **Request Body**:
 ```json
@@ -1042,7 +1042,7 @@ POST /api/notifications/email/cancellation
 
 **Description**: Send booking cancellation email.
 
-**Authentication**: Required (system)
+**Authentication**: Required — `Authorization: Bearer <CRON_API_KEY>` (internal self-fetch callers use `internalAuthHeaders()` from `lib/internalAuth.ts`)
 
 **Request Body**:
 ```json
@@ -1050,6 +1050,26 @@ POST /api/notifications/email/cancellation
   "bookingId": "booking-uuid-123",
   "customerEmail": "john@example.com",
   "cancellationReason": "Customer request"
+}
+```
+
+### Email Review Request
+```http
+POST /api/notifications/email/review-request
+```
+
+**Description**: Send review request (with voucher offer) via email.
+
+**Authentication**: Required — `Authorization: Bearer <CRON_API_KEY>` (internal self-fetch callers use `internalAuthHeaders()` from `lib/internalAuth.ts`)
+
+**Request Body**:
+```json
+{
+  "email": "john@example.com",
+  "userName": "John Doe",
+  "reviewUrl": "https://g.page/r/.../review",
+  "voucherImageUrl": "https://booking.len.golf/images/voucher.png",
+  "language": "en"
 }
 ```
 

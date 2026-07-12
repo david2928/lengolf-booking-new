@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
             
             const emailResponse = await fetch(emailEndpoint, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
               body: JSON.stringify({
                 email: request.contact_info,
                 userName: customerName, // Use actual customer name

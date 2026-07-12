@@ -6,6 +6,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
 import { sendVipCancellationNotification } from '@/lib/lineNotifyService';
 import type { NotificationBookingData } from '@/lib/lineNotifyService';
+import { internalAuthHeaders } from '@/lib/internalAuth';
 
 import { format } from 'date-fns';
 
@@ -334,9 +335,10 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
       asyncTasks.push(
         fetch(emailUrl, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache',
+            ...internalAuthHeaders()
           },
           body: JSON.stringify(emailPayload),
         })
