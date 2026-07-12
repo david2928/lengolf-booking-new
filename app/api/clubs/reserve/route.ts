@@ -5,7 +5,7 @@ import type { ClubReserveRequest, ClubRentalAddOn } from '@/types/golf-club-rent
 import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/emailService';
 import { isValidLocale } from '@/i18n/routing';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
-import { createCourseOrderHeader } from '@/lib/club-rental/orders';
+import { createCourseOrderHeader, PROVISIONAL_PAYMENT_EXPIRY_SECONDS } from '@/lib/club-rental/orders';
 
 /** Build trusted add-on price/label map at request time for dynamic pricing */
 function getTrustedAddons(): Record<string, { price: number; label: string }> {
@@ -98,6 +98,15 @@ export async function POST(request: NextRequest) {
       );
     }
     const requiresPrepay = rental_type === 'course' && paymentMethod === 'card';
+
+    // Provisional payment window for ONLINE orders (see the constant's doc in
+    // lib/club-rental/orders.ts): without it, an order abandoned before the
+    // /payment/start hand-off keeps expires_at NULL and the expiry cron never
+    // frees its reserved sets. Overwritten with the real link window when the
+    // customer reaches the gateway. Cash orders stay NULL.
+    const provisionalExpiresAt = requiresPrepay
+      ? new Date(Date.now() + PROVISIONAL_PAYMENT_EXPIRY_SECONDS * 1000).toISOString()
+      : null;
 
     // Only accept customer_id/user_id from trusted internal sources (booking_app with booking_id)
     const customer_id = booking_id ? (body.customer_id || null) : null;
@@ -323,6 +332,7 @@ export async function POST(request: NextRequest) {
       delivery_fee,
       payment_method_chosen: paymentMethodChosen,
       contact_preference: contactPreference,
+      expires_at: provisionalExpiresAt,
       rental_price,
       add_ons: validatedAddOns.length > 0 ? validatedAddOns : [],
       add_ons_total,
@@ -361,6 +371,9 @@ export async function POST(request: NextRequest) {
         delivery_lat: delivery_lat ?? null,
         delivery_lng: delivery_lng ?? null,
         return_time: return_time || null,
+        // Line mirror of the header's provisional payment window — the
+        // expire cron reads LINE expires_at (expires_at IS NOT NULL).
+        expires_at: provisionalExpiresAt,
       })
       .select()
       .single();
