@@ -13,7 +13,9 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/$1',
   },
   modulePathIgnorePatterns: ['.next'],
-  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/']
+  // Note: '/__tests__/mocks/' (no <rootDir>) — <rootDir> substitution breaks when the
+  // resolved path contains '\.', e.g. Claude Code worktrees under .claude\worktrees.
+  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '/__tests__/mocks/']
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
