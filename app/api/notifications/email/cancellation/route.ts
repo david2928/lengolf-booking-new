@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isInternalRequestAuthorized } from '@/lib/internalAuth';
 import nodemailer from 'nodemailer';
 import { createTranslator, createFormatter } from 'next-intl';
 import { resolveEmailLocale } from '@/lib/emailService';
@@ -39,6 +40,12 @@ interface BookingCancellationBody {
 
 export async function POST(request: NextRequest) {
   try {
+    // 0. Internal-only route: without this check anyone on the internet can
+    // send LENGOLF-branded cancellation emails to arbitrary addresses.
+    if (!isInternalRequestAuthorized(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // 1. Check email configuration
     if (!EMAIL_USER || !EMAIL_PASS) {
       console.error('Email configuration missing - EMAIL_USER or EMAIL_PASS not set');

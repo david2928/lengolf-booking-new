@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       // Send email notification
       await fetch(`${baseUrl}/api/notifications/email/review-request`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
         body: JSON.stringify({
           email: contactInfo,
           userName: bookingName,

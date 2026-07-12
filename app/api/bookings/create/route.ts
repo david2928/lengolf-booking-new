@@ -98,7 +98,7 @@ async function sendNotifications(formattedData: Record<string, unknown>, booking
         
         const response = await fetch(`${baseUrl}/api/notifications/email`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
           body: JSON.stringify(emailData),
         });
 
