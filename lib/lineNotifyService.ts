@@ -1,4 +1,5 @@
 import { format, parse, addMinutes } from 'date-fns';
+import { internalAuthHeaders } from '@/lib/internalAuth';
 
 // Helper to get base URL for server-side fetch
 const getBaseUrl = () => {
@@ -75,6 +76,7 @@ export async function sendBookingNotification(booking: BookingNotification) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...internalAuthHeaders(),
       },
       body: JSON.stringify(booking),
     });
@@ -108,7 +110,8 @@ export async function sendVipModificationNotification(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        ...internalAuthHeaders(),
       },
       body: JSON.stringify({ message }),
     });
@@ -177,7 +180,8 @@ export async function sendVipCancellationNotification(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        ...internalAuthHeaders(),
       },
       body: JSON.stringify(linePayload),
     });

@@ -104,6 +104,7 @@ SHOPEEPAY_SECRET_KEY=     # ShopeePay-issued HMAC secret
 SHOPEEPAY_MERCHANT_EXT_ID=# 'lengolf'
 SHOPEEPAY_STORE_EXT_ID=   # 'lengolf'
 BACKOFFICE_API_TOKEN=     # ≥32 chars, shared with lengolf-forms backoffice for refund route auth
+CRON_API_KEY=             # shared secret for the review-request pg_cron job AND all internal self-fetch LINE notify calls (/api/notifications/line + /line/review-request). Routes fail closed (401) if unset — see lib/internalAuth.ts
 EMAIL_HOST=               # SMTP server hostname or IP
 EMAIL_PORT=               # SMTP port (default: 587)
 EMAIL_SECURE=             # Use SSL/TLS (default: false)

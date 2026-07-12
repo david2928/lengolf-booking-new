@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { formatInTimeZone, zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
 import { subMinutes, addMinutes } from 'date-fns';
+import { internalAuthHeaders } from '@/lib/internalAuth';
 
 const TIMEZONE = 'Asia/Bangkok';
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CXwvpW56UsBgEAE/review';
@@ -183,7 +184,7 @@ export async function POST(request: NextRequest) {
             
             const lineResponse = await fetch(lineEndpoint, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
               body: JSON.stringify({
                 userId: request.contact_info, // This is actually the LINE provider_id
                 bookingName: bookingData.name,

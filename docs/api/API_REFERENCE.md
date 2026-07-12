@@ -937,9 +937,9 @@ POST /api/crm/sync-packages
 POST /api/notifications/line
 ```
 
-**Description**: Send notification via LINE messaging.
+**Description**: Send notification via LINE messaging to the staff group.
 
-**Authentication**: Required (system)
+**Authentication**: Required — `Authorization: Bearer <CRON_API_KEY>` (internal self-fetch callers use `internalAuthHeaders()` from `lib/internalAuth.ts`)
 
 **Request Body**:
 ```json
@@ -1060,7 +1060,7 @@ POST /api/notifications/line/review-request
 
 **Description**: Send review request via LINE.
 
-**Authentication**: Required (system)
+**Authentication**: Required — `Authorization: Bearer <CRON_API_KEY>` (internal self-fetch callers use `internalAuthHeaders()` from `lib/internalAuth.ts`)
 
 **Request Body**:
 ```json

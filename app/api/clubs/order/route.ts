@@ -11,6 +11,7 @@ import {
 import { allocateOrderMoney, courseDeliveryFee, groupAddOns, groupSetNames, round2 } from '@/lib/club-rental/order-pricing';
 import { resolveCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
 import { logOrderEvent } from '@/lib/club-rental/order-events';
+import { internalAuthHeaders } from '@/lib/internalAuth';
 
 /**
  * POST /api/clubs/order — order-aware course-rental write path.
@@ -550,7 +551,7 @@ export async function POST(request: NextRequest) {
       try {
         const lineRes = await fetch(`${baseUrl}/api/notifications/line`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
           body: JSON.stringify({ message: lineMessage }),
         });
         if (!lineRes.ok) {

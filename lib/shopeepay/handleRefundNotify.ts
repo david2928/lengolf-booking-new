@@ -5,6 +5,7 @@ import { extractReferenceId, isFinalSuccess, type NotifyTransactionPayload } fro
 import { claimAndSendRefundEmail } from './markRefundAsRefunded';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 import { resolveLineMessageRental } from '@/lib/club-rental/orders';
+import { internalAuthHeaders } from '@/lib/internalAuth';
 
 const IS_PROD_ENV = process.env.VERCEL_ENV === 'production';
 
@@ -349,7 +350,7 @@ export async function handleRefundNotify(
       try {
         await fetch(`${opts.baseUrl}/api/notifications/line`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
           body: JSON.stringify({ message: lineMessage }),
         });
       } catch (err) {
