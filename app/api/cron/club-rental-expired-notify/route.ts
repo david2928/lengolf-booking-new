@@ -23,6 +23,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
 import { composeOrderExpiredLineMessage } from '@/lib/club-rental/lineMessage';
+import { internalAuthHeaders } from '@/lib/internalAuth';
 
 export const dynamic = 'force-dynamic';
 // Up to BATCH_LIMIT sequential LINE pushes per tick — keep comfortably inside
@@ -190,7 +191,7 @@ export async function GET(request: NextRequest) {
 
       const res = await fetch(`${baseUrl}/api/notifications/line`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
         body: JSON.stringify({ message }),
       });
       if (!res.ok) {
