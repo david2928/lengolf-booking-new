@@ -6,6 +6,7 @@ import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/ema
 import { isValidLocale } from '@/i18n/routing';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 import { createCourseOrderHeader } from '@/lib/club-rental/orders';
+import { internalAuthHeaders } from '@/lib/internalAuth';
 
 /** Build trusted add-on price/label map at request time for dynamic pricing */
 function getTrustedAddons(): Record<string, { price: number; label: string }> {
@@ -505,7 +506,7 @@ export async function POST(request: NextRequest) {
       try {
         const lineRes = await fetch(`${baseUrl}/api/notifications/line`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
           body: JSON.stringify({ message: lineMessage }),
         });
         if (!lineRes.ok) {

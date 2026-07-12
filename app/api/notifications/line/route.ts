@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isInternalRequestAuthorized } from '@/lib/internalAuth';
 // import { LINE_NOTIFY_TOKEN } from '@/lib/env'; // User's code doesn't use this for Messaging API
 
 interface BaseNotificationPayload {
@@ -93,6 +94,12 @@ function formatDateWithOrdinal(dateString: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Internal-only route: without this check anyone on the internet can
+    // push arbitrary messages into the staff LINE group.
+    if (!isInternalRequestAuthorized(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const payload: NotificationPayload = await request.json();
     
     const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;

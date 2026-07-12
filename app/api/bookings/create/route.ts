@@ -12,6 +12,7 @@ import { BAY_DISPLAY_NAMES } from '@/lib/bayConfig';
 import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
 import { isValidLanguage } from '@/lib/liff/translations';
 import { isValidLocale } from '@/i18n/routing';
+import { internalAuthHeaders } from '@/lib/internalAuth';
 
 // Accept any LIFF Language (en/th/ja/zh) OR any main-site Locale (en/th/ko/ja/zh).
 // LIFF's isValidLanguage doesn't include 'ko', but the main flow can produce it.
@@ -150,7 +151,7 @@ async function sendNotifications(formattedData: Record<string, unknown>, booking
         
         const response = await fetch(`${baseUrl}/api/notifications/line`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
           body: JSON.stringify(lineData),
         });
 

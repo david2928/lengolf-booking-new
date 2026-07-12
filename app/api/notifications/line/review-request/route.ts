@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isInternalRequestAuthorized } from '@/lib/internalAuth';
 
 const LINE_MESSAGING_API = 'https://api.line.me/v2/bot/message/push';
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
@@ -14,6 +15,12 @@ interface ReviewRequestBody {
 
 export async function POST(request: NextRequest) {
   try {
+    // 0. Internal-only route: without this check anyone on the internet can
+    // push LENGOLF-branded LINE messages to arbitrary LINE user IDs.
+    if (!isInternalRequestAuthorized(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // 1. Check LINE API configuration
     if (!LINE_CHANNEL_ACCESS_TOKEN) {
       console.error('LINE_CHANNEL_ACCESS_TOKEN is missing');

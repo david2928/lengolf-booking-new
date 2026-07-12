@@ -4,6 +4,7 @@ import { createRefund } from '@/lib/shopeepay/client';
 import { claimAndSendRefundEmail } from '@/lib/shopeepay/markRefundAsRefunded';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 import { resolveLineMessageRental } from '@/lib/club-rental/orders';
+import { internalAuthHeaders } from '@/lib/internalAuth';
 
 /**
  * POST /api/payments/shopeepay/refund
@@ -421,7 +422,7 @@ export async function POST(request: NextRequest) {
       try {
         await fetch(`${baseUrl}/api/notifications/line`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
           body: JSON.stringify({ message: lineMessage }),
         });
       } catch (err) {

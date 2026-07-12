@@ -12,6 +12,7 @@ import { composeRentalLineMessage, composeOrderPaidLineMessage } from '@/lib/clu
 import { resolveLineMessageRental } from '@/lib/club-rental/orders';
 import { resolveRentalAddOns, type RentalAddOnItem } from '@/lib/club-rental/resolve-add-ons';
 import { applyOrderPaymentState } from '@/lib/shopeepay/orderPayment';
+import { internalAuthHeaders } from '@/lib/internalAuth';
 
 /**
  * POST /api/webhooks/shopeepay
@@ -280,7 +281,7 @@ export async function POST(request: NextRequest) {
         try {
           await fetch(`${baseUrl}/api/notifications/line`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
             body: JSON.stringify({ message: lineMessage }),
           });
         } catch (err) {
@@ -480,7 +481,7 @@ export async function POST(request: NextRequest) {
     try {
       await fetch(`${baseUrl}/api/notifications/line`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
         body: JSON.stringify({ message: lineMessage }),
       });
     } catch (err) {

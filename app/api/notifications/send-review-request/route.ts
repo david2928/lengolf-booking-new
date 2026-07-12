@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalAuthHeaders, isInternalRequestAuthorized } from '@/lib/internalAuth';
 
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CXwvpW56UsBgEAE/review';
 const VOUCHER_IMAGE_URL = process.env.REVIEW_VOUCHER_IMAGE_URL || 'https://booking.len.golf/images/logo_v1.png';
@@ -16,15 +17,12 @@ interface SendReviewRequestBody {
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authentication
-    const authHeader = request.headers.get('Authorization');
-    const apiKey = process.env.QSTASH_API_KEY || process.env.CRON_API_KEY;
-    
-    // Verify either QStash signature or API key
-    const qStashSignature = request.headers.get('Upstash-Signature');
-    const isFromQStash = !!qStashSignature; // In a real implementation, verify this signature
-    
-    if (!isFromQStash && (!apiKey || !authHeader || authHeader !== `Bearer ${apiKey}`)) {
+    // 1. Authentication. The old unverified Upstash-Signature shortcut is
+    // gone — any spoofed header bypassed auth entirely, and this route
+    // forwards to the LINE/email review-request routes with internal
+    // credentials attached. QStash was never actually wired up; the live
+    // scheduler is pg_cron -> /api/notifications/process-review-requests.
+    if (!isInternalRequestAuthorized(request)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -46,7 +44,7 @@ export async function POST(request: NextRequest) {
       // Send LINE notification
       await fetch(`${baseUrl}/api/notifications/line/review-request`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...internalAuthHeaders() },
         body: JSON.stringify({
           userId: contactInfo,
           bookingName: bookingName,
