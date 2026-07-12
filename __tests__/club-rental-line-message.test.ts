@@ -10,6 +10,7 @@
 
 import {
   composeOrderExpiredLineMessage,
+  composeOrderPaymentReminderLineMessage,
   composeRentalLineMessage,
   type RentalLineInput,
 } from '@/lib/club-rental/lineMessage';
@@ -61,7 +62,7 @@ describe('composeRentalLineMessage — Created (online prepay)', () => {
   it('closes with the "Awaiting ShopeePay" footer', () => {
     const lines = msg.split('\n');
     expect(lines[lines.length - 1]).toBe(
-      '⌛ Awaiting ShopeePay payment — auto-cancels in 30 min if unpaid.'
+      '⌛ Awaiting ShopeePay payment — auto-cancels in 2 hours if unpaid.'
     );
   });
 
@@ -544,5 +545,50 @@ describe('composeOrderExpiredLineMessage', () => {
     });
     expect(msg).toContain('🗓️ Dates: ? - ? (1d)');
     expect(msg).not.toContain('undefined');
+  });
+});
+
+describe('composeOrderPaymentReminderLineMessage', () => {
+  const baseReminder = {
+    order_code: 'CRO-20260712-BBBB',
+    customer_name: 'David Geiermann',
+    customer_phone: '+66842695447',
+    customer_email: 'dgeiermann@gmail.com',
+    contact_preference: 'line',
+    sets: [
+      { name: "Premium Men's - Callaway Warbird", tier: 'premium', gender: 'mens' },
+    ],
+    total_price: '2900.00',
+    expiresAtDisplay: '14:30',
+    emailSent: true,
+  };
+
+  it('opens with the ⏰ PAYMENT STILL PENDING header and shows expiry', () => {
+    const msg = composeOrderPaymentReminderLineMessage(baseReminder);
+    expect(msg.split('\n')[0]).toBe(
+      '⏰ PAYMENT STILL PENDING (ID: CRO-20260712-BBBB) ⏰'
+    );
+    expect(msg).toContain('💰 Total: ฿2,900 (unpaid, 30+ min)');
+    expect(msg).toContain('⌛ Reservation expires: 14:30');
+  });
+
+  it('footer says email sent + personal follow-up channel', () => {
+    const lines = composeOrderPaymentReminderLineMessage(baseReminder).split('\n');
+    expect(lines[lines.length - 1]).toBe(
+      '👉 Reminder email sent to the customer — a personal follow-up via LINE converts best.'
+    );
+  });
+
+  it('footer flags no-email orders for direct follow-up', () => {
+    const msg = composeOrderPaymentReminderLineMessage({
+      ...baseReminder,
+      customer_email: null,
+      contact_preference: 'whatsapp',
+      emailSent: false,
+    });
+    expect(msg).toContain(
+      '👉 No email on file — please follow up via WhatsApp before the window closes.'
+    );
+    expect(msg).not.toContain('📧 Email:');
   });
 });

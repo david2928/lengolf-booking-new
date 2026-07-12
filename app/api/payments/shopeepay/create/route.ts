@@ -42,7 +42,11 @@ interface CreateBody {
   validity_period_seconds?: number;
 }
 
-const DEFAULT_VALIDITY_PERIOD_SECONDS = 1800; // 30 min, matches the cleanup cron window.
+// 2 hours (was 30 min until 2026-07-12). Payers complete in minutes (p50 ~4min,
+// max ever 26min) — the longer window exists so the T+30min payment reminder
+// (cron club-rental-payment-reminder) lands while the reservation is still
+// recoverable. The cleanup cron keys off expires_at, no change needed there.
+const DEFAULT_VALIDITY_PERIOD_SECONDS = 7200;
 const MIN_VALIDITY_PERIOD_SECONDS = 60;
 const MAX_VALIDITY_PERIOD_SECONDS = 86400; // ShopeePay's documented upper bound.
 const BACKOFFICE_TOKEN_MIN_LENGTH = 32;

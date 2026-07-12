@@ -969,6 +969,7 @@
       "paymentHeading": "Payment",
       "paymentCashBody": "Pay with cash when you pick up the clubs at LENGOLF.",
       "paymentLinkBody": "You'll complete payment on ShopeePay's secure page and return here automatically.",
+      "paymentWindowNote": "Your clubs stay reserved for 2 hours while you complete payment.",
       "submitting": "Submitting...",
       "confirmReservation": "Confirm Reservation",
       "payNow": "Pay now",
@@ -1185,6 +1186,23 @@
       "footerAddressValue": "4th Floor, Mercury Ville at BTS Chidlom",
       "visitWebsiteCta": "Visit Our Website",
       "copyright": "© {year} LENGOLF. All rights reserved."
+    },
+    "courseRentalPaymentReminder": {
+      "subject": "Complete your golf club rental payment - {orderCode}",
+      "logoAlt": "LENGOLF Logo",
+      "heading": "Your clubs are still reserved",
+      "greeting": "Dear {name},",
+      "intro": "It looks like your payment didn't go through. No problem — we're still holding your clubs for you. Complete your payment below to confirm the reservation.",
+      "payCta": "Complete Payment",
+      "deadline": "This link is valid until {time} (Bangkok time, GMT+7). After that, the reservation is released automatically.",
+      "orderCodeLabel": "Order Code",
+      "setsLabel": "Club Sets",
+      "rentalPeriodLabel": "Rental Period",
+      "rentalPeriodSingle": "{date}",
+      "rentalPeriodRange": "{startDate} → {endDate} ({days, plural, =1 {# day} other {# days}})",
+      "totalLabel": "Total",
+      "help": "Having trouble with the payment? Simply reply to this email or message us on LINE (@lengolf) and our team will help you with an alternative payment method.",
+      "ignore": "If you have already paid or no longer need the clubs, you can safely ignore this email."
     },
     "courseRentalRefund": {
       "subject": "LENGOLF Refund Processed - {rentalCode}",

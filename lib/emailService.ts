@@ -513,6 +513,156 @@ export async function sendCourseRentalConfirmationEmail(booking: CourseRentalEma
 }
 
 // ---------------------------------------------------------------------
+// Course rental payment reminder — the abandoned-payment nudge sent by
+// GET /api/cron/club-rental-payment-reminder ~30 min after an online
+// order was created and is still unpaid. Links to /payment/start, which
+// mints a fresh gateway link at click time. (This is the "design it as
+// its own feature with a proper trigger + recovery URL" follow-up noted
+// on the removed 'awaiting_payment' state above.)
+// ---------------------------------------------------------------------
+
+export interface CourseRentalPaymentReminderEmailInput {
+  customerName: string;
+  email: string;
+  orderCode: string;
+  /** Display names of the rented sets, one entry per set. */
+  setNames: string[];
+  /** YYYY-MM-DD */
+  startDate: string;
+  /** YYYY-MM-DD */
+  endDate: string;
+  durationDays: number;
+  totalPrice: number;
+  /** Absolute, locale-prefixed /payment/start URL. */
+  paymentUrl: string;
+  /** Reservation expiry (ISO 8601) — rendered in Asia/Bangkok. */
+  expiresAt: string;
+  language?: Locale;
+}
+
+export async function sendCourseRentalPaymentReminderEmail(
+  input: CourseRentalPaymentReminderEmailInput,
+) {
+  const locale: Locale = input.language ?? 'en';
+  const t = createTranslator({
+    locale,
+    messages: getEmailMessages(locale),
+    namespace: 'emails.courseRentalPaymentReminder',
+  });
+  // Footer (phone / LINE / copyright) reuses the confirmation namespace so
+  // the contact details live in exactly one place per locale.
+  const tFooter = createTranslator({
+    locale,
+    messages: getEmailMessages(locale),
+    namespace: 'emails.courseRentalConfirmation',
+  });
+  const format = createFormatter({ locale });
+
+  const formatDate = (dateStr: string) =>
+    format.dateTime(bangkokDateTime(dateStr, '00:00'), {
+      dateStyle: 'full',
+      timeZone: 'Asia/Bangkok',
+    });
+  const dateDisplay =
+    input.durationDays > 1
+      ? t('rentalPeriodRange', {
+          startDate: formatDate(input.startDate),
+          endDate: formatDate(input.endDate),
+          days: input.durationDays,
+        })
+      : t('rentalPeriodSingle', { date: formatDate(input.startDate) });
+
+  const deadlineDisplay = format.dateTime(new Date(input.expiresAt), {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Asia/Bangkok',
+  });
+
+  const safeName = escapeHtml(input.customerName);
+  const safeOrderCode = escapeHtml(input.orderCode);
+  const setsHtml = input.setNames
+    .map(n => escapeHtml(n))
+    .join('<br>');
+
+  const emailContent = `
+    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="https://booking.len.golf/images/logo_v1.png" alt="${t('logoAlt')}" style="max-width: 200px;">
+        </div>
+
+        <h2 style="color: #1a3308; text-align: center; margin-bottom: 20px;">${t('heading')}</h2>
+
+        <p style="font-size: 16px; line-height: 1.5; color: #1a3308; margin-bottom: 5px;">
+            <strong>${t('greeting', { name: safeName })}</strong>
+        </p>
+        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
+            ${t('intro')}
+        </p>
+
+        <div style="text-align: center; margin-bottom: 12px;">
+            <a href="${input.paymentUrl}" style="display: inline-block; text-decoration: none; color: white; background-color: #15803d; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: bold;">
+                ${t('payCta')}
+            </a>
+        </div>
+        <p style="font-size: 13px; color: #777; text-align: center; margin-bottom: 20px;">
+            ${t('deadline', { time: deadlineDisplay })}
+        </p>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 15px;">
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('orderCodeLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; font-family: monospace;">${safeOrderCode}</td>
+            </tr>
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('setsLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${setsHtml}</td>
+            </tr>
+            <tr>
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd;">${t('rentalPeriodLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd;">${dateDisplay}</td>
+            </tr>
+            <tr style="font-weight: bold;">
+                <th style="text-align: left; padding: 10px; background-color: #f9f9f9; border-bottom: 1px solid #ddd; color: #15803d;">${t('totalLabel')}</th>
+                <td style="padding: 10px; border-bottom: 1px solid #ddd; color: #15803d;">฿${input.totalPrice.toLocaleString()}</td>
+            </tr>
+        </table>
+
+        <p style="font-size: 14px; line-height: 1.5; color: #555; margin-bottom: 10px;">${t('help')}</p>
+        <p style="font-size: 13px; line-height: 1.5; color: #999; margin-bottom: 20px;">${t('ignore')}</p>
+
+        <div style="font-size: 14px; color: #777; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p style="margin: 5px 0; text-align: center;">
+                <strong>${tFooter('footerPhoneLabel')}</strong> <a href="tel:+66966682335" style="color: #8dc743; text-decoration: none;">+66 96 668 2335</a>
+            </p>
+            <p style="margin: 5px 0; text-align: center;">
+                <strong>${tFooter('footerLineLabel')}</strong> <a href="https://lin.ee/UwwOr84" style="color: #8dc743; text-decoration: none;">@lengolf</a>
+            </p>
+            <p style="font-size: 12px; margin-top: 15px; color: #777; text-align: center;">
+                ${tFooter('copyright', { year: new Date().getFullYear() })}
+            </p>
+        </div>
+    </div>
+  `.trim();
+
+  const mailOptions = {
+    from: 'LENGOLF <notification@len.golf>',
+    replyTo: 'info@len.golf',
+    to: input.email,
+    subject: t('subject', { orderCode: input.orderCode }),
+    html: emailContent,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Course rental payment reminder email sent to:', input.email);
+    return true;
+  } catch (error) {
+    console.error('Failed to send course rental payment reminder email:', error);
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------
 // Course rental refund — sent when ShopeePay confirms a refund via
 // the notify webhook. Triggered by claimAndSendRefundEmail.
 // ---------------------------------------------------------------------

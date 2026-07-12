@@ -967,6 +967,7 @@
       "paymentHeading": "お支払い",
       "paymentCashBody": "LENGOLFでクラブを受け取る際に現金でお支払いください。",
       "paymentLinkBody": "ShopeePay の安全な決済ページでお支払いを完了すると、自動的にこのページに戻ります。",
+      "paymentWindowNote": "お支払い手続きの間、クラブは2時間確保されます。",
       "submitting": "送信中...",
       "confirmReservation": "予約を確定する",
       "payNow": "今すぐ支払う",
@@ -1183,6 +1184,23 @@
       "footerAddressValue": "Mercury Ville at BTS チットロム 4階",
       "visitWebsiteCta": "ウェブサイトを見る",
       "copyright": "© {year} LENGOLF. All rights reserved."
+    },
+    "courseRentalPaymentReminder": {
+      "subject": "ゴルフクラブレンタルのお支払い手続きのお願い - {orderCode}",
+      "logoAlt": "LENGOLFロゴ",
+      "heading": "クラブはまだ確保されています",
+      "greeting": "{name} 様",
+      "intro": "お支払い手続きが完了していないようです。ご安心ください。クラブは引き続きお取り置きしております。以下より、お支払いを完了してご予約を確定してください。",
+      "payCta": "お支払いへ進む",
+      "deadline": "このリンクの有効期限は {time}(バンコク時間、GMT+7)までです。期限を過ぎると、ご予約は自動的にキャンセルされます。",
+      "orderCodeLabel": "注文コード",
+      "setsLabel": "クラブセット",
+      "rentalPeriodLabel": "レンタル期間",
+      "rentalPeriodSingle": "{date}",
+      "rentalPeriodRange": "{startDate} → {endDate} ({days, plural, =1 {#日} other {#日}})",
+      "totalLabel": "合計",
+      "help": "お支払いがうまくいかない場合は、このメールにご返信いただくか、LINE(@lengolf)にてお問い合わせください。担当スタッフが別のお支払い方法をご案内いたします。",
+      "ignore": "すでにお支払い済みの場合や、レンタルが不要になった場合は、このメールを無視していただいて構いません。"
     },
     "courseRentalRefund": {
       "subject": "LENGOLF Refund Processed - {rentalCode}",

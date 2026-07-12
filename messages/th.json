@@ -967,6 +967,7 @@
       "paymentHeading": "การชำระเงิน",
       "paymentCashBody": "ชำระด้วยเงินสดเมื่อรับไม้กอล์ฟที่ LENGOLF",
       "paymentLinkBody": "คุณจะชำระเงินที่หน้าปลอดภัยของ ShopeePay แล้วระบบจะพากลับมาหน้านี้โดยอัตโนมัติ",
+      "paymentWindowNote": "ชุดกอล์ฟของคุณจะถูกจองไว้ 2 ชั่วโมงระหว่างที่คุณดำเนินการชำระเงิน",
       "submitting": "กำลังส่ง...",
       "confirmReservation": "ยืนยันการจอง",
       "payNow": "ชำระเงินตอนนี้",
@@ -1183,6 +1184,23 @@
       "footerAddressValue": "ชั้น 4 Mercury Ville ที่ BTS ชิดลม",
       "visitWebsiteCta": "เยี่ยมชมเว็บไซต์ของเรา",
       "copyright": "© {year} LENGOLF สงวนลิขสิทธิ์"
+    },
+    "courseRentalPaymentReminder": {
+      "subject": "กรุณาชำระเงินค่าเช่าชุดกอล์ฟของคุณ - {orderCode}",
+      "logoAlt": "โลโก้ LENGOLF",
+      "heading": "ชุดกอล์ฟของคุณยังจองไว้อยู่",
+      "greeting": "เรียน {name}",
+      "intro": "ดูเหมือนว่าการชำระเงินของคุณยังไม่เสร็จสมบูรณ์ ไม่ต้องกังวล เรายังคงจองชุดกอล์ฟไว้ให้คุณอยู่ กรุณาชำระเงินด้านล่างเพื่อยืนยันการจอง",
+      "payCta": "ชำระเงิน",
+      "deadline": "ลิงก์นี้ใช้ได้ถึง {time} (เวลากรุงเทพฯ GMT+7) หลังจากนั้นการจองจะถูกยกเลิกโดยอัตโนมัติ",
+      "orderCodeLabel": "รหัสคำสั่งจอง",
+      "setsLabel": "ชุดกอล์ฟ",
+      "rentalPeriodLabel": "ระยะเวลาเช่า",
+      "rentalPeriodSingle": "{date}",
+      "rentalPeriodRange": "{startDate} → {endDate} ({days, plural, =1 {# วัน} other {# วัน}})",
+      "totalLabel": "ยอดรวม",
+      "help": "หากพบปัญหาในการชำระเงิน ตอบกลับอีเมลนี้หรือติดต่อเราทาง LINE (@lengolf) ทีมงานยินดีช่วยเหลือและแนะนำช่องทางการชำระเงินอื่น",
+      "ignore": "หากคุณชำระเงินแล้วหรือไม่ต้องการเช่าชุดกอล์ฟแล้ว สามารถละเว้นอีเมลนี้ได้"
     },
     "courseRentalRefund": {
       "subject": "LENGOLF การคืนเงิน - {rentalCode}",
