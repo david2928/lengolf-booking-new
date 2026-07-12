@@ -25,8 +25,11 @@ import { createServerClient } from '@/utils/supabase/server';
 import { composeOrderExpiredLineMessage } from '@/lib/club-rental/lineMessage';
 
 export const dynamic = 'force-dynamic';
+// Up to BATCH_LIMIT sequential LINE pushes per tick — keep comfortably inside
+// the function's wall clock. Minute cadence drains any realistic backlog.
+export const maxDuration = 60;
 
-const BATCH_LIMIT = 20;
+const BATCH_LIMIT = 5;
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 const CRON_SECRET_MIN_LENGTH = 32;
 
@@ -107,6 +110,11 @@ export async function GET(request: NextRequest) {
     .not('expired_at', 'is', null)
     .is('expired_notify_sent_at', null)
     .not('is_test', 'is', true)
+    // Re-check the header is still an expired-unpaid cancel: a late payment
+    // webhook (or any resurrect path) doesn't clear expired_at, and the ping
+    // must never claim "never paid" for an order that ended up paid.
+    .eq('status', 'cancelled')
+    .eq('payment_status', 'failed')
     .gte('expired_at', lookbackIso)
     .order('expired_at', { ascending: true })
     .limit(BATCH_LIMIT);

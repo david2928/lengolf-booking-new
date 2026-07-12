@@ -83,6 +83,10 @@ BEGIN
               AND updated_at >= NOW() - INTERVAL '1 minute'
          )
      AND o.status <> 'cancelled'
+     -- Never let the expiry reconciliation overwrite a paid/refunded header:
+     -- the 1-minute updated_at heuristic above can match lines cancelled by
+     -- OTHER writers (e.g. a refund), not just the expiry CTE.
+     AND o.payment_status NOT IN ('paid', 'refunded', 'partially_refunded')
      AND NOT EXISTS (
            SELECT 1
              FROM public.club_rentals l
