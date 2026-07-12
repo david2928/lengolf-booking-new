@@ -405,6 +405,71 @@ export function composeOrderPaidLineMessage(input: OrderPaidLineInput): string {
   return lines.filter((l): l is string => l !== null).join('\n');
 }
 
+export interface OrderExpiredLineInput {
+  order_code: string;
+  customer_name: string;
+  customer_phone: string | null;
+  customer_email: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  duration_days: number | null;
+  delivery_requested: boolean | null;
+  delivery_address: string | null;
+  delivery_time: string | null;
+  return_time: string | null;
+  sets: Array<{ name: string; tier: string; gender: string }>;
+  add_ons?: unknown;
+  total_price: number | string;
+  notes: string | null;
+  contact_preference?: string | null;
+  uatPrefix?: boolean;
+}
+
+/**
+ * Compose one staff LINE notification when an unpaid course-rental ORDER is
+ * auto-cancelled by the expiry cron. Order-level for single- AND multi-set
+ * orders (expiry is order-scoped: the cron cancels the header once all its
+ * lines expire), so staff see the CRO code the manage UI keys on. Sent by
+ * GET /api/cron/club-rental-expired-notify.
+ */
+export function composeOrderExpiredLineMessage(input: OrderExpiredLineInput): string {
+  const prefix = input.uatPrefix ? '[UAT] ' : '';
+  const header = `${prefix}⌛ ORDER EXPIRED — UNPAID (ID: ${input.order_code}) ⌛`;
+
+  const daysLabel =
+    input.duration_days && input.duration_days > 1 ? `${input.duration_days}d` : '1d';
+  const setLines = input.sets.map(
+    (s, i) => `🏌️ Set ${i + 1}: ${s.name} (${tierLabel(s.tier)}, ${genderLabel(s.gender)})`,
+  );
+  const contactPrefLabel = contactPreferenceLabel(input.contact_preference);
+
+  const lines: Array<string | null> = [
+    header,
+    SEPARATOR,
+    `👤 Customer: ${input.customer_name}`,
+    input.customer_phone ? `📞 Phone: ${input.customer_phone}` : null,
+    input.customer_email ? `📧 Email: ${input.customer_email}` : null,
+    contactPrefLabel ? `💬 Contact via: ${contactPrefLabel}` : null,
+    `📦 ${input.sets.length} set${input.sets.length === 1 ? '' : 's'} in this order:`,
+    ...setLines,
+    `🗓️ Dates: ${formatRentalDate(input.start_date)} - ${formatRentalDate(input.end_date)} (${daysLabel})`,
+    deliveryLine({
+      delivery_requested: input.delivery_requested,
+      delivery_address: input.delivery_address,
+      delivery_time: input.delivery_time,
+      return_time: input.return_time,
+    } as RentalLineInput['rental']),
+    addOnsLine(input.add_ons),
+    `💰 Order total: ฿${formatPrice(input.total_price)} (never paid)`,
+    input.notes ? `📝 Notes: ${input.notes}` : null,
+    SEPARATOR,
+    `🗑️ Auto-cancelled — payment window lapsed. Slots released.`,
+    `👉 Contact the customer if you want to recover this booking.`,
+  ];
+
+  return lines.filter((l): l is string => l !== null).join('\n');
+}
+
 export function composeRentalLineMessage(input: RentalLineInput): string {
   const { rental, clubSet, uatPrefix } = input;
   const state = renderState(input);

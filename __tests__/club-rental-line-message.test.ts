@@ -9,6 +9,7 @@
  */
 
 import {
+  composeOrderExpiredLineMessage,
   composeRentalLineMessage,
   type RentalLineInput,
 } from '@/lib/club-rental/lineMessage';
@@ -470,6 +471,78 @@ describe('composeRentalLineMessage — post-DROP line row (shared fields absent)
       status: { kind: 'Paid', transactionSn: '140387562504423746' },
     });
     expect(msg).toContain('👤 Customer: ?');
+    expect(msg).not.toContain('undefined');
+  });
+});
+
+describe('composeOrderExpiredLineMessage', () => {
+  const baseOrder = {
+    order_code: 'CRO-20260712-AAAA',
+    customer_name: 'David Geiermann',
+    customer_phone: '+66842695447',
+    customer_email: 'dgeiermann@gmail.com',
+    contact_preference: 'line',
+    start_date: '2026-07-31',
+    end_date: '2026-08-02',
+    duration_days: 2,
+    delivery_requested: true,
+    delivery_address: 'Hilton Sukhumvit, Bangkok',
+    delivery_time: '09:00',
+    return_time: '19:00',
+    sets: [
+      { name: "Premium Men's - Callaway Warbird", tier: 'premium', gender: 'mens' },
+      { name: "Premium+ Men's - Callaway Paradym", tier: 'premium-plus', gender: 'mens' },
+    ],
+    add_ons: null,
+    total_price: '5680.00',
+    notes: null,
+  };
+
+  it('opens with the ⌛ ORDER EXPIRED header bracketed by emoji', () => {
+    const msg = composeOrderExpiredLineMessage(baseOrder);
+    expect(msg.split('\n')[0]).toBe(
+      '⌛ ORDER EXPIRED — UNPAID (ID: CRO-20260712-AAAA) ⌛'
+    );
+  });
+
+  it('lists every set and the never-paid money line', () => {
+    const msg = composeOrderExpiredLineMessage(baseOrder);
+    expect(msg).toContain('📦 2 sets in this order:');
+    expect(msg).toContain("🏌️ Set 1: Premium Men's - Callaway Warbird (Premium, Men's)");
+    expect(msg).toContain("🏌️ Set 2: Premium+ Men's - Callaway Paradym (Premium+, Men's)");
+    expect(msg).toContain('💰 Order total: ฿5,680 (never paid)');
+  });
+
+  it('closes with the auto-cancelled + follow-up footer', () => {
+    const lines = composeOrderExpiredLineMessage(baseOrder).split('\n');
+    expect(lines[lines.length - 2]).toBe(
+      '🗑️ Auto-cancelled — payment window lapsed. Slots released.'
+    );
+    expect(lines[lines.length - 1]).toBe(
+      '👉 Contact the customer if you want to recover this booking.'
+    );
+  });
+
+  it('singularizes for a single-set order and prefixes [UAT] off prod', () => {
+    const msg = composeOrderExpiredLineMessage({
+      ...baseOrder,
+      sets: baseOrder.sets.slice(0, 1),
+      uatPrefix: true,
+    });
+    expect(msg.split('\n')[0]).toBe(
+      '[UAT] ⌛ ORDER EXPIRED — UNPAID (ID: CRO-20260712-AAAA) ⌛'
+    );
+    expect(msg).toContain('📦 1 set in this order:');
+  });
+
+  it('degrades gracefully when the window fields are null', () => {
+    const msg = composeOrderExpiredLineMessage({
+      ...baseOrder,
+      start_date: null,
+      end_date: null,
+      duration_days: null,
+    });
+    expect(msg).toContain('🗓️ Dates: ? - ? (1d)');
     expect(msg).not.toContain('undefined');
   });
 });
