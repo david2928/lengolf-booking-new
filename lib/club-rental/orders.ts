@@ -1,4 +1,19 @@
 /**
+ * Provisional payment window stamped on ONLINE course orders at creation
+ * (header + every line). An order abandoned between "Confirm Reservation" and
+ * the /payment/start gateway hand-off would otherwise keep expires_at NULL
+ * forever — invisible to shopeepay_expire_unpaid_rentals() (which filters
+ * expires_at IS NOT NULL), so its reserved lines block set availability until
+ * staff manually cancel. /api/payments/shopeepay/create OVERWRITES this with
+ * the real link window (via applyOrderPaymentState) once the customer reaches
+ * the gateway. Cash and staff-created orders must keep expires_at NULL.
+ *
+ * NB the real link window can be SHORTER than this provisional one — the
+ * overwrite at /payment/start may legitimately move expires_at earlier.
+ */
+export const PROVISIONAL_PAYMENT_EXPIRY_SECONDS = 7200
+
+/**
  * Create the 1-line club_rental_orders header for a single COURSE rental,
  * BEFORE its club_rentals line is inserted.
  *

@@ -10,6 +10,7 @@ import {
 } from '@/lib/club-rental/lineMessage';
 import { allocateOrderMoney, courseDeliveryFee, groupAddOns, groupSetNames, round2 } from '@/lib/club-rental/order-pricing';
 import { resolveCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
+import { PROVISIONAL_PAYMENT_EXPIRY_SECONDS } from '@/lib/club-rental/orders';
 import { logOrderEvent } from '@/lib/club-rental/order-events';
 
 /**
@@ -182,6 +183,15 @@ export async function POST(request: NextRequest) {
     }
     const requiresPrepay = paymentMethod === 'card';
 
+    // Provisional payment window for ONLINE orders (see the constant's doc in
+    // lib/club-rental/orders.ts): without it, an order abandoned before the
+    // /payment/start hand-off keeps expires_at NULL and the expiry cron never
+    // frees its reserved sets. Overwritten with the real link window when the
+    // customer reaches the gateway. Cash orders stay NULL.
+    const provisionalExpiresAt = requiresPrepay
+      ? new Date(Date.now() + PROVISIONAL_PAYMENT_EXPIRY_SECONDS * 1000).toISOString()
+      : null;
+
     const end_date: string = body.end_date || start_date;
 
     // Authoritative billable duration from pickup/return (1-hour grace), shared
@@ -321,6 +331,7 @@ export async function POST(request: NextRequest) {
         payment_status: 'unpaid',
         payment_method_chosen: paymentMethodChosen,
         contact_preference: contactPreference,
+        expires_at: provisionalExpiresAt,
         rental_subtotal: rollup.rentalSubtotal,
         add_ons: validatedAddOns,
         add_ons_total: rollup.addOnsTotal,
@@ -369,6 +380,9 @@ export async function POST(request: NextRequest) {
             // line for the availability RPCs.
             rental_price: round2(lineRentalPrices[i]),
             return_time: return_time || null,
+            // Line mirror of the header's provisional payment window — the
+            // expire cron reads LINE expires_at (expires_at IS NOT NULL).
+            expires_at: provisionalExpiresAt,
           })
           .select('id')
           .single();
