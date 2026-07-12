@@ -111,6 +111,13 @@ export async function GET(request: NextRequest) {
     .eq('status', 'reserved')
     .eq('payment_status', 'pending')
     .eq('payment_method_chosen', 'online_shopeepay')
+    // WEBSITE-checkout orders only: both online write paths always stamp
+    // `language`; forms/staff orders never do (verified live: 37 staff orders
+    // carry online_shopeepay — a staff-issued 24h payment link must NOT get a
+    // "your payment didn't go through" email at T+30min; that cohort's
+    // recovery runs through the staff LINE chat). Also makes order.language
+    // always present for the email locale below.
+    .not('language', 'is', null)
     .not('is_test', 'is', true)
     .is('payment_reminder_sent_at', null)
     .not('expires_at', 'is', null)
@@ -134,11 +141,17 @@ export async function GET(request: NextRequest) {
 
   for (const order of candidates) {
     // Claim BEFORE sending — a concurrent tick loses the guarded UPDATE and
-    // skips, so the customer never gets a duplicate reminder.
+    // skips, so the customer never gets a duplicate reminder. The claim also
+    // re-verifies reserved+pending: a slow payer can complete payment (webhook
+    // flips the header to paid) between the candidate SELECT and this claim —
+    // sequential SMTP sends earlier in the batch make that window real — and a
+    // just-paid customer must never get a "payment didn't go through" email.
     const { data: claimed, error: claimError } = await supabase
       .from('club_rental_orders')
       .update({ payment_reminder_sent_at: new Date().toISOString() })
       .eq('id', order.id)
+      .eq('status', 'reserved')
+      .eq('payment_status', 'pending')
       .is('payment_reminder_sent_at', null)
       .select('id');
 
@@ -189,9 +202,10 @@ export async function GET(request: NextRequest) {
       // /payment/start mints a fresh gateway link at click time — any of the
       // order's line codes resolves to the same order-total charge; use the
       // earliest-created reserved line (the canonical payment line).
-      // Locale prefix: online orders always carry order.language (written at
-      // creation by both booking-new write paths); 'en' is unprefixed under
-      // localePrefix 'as-needed'.
+      // Locale prefix: 'en' is unprefixed under localePrefix 'as-needed'.
+      // The candidate query guarantees order.language is present (website
+      // orders only), so the preferred_language fallback from PR #60 is
+      // intentionally not needed here.
       const locale = resolveEmailLocale(order.language);
       const localePrefix = locale === 'en' ? '' : `/${locale}`;
       const paymentUrl = `https://booking.len.golf${localePrefix}/payment/start?ref=${encodeURIComponent(lineRows[0].rental_code)}`;
@@ -227,7 +241,7 @@ export async function GET(request: NextRequest) {
         sets,
         total_price: order.total_price,
         expiresAtDisplay,
-        emailSent,
+        emailStatus: order.customer_email ? (emailSent ? 'sent' : 'failed') : 'none',
         uatPrefix: !IS_PROD_ENV,
       });
 

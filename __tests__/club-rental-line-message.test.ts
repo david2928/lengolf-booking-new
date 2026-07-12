@@ -560,7 +560,7 @@ describe('composeOrderPaymentReminderLineMessage', () => {
     ],
     total_price: '2900.00',
     expiresAtDisplay: '14:30',
-    emailSent: true,
+    emailStatus: 'sent' as const,
   };
 
   it('opens with the ⏰ PAYMENT STILL PENDING header and shows expiry', () => {
@@ -584,11 +584,22 @@ describe('composeOrderPaymentReminderLineMessage', () => {
       ...baseReminder,
       customer_email: null,
       contact_preference: 'whatsapp',
-      emailSent: false,
+      emailStatus: 'none',
     });
     expect(msg).toContain(
       '👉 No email on file — please follow up via WhatsApp before the window closes.'
     );
     expect(msg).not.toContain('📧 Email:');
+  });
+
+  it('footer flags a failed email send as staff-only recovery', () => {
+    const msg = composeOrderPaymentReminderLineMessage({
+      ...baseReminder,
+      emailStatus: 'failed',
+    });
+    expect(msg).toContain(
+      '👉 Reminder email FAILED to send — please follow up via LINE; staff outreach is the only reminder this customer gets.'
+    );
+    expect(msg).toContain('📧 Email: dgeiermann@gmail.com');
   });
 });

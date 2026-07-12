@@ -25,7 +25,7 @@ export interface CreateOrderRequest {
   return_url: string;
   /** 'mweb' for LIFF/mobile browsers, 'pc' for desktop, 'app' for native apps. */
   platform_type: 'mweb' | 'pc' | 'app';
-  /** Order validity in seconds. Up to 432,000 (5 days) in TH; we use 1800. */
+  /** Order validity in seconds. Up to 432,000 (5 days) in TH; customer default is 7200 (2h). */
   validity_period: number;
   /** Optional JSON-encoded merchant metadata visible on ShopeePay receipt. */
   additional_info?: string;

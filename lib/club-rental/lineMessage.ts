@@ -415,8 +415,12 @@ export interface OrderPaymentReminderLineInput {
   total_price: number | string;
   /** Reservation expiry, pre-formatted for display (e.g. '14:30'). */
   expiresAtDisplay: string;
-  /** Whether the customer reminder email was actually sent. */
-  emailSent: boolean;
+  /**
+   * Outcome of the customer reminder email: 'sent' | 'failed' (address on
+   * file but the send errored — staff follow-up is the ONLY recovery, the
+   * claim is kept and the email is never retried) | 'none' (no address).
+   */
+  emailStatus: 'sent' | 'failed' | 'none';
   uatPrefix?: boolean;
 }
 
@@ -436,9 +440,13 @@ export function composeOrderPaymentReminderLineMessage(
     (s, i) => `🏌️ Set ${i + 1}: ${s.name} (${tierLabel(s.tier)}, ${genderLabel(s.gender)})`,
   );
 
-  const footerLine = input.emailSent
-    ? `👉 Reminder email sent to the customer — a personal follow-up${contactPrefLabel ? ` via ${contactPrefLabel}` : ''} converts best.`
-    : `👉 No email on file — please follow up${contactPrefLabel ? ` via ${contactPrefLabel}` : ''} before the window closes.`;
+  const via = contactPrefLabel ? ` via ${contactPrefLabel}` : '';
+  const footerLine =
+    input.emailStatus === 'sent'
+      ? `👉 Reminder email sent to the customer — a personal follow-up${via} converts best.`
+      : input.emailStatus === 'failed'
+        ? `👉 Reminder email FAILED to send — please follow up${via}; staff outreach is the only reminder this customer gets.`
+        : `👉 No email on file — please follow up${via} before the window closes.`;
 
   const lines: Array<string | null> = [
     header,

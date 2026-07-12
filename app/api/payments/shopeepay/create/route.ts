@@ -26,7 +26,7 @@ import { applyOrderPaymentState, loadOrderChargeContext } from '@/lib/shopeepay/
  * Backoffice flow: callers may override the link validity window by
  * supplying `validity_period_seconds` AND a valid `Authorization:
  * Bearer ${BACKOFFICE_API_TOKEN}` header. Staff issuing links from
- * lengolf-forms use this path; customers use the default 30 min.
+ * lengolf-forms use this path; customers use the default 2 hours.
  */
 
 interface CreateBody {
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Resolve the link validity. Customer flow omits the field and gets
-  // the 30-min default. Backoffice flow (lengolf-forms) supplies it and
+  // the 2-hour default. Backoffice flow (lengolf-forms) supplies it and
   // must authenticate via bearer token first.
   let effectiveValidity = DEFAULT_VALIDITY_PERIOD_SECONDS;
   if (validity_period_seconds !== undefined) {
