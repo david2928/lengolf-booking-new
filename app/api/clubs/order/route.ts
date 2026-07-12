@@ -9,7 +9,7 @@ import {
   composeOrderCreatedLineMessage,
 } from '@/lib/club-rental/lineMessage';
 import { allocateOrderMoney, courseDeliveryFee, groupAddOns, groupSetNames, round2 } from '@/lib/club-rental/order-pricing';
-import { resolveCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
+import { resolveOrCreateCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
 import { PROVISIONAL_PAYMENT_EXPIRY_SECONDS } from '@/lib/club-rental/orders';
 import { logOrderEvent } from '@/lib/club-rental/order-events';
 
@@ -236,13 +236,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // ---- Customer / user resolution (best-effort phone match) ------------------
-    const resolvedCustomerId = await resolveCustomerId(supabase, {
-      customerPhone: customer_phone,
-      customerName: customer_name,
-    });
-    const userId = await resolveUserId(supabase, resolvedCustomerId);
-
     // ---- Per-set availability PRE-check (the effective guard) ------------------
     const qtyBySet = new Map<string, number>();
     for (const l of lines) {
@@ -301,6 +294,18 @@ export async function POST(request: NextRequest) {
       delivery_fee,
       0,
     );
+
+    // ---- Customer / user resolution (best-effort match-or-create) --------------
+    // A unique phone match links the existing customer; a first-time guest gets a
+    // customers row created here so staff never see "No customer linked". Runs
+    // AFTER the availability pre-check so a 409'd request can't mint CRM rows.
+    const resolvedCustomerId = await resolveOrCreateCustomerId(supabase, {
+      customerPhone: customer_phone,
+      customerName: customer_name,
+      customerEmail: customer_email,
+      language: orderLanguage,
+    });
+    const userId = await resolveUserId(supabase, resolvedCustomerId);
 
     // ---- Create the order header ----------------------------------------------
     const { data: orderCode, error: codeErr } = await supabase.rpc('generate_club_rental_order_code');
@@ -452,16 +457,12 @@ export async function POST(request: NextRequest) {
     // (paid) email. Mirrors /api/clubs/reserve. AWAIT + try/catch (Vercel rule —
     // never fire-and-forget; the forms route's .catch() is the one thing NOT copied).
     if (!requiresPrepay && customer_email) {
-      let resolvedLanguage: string | null = orderLanguage;
-      if (!resolvedLanguage && resolvedCustomerId) {
-        const { data: customerLang } = await supabase
-          .from('customers')
-          .select('preferred_language')
-          .eq('id', resolvedCustomerId)
-          .single();
-        resolvedLanguage = customerLang?.preferred_language ?? null;
-      }
-      const emailLocale = resolveEmailLocale(resolvedLanguage);
+      // Booking-time locale or 'en' — deliberately NO customers.preferred_language
+      // fallback here: this route has no trusted customer_id (guest checkout), and
+      // rendering the email in a phone-matched customer's language would leak
+      // "this phone belongs to a customer" to a request supplying someone else's
+      // phone. The frontend always sends `language` (useLocale()).
+      const emailLocale = resolveEmailLocale(orderLanguage);
       try {
         await sendCourseRentalConfirmationEmail({
           customerName: customer_name,

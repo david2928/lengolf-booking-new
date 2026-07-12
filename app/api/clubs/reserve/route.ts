@@ -6,6 +6,7 @@ import { sendCourseRentalConfirmationEmail, resolveEmailLocale } from '@/lib/ema
 import { isValidLocale } from '@/i18n/routing';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 import { createCourseOrderHeader, PROVISIONAL_PAYMENT_EXPIRY_SECONDS } from '@/lib/club-rental/orders';
+import { resolveOrCreateCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
 
 /** Build trusted add-on price/label map at request time for dynamic pricing */
 function getTrustedAddons(): Record<string, { price: number; label: string }> {
@@ -306,6 +307,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to generate rental code' }, { status: 500 });
     }
 
+    // Guest checkouts (no trusted customer_id) resolve-or-create the customer by
+    // phone — mirrors /api/clubs/order. Runs after the availability check so a
+    // 409'd request can't mint CRM rows. Best-effort: null leaves the order
+    // unlinked for the forms "Link customer" fallback.
+    const resolvedCustomerId =
+      customer_id ??
+      (await resolveOrCreateCustomerId(supabase, {
+        customerPhone: customer_phone,
+        customerName: customer_name,
+        customerEmail: customer_email,
+        language: bookingLanguage,
+      }));
+    const resolvedUserId = user_id ?? (await resolveUserId(supabase, resolvedCustomerId));
+
     // Phase 0 (order-authority-inversion, 2026-07-02) made club_rentals.order_id
     // NOT NULL: every course line must belong to an order header, so the 1-line
     // header is created FIRST, then the line points at it. The shared
@@ -313,8 +328,8 @@ export async function POST(request: NextRequest) {
     // (DROP columns on club_rentals lines) — they are recorded ONLY on the
     // header. Value-identical to the old wrapCourseRentalInOrder semantics.
     const order = await createCourseOrderHeader(supabase, {
-      customer_id,
-      user_id,
+      customer_id: resolvedCustomerId,
+      user_id: resolvedUserId,
       customer_name,
       customer_email: customer_email || null,
       customer_phone: customer_phone || null,
@@ -422,6 +437,10 @@ export async function POST(request: NextRequest) {
       // Resolve locale: explicit body param first, then fall back to
       // customers.preferred_language if we know the customer.
       let resolvedLanguage: string | null = bookingLanguage;
+      // TRUSTED customer_id only (booking_app callers), never the phone-derived
+      // match: a guest request with a victim's phone + the attacker's email must
+      // not leak "this phone belongs to a customer (with language X)" via the
+      // confirmation email's locale. Guest checkouts send `language` anyway.
       if (!resolvedLanguage && customer_id) {
         const { data: customerLang } = await supabase
           .from('customers')

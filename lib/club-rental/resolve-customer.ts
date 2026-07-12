@@ -6,6 +6,9 @@
  *    customer_id; else a UNIQUE phone match (never auto-create); then the
  *    booking-app user_id. Lets forms staff tooling surface website orders instead
  *    of leaving customer_id NULL like the legacy reserve route.
+ *  - `resolveOrCreateCustomerId` (booking-new only, no forms mirror): same match,
+ *    but a guest checkout with NO matching customer CREATES one, so website
+ *    course orders never show "No customer linked" in the staff app.
  *  - READ path (`resolveRentalCustomer`): given a rental line + its parent order
  *    header, return the customer to display — the order is canonical for course
  *    rentals, the line is the indoor/orphan fallback (Option B, customer family).
@@ -23,6 +26,9 @@ interface ResolveInput {
  * Resolve a customer_id. Returns the supplied id, or a UNIQUE phone match, or
  * null. Never creates a customer; ambiguous (>1) phone matches resolve to null.
  * Best-effort: any RPC/query error degrades to null rather than failing the order.
+ *
+ * No in-repo caller since the order route moved to `resolveOrCreateCustomerId` —
+ * kept as the byte-for-byte mirror of the forms write path (see file header).
  */
 export async function resolveCustomerId(
   admin: any,
@@ -65,6 +71,116 @@ export async function resolveCustomerId(
     console.error('[ClubOrder] resolveCustomerId failed (non-blocking):', err);
   }
   return null;
+}
+
+interface ResolveOrCreateInput extends ResolveInput {
+  customerEmail?: string | null;
+  /** Booking-time site locale — seeds customers.preferred_language on create. */
+  language?: string | null;
+}
+
+/**
+ * Resolve a customer_id like `resolveCustomerId`, but when NO existing customer
+ * matches the phone, CREATE one (guest checkout → CRM row) and link it.
+ *
+ * booking-new ONLY — deliberately NOT mirrored to lengolf-forms: the staff app
+ * creates customers explicitly through its customer-management UI (with its own
+ * dedup picker), so its write path stays match-only.
+ *
+ * Rules:
+ *  - A caller-supplied customer_id always wins (trusted internal callers).
+ *  - Exactly one ACTIVE normalized-phone match → link it (no create).
+ *  - Ambiguous (>1) matches → null, stays unlinked for staff review.
+ *  - Zero matches → insert a customers row (customer_code + normalized_phone
+ *    are set by DB triggers) and link it. `preferred_language` is seeded from
+ *    the booking language so CRM-driven emails keep the customer's locale.
+ *  - No phone, unusable name, or any DB error → null (never fails the order;
+ *    the forms "Link customer" button remains the manual fallback).
+ *  - Matching filters is_active=true (unlike `resolveCustomerId`): a merged-away
+ *    or deactivated customer is deliberately NOT relinked — a fresh active row
+ *    is created instead, and the forms merge tooling reconciles if needed.
+ *
+ * NB there is no DB-level uniqueness on customers.normalized_phone — dedup is
+ * this pre-select, same posture as the forms staff create route; the forms
+ * duplicate-merge tooling is the backstop for the (tiny) concurrent-create race.
+ */
+export async function resolveOrCreateCustomerId(
+  admin: any,
+  { customerId, customerPhone, customerName, customerEmail, language }: ResolveOrCreateInput,
+): Promise<string | null> {
+  if (customerId) return customerId;
+  const name = customerName?.trim();
+  if (!customerPhone || !name) return null;
+
+  try {
+    const { data: normalizedRows } = await admin.rpc('normalize_phone_number', {
+      phone_input: customerPhone,
+    });
+    const normalized: string | null = Array.isArray(normalizedRows)
+      ? normalizedRows[0]
+      : (normalizedRows as string | null);
+    // An unusable phone (no digits) can't be deduped — don't create from it.
+    if (!normalized) return null;
+
+    const { data: matches, error: matchError } = await admin
+      .from('customers')
+      .select('id, customer_code')
+      .eq('normalized_phone', normalized)
+      .eq('is_active', true)
+      .limit(5);
+    // On a failed lookup, bail rather than risk creating a duplicate.
+    if (matchError) {
+      console.error('[ClubOrder] customer phone lookup failed (non-blocking):', matchError);
+      return null;
+    }
+
+    if (matches && matches.length === 1) {
+      console.log(
+        `[ClubOrder] Auto-linked customer_id=${matches[0].id} (${matches[0].customer_code}) from phone match`,
+      );
+      return matches[0].id;
+    }
+    if (matches && matches.length > 1) {
+      console.warn(
+        `[ClubOrder] Phone matched ${matches.length} customers — leaving unlinked for staff review.`,
+      );
+      return null;
+    }
+
+    // No match → create the customer. Log the generated code, never the phone.
+    // Minimal email format gate: this string was only length-checked upstream
+    // and now lands in the CRM column staff tooling + outreach read — a garbage
+    // or forged value is worse there than a null.
+    const email = customerEmail?.trim() || null;
+    const safeEmail = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+    const { data: created, error: insertError } = await admin
+      .from('customers')
+      .insert({
+        customer_name: name,
+        contact_number: customerPhone,
+        email: safeEmail,
+        preferred_language: language || null,
+      })
+      .select('id, customer_code')
+      .single();
+    if (insertError || !created) {
+      // Log code+message only — a constraint violation's `details` echoes the
+      // failing row (raw phone/email), which must never reach the logs.
+      console.error(
+        '[ClubOrder] customer auto-create failed (non-blocking):',
+        insertError?.code,
+        insertError?.message,
+      );
+      return null;
+    }
+    console.log(
+      `[ClubOrder] Auto-created customer_id=${created.id} (${created.customer_code}) from guest checkout`,
+    );
+    return created.id;
+  } catch (err) {
+    console.error('[ClubOrder] resolveOrCreateCustomerId failed (non-blocking):', err);
+    return null;
+  }
 }
 
 /** Resolve the booking-app profile user_id for a customer (nullable, best-effort). */
