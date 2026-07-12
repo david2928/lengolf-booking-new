@@ -70,5 +70,9 @@ END;
 $function$;
 
 -- Functions default to EXECUTE for PUBLIC — lock to service_role only.
+-- The explicit GRANT matters: the app FAILS OPEN on a permission error, so a
+-- missing grant would silently void the limiter with no visible symptom.
 REVOKE ALL ON FUNCTION public.rate_limit_hit(text, integer, integer)
   FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rate_limit_hit(text, integer, integer)
+  TO service_role;

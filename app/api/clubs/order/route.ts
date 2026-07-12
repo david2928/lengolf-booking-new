@@ -12,7 +12,7 @@ import { allocateOrderMoney, courseDeliveryFee, groupAddOns, groupSetNames, roun
 import { resolveOrCreateCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
 import { PROVISIONAL_PAYMENT_EXPIRY_SECONDS } from '@/lib/club-rental/orders';
 import { logOrderEvent } from '@/lib/club-rental/order-events';
-import { RATE_LIMITS, checkRateLimit, getClientIp, rateLimitedResponse } from '@/lib/rate-limit';
+import { RATE_LIMITS, checkRateLimit, clubsWriteKey, rateLimitedResponse } from '@/lib/rate-limit';
 
 /**
  * POST /api/clubs/order — order-aware course-rental write path.
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     // per IP before doing any work. Bucket shared with /api/clubs/reserve.
     const rateLimit = await checkRateLimit(
       createAdminClient(),
-      `clubs-write:${getClientIp(request)}`,
+      clubsWriteKey(request),
       RATE_LIMITS.clubsWrite,
     );
     if (!rateLimit.allowed) return rateLimitedResponse(rateLimit);
