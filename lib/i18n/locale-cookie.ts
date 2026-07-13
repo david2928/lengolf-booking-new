@@ -36,6 +36,9 @@ const MAX_AGE = 60 * 60 * 24 * 365;
  * necessity and step 2 simply overwrites it with the new value.
  */
 export function writeLocaleCookie(locale: Locale): void {
+  // Client-only: both callers live in a 'use client' component, but guard
+  // against an accidental server-side import (no `document` on the server).
+  if (typeof document === 'undefined') return;
   const domainAttr =
     process.env.NODE_ENV === 'production' ? '; Domain=.len.golf' : '';
   // 1) Remove the legacy host-only cookie (matches name + Path=/ + no Domain).
