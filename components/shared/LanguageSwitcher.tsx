@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react';
 import { Globe, ChevronDown, Check } from 'lucide-react';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { routing, localeNativeName, type Locale } from '@/i18n/routing';
+import { writeLocaleCookie } from '@/lib/i18n/locale-cookie';
 
 /** Short code shown on the trigger — uniform width regardless of locale. */
 const TRIGGER_CODE: Record<Locale, string> = {
@@ -72,28 +73,27 @@ export function LanguageSwitcher({ variant = 'dark' }: LanguageSwitcherProps = {
     requestAnimationFrame(() => itemRefs.current[activeIdx]?.focus());
   }, [open, locale]);
 
+  // Proactive de-shadow. Long-time users may carry a legacy host-only
+  // NEXT_LOCALE cookie (set before the `.len.golf` domain scoping shipped) that
+  // shadows the domain-scoped one server-side and traps them on an old locale —
+  // most visibly, "switch to English" bounces back. Re-asserting the cookie for
+  // the currently active locale on mount deletes the host-only variant, so
+  // affected users are unstuck the moment they land on a page with the switcher,
+  // without having to fight the menu. No-op for healthy users (idempotent write).
+  useEffect(() => {
+    writeLocaleCookie(locale);
+  }, [locale]);
+
   function handleSelect(next: Locale) {
     setOpen(false);
     if (next === locale) return;
 
-    // Write NEXT_LOCALE BEFORE navigating. next-intl v3's `router.replace`
-    // does NOT manage the cookie — the server middleware sets it only when
-    // a locale-prefixed URL is visited (`/th/...`). Switching TO the default
-    // locale (`en`) navigates to an unprefixed URL like `/bookings`, which
-    // the middleware sees alongside the stale cookie and 307-redirects BACK
-    // to `/{stale-locale}/bookings`. The user is then trapped: every "switch
-    // to English" click bounces them to their old locale.
-    //
-    // Match the attributes from i18n/routing.ts → localeCookie EXACTLY so
-    // this cookie shadows (not duplicates) the server-set one. Use the same
-    // `process.env.NODE_ENV === 'production'` predicate as routing.ts —
-    // anything else (e.g. hostname check) drifts on Vercel preview deploys
-    // and any future *.len.golf staging subdomain. Next.js inlines
-    // `process.env.NODE_ENV` for client components at build time.
-    const maxAge = 60 * 60 * 24 * 365; // 1 year, matches routing.ts
-    const domainAttr =
-      process.env.NODE_ENV === 'production' ? '; Domain=.len.golf' : '';
-    document.cookie = `NEXT_LOCALE=${next}; Path=/; Max-Age=${maxAge}; SameSite=lax${domainAttr}`;
+    // Write NEXT_LOCALE BEFORE navigating (and clear any legacy host-only
+    // cookie that would otherwise shadow it). See writeLocaleCookie for the
+    // full rationale — in short, next-intl v3's `router.replace` does NOT
+    // manage this cookie, and switching TO the unprefixed default locale (`en`)
+    // gets 307-redirected back to the stale locale unless we set it here.
+    writeLocaleCookie(next);
 
     startTransition(() => {
       router.replace(pathname, { locale: next });
