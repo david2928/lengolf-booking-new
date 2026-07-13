@@ -1524,6 +1524,23 @@ export default function CourseRentalPage() {
               )}
             </div>
 
+            {/* Rental agreement notice — acceptance is by completing the booking
+                (the agreement's Section 14). Links to the canonical page on len.golf. */}
+            <p className="text-center text-xs text-gray-500">
+              {t.rich('review.agreementNotice', {
+                link: (chunks) => (
+                  <a
+                    href="https://www.len.golf/golf-course-club-rental-agreement/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-700 underline underline-offset-2 hover:text-green-800"
+                  >
+                    {chunks}
+                  </a>
+                ),
+              })}
+            </p>
+
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
                 {error}
