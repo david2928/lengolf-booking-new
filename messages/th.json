@@ -972,6 +972,7 @@
       "payNow": "ชำระเงินตอนนี้",
       "payWithShopeepay": "ชำระ ฿{total} ผ่าน ShopeePay",
       "securedByShopeepay": "ปลอดภัยด้วย ShopeePay",
+      "agreementNotice": "เมื่อยืนยัน ถือว่าคุณยอมรับ<link>ข้อตกลงการเช่าอุปกรณ์</link>ของเรา",
       "setQty": "× {count}"
     },
     "confirmation": {

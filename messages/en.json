@@ -974,6 +974,7 @@
       "payNow": "Pay now",
       "payWithShopeepay": "Pay ฿{total} with ShopeePay",
       "securedByShopeepay": "Secured by ShopeePay",
+      "agreementNotice": "By confirming, you agree to our <link>Rental Agreement</link>.",
       "setQty": "× {count}"
     },
     "confirmation": {

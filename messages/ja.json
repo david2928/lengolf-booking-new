@@ -972,6 +972,7 @@
       "payNow": "今すぐ支払う",
       "payWithShopeepay": "ShopeePay で ฿{total} をお支払い",
       "securedByShopeepay": "ShopeePay で安全にお支払い",
+      "agreementNotice": "確定すると、<link>レンタル規約</link>に同意したものとみなされます。",
       "setQty": "× {count}"
     },
     "confirmation": {

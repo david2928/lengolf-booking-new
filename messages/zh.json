@@ -972,6 +972,7 @@
       "payNow": "立即付款",
       "payWithShopeepay": "使用 ShopeePay 支付 ฿{total}",
       "securedByShopeepay": "由 ShopeePay 安全保障",
+      "agreementNotice": "确认即表示您同意我们的<link>租赁协议</link>。",
       "setQty": "× {count}"
     },
     "confirmation": {

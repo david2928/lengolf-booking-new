@@ -972,6 +972,7 @@
       "payNow": "지금 결제",
       "payWithShopeepay": "ShopeePay로 ฿{total} 결제",
       "securedByShopeepay": "ShopeePay 보안 결제",
+      "agreementNotice": "확인하면 <link>대여 약관</link>에 동의하는 것으로 간주됩니다.",
       "setQty": "× {count}"
     },
     "confirmation": {
