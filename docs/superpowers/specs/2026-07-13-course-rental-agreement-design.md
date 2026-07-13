@@ -24,6 +24,7 @@ negligible liability).
 
 | Decision | Value |
 |---|---|
+| Operator (legal entity) | LENGOLF CO., LTD., Tax ID 0105566207013 |
 | Scope | Course (off-site) rental only |
 | Canonical home | `lengolf-website` → `/[locale]/golf-course-club-rental-agreement` |
 | Booking-side | `booking-new` course-rental footer links to the canonical URL (no duplicate copy) |
@@ -33,6 +34,7 @@ negligible liability).
 | Wear & tear | Covered by LENGOLF — renter not charged for normal wear |
 | Loss / serious damage | Renter pays repair cost, or fair replacement value if unrepairable; assessed case-by-case |
 | Delivery area | Bangkok and surrounding areas, by arrangement |
+| Late return | Charged at the standard daily rate per additional day; no grace period |
 
 ## 3. Architecture
 
@@ -58,7 +60,7 @@ negligible liability).
 > Last updated: 13 July 2026
 
 This Agreement governs the rental of golf club sets and related equipment (the
-"Equipment") by LENGOLF ("we", "us", "LENGOLF") to you ("you", the "Renter") for
+"Equipment") by LENGOLF CO., LTD. ("LENGOLF", "we", "us") to you ("you", the "Renter") for
 off-site use at golf courses. It applies to every off-site (course) rental you make with
 us, whether booked at booking.len.golf, by LINE, phone, email, or in person. Indoor /
 in-store simulator club rentals are not covered by this Agreement.
@@ -153,8 +155,8 @@ By confirming a course rental booking with us, you agree to this Agreement.
 
 **13. Contact**
 - LINE: @lengolf · Phone: 096-668-2335 · Email: info@len.golf
-- LENGOLF, The Mercury Ville @ BTS Chidlom, Floor 4, 540 Ploenchit Road, Lumpini,
-  Pathumwan, Bangkok 10330.
+- LENGOLF CO., LTD. (Tax ID 0105566207013), 540 Mercury Tower, 4th Floor, Unit 407,
+  Ploenchit Road, Lumpini, Pathumwan, Bangkok 10330.
 
 **14. Acceptance**
 - By confirming a course rental booking with LENGOLF — online, by LINE, phone, email, or
@@ -163,14 +165,14 @@ By confirming a course rental booking with us, you agree to this Agreement.
 We may update this Agreement from time to time; the version in effect when you book
 applies to that rental.
 
-## 5. Open items to confirm with David
+## 5. Open items
 
-- **Registered legal entity name.** The draft uses the trading name "LENGOLF". If the
-  operating company has a registered Thai entity name (Co., Ltd.), it should appear in the
-  intro and section 13. Confirm or leave as "LENGOLF".
-- **Late-return grace period.** Draft charges from the agreed return time with no grace.
-  Confirm whether a grace window (e.g. 1 hour) should be stated.
-- **Lawyer review** of sections 6 and 10 before go-live.
+- **Lawyer review** of sections 6 and 10 (damage liability + limitation of liability)
+  against Thai consumer-protection law before go-live. Recommended; not blocking the build.
+
+**Resolved:** operator = LENGOLF CO., LTD. (Tax ID 0105566207013); late return charged at
+the standard daily rate with no grace period; wear-and-tear covered by LENGOLF; delivery
+covers Bangkok and surrounding areas.
 
 ## 6. Implementation tasks (for writing-plans)
 
