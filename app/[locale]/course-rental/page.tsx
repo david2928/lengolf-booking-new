@@ -46,8 +46,18 @@ const SET_IMAGES: Record<string, { src: string; alt: string }[]> = {
     { src: `${STORAGE_BASE}/clubs/premium/7.png`, alt: 'Callaway Warbird S-flex shaft' },
     { src: `${STORAGE_BASE}/clubs/premium/1.png`, alt: 'Callaway Warbird golf bag' },
   ],
+  // Mirrors the Paradym (premium-plus_mens) angle sequence: full set -> driver ->
+  // irons -> fairway wood -> wedge -> putter -> shaft -> bag. Numbered shoot files
+  // live under clubs/premium-womens/ (uploaded the same way as the men's sets).
   'premium_womens': [
-    { src: `${STORAGE_BASE}/clubs/premium-womens/majesty-shuttle-full-set.jpg`, alt: 'Majesty Shuttle full set' },
+    { src: `${STORAGE_BASE}/clubs/premium-womens/2.png`, alt: 'Majesty Shuttle full set in bag' },
+    { src: `${STORAGE_BASE}/clubs/premium-womens/4.png`, alt: 'Majesty Shuttle driver' },
+    { src: `${STORAGE_BASE}/clubs/premium-womens/11.png`, alt: 'Majesty Shuttle irons set' },
+    { src: `${STORAGE_BASE}/clubs/premium-womens/9.png`, alt: 'Majesty Shuttle fairway wood' },
+    { src: `${STORAGE_BASE}/clubs/premium-womens/13.png`, alt: 'Majesty Shuttle wedge' },
+    { src: `${STORAGE_BASE}/clubs/premium-womens/15.png`, alt: 'Majesty Shuttle putter' },
+    { src: `${STORAGE_BASE}/clubs/premium-womens/12.png`, alt: 'Ladies flex shaft' },
+    { src: `${STORAGE_BASE}/clubs/premium-womens/1.png`, alt: 'Majesty Shuttle ladies golf bag' },
   ],
 };
 

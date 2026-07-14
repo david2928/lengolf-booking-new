@@ -179,7 +179,7 @@ const CLUB_IMAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/obj
 export function getSetThumbnailUrl(set: { tier: string; gender: string }): string {
   if (set.tier === 'premium-plus') return `${CLUB_IMAGE_BASE}/premium-plus/2.png`;
   if (set.tier === 'premium' && set.gender === 'mens') return `${CLUB_IMAGE_BASE}/warbird/warbird-full-set.webp`;
-  if (set.tier === 'premium' && set.gender === 'womens') return `${CLUB_IMAGE_BASE}/premium-womens/majesty-shuttle-full-set.jpg`;
+  if (set.tier === 'premium' && set.gender === 'womens') return `${CLUB_IMAGE_BASE}/premium-womens/2.png`;
   return '';
 }
 
