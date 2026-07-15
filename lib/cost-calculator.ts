@@ -282,12 +282,23 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   // 1. Bay Rate / Play & Food Package
   const playFoodPkg = playFoodPackageId ? getPackageById(playFoodPackageId) : null;
 
-  // Early Bird packages only cover morning slot (before 14:00)
+  // Early Bird packages only cover hours before 14:00.
   // Detection relies on CRM package display name containing "Early Bird"
   const isEarlyBirdPackage = packageDisplayName
     ? /early\s*bird/i.test(packageDisplayName)
     : false;
-  const packageCoversThisSlot = hasActivePackage && (!isEarlyBirdPackage || startHour < 14);
+  const EARLY_BIRD_CUTOFF = 14;
+  const bookingEnd = startFraction + duration;
+  // Venue policy (owner-confirmed Jul 2026): an Early Bird booking crossing
+  // 14:00 is NOT fully covered — the pre-14:00 portion draws on the package
+  // and the remainder is charged at the normal prorated rate (split branch
+  // below). Fully covered only when the booking ends by 14:00.
+  const packageCoversThisSlot = hasActivePackage
+    && (!isEarlyBirdPackage || bookingEnd <= EARLY_BIRD_CUTOFF);
+  const packageCoversPartially = hasActivePackage && isEarlyBirdPackage
+    && !packageCoversThisSlot && startFraction < EARLY_BIRD_CUTOFF;
+  // Promotions never stack on a booking the package pays for (fully or partially)
+  const packageAppliesToBay = packageCoversThisSlot || packageCoversPartially;
 
   if (playFoodPkg) {
     // Play & Food package replaces bay rate. Package name is brand data;
@@ -329,6 +340,58 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     notesJa.push(`ベイ料金は${packageDisplayName ?? 'お客様のパッケージ'}に含まれています`);
     notesKo.push(`베이 요금은 ${packageDisplayName ?? '회원님의 패키지'}에 포함되어 있습니다`);
     notesZh.push(`球位费用已包含在${packageDisplayName ?? '您的套餐'}中`);
+  } else if (packageCoversPartially) {
+    // Early Bird booking crossing 14:00 — split into a covered line
+    // (start → 14:00, drawn from the package) and a charged line
+    // (14:00 → end, at the normal prorated rate).
+    const coveredSegments = getPricedSegments(
+      startFraction, EARLY_BIRD_CUTOFF - startFraction, isWeekend,
+    );
+    const chargedSegments = getPricedSegments(
+      EARLY_BIRD_CUTOFF, bookingEnd - EARLY_BIRD_CUTOFF, isWeekend,
+    );
+    const chargedCost = Math.round(segmentsCost(chargedSegments));
+    const chargedOriginal = Math.round(segmentsOriginalCost(chargedSegments));
+
+    lineItems.push({
+      id: 'bay-rate-covered',
+      label: BAY_RATE_LABEL.en,
+      labelTh: BAY_RATE_LABEL.th,
+      labelJa: BAY_RATE_LABEL.ja,
+      labelKo: BAY_RATE_LABEL.ko,
+      labelZh: BAY_RATE_LABEL.zh,
+      detail: buildBayRateDetail('en', coveredSegments, isWeekend, startHour),
+      detailTh: buildBayRateDetail('th', coveredSegments, isWeekend, startHour),
+      detailJa: buildBayRateDetail('ja', coveredSegments, isWeekend, startHour),
+      detailKo: buildBayRateDetail('ko', coveredSegments, isWeekend, startHour),
+      detailZh: buildBayRateDetail('zh', coveredSegments, isWeekend, startHour),
+      amount: 0,
+      isCoveredByPackage: true,
+      packageName: packageDisplayName,
+      originalAmount: Math.round(segmentsCost(coveredSegments)),
+    });
+    lineItems.push({
+      id: 'bay-rate',
+      label: BAY_RATE_LABEL.en,
+      labelTh: BAY_RATE_LABEL.th,
+      labelJa: BAY_RATE_LABEL.ja,
+      labelKo: BAY_RATE_LABEL.ko,
+      labelZh: BAY_RATE_LABEL.zh,
+      detail: buildBayRateDetail('en', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
+      detailTh: buildBayRateDetail('th', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
+      detailJa: buildBayRateDetail('ja', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
+      detailKo: buildBayRateDetail('ko', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
+      detailZh: buildBayRateDetail('zh', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
+      amount: chargedCost,
+      originalAmount: chargedOriginal > chargedCost ? chargedOriginal : undefined,
+    });
+
+    const pkg = packageDisplayName;
+    notes.push(`${pkg ?? 'Your package'} covers until 14:00 — time after 14:00 is charged at the normal rate`);
+    notesTh.push(`${pkg ?? 'แพ็กเกจของคุณ'} ครอบคลุมถึง 14:00 — เวลาหลัง 14:00 คิดค่าบริการตามอัตราปกติ`);
+    notesJa.push(`${pkg ?? 'お客様のパッケージ'}は14:00までが対象です。14:00以降は通常料金となります`);
+    notesKo.push(`${pkg ?? '회원님의 패키지'}는 14:00까지만 적용됩니다. 14:00 이후는 정상 요금이 부과됩니다`);
+    notesZh.push(`${pkg ?? '您的套餐'}仅涵盖至14:00，14:00之后按正常价格收费`);
   } else {
     const originalTotal = Math.round(segmentsOriginalCost(baySegments));
 
@@ -422,7 +485,7 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     if (promo.promotion_type === 'bogo' && promo.free_hours) {
       const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
       if (isNewCustomerOnly && !isNewCustomer) continue;
-      if (packageCoversThisSlot || playFoodPkg) continue;
+      if (packageAppliesToBay || playFoodPkg) continue;
 
       if (duration >= 2) {
         // Apply free hour discount to current booking. The free hour(s) are
@@ -475,7 +538,7 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     if (promo.promotion_type === 'percentage' && promo.discount_value && promo.applies_to === 'bay_rate') {
       const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
       if (isNewCustomerOnly && !isNewCustomer) continue;
-      if (packageCoversThisSlot || playFoodPkg) continue;
+      if (packageAppliesToBay || playFoodPkg) continue;
 
       const bayItem = lineItems.find(item => item.id === 'bay-rate');
       if (bayItem) {
@@ -500,7 +563,7 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     if (promo.promotion_type === 'fixed_amount' && promo.discount_value) {
       const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
       if (isNewCustomerOnly && !isNewCustomer) continue;
-      if (promo.applies_to === 'bay_rate' && (packageCoversThisSlot || playFoodPkg)) continue;
+      if (promo.applies_to === 'bay_rate' && (packageAppliesToBay || playFoodPkg)) continue;
 
       discounts.push({
         id: `promo-${promo.id}`,
