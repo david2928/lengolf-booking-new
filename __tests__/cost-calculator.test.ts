@@ -251,6 +251,24 @@ describe('Early Bird package coverage splits at 14:00', () => {
     expect(breakdown.discounts).toHaveLength(0);
   });
 
+  test('a fixed-amount promo NOT scoped to bay_rate still applies on a split booking', () => {
+    const totalPromo: ApplicablePromotion = {
+      id: 'promo-total',
+      promotion_type: 'fixed_amount',
+      discount_value: 100,
+      applies_to: 'total',
+      conditions: {},
+      title_en: '฿100 off',
+      title_th: 'ลด ฿100',
+    };
+    const { breakdown } = items({
+      startTime: '13:30',
+      duration: 2,
+      applicablePromotions: [totalPromo],
+    });
+    expect(breakdown.discounts.find((d) => d.promotionId === 'promo-total')?.amount).toBe(-100);
+  });
+
   test('Thai note is present alongside the English one on a split booking', () => {
     const { breakdown } = items({ startTime: '13:30', duration: 2 });
     expect(breakdown.notesTh.some((n) => n.includes('14:00'))).toBe(true);
