@@ -4,7 +4,7 @@
  * Calculates projected cost breakdowns from booking parameters.
  */
 
-import { isWeekendDate, getRateForTime, timeSlots } from '@/lib/liff/bay-rates-data';
+import { isWeekendDate, getRateForTime, getRateSegments, timeSlots } from '@/lib/liff/bay-rates-data';
 import { getClubPricing, GOLF_CLUB_OPTIONS, getGearUpItems } from '@/types/golf-club-rental';
 import { getPackageById } from '@/types/play-food-packages';
 
@@ -76,6 +76,11 @@ export interface CostBreakdown {
   estimatedTotal: number;
   isWeekend: boolean;
   timeSlotLabel: string;
+  /**
+   * @deprecated Start-slot rate only — a booking straddling 14:00/17:00 is
+   * prorated across slots, so `hourlyRate * duration` is NOT the bay amount.
+   * Read the `bay-rate` line item instead.
+   */
   hourlyRate: number;
   notes: string[];
   notesTh: string[];
@@ -106,28 +111,94 @@ const STANDARD_SET_LABEL = {
 const COMPLIMENTARY_LABEL = { en: 'Complimentary', th: 'ฟรี', ja: '無料', ko: '무료', zh: '免费' };
 const ADD_ON_PREFIX = { en: 'Add-on', th: 'เพิ่ม', ja: 'アドオン', ko: '추가 상품', zh: '加购' };
 
+/** A booking portion priced at one rate (a booking may straddle slot boundaries). */
+interface PricedSegment {
+  hours: number;
+  price: number;
+  originalPrice?: number;
+}
+
+/**
+ * Prorate a booking window across rate-slot boundaries (e.g. 13:30–14:30
+ * weekday = 0.5h morning ฿550 + 0.5h afternoon ฿750). Returns one segment
+ * per distinct (price, originalPrice) run.
+ */
+function getPricedSegments(startHour: number, duration: number, isWeekend: boolean): PricedSegment[] {
+  const merged: PricedSegment[] = [];
+  for (const { hours, rate } of getRateSegments(startHour, duration)) {
+    const price = isWeekend ? rate.weekendPrice : rate.weekdayPrice;
+    const originalPrice = isWeekend ? rate.originalWeekendPrice : rate.originalWeekdayPrice;
+    const last = merged[merged.length - 1];
+    if (last && last.price === price && last.originalPrice === originalPrice) {
+      last.hours += hours;
+    } else {
+      merged.push({ hours, price, originalPrice });
+    }
+  }
+  return merged;
+}
+
+function segmentsCost(segments: PricedSegment[]): number {
+  return segments.reduce((sum, s) => sum + s.hours * s.price, 0);
+}
+
+function segmentsOriginalCost(segments: PricedSegment[]): number {
+  return segments.reduce((sum, s) => sum + s.hours * (s.originalPrice ?? s.price), 0);
+}
+
+const HOUR_UNIT: Record<'en' | 'th' | 'ja' | 'ko' | 'zh', string> = {
+  en: 'hr', th: ' ชม.', ja: '時間', ko: '시간', zh: '小时',
+};
+
+/** Display precision for fractional hours (0.5 stays 0.5; 1/3 → 0.33). */
+function formatHours(hours: number): number {
+  return Math.round(hours * 100) / 100;
+}
+
 function buildBayRateDetail(
   lang: 'en' | 'th' | 'ja' | 'ko' | 'zh',
-  duration: number,
-  hourlyRate: number,
+  segments: PricedSegment[],
   isWeekend: boolean,
   startHour: number,
 ): string {
-  const rate = `฿${hourlyRate.toLocaleString()}`;
   const dayLabel = isWeekend ? WEEKEND_LABEL[lang] : WEEKDAY_LABEL[lang];
-  const slot = getTimeSlotLabel(startHour, lang);
-  switch (lang) {
-    case 'th':
-      return `${duration} ชม. × ${rate}/ชม. (${dayLabel}, ${slot})`;
-    case 'ja':
-      return `${duration}時間 × ${rate}/時間 (${dayLabel}、${slot})`;
-    case 'ko':
-      return `${duration}시간 × ${rate}/시간 (${dayLabel}, ${slot})`;
-    case 'zh':
-      return `${duration}小时 × ${rate}/小时 (${dayLabel}, ${slot})`;
-    default:
-      return `${duration}hr × ${rate}/hr (${dayLabel}, ${slot})`;
+  const unit = HOUR_UNIT[lang];
+
+  // Display groups by price only (a promo original-price difference at the
+  // same current price still reads as one rate).
+  const groups: Array<{ hours: number; price: number }> = [];
+  for (const s of segments) {
+    const last = groups[groups.length - 1];
+    if (last && last.price === s.price) last.hours += s.hours;
+    else groups.push({ hours: s.hours, price: s.price });
   }
+
+  if (groups.length <= 1) {
+    const duration = formatHours(groups[0]?.hours ?? 0);
+    const rate = `฿${(groups[0]?.price ?? 0).toLocaleString()}`;
+    // A booking crossing into a same-priced slot (e.g. 16:00–18:00 weekday)
+    // merges to one price group but no longer fits the start slot's label —
+    // drop the label rather than mislabel it.
+    const slot = segments.length > 1 ? null : getTimeSlotLabel(startHour, lang);
+    const suffix = slot ? `(${dayLabel}${lang === 'ja' ? '、' : ', '}${slot})` : `(${dayLabel})`;
+    switch (lang) {
+      case 'th':
+        return `${duration} ชม. × ${rate}/ชม. ${suffix}`;
+      case 'ja':
+        return `${duration}時間 × ${rate}/時間 ${suffix}`;
+      case 'ko':
+        return `${duration}시간 × ${rate}/시간 ${suffix}`;
+      case 'zh':
+        return `${duration}小时 × ${rate}/小时 ${suffix}`;
+      default:
+        return `${duration}hr × ${rate}/hr ${suffix}`;
+    }
+  }
+
+  const parts = groups
+    .map((g) => `${formatHours(g.hours)}${unit} × ฿${g.price.toLocaleString()}`)
+    .join(' + ');
+  return `${parts} (${dayLabel})`;
 }
 
 function buildDurationDetail(lang: 'en' | 'th' | 'ja' | 'ko' | 'zh', duration: number): string {
@@ -184,20 +255,29 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   const notesKo: string[] = ['예상 금액 — 현장에서 결제'];
   const notesZh: string[] = ['预估价格 — 现场付款'];
 
-  const startHour = parseInt(startTime?.split(':')[0], 10);
-  if (isNaN(startHour) || duration <= 0) {
+  const [startHourPart, startMinutePart] = (startTime ?? '').split(':');
+  const startHour = parseInt(startHourPart, 10);
+  // !(duration > 0) also catches NaN, which `duration <= 0` lets through
+  if (isNaN(startHour) || !(duration > 0)) {
     return {
       lineItems: [], discounts: [], subtotal: 0, totalDiscount: 0,
       estimatedTotal: 0, isWeekend: false, timeSlotLabel: '', hourlyRate: 0,
       notes, notesTh, notesJa, notesKo, notesZh,
     };
   }
+  const startMinutes = parseInt(startMinutePart ?? '0', 10);
+  // Fractional start (13:30 → 13.5) so bookings straddling a rate boundary
+  // are prorated per portion instead of priced at the start slot's rate.
+  const startFraction = startHour + (isNaN(startMinutes) ? 0 : startMinutes / 60);
   const isWeekend = isWeekendDate(date);
   const rate = getRateForTime(startHour);
   const hourlyRate = rate
     ? (isWeekend ? rate.weekendPrice : rate.weekdayPrice)
     : 0;
   const timeSlotLabel = getTimeSlotLabel(startHour);
+  const baySegments = getPricedSegments(startFraction, duration, isWeekend);
+  // Round to whole baht — odd start minutes (e.g. 13:20) yield fractional hours
+  const bayCost = Math.round(segmentsCost(baySegments));
 
   // 1. Bay Rate / Play & Food Package
   const playFoodPkg = playFoodPackageId ? getPackageById(playFoodPackageId) : null;
@@ -234,15 +314,15 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       labelJa: BAY_RATE_LABEL.ja,
       labelKo: BAY_RATE_LABEL.ko,
       labelZh: BAY_RATE_LABEL.zh,
-      detail: buildBayRateDetail('en', duration, hourlyRate, isWeekend, startHour),
-      detailTh: buildBayRateDetail('th', duration, hourlyRate, isWeekend, startHour),
-      detailJa: buildBayRateDetail('ja', duration, hourlyRate, isWeekend, startHour),
-      detailKo: buildBayRateDetail('ko', duration, hourlyRate, isWeekend, startHour),
-      detailZh: buildBayRateDetail('zh', duration, hourlyRate, isWeekend, startHour),
+      detail: buildBayRateDetail('en', baySegments, isWeekend, startHour),
+      detailTh: buildBayRateDetail('th', baySegments, isWeekend, startHour),
+      detailJa: buildBayRateDetail('ja', baySegments, isWeekend, startHour),
+      detailKo: buildBayRateDetail('ko', baySegments, isWeekend, startHour),
+      detailZh: buildBayRateDetail('zh', baySegments, isWeekend, startHour),
       amount: 0,
       isCoveredByPackage: true,
       packageName: packageDisplayName,
-      originalAmount: hourlyRate * duration,
+      originalAmount: bayCost,
     });
     notes.push(`Bay rate covered by ${packageDisplayName ?? 'your package'}`);
     notesTh.push(`ค่าเบย์รวมอยู่ในแพ็กเกจ ${packageDisplayName ?? 'ของคุณ'}`);
@@ -250,11 +330,7 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     notesKo.push(`베이 요금은 ${packageDisplayName ?? '회원님의 패키지'}에 포함되어 있습니다`);
     notesZh.push(`球位费用已包含在${packageDisplayName ?? '您的套餐'}中`);
   } else {
-    const bayTotal = hourlyRate * duration;
-    const originalRate = rate
-      ? (isWeekend ? rate.originalWeekendPrice : rate.originalWeekdayPrice)
-      : undefined;
-    const originalTotal = originalRate ? originalRate * duration : undefined;
+    const originalTotal = Math.round(segmentsOriginalCost(baySegments));
 
     lineItems.push({
       id: 'bay-rate',
@@ -263,13 +339,13 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       labelJa: BAY_RATE_LABEL.ja,
       labelKo: BAY_RATE_LABEL.ko,
       labelZh: BAY_RATE_LABEL.zh,
-      detail: buildBayRateDetail('en', duration, hourlyRate, isWeekend, startHour),
-      detailTh: buildBayRateDetail('th', duration, hourlyRate, isWeekend, startHour),
-      detailJa: buildBayRateDetail('ja', duration, hourlyRate, isWeekend, startHour),
-      detailKo: buildBayRateDetail('ko', duration, hourlyRate, isWeekend, startHour),
-      detailZh: buildBayRateDetail('zh', duration, hourlyRate, isWeekend, startHour),
-      amount: bayTotal,
-      originalAmount: originalTotal,
+      detail: buildBayRateDetail('en', baySegments, isWeekend, startHour),
+      detailTh: buildBayRateDetail('th', baySegments, isWeekend, startHour),
+      detailJa: buildBayRateDetail('ja', baySegments, isWeekend, startHour),
+      detailKo: buildBayRateDetail('ko', baySegments, isWeekend, startHour),
+      detailZh: buildBayRateDetail('zh', baySegments, isWeekend, startHour),
+      amount: bayCost,
+      originalAmount: originalTotal > bayCost ? originalTotal : undefined,
     });
 
     if (hasActivePackage && isEarlyBirdPackage && startHour >= 14) {
@@ -349,9 +425,16 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       if (packageCoversThisSlot || playFoodPkg) continue;
 
       if (duration >= 2) {
-        // Apply free hour discount to current booking
+        // Apply free hour discount to current booking. The free hour(s) are
+        // the LAST of the block (customer plays the bonus time at the end),
+        // prorated across rate boundaries like the bay charge itself.
         const freeHours = Math.min(promo.free_hours, duration - 1);
-        const discountAmount = hourlyRate * freeHours;
+        const freeSegments = getPricedSegments(
+          startFraction + duration - freeHours,
+          freeHours,
+          isWeekend,
+        );
+        const discountAmount = Math.round(segmentsCost(freeSegments));
         if (discountAmount > 0) {
           discounts.push({
             id: `promo-${promo.id}`,
@@ -373,6 +456,18 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         notesJa.push(`🎉 ${promo.title_en} — 2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください`);
         notesKo.push(`🎉 ${promo.title_en} — 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요`);
         notesZh.push(`🎉 ${promo.title_en} — 预订2小时即获1小时免费！或在7天内兑换您的免费时段`);
+
+        // The free hour waives the BAY charge only — a paid club set is
+        // billed on total play time. Disclose it so the venue charge
+        // (e.g. 2h club tier after redeeming the free hour in-session)
+        // doesn't surprise the customer.
+        if (clubRentalId && clubRentalId !== 'none' && clubRentalId !== 'standard') {
+          notes.push('Club rental is charged on total play time, including the free hour');
+          notesTh.push('ค่าเช่าไม้กอล์ฟคิดตามเวลาเล่นจริงทั้งหมด รวมชั่วโมงฟรีด้วย');
+          notesJa.push('クラブレンタル料金は無料時間を含む総プレー時間に対して発生します');
+          notesKo.push('클럽 렌탈 요금은 무료 시간을 포함한 총 플레이 시간 기준으로 청구됩니다');
+          notesZh.push('球杆租赁费用按总打球时间计算（包含免费时段）');
+        }
       }
     }
 

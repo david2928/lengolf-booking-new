@@ -117,6 +117,40 @@ export function getRates(): Rate[] {
   ];
 }
 
+export interface RateSegment {
+  hours: number;
+  rate: Rate;
+}
+
+/**
+ * Split a booking window into rate segments across slot boundaries, so a
+ * booking straddling 14:00 (or 17:00) is priced per-portion instead of
+ * entirely at the start slot's rate. Hours are fractional (13:30 → 13.5).
+ * The first slot extends back to 00:00 and the last forward past 24:00 so
+ * out-of-hours portions inherit the nearest slot's rate rather than ฿0.
+ *
+ * Proration is the venue's charging policy (owner-approved Jul 2026 after
+ * BK260715J6RC): a straddling hour is billed per-portion, not at the slot
+ * the hour starts or ends in. POS must charge the same way.
+ */
+export function getRateSegments(startHour: number, durationHours: number): RateSegment[] {
+  const allRates = getRates();
+  const end = startHour + durationHours;
+  const segments: RateSegment[] = [];
+
+  timeSlots.forEach((slot, i) => {
+    const slotStart = i === 0 ? Math.min(slot.startHour, startHour) : slot.startHour;
+    const slotEnd = i === timeSlots.length - 1 ? Math.max(slot.endHour, end) : slot.endHour;
+    const overlap = Math.min(end, slotEnd) - Math.max(startHour, slotStart);
+    if (overlap <= 0) return;
+    const rate = allRates.find((r) => r.timeSlotId === slot.id);
+    if (!rate) return;
+    segments.push({ hours: overlap, rate });
+  });
+
+  return segments;
+}
+
 export const amenities: Amenity[] = [
   {
     id: 'rental',
