@@ -12,6 +12,7 @@ import { allocateOrderMoney, courseDeliveryFee, groupAddOns, groupSetNames, roun
 import { resolveOrCreateCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
 import { PROVISIONAL_PAYMENT_EXPIRY_SECONDS } from '@/lib/club-rental/orders';
 import { logOrderEvent } from '@/lib/club-rental/order-events';
+import { RATE_LIMITS, checkRateLimit, clubsWriteKey, rateLimitedResponse } from '@/lib/rate-limit';
 
 /**
  * POST /api/clubs/order — order-aware course-rental write path.
@@ -84,6 +85,15 @@ function getBaseUrl(): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Guest checkout auto-creates customers rows on unmatched phones — throttle
+    // per IP before doing any work. Bucket shared with /api/clubs/reserve.
+    const rateLimit = await checkRateLimit(
+      createAdminClient(),
+      clubsWriteKey(request),
+      RATE_LIMITS.clubsWrite,
+    );
+    if (!rateLimit.allowed) return rateLimitedResponse(rateLimit);
+
     const body: OrderBody = await request.json();
 
     const {
