@@ -9,10 +9,11 @@
  * rental prices up with the shared charges into the header rollup.
  *
  * This mirrors lengolf-forms `src/lib/club-rental/order-pricing.ts` (the canonical
- * model). The one deliberate divergence: booking-new feeds in per-line prices from
- * its OWN optimal-combo `getCoursePrice` (see types/golf-club-rental.ts), NOT the
- * forms simple-tier helper — so the website charges the same per-set amount the
- * customer saw on the page. The rollup below is pricing-function-agnostic.
+ * model). Per-line prices come from the optimal-combo `getCoursePrice` in
+ * types/golf-club-rental.ts; the forms repo now uses an identical copy of that
+ * function (its old simple-tier helper rounded non-standard durations up to the
+ * next tier and overcharged, e.g. 10 days at the 14-day price). The rollup below
+ * is pricing-function-agnostic.
  *
  * THB is rounded at every accumulation point (CLAUDE.md money rule).
  */

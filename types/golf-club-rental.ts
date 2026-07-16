@@ -309,6 +309,14 @@ export interface CoursePriceBreakdown {
  * Uses dynamic programming over the available tier prices: 1d, 3d, 7d, 14d.
  * Overpacking is allowed — e.g. 2 days may use a 3-day pack if it's cheaper than 2×1-day.
  * This is intentional: the customer pays less and gets extra coverage.
+ *
+ * ⚠️ CROSS-REPO DUPLICATE: MUST stay identical to lengolf-forms
+ * `src/lib/club-rental/order-pricing.ts` getCoursePriceBreakdown()/getCoursePrice() —
+ * staff-created backoffice orders charge with that copy, and they must charge
+ * exactly what this copy quoted the customer on the website (same duplication
+ * pattern as resolve-customer.ts). A divergence here once priced a 10-day rental
+ * at the 14-day tier (฿8,400) in forms while this copy quoted 7d+3d packs (฿7,200).
+ * Unit tests in both repos pin the same expected price table.
  */
 export function getCoursePriceBreakdown(set: RentalClubSet, durationDays: number): CoursePriceBreakdown {
   const tiers: { days: number; price: number; label: string }[] = [
@@ -318,11 +326,15 @@ export function getCoursePriceBreakdown(set: RentalClubSet, durationDays: number
     { days: 14, price: Number(set.course_price_14d), label: '14-day pack' },
   ];
 
+  // Defensive normalisation: the DP needs a non-negative integer. A non-finite
+  // duration falls back to 14 days — same outcome as the legacy simple-tier
+  // lookup's final branch. Fractional days round up (you can't rent part of a day).
+  const n = Number.isFinite(durationDays) ? Math.max(0, Math.ceil(durationDays)) : 14;
+
   const dayPrice = tiers[0].price;
-  const dailyRate = durationDays * dayPrice;
+  const dailyRate = n * dayPrice;
 
   // dp[i] = minimum cost to cover i days
-  const n = durationDays;
   const dp = new Array(n + 1).fill(Infinity);
   const choice = new Array(n + 1).fill(-1);
   dp[0] = 0;
