@@ -7,8 +7,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { createClient } from '@/utils/supabase/client';
 import { useSession } from 'next-auth/react';
+import { mergeMessages, diffNew, countUnread } from '@/lib/chatPolling';
 
 export interface ChatMessage {
   id: string;
@@ -49,7 +49,13 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
   // POSTs racing the unique-active-conversation-per-user index.
   const initInFlight = useRef<Promise<void> | null>(null);
 
-  const supabase = createClient();
+  // Mirror of `messages` for the polling loop, so poll ticks can diff
+  // against current state without going through a setState updater
+  // (side effects inside updaters break under StrictMode double-invoke).
+  const messagesRef = useRef<ChatMessage[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Generate or retrieve session ID
   const getSessionId = useCallback(() => {
@@ -169,7 +175,7 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
     } finally {
       initInFlight.current = null;
     }
-  }, [chatSession.isInitialized, session, getSessionId, supabase, status]);
+  }, [chatSession.isInitialized, session, getSessionId, status]);
 
   // Load messages for conversation using API route
   const loadMessages = useCallback(async (conversationId: string) => {
@@ -227,7 +233,17 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
         throw new Error('Failed to send message');
       }
 
-      // Message will be received via real-time subscription
+      // Echo the persisted row(s) immediately so the sender's own bubble
+      // (and any out-of-hours auto-reply) doesn't wait for the next poll.
+      // mergeMessages dedupes by id when the poll returns the same rows.
+      const data = await response.json();
+      const echoed: ChatMessage[] = [
+        ...(data.message ? [data.message] : []),
+        ...(data.autoReply ? [data.autoReply] : []),
+      ];
+      if (echoed.length > 0) {
+        setMessages((prev) => mergeMessages(prev, echoed));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
     } finally {
@@ -263,59 +279,74 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
     }
   }, [chatSession.conversationId]);
 
-  // Set up real-time subscription
+  // Poll for new messages. Replaces the former anon-key realtime
+  // subscription: anon SELECT on web_chat_messages was revoked in the
+  // 2026-07 Supabase security hardening, so the widget now fetches through
+  // the ownership-checked /api/chat/messages route instead.
   useEffect(() => {
     if (skip) return; // Skip on LIFF pages
     if (!chatSession.conversationId) return;
 
-    const channel = supabase
-      .channel(`chat-${chatSession.conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'web_chat_messages',
-          filter: `conversation_id=eq.${chatSession.conversationId}`,
-        },
-        (payload: any) => {
-          try {
-            const newMessage = payload.new as ChatMessage;
+    const POLL_VISIBLE_MS = 3000;
+    const POLL_HIDDEN_MS = 15000;
 
-            // Validate message data before processing
-            if (!newMessage || !newMessage.id) {
-              console.warn('Invalid message received:', payload);
-              return;
-            }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-            setMessages(prev => {
-              // Avoid duplicates
-              if (prev.find(msg => msg.id === newMessage.id)) {
-                return prev;
-              }
-              return [...prev, newMessage];
-            });
-
-            // Update unread count for non-customer messages
-            if (newMessage.sender_type !== 'customer') {
-              setUnreadCount(prev => prev + 1);
-            }
-
-            // Clear typing indicator when bot responds
-            if (newMessage.sender_type === 'bot') {
+    const poll = async () => {
+      try {
+        const response = await fetch('/api/chat/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: chatSession.conversationId,
+            sessionId: chatSession.sessionId,
+          }),
+        });
+        if (cancelled) return;
+        if (response.ok) {
+          const data = await response.json();
+          const incoming: ChatMessage[] = data.messages || [];
+          const added = diffNew(messagesRef.current, incoming);
+          if (added.length > 0) {
+            setMessages((prev) => mergeMessages(prev, incoming));
+            // Clear typing indicator once the bot's reply lands.
+            if (added.some((m) => m.sender_type === 'bot')) {
               setIsTyping(false);
             }
-          } catch (error) {
-            console.error('Error processing real-time message:', error, payload);
           }
+          setUnreadCount(countUnread(incoming));
         }
-      )
-      .subscribe();
+      } catch {
+        // Network hiccup — the next tick retries.
+      } finally {
+        if (!cancelled) {
+          const interval =
+            typeof document !== 'undefined' && document.visibilityState === 'hidden'
+              ? POLL_HIDDEN_MS
+              : POLL_VISIBLE_MS;
+          timer = setTimeout(poll, interval);
+        }
+      }
+    };
+
+    poll();
+
+    // Immediate catch-up poll when the tab becomes visible again.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !cancelled) {
+        if (timer) clearTimeout(timer);
+        poll();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [chatSession.conversationId, supabase]);
+  }, [skip, chatSession.conversationId, chatSession.sessionId]);
 
   // Reset chat session when user session changes (login/logout)
   useEffect(() => {
