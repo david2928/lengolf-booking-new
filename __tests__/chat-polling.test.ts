@@ -41,6 +41,20 @@ describe('mergeMessages', () => {
     const incoming = [msg('a', '2026-07-20T10:00:00Z', { is_read: true })];
     expect(mergeMessages(prev, incoming)[0].is_read).toBe(true);
   });
+
+  it('sorts deterministically by id when created_at is identical', () => {
+    const timestamp = '2026-07-20T10:00:00Z';
+    const prev = [msg('z', timestamp), msg('a', timestamp)];
+    const incoming = [msg('m', timestamp)];
+    const merged1 = mergeMessages(prev, incoming);
+    const merged2 = mergeMessages([msg('a', timestamp), msg('z', timestamp)], [msg('m', timestamp)]);
+    expect(merged1.map((m) => m.id)).toEqual(['a', 'm', 'z']);
+    expect(merged2.map((m) => m.id)).toEqual(['a', 'm', 'z']);
+  });
+
+  it('returns empty array when both prev and incoming are empty', () => {
+    expect(mergeMessages([], [])).toEqual([]);
+  });
 });
 
 describe('diffNew', () => {
@@ -68,5 +82,9 @@ describe('countUnread', () => {
       msg('d', '2026-07-20T10:03:00Z', { sender_type: 'staff', is_read: true }),
     ];
     expect(countUnread(messages)).toBe(2);
+  });
+
+  it('returns 0 for empty message list', () => {
+    expect(countUnread([])).toBe(0);
   });
 });

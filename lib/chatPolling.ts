@@ -3,8 +3,8 @@
  *
  * The widget polls /api/chat/messages instead of holding an anon-key
  * realtime subscription (anon SELECT on web_chat_messages was revoked in
- * the 2026-07 Supabase security hardening). These helpers merge each poll
- * result into local state.
+ * the 2026-07 Supabase security hardening). These helpers merge, diff, and
+ * summarize each poll result into local state.
  */
 
 export interface PollableMessage {
@@ -19,9 +19,10 @@ export function mergeMessages<T extends PollableMessage>(prev: T[], incoming: T[
   const byId = new Map<string, T>();
   for (const m of prev) byId.set(m.id, m);
   for (const m of incoming) byId.set(m.id, m);
-  return Array.from(byId.values()).sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
+  return Array.from(byId.values()).sort((a, b) => {
+    const delta = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    return delta !== 0 ? delta : a.id.localeCompare(b.id);
+  });
 }
 
 /** Incoming messages whose id is not already in prev. */
