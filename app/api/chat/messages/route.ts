@@ -40,9 +40,18 @@ export async function POST(request: NextRequest) {
       .from('web_chat_conversations')
       .select('id, user_id, session_id, is_active')
       .eq('id', conversationId)
-      .single();
+      .maybeSingle();
 
-    if (convError || !conversation) {
+    if (convError) {
+      // Transient DB failure must NOT read as access-denied: the widget's
+      // poll loop permanently stops on 403 but retries on 5xx.
+      return NextResponse.json(
+        { error: 'Failed to load conversation' },
+        { status: 500 }
+      );
+    }
+
+    if (!conversation) {
       return NextResponse.json(
         { error: 'Conversation not found or access denied' },
         { status: 403 }
@@ -81,12 +90,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch messages using service role (bypasses RLS)
+    // Fetch the LATEST 50 messages (descending), then reverse so the
+    // response is ascending. Ascending+limit would return the oldest 50,
+    // hiding new replies in long conversations — fatal for the polling
+    // widget, which relies on this route to surface new messages.
     const { data: messages, error: messagesError } = await supabase
       .from('web_chat_messages')
       .select('*')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(50);
 
     if (messagesError) {
@@ -95,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      messages: messages || [],
+      messages: (messages || []).reverse(),
     });
 
   } catch (error) {
