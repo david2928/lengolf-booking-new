@@ -256,7 +256,7 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
     if (!chatSession.conversationId) return;
 
     try {
-      await fetch('/api/chat/mark-read', {
+      const response = await fetch('/api/chat/mark-read', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -265,6 +265,10 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
           conversationId: chatSession.conversationId,
         }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to mark messages as read');
+      }
 
       setMessages(prev =>
         prev.map(message =>
@@ -291,9 +295,13 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
     const POLL_HIDDEN_MS = 15000;
 
     let cancelled = false;
+    let stopped = false;
+    let inFlight = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const poll = async () => {
+      if (cancelled || inFlight) return;
+      inFlight = true;
       try {
         const response = await fetch('/api/chat/messages', {
           method: 'POST',
@@ -316,11 +324,19 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
             }
           }
           setUnreadCount(countUnread(incoming));
+        } else if ([401, 403, 404].includes(response.status)) {
+          // Access permanently lost (conversation deactivated, session
+          // mismatch after logout, or deleted). Stop polling — each tick
+          // costs the server 2-3 DB queries and the answer won't change.
+          stopped = true;
+          setError('Chat session ended');
+          return;
         }
       } catch {
         // Network hiccup — the next tick retries.
       } finally {
-        if (!cancelled) {
+        inFlight = false;
+        if (!cancelled && !stopped) {
           const interval =
             typeof document !== 'undefined' && document.visibilityState === 'hidden'
               ? POLL_HIDDEN_MS
@@ -334,7 +350,7 @@ export function useChatSession(options?: { skip?: boolean; autoConnect?: boolean
 
     // Immediate catch-up poll when the tab becomes visible again.
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && !cancelled) {
+      if (document.visibilityState === 'visible' && !cancelled && !stopped) {
         if (timer) clearTimeout(timer);
         poll();
       }
