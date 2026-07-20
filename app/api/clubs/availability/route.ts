@@ -61,7 +61,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to check availability' }, { status: 500 });
     }
 
-    const sets: RentalClubSetWithAvailability[] = (data || []).map((row: Record<string, unknown>) => ({
+    // Hide website-hidden sets (e.g. the staff-only left-handed set) from every
+    // customer-facing surface (course flow + bay-booking club selector). website_visible
+    // is exposed by get_available_club_sets; a missing value is treated as visible
+    // (fail-open) so an un-migrated DB can never blank the catalog.
+    const sets: RentalClubSetWithAvailability[] = (data || [])
+      .filter((row: Record<string, unknown>) => row.website_visible !== false)
+      .map((row: Record<string, unknown>) => ({
       id: row.id as string,
       name: row.name as string,
       slug: row.slug as string,
