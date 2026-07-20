@@ -40,9 +40,18 @@ export async function POST(request: NextRequest) {
       .from('web_chat_conversations')
       .select('id, user_id, session_id, is_active')
       .eq('id', conversationId)
-      .single();
+      .maybeSingle();
 
-    if (convError || !conversation) {
+    if (convError) {
+      // Transient DB failure must NOT read as access-denied: the widget's
+      // poll loop permanently stops on 403 but retries on 5xx.
+      return NextResponse.json(
+        { error: 'Failed to load conversation' },
+        { status: 500 }
+      );
+    }
+
+    if (!conversation) {
       return NextResponse.json(
         { error: 'Conversation not found or access denied' },
         { status: 403 }
