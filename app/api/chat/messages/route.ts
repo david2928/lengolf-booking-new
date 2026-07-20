@@ -81,12 +81,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch messages using service role (bypasses RLS)
+    // Fetch the LATEST 50 messages (descending), then reverse so the
+    // response is ascending. Ascending+limit would return the oldest 50,
+    // hiding new replies in long conversations — fatal for the polling
+    // widget, which relies on this route to surface new messages.
     const { data: messages, error: messagesError } = await supabase
       .from('web_chat_messages')
       .select('*')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(50);
 
     if (messagesError) {
@@ -95,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      messages: messages || [],
+      messages: (messages || []).reverse(),
     });
 
   } catch (error) {
