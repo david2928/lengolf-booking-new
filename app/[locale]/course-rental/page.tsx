@@ -18,6 +18,7 @@ import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/t
 import { usePricingLoader } from '@/lib/pricing-hook';
 import { useFlowPersistence, clearFlowPersistence } from '@/lib/use-flow-persistence';
 import { pushEventToGtm } from '@/utils/gtm';
+import { readAttribution } from '@/lib/attribution/click-ids';
 import { courseDeliveryFee } from '@/lib/club-rental/order-pricing';
 import { BOOKING_SUMMARY_BAR_SPACER } from '@/components/shared/BookingSummaryBar';
 
@@ -444,6 +445,9 @@ export default function CourseRentalPage() {
           // customers.preferred_language. (localePrefix below is still used
           // for building redirect URLs, where unprefixed-en is correct.)
           language: locale,
+          // Google Ads click ID + UTMs, so the daily offline-conversion upload
+          // has a click to attribute against. The server re-validates these.
+          attribution: readAttribution(),
         }),
       });
 

@@ -12,6 +12,7 @@ import { BAY_DISPLAY_NAMES } from '@/lib/bayConfig';
 import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
 import { isValidLanguage } from '@/lib/liff/translations';
 import { isValidLocale } from '@/i18n/routing';
+import { sanitizeAttribution } from '@/lib/attribution/click-ids';
 
 // Accept any LIFF Language (en/th/ja/zh) OR any main-site Locale (en/th/ko/ja/zh).
 // LIFF's isValidLanguage doesn't include 'ko', but the main flow can produce it.
@@ -286,7 +287,13 @@ export async function POST(request: NextRequest) {
       club_rental_type,
       add_ons: rawAddOns,
       marketing_opt_in: rawMarketingOptIn,
+      attribution: rawAttribution,
     } = await request.json();
+
+    // Google Ads click ID + UTMs. Sanitized server-side (charset + length) —
+    // these end up in an outbound Google Ads API call from the ETL, so a forged
+    // value shouldn't reach it. Anything that fails validation becomes null.
+    const attribution = sanitizeAttribution(rawAttribution);
 
     // Coerce to a strict boolean — only the explicit value `true` is consent.
     // Anything else (missing field, null, 'true' string, etc.) is no consent.
@@ -706,7 +713,13 @@ export async function POST(request: NextRequest) {
           club_set_id && club_rental_type && club_rental_type !== 'none' && club_rental_type !== 'standard'
             ? club_set_id
             : null,
-        language: isAcceptableBookingLanguage(language) ? language : null
+        language: isAcceptableBookingLanguage(language) ? language : null,
+        gclid: attribution.gclid,
+        gbraid: attribution.gbraid,
+        wbraid: attribution.wbraid,
+        utm_source: attribution.utm_source,
+        utm_medium: attribution.utm_medium,
+        utm_campaign: attribution.utm_campaign
         // REMOVED: stable_hash_id (deprecated)
       })
       .select()

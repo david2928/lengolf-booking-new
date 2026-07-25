@@ -18,6 +18,7 @@ import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { getPlayFoodPackages } from '@/types/play-food-packages';
 import { getPremiumClubPricing, getPremiumPlusClubPricing, formatClubRentalInfo, getGearUpItems } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
+import { readAttribution } from '@/lib/attribution/click-ids';
 import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from '../../../../hooks/useAvailability';
@@ -708,6 +709,9 @@ export function useBookingDetailsForm({
           add_ons: addOnsPayload.length > 0 ? addOnsPayload : null,
           language: locale,
           marketing_opt_in: marketingOptIn,
+          // Google Ads click ID + UTMs, so the daily offline-conversion upload
+          // has a click to attribute against. The server re-validates these.
+          attribution: readAttribution(),
         })
       });
       

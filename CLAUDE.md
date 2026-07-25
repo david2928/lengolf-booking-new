@@ -191,6 +191,84 @@ Course-rental email LANGUAGE resolves from `club_rental_orders.language` first (
 
 If anything misbehaves at the wire level (404s, wrong field names, missing required fields), email pearpearpearpearpear@seamoney.com with a side-by-side `curl` of a known-working endpoint (e.g. `transaction/check`) vs the failing one. The format that worked was in commit `29542ab` — same host, same auth, same signing setup, only the path differs. That made the diagnosis a ~1-day turnaround instead of a multi-day ticket.
 
+## Google Ads attribution capture (PR #84, merged 2026-07-25)
+
+`lib/attribution/click-ids.ts` captures the Google Ads click ID + UTMs so the
+daily offline-conversion upload in `lengolf-ads-etl` has a click to attribute
+against. Before this, uploads succeeded but `metrics.all_conversions` was 0 for
+both conversion actions — identifier-only uploads (hashed email + phone) only
+convert when Google can match them to a stored ad click.
+
+`components/shared/AttributionCapture.tsx` is mounted in `app/[locale]/layout.tsx`.
+Both write paths (`/api/bookings/create`, `/api/clubs/order`) re-validate via
+`sanitizeAttribution` and persist to `bookings` / `club_rental_orders`.
+
+### Ads land on len.golf, not here — read the cookie, not the URL
+
+~97% of paid clicks land on `len.golf` (~3,000/30d) rather than
+`booking.len.golf` (38/30d), so the query string is gone by the time the visitor
+reaches the booking flow. **Do not "simplify" this to reading
+`location.search`** — it would capture almost nothing.
+
+What makes it work: Google's tag writes its `_gcl_*` cookies on the
+**registrable domain** (`.len.golf`), so they're readable across subdomains. No
+cross-domain linker work and no `lengolf-website` changes are needed.
+
+| URL param | Cookie | Format |
+|---|---|---|
+| `gclid` | `_gcl_aw` | `GCL.<unix-seconds>.<value>` (documented) |
+| `wbraid` | `_gcl_gb` | `GCL.<unix-seconds>.<value>` |
+| `gbraid` | `_gcl_ag` | `2.1.k<value>$i<unix-seconds>` (undocumented) |
+
+**The naming is inverted from what you'd guess — `gbraid` goes to `_gcl_ag`, not
+`_gcl_gb`.** When probing what the tag writes, clear ALL `_gcl_*` cookies first
+and test one param at a time: a pre-existing cookie produces a false
+"no cookie written" result. That mistake made it into the design spec once.
+
+### Compare click TIME, never field identity
+
+The cookie fallback picks the newest candidate by click time. An earlier version
+gated on "does this cookie differ from what we stored" and silently destroyed
+iOS attribution: a braid record stores `gclid = null`, so any `_gcl_aw` compared
+as different — and that cookie lives 90 days, so a stale one from an old search
+click overwrote the braid that actually converted, on the very next page load.
+
+Related invariants, each of which has a test:
+- `capturedAt` is the **click** time, not the visit. Cookie parsers require a
+  parseable timestamp and return null without one; URL click IDs are dated from
+  the matching cookie where possible. An undatable click stamped "now"
+  resurrects an expired ID, and since a click ID takes precedence over hashed
+  identifiers at Google's end, that turns a weak-but-working upload into a
+  guaranteed miss.
+- Click times are clamped to `now` — a future-dated value makes the 90-day TTL
+  unable to ever fire.
+- The recency floor only applies when the stored record actually holds a click.
+  Capture runs at hydration, before the `afterInteractive` GTM snippet writes
+  any cookie, so a first-load UTM-only record carries a *visit* timestamp.
+- Only ONE of gclid/gbraid/wbraid is ever stored (precedence gclid → gbraid →
+  wbraid), enforced in both `parseUrl` and `sanitizeAttribution`. Google rejects
+  a conversion carrying two, and `user_identifiers` cannot be combined with the
+  braids at all.
+
+Regression tests must thread one `resolveCapture` result into the next call —
+the clobber bug only manifests across page loads and no single-call test catches
+it.
+
+### Uploading is a separate repo
+
+`lengolf-ads-etl` owns the upload. When verifying whether conversions actually
+attributed, use the GAQL resource
+`offline_conversion_upload_conversion_action_summary` — **not**
+`metrics.all_conversions`, and **not** the `status='uploaded'` column in
+`marketing.google_ads_conversion_uploads`. Neither of the latter is evidence of
+attribution; both read healthy while nothing attributes.
+
+Don't change `primary_for_goal` on conversion action 7670649287 — it's
+deliberately secondary and flipping it triggers 2–3 weeks of Smart Bidding
+relearning.
+
+Design spec: `docs/superpowers/specs/2026-07-25-gclid-capture-design.md`.
+
 ## Common Gotchas
 
 ### Authentication
