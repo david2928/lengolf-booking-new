@@ -257,8 +257,15 @@ function segmentsOriginalCost(segments: PricedSegment[]): number {
   return segments.reduce((sum, s) => sum + s.hours * (s.originalPrice ?? s.price), 0);
 }
 
+/**
+ * Suffix appended straight after a number, so it carries its own leading space
+ * where the script wants one. English and Thai space the unit off ("1.5 hr",
+ * "1.5 ชม."), matching `durationHoursShort` / `summaryRailHours` in
+ * `messages/*.json`, which print the same duration a few pixels away on step 3.
+ * CJK does not space units, so ja/ko/zh stay flush.
+ */
 const HOUR_UNIT: Record<'en' | 'th' | 'ja' | 'ko' | 'zh', string> = {
-  en: 'hr', th: ' ชม.', ja: '時間', ko: '시간', zh: '小时',
+  en: ' hr', th: ' ชม.', ja: '時間', ko: '시간', zh: '小时',
 };
 
 /** Display precision for fractional hours (0.5 stays 0.5; 1/3 → 0.33). */
@@ -302,7 +309,9 @@ function buildBayRateDetail(
       case 'zh':
         return `${duration}小时 × ${rate}/小时 ${suffix}`;
       default:
-        return `${duration}hr × ${rate}/hr ${suffix}`;
+        // Space before the unit, none inside the per-hour rate — "/hr" is one
+        // token, exactly as Thai reads "/ชม." above.
+        return `${duration} hr × ${rate}/hr ${suffix}`;
     }
   }
 
@@ -318,7 +327,7 @@ function buildDurationDetail(lang: 'en' | 'th' | 'ja' | 'ko' | 'zh', duration: n
     case 'ja': return `${duration}時間`;
     case 'ko': return `${duration}시간`;
     case 'zh': return `${duration}小时`;
-    default: return `${duration}hr`;
+    default: return `${duration} hr`;
   }
 }
 

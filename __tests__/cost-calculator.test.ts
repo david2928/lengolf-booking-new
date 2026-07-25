@@ -43,25 +43,25 @@ describe('bay rate proration across the 14:00 boundary', () => {
   test('13:30 1h weekday straddles morning/afternoon → ฿650 (0.5×550 + 0.5×750)', () => {
     const { item } = bayItem({ startTime: '13:30', duration: 1 });
     expect(item.amount).toBe(650);
-    expect(item.detail).toBe('0.5hr × ฿550 + 0.5hr × ฿750 (Weekday)');
+    expect(item.detail).toBe('0.5 hr × ฿550 + 0.5 hr × ฿750 (Weekday)');
   });
 
   test('13:00 1h weekday stays fully in the morning slot → ฿550, unchanged format', () => {
     const { item } = bayItem({ startTime: '13:00', duration: 1 });
     expect(item.amount).toBe(550);
-    expect(item.detail).toBe('1hr × ฿550/hr (Weekday, Before 14:00)');
+    expect(item.detail).toBe('1 hr × ฿550/hr (Weekday, Before 14:00)');
   });
 
   test('12:00 3h weekday spans the boundary → 2×550 + 1×750 = ฿1,850', () => {
     const { item } = bayItem({ startTime: '12:00', duration: 3 });
     expect(item.amount).toBe(1850);
-    expect(item.detail).toBe('2hr × ฿550 + 1hr × ฿750 (Weekday)');
+    expect(item.detail).toBe('2 hr × ฿550 + 1 hr × ฿750 (Weekday)');
   });
 
   test('14:00 2h weekend is single-rate afternoon → ฿1,900', () => {
     const { item } = bayItem({ date: WEEKEND, startTime: '14:00', duration: 2 });
     expect(item.amount).toBe(1900);
-    expect(item.detail).toBe('2hr × ฿950/hr (Weekend, 14:00 - 17:00)');
+    expect(item.detail).toBe('2 hr × ฿950/hr (Weekend, 14:00 - 17:00)');
   });
 
   test('16:00 2h weekday crossing into evening promo shows prorated strikethrough original', () => {
@@ -74,7 +74,7 @@ describe('bay rate proration across the 14:00 boundary', () => {
   test('same-price slots merge for display but drop the (now wrong) slot label', () => {
     const { item } = bayItem({ startTime: '16:00', duration: 2 });
     // 16:00–18:00 is not within "14:00 - 17:00", so no slot label
-    expect(item.detail).toBe('2hr × ฿750/hr (Weekday)');
+    expect(item.detail).toBe('2 hr × ฿750/hr (Weekday)');
   });
 
   test('08:00 start inherits the morning rate instead of pricing at ฿0', () => {
@@ -85,7 +85,7 @@ describe('bay rate proration across the 14:00 boundary', () => {
   test('non-half-hour start rounds amount to whole baht and hours to 2dp', () => {
     const { item } = bayItem({ startTime: '13:20', duration: 1 });
     expect(item.amount).toBe(617); // 2/3×550 + 1/3×750 = 616.67 → 617
-    expect(item.detail).toBe('0.67hr × ฿550 + 0.33hr × ฿750 (Weekday)');
+    expect(item.detail).toBe('0.67 hr × ฿550 + 0.33 hr × ฿750 (Weekday)');
   });
 });
 
@@ -188,7 +188,7 @@ describe('Early Bird package coverage splits at 14:00', () => {
 
     expect(charged?.amount).toBe(1125); // 1.5 × ฿750
     expect(charged?.isCoveredByPackage).toBeUndefined();
-    expect(charged?.detail).toBe('1.5hr × ฿750/hr (Weekday, 14:00 - 17:00)');
+    expect(charged?.detail).toBe('1.5 hr × ฿750/hr (Weekday, 14:00 - 17:00)');
 
     expect(breakdown.estimatedTotal).toBe(1125);
     expect(breakdown.notes.some((n) => n.includes('covers until 14:00'))).toBe(true);
@@ -287,7 +287,7 @@ describe('Early Bird package coverage splits at 14:00', () => {
     const { charged } = items({ startTime: '13:00', duration: 5 });
     // charged 14:00–18:00 weekday: 3h afternoon ฿750 + 1h evening ฿750 (promo)
     expect(charged?.amount).toBe(3000);
-    expect(charged?.detail).toBe('4hr × ฿750/hr (Weekday)');
+    expect(charged?.detail).toBe('4 hr × ฿750/hr (Weekday)');
     // evening hour had a ฿1,250 pre-promo price → prorated strikethrough
     expect(charged?.originalAmount).toBe(3500);
   });
@@ -356,12 +356,12 @@ describe('a package balance that runs short charges the uncovered tail', () => {
     expect(covered?.isCoveredByPackage).toBe(true);
     expect(covered?.packageName).toBe('Gold (30H)');
     expect(covered?.originalAmount).toBe(550);   // 13:00–14:00 × ฿550
-    expect(covered?.detail).toBe('1hr × ฿550/hr (Weekday, Before 14:00)');
+    expect(covered?.detail).toBe('1 hr × ฿550/hr (Weekday, Before 14:00)');
 
     // 14:00–14:30 = 0.5 × ฿750. The HEAD would have been 0.5 × ฿550 = ฿275.
     expect(charged?.amount).toBe(375);
     expect(charged?.isCoveredByPackage).toBeUndefined();
-    expect(charged?.detail).toBe('0.5hr × ฿750/hr (Weekday, 14:00 - 17:00)');
+    expect(charged?.detail).toBe('0.5 hr × ฿750/hr (Weekday, 14:00 - 17:00)');
 
     expect(breakdown.estimatedTotal).toBe(375);
   });
@@ -378,7 +378,7 @@ describe('a package balance that runs short charges the uncovered tail', () => {
     });
     expect(covered?.originalAmount).toBe(275);   // 0.5 × ฿550
     expect(charged?.amount).toBe(1025);          // 0.5 × ฿550 + 1 × ฿750
-    expect(charged?.detail).toBe('0.5hr × ฿550 + 1hr × ฿750 (Weekday)');
+    expect(charged?.detail).toBe('0.5 hr × ฿550 + 1 hr × ฿750 (Weekday)');
     expect(breakdown.estimatedTotal).toBe(1025);
   });
 
@@ -768,7 +768,7 @@ describe('a single eligible promotion produces the whole pre-refactor breakdown'
     labelJa: 'ベイ料金',
     labelKo: '베이 요금',
     labelZh: '球位费用',
-    detail: '1hr × ฿550 + 1hr × ฿750 (Weekday)',
+    detail: '1 hr × ฿550 + 1 hr × ฿750 (Weekday)',
     detailTh: '1 ชม. × ฿550 + 1 ชม. × ฿750 (วันธรรมดา)',
     detailJa: '1時間 × ฿550 + 1時間 × ฿750 (平日)',
     detailKo: '1시간 × ฿550 + 1시간 × ฿750 (평일)',
@@ -896,7 +896,7 @@ describe('a single eligible promotion produces the whole pre-refactor breakdown'
           labelJa: 'ベイ料金',
           labelKo: '베이 요금',
           labelZh: '球位费用',
-          detail: '0.5hr × ฿550 + 1hr × ฿750 (Weekday)',
+          detail: '0.5 hr × ฿550 + 1 hr × ฿750 (Weekday)',
           detailTh: '0.5 ชม. × ฿550 + 1 ชม. × ฿750 (วันธรรมดา)',
           detailJa: '0.5時間 × ฿550 + 1時間 × ฿750 (平日)',
           detailKo: '0.5시간 × ฿550 + 1시간 × ฿750 (평일)',
