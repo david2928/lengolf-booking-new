@@ -157,6 +157,57 @@ const PACKAGE_SHORTFALL_NOTE: Record<Lang, (pkg: string) => string> = {
   zh: (p) => `${p}不足以涵盖整个预订 — 未涵盖的时间按正常价格收费`,
 };
 
+/**
+ * Shown when more than one offer was eligible and only the best one was kept.
+ *
+ * Owner rule (confirmed 2026-07-25): offers never stack. A customer who knows
+ * they hold two offers must not be left thinking one was forgotten, so the
+ * losing offers are named rather than silently dropped.
+ */
+const BEST_OFFER_ONLY_NOTE: Record<Lang, (others: string) => string> = {
+  en: (o) => `Only one offer applies per booking — we applied the one worth the most. Also considered: ${o}`,
+  th: (o) => `ใช้ได้เพียงหนึ่งโปรโมชันต่อการจอง — เราใช้โปรโมชันที่คุ้มที่สุดให้คุณแล้ว โปรโมชันอื่นที่พิจารณา: ${o}`,
+  ja: (o) => `1回のご予約に適用できる特典は1つのみです。最もお得な特典を適用しました。他に検討した特典：${o}`,
+  ko: (o) => `예약당 하나의 혜택만 적용됩니다 — 가장 유리한 혜택을 적용했습니다. 함께 검토한 혜택: ${o}`,
+  zh: (o) => `每次预订仅可使用一项优惠 — 我们已为您选择最优惠的一项。同时考虑的优惠：${o}`,
+};
+
+/** Separator for the "also considered" offer list. CJK uses its own comma. */
+const OFFER_LIST_SEPARATOR: Record<Lang, string> = {
+  en: ', ', th: ', ', ja: '、', ko: ', ', zh: '、',
+};
+
+/** Note lines a promotion candidate would contribute, keyed by locale. */
+type LocalizedNotes = Record<Lang, string[]>;
+
+/**
+ * What ONE eligible promotion would contribute to the breakdown, computed
+ * without mutating it. Only the winning candidate is ever committed — see the
+ * selection step in `calculateCost`.
+ */
+interface PromotionCandidate {
+  /**
+   * Promotion row id. Doubles as the tie-break key so the winner never depends
+   * on the order `applicablePromotions` happened to arrive in.
+   */
+  promotionId: string;
+  /**
+   * Baht the customer saves if this candidate is applied — the sole ranking key.
+   * Zero for a candidate that only carries advice (the sub-2-hour bogo), which
+   * is why such a candidate can never out-rank a real discount.
+   */
+  value: number;
+  /** Discount row to push. `null` for an advice-only candidate. */
+  discount: CostDiscount | null;
+  /** Notes to push if this candidate wins, in push order. */
+  notes: LocalizedNotes;
+  /** Titles used when naming this offer in the "also considered" disclosure. */
+  titleEn: string;
+  titleTh: string;
+}
+
+const emptyLocalizedNotes = (): LocalizedNotes => ({ en: [], th: [], ja: [], ko: [], zh: [] });
+
 /** A booking portion priced at one rate (a booking may straddle slot boundaries). */
 interface PricedSegment {
   hours: number;
@@ -594,12 +645,29 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   // 3. Calculate subtotal before discounts
   const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
 
-  // 4. Apply promotions
+  // 4. Promotions — EVALUATE every eligible offer, then apply only the best one.
+  //
+  // Owner rule (confirmed 2026-07-25): offers never stack. Before this, the loop
+  // pushed a discount for every match, so two eligible `bogo` rows each waived
+  // an hour and a ฿1,500 booking previewed at ฿0. Nothing but the shape of the
+  // `promotions` table (one machine-readable row) was preventing that.
+  //
+  // The loop below is therefore pure: it builds candidates and touches neither
+  // `discounts` nor the notes arrays. Committing happens once, after selection.
+  // Eligibility guards (`new_customer_only`, package coverage, Play & Food) are
+  // unchanged and still decide whether a promotion becomes a candidate at all.
+  const promotionCandidates: PromotionCandidate[] = [];
+
   for (const promo of applicablePromotions) {
+    // Hoisted out of the per-type branches it used to be duplicated in — the
+    // types are mutually exclusive, so this is the same gate as before.
+    const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
+    if (isNewCustomerOnly && !isNewCustomer) continue;
+
+    const candidateNotes = emptyLocalizedNotes();
+
     // BOGO: 2+ hours → discount applied now; 1 hour → hint to book longer next time for free hour
     if (promo.promotion_type === 'bogo' && promo.free_hours) {
-      const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
-      if (isNewCustomerOnly && !isNewCustomer) continue;
       if (packageAppliesToBay || playFoodPkg) continue;
 
       if (duration >= 2) {
@@ -614,45 +682,62 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         );
         const discountAmount = Math.round(segmentsCost(freeSegments));
         if (discountAmount > 0) {
-          discounts.push({
-            id: `promo-${promo.id}`,
-            label: promo.title_en,
-            labelTh: promo.title_th,
-            // promo titles only carry title_en/title_th from the DB — fall
-            // back to the English title for other locales until the promo
-            // schema supports more.
-            labelJa: promo.title_en,
-            labelKo: promo.title_en,
-            labelZh: promo.title_en,
-            amount: -discountAmount,
+          promotionCandidates.push({
             promotionId: promo.id,
+            value: discountAmount,
+            discount: {
+              id: `promo-${promo.id}`,
+              label: promo.title_en,
+              labelTh: promo.title_th,
+              // promo titles only carry title_en/title_th from the DB — fall
+              // back to the English title for other locales until the promo
+              // schema supports more.
+              labelJa: promo.title_en,
+              labelKo: promo.title_en,
+              labelZh: promo.title_en,
+              amount: -discountAmount,
+              promotionId: promo.id,
+            },
+            notes: candidateNotes,
+            titleEn: promo.title_en,
+            titleTh: promo.title_th,
           });
         }
+        // A free window that prices to ฿0 contributes nothing at all, so it is
+        // NOT a candidate — it must not be disclosed as an offer that lost.
       } else {
-        notes.push(`🎉 ${promo.title_en} — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
-        notesTh.push(`🎉 ${promo.title_th} — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
-        notesJa.push(`🎉 ${promo.title_en} — 2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください`);
-        notesKo.push(`🎉 ${promo.title_en} — 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요`);
-        notesZh.push(`🎉 ${promo.title_en} — 预订2小时即获1小时免费！或在7天内兑换您的免费时段`);
+        candidateNotes.en.push(`🎉 ${promo.title_en} — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
+        candidateNotes.th.push(`🎉 ${promo.title_th} — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
+        candidateNotes.ja.push(`🎉 ${promo.title_en} — 2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください`);
+        candidateNotes.ko.push(`🎉 ${promo.title_en} — 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요`);
+        candidateNotes.zh.push(`🎉 ${promo.title_en} — 预订2小时即获1小时免费！或在7天内兑换您的免费时段`);
 
         // The free hour waives the BAY charge only — a paid club set is
         // billed on total play time. Disclose it so the venue charge
         // (e.g. 2h club tier after redeeming the free hour in-session)
         // doesn't surprise the customer.
         if (clubRentalId && clubRentalId !== 'none' && clubRentalId !== 'standard') {
-          notes.push('Club rental is charged on total play time, including the free hour');
-          notesTh.push('ค่าเช่าไม้กอล์ฟคิดตามเวลาเล่นจริงทั้งหมด รวมชั่วโมงฟรีด้วย');
-          notesJa.push('クラブレンタル料金は無料時間を含む総プレー時間に対して発生します');
-          notesKo.push('클럽 렌탈 요금은 무료 시간을 포함한 총 플레이 시간 기준으로 청구됩니다');
-          notesZh.push('球杆租赁费用按总打球时间计算（包含免费时段）');
+          candidateNotes.en.push('Club rental is charged on total play time, including the free hour');
+          candidateNotes.th.push('ค่าเช่าไม้กอล์ฟคิดตามเวลาเล่นจริงทั้งหมด รวมชั่วโมงฟรีด้วย');
+          candidateNotes.ja.push('クラブレンタル料金は無料時間を含む総プレー時間に対して発生します');
+          candidateNotes.ko.push('클럽 렌탈 요금은 무료 시간을 포함한 총 플레이 시간 기준으로 청구됩니다');
+          candidateNotes.zh.push('球杆租赁费用按总打球时间计算（包含免费时段）');
         }
-      }
-    }
 
-    // Percentage discount on bay rate
-    if (promo.promotion_type === 'percentage' && promo.discount_value && promo.applies_to === 'bay_rate') {
-      const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
-      if (isNewCustomerOnly && !isNewCustomer) continue;
+        // Worth ฿0 today — this offer only advises booking longer. It stays a
+        // candidate so a LONE sub-2-hour bogo still prints its hint, but a value
+        // of 0 means it can never out-rank an offer that actually saves money.
+        promotionCandidates.push({
+          promotionId: promo.id,
+          value: 0,
+          discount: null,
+          notes: candidateNotes,
+          titleEn: promo.title_en,
+          titleTh: promo.title_th,
+        });
+      }
+    } else if (promo.promotion_type === 'percentage' && promo.discount_value && promo.applies_to === 'bay_rate') {
+      // Percentage discount on bay rate
       if (packageAppliesToBay || playFoodPkg) continue;
 
       const bayItem = lineItems.find(item => item.id === 'bay-rate');
@@ -660,36 +745,123 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         const discountAmount = Math.round(bayItem.amount * (promo.discount_value / 100));
         if (discountAmount > 0) {
           const pct = promo.discount_value;
-          discounts.push({
-            id: `promo-${promo.id}`,
-            label: `${promo.title_en} (${pct}% off)`,
-            labelTh: `${promo.title_th} (ลด ${pct}%)`,
-            labelJa: `${promo.title_en} (${pct}%オフ)`,
-            labelKo: `${promo.title_en} (${pct}% 할인)`,
-            labelZh: `${promo.title_en} (${pct}% 折扣)`,
-            amount: -discountAmount,
+          promotionCandidates.push({
             promotionId: promo.id,
+            value: discountAmount,
+            discount: {
+              id: `promo-${promo.id}`,
+              label: `${promo.title_en} (${pct}% off)`,
+              labelTh: `${promo.title_th} (ลด ${pct}%)`,
+              labelJa: `${promo.title_en} (${pct}%オフ)`,
+              labelKo: `${promo.title_en} (${pct}% 할인)`,
+              labelZh: `${promo.title_en} (${pct}% 折扣)`,
+              amount: -discountAmount,
+              promotionId: promo.id,
+            },
+            notes: candidateNotes,
+            titleEn: promo.title_en,
+            titleTh: promo.title_th,
           });
         }
       }
-    }
-
-    // Fixed amount discount
-    if (promo.promotion_type === 'fixed_amount' && promo.discount_value) {
-      const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
-      if (isNewCustomerOnly && !isNewCustomer) continue;
+    } else if (promo.promotion_type === 'fixed_amount' && promo.discount_value) {
+      // Fixed amount discount
       if (promo.applies_to === 'bay_rate' && (packageAppliesToBay || playFoodPkg)) continue;
 
-      discounts.push({
-        id: `promo-${promo.id}`,
-        label: promo.title_en,
-        labelTh: promo.title_th,
-        labelJa: promo.title_en,
-        labelKo: promo.title_en,
-        labelZh: promo.title_en,
-        amount: -promo.discount_value,
+      // `value` is what the customer SAVES, so a (nonsensical) negative
+      // `discount_value` ranks as the surcharge it is and loses to anything
+      // else. Kept as a candidate rather than filtered out so a lone such row
+      // still produces exactly the row the old loop pushed.
+      promotionCandidates.push({
         promotionId: promo.id,
+        value: promo.discount_value,
+        discount: {
+          id: `promo-${promo.id}`,
+          label: promo.title_en,
+          labelTh: promo.title_th,
+          labelJa: promo.title_en,
+          labelKo: promo.title_en,
+          labelZh: promo.title_en,
+          amount: -promo.discount_value,
+          promotionId: promo.id,
+        },
+        notes: candidateNotes,
+        titleEn: promo.title_en,
+        titleTh: promo.title_th,
       });
+    }
+  }
+
+  // 4b. SELECT the single best candidate, then APPLY only that one.
+  //
+  // Ranked on value alone, so the offer TYPE never decides — a ฿300 percentage
+  // beats a ฿200 bogo and vice versa. Ties break on the LOWEST promotion id:
+  // ids are unique per row, which makes the order total and the winner
+  // reproducible. Deliberately NOT array position — `applicablePromotions`
+  // arrives from `/api/promotions/applicable`, which has no ORDER BY and is
+  // edge-cached, so two customers can be served the same offers in two orders.
+  //
+  // Selection is a pure function of the candidate SET, so the phone-aware
+  // `isNewCustomer` refetch can only add or remove whole candidates; it can
+  // never reshuffle the winner within an unchanged set.
+  //
+  // A promotion row cannot legitimately appear twice — `id` is the primary key
+  // — but a re-render that appends rather than replaces, or two merged fetches,
+  // could duplicate one. Left in, the duplicate gets named back at the customer
+  // as an offer that "was also considered" against itself. Collapse on id first,
+  // keeping the best entry; genuine duplicates are interchangeable, so the
+  // result does not depend on which copy arrived first.
+  const bestCandidateById = new Map<string, PromotionCandidate>();
+  for (const candidate of promotionCandidates) {
+    const seen = bestCandidateById.get(candidate.promotionId);
+    if (!seen || candidate.value > seen.value) bestCandidateById.set(candidate.promotionId, candidate);
+  }
+  const uniqueCandidates = [...bestCandidateById.values()];
+
+  const winner = uniqueCandidates.reduce<PromotionCandidate | null>((best, candidate) => {
+    if (!best) return candidate;
+    if (candidate.value > best.value) return candidate;
+    if (candidate.value === best.value && candidate.promotionId < best.promotionId) return candidate;
+    return best;
+  }, null);
+
+  if (winner) {
+    if (winner.discount) discounts.push(winner.discount);
+    notes.push(...winner.notes.en);
+    notesTh.push(...winner.notes.th);
+    notesJa.push(...winner.notes.ja);
+    notesKo.push(...winner.notes.ko);
+    notesZh.push(...winner.notes.zh);
+
+    // Only the WINNER's notes are pushed. A losing sub-2-hour bogo's "book 2
+    // hours to get 1 hour free" hint is deliberately suppressed: because offers
+    // do not stack, at 2 hours that offer would merely compete with the one
+    // already applied and could still lose, so the hint would be a promise we
+    // cannot keep. The losing offer is named in the disclosure below instead.
+    //
+    // Disclosed ONLY when the winner actually applied a discount. When the best
+    // candidate is advice-only (a sub-2-hour bogo), every other candidate is
+    // worth ≤ ฿0 too, so nothing was applied — and "we applied the one worth
+    // the most" next to a ฿0 saving is a claim the breakdown contradicts.
+    //
+    // Sorted on the SAME key as the selection, because a `filter` would inherit
+    // the arrival order the comment above explains we cannot trust — with three
+    // eligible offers the sentence itself would otherwise vary between users.
+    const alsoConsidered = winner.discount
+      ? uniqueCandidates
+        .filter((candidate) => candidate !== winner)
+        .sort((a, b) => b.value - a.value || a.promotionId.localeCompare(b.promotionId))
+      : [];
+    if (alsoConsidered.length > 0) {
+      const list = (lang: Lang) =>
+        alsoConsidered
+          .map((candidate) => (lang === 'th' ? candidate.titleTh : candidate.titleEn))
+          .join(OFFER_LIST_SEPARATOR[lang]);
+      notes.push(BEST_OFFER_ONLY_NOTE.en(list('en')));
+      notesTh.push(BEST_OFFER_ONLY_NOTE.th(list('th')));
+      notesJa.push(BEST_OFFER_ONLY_NOTE.ja(list('ja')));
+      notesKo.push(BEST_OFFER_ONLY_NOTE.ko(list('ko')));
+      notesZh.push(BEST_OFFER_ONLY_NOTE.zh(list('zh')));
     }
   }
 
