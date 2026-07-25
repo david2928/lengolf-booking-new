@@ -474,7 +474,7 @@ export function RentalPriceSummaryBar({
 
   return (
     <BookingSummaryBar
-      total={hasTotal ? total : 0}
+      total={hasTotal ? total : null}
       totalLabel="Total"
       subline={subline}
       ctaLabel={ctaLabel}
@@ -485,6 +485,14 @@ export function RentalPriceSummaryBar({
   );
 }
 ```
+
+> **API note (added after code review of Task 3).** The component's contract changed
+> during review: `isZeroValid?: boolean` was dropped in favour of
+> `total: number | null`, where `null` means "nothing priced yet" and any number
+> including `0` is a real price. This closed a silent-content bug where a
+> package-covered ฿0 booking would have rendered the empty prompt. The component
+> also exports `BOOKING_SUMMARY_BAR_SPACER` so both consumers use the same bottom
+> padding.
 
 - [ ] **Step 2: Typecheck**
 
@@ -717,20 +725,21 @@ Then, immediately after the closing `</form>` tag, add:
 
 ```tsx
       <BookingSummaryBar
-        total={costBreakdown?.estimatedTotal ?? 0}
+        total={costBreakdown ? costBreakdown.estimatedTotal : null}
         totalLabel={t('summaryTotalLabel')}
         subline={`${duration} hr · ${selectedTime}`}
         ctaLabel={isSubmitting ? t('processing') : t('confirmBooking')}
         onCta={handlePrimaryCta}
         ctaLoading={isSubmitting}
         emptyPrompt={t('summaryEmptyPrompt')}
-        isZeroValid={!!costBreakdown}
       />
 ```
 
 - [ ] **Step 7: Add bottom padding so the bar cannot cover the form**
 
-Find the outermost wrapper element returned by `BookingDetails` and add `pb-28` to its className. Without this the bar overlaps the last field on mobile.
+Import `BOOKING_SUMMARY_BAR_SPACER` from `@/components/shared/BookingSummaryBar` and add it to the className of the outermost wrapper element returned by `BookingDetails`. Use the exported constant rather than a literal `pb-28`, so this consumer and the course-rental one cannot drift apart. Without this the bar overlaps the last field on mobile.
+
+Note the bar also lifts the chat FAB while mounted, via a `has-summary-bar` body class and a rule in `app/globals.css`. That matters here because the English bay flow renders at `/`, which is one of the paths where the chat widget shows itself. Verify the FAB clearance visually in step 9; the `6rem` offset was estimated from the bar's classes, not measured against a real consumer.
 
 - [ ] **Step 8: Typecheck, lint, build**
 

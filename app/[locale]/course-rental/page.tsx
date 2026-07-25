@@ -18,6 +18,7 @@ import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/t
 import { usePricingLoader } from '@/lib/pricing-hook';
 import { useFlowPersistence, clearFlowPersistence } from '@/lib/use-flow-persistence';
 import { pushEventToGtm } from '@/utils/gtm';
+import { useStepViewedTelemetry } from '@/lib/booking-telemetry';
 import { courseDeliveryFee } from '@/lib/club-rental/order-pricing';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
@@ -93,6 +94,12 @@ type Step = 'dates' | 'set' | 'delivery' | 'contact' | 'review' | 'confirmation'
 
 const STEP_ORDER: Step[] = ['dates', 'set', 'delivery', 'contact', 'review'];
 
+// Reportable steps, in funnel order. 'confirmation' is a real step view but not
+// part of the funnel denominator, so `total_steps` stays STEP_ORDER.length —
+// which is the shape already collected since mid-May. Module-level so the
+// reference stays stable across renders (it is a telemetry effect dependency).
+const TELEMETRY_STEPS: readonly Step[] = [...STEP_ORDER, 'confirmation'];
+
 export default function CourseRentalPage() {
   usePricingLoader();
   const { data: session, status: authStatus } = useSession();
@@ -146,7 +153,7 @@ export default function CourseRentalPage() {
   // under a different /[locale] route) doesn't bounce the customer back to step 1.
   // Stops persisting and clears the snapshot once a rental is created or we reach
   // the confirmation step, so a fresh visit always starts over.
-  useFlowPersistence(
+  const flowRestored = useFlowPersistence(
     'lengolf.courseRentalFlow',
     { step, selectedQty, startDate, endDate, pickupTime, returnTime, deliveryRequested, deliveryAddress, deliveryNotes, addOnQty, paymentMethod, preferredContact, contactName, contactPhone, contactEmail, notes },
     (s) => {
@@ -224,17 +231,23 @@ export default function CourseRentalPage() {
     fetchSets();
   }, [fetchSets]);
 
-  // Funnel telemetry: push a step-viewed event whenever the user advances.
-  // GTM trigger "Course Rental Step Viewed" fans this out to GA4
-  // (event: course_rental_step_viewed) so we can build a per-step drop-off
-  // funnel alongside the existing course_rental_confirmed conversion.
-  useEffect(() => {
-    pushEventToGtm('course_rental_step_viewed', {
-      step,
-      step_index: step === 'confirmation' ? STEP_ORDER.length : STEP_ORDER.indexOf(step),
-      total_steps: STEP_ORDER.length,
-    });
-  }, [step]);
+  // Funnel telemetry: report the first view of each step. GTM trigger
+  // "Course Rental Step Viewed" fans this out to GA4 (event:
+  // course_rental_step_viewed) so we can build a per-step drop-off funnel
+  // alongside the existing course_rental_confirmed conversion.
+  //
+  // Shares useStepViewedTelemetry with the bay-booking flow so the payload
+  // shape and the dedupe policy stay identical and the two funnels remain
+  // comparable in GA4. Gated on `flowRestored` for the same reason bay booking
+  // is: useFlowPersistence restores in a mount effect, so without the gate a
+  // restore into a later step first reports a phantom 'dates' view.
+  useStepViewedTelemetry({
+    event: 'course_rental_step_viewed',
+    steps: TELEMETRY_STEPS,
+    index: TELEMETRY_STEPS.indexOf(step),
+    totalSteps: STEP_ORDER.length,
+    enabled: flowRestored,
+  });
 
   // Each step is a fresh "page" — reset scroll to the top so the customer never
   // lands mid-page (or at the footer) after tapping Continue at the bottom of

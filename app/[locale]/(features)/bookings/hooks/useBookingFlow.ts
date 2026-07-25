@@ -6,7 +6,7 @@ import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from './useAvailability';
 import { useFlowPersistence } from '@/lib/use-flow-persistence';
-import { pushBayBookingStepViewed } from '@/lib/booking-telemetry';
+import { BAY_BOOKING_STEPS, useStepViewedTelemetry } from '@/lib/booking-telemetry';
 
 export function useBookingFlow() {
   const { status } = useSession();
@@ -71,14 +71,31 @@ export function useBookingFlow() {
     },
   );
 
-  // Report the step the customer actually lands on. Gated on `flowRestored`
-  // because useFlowPersistence restores in a mount effect: without the gate this
-  // fires for the initial step 1 and then the restored step, inventing a `date`
-  // view and skipping the restored step's predecessor entirely.
-  useEffect(() => {
-    if (!flowRestored) return;
-    pushBayBookingStepViewed(currentStep);
-  }, [flowRestored, currentStep]);
+  // An auth-return load carries ?selectDate=... and renders step 1 until the
+  // deep-link effect below promotes it to step 2. That effect is declared after
+  // the telemetry one, so on the render where `status` resolves to
+  // 'authenticated' telemetry still sees step 1 and would report a `date` view
+  // the customer never had — they already reported a real one before signing in.
+  // Suppress until the param has been consumed; the deep-link effect clears it
+  // via router.replace, which drops it from `searchParams` and opens the gate on
+  // the step the customer actually lands on.
+  //
+  // 'unauthenticated' opens the gate too: the deep-link effect only runs when
+  // authenticated, so nothing would ever consume the param and telemetry would
+  // stay silent for the whole session.
+  const deepLinkStepPending = !!searchParams?.get('selectDate') && status !== 'unauthenticated';
+
+  // Report the step the customer actually lands on, once per step per mount.
+  // Gated on `flowRestored` because useFlowPersistence restores in a mount
+  // effect: without the gate this fires for the initial step 1 and then the
+  // restored step, inventing a `date` view and skipping the restored step's
+  // predecessor entirely.
+  useStepViewedTelemetry({
+    event: 'bay_booking_step_viewed',
+    steps: BAY_BOOKING_STEPS,
+    index: currentStep - 1,
+    enabled: flowRestored && !deepLinkStepPending,
+  });
 
   useEffect(() => {
     if (searchParams && !isAutoSelecting) {
