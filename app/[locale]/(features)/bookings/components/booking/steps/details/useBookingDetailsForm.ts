@@ -22,6 +22,7 @@ import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from '../../../../hooks/useAvailability';
 import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
+import { allowedDurations } from '@/lib/booking-durations';
 import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
 import { firstIncompleteContactField } from './IdentityCard';
 import { shouldWriteProfile } from './profileWriteBack';
@@ -451,6 +452,34 @@ export function useBookingDetailsForm({
 
   // Local state for package selector to allow switching
   const [localSelectedPackage, setLocalSelectedPackage] = useState<PlayFoodPackage | null>(selectedPackage || null);
+
+  // Keep the selected duration on the allowed ladder. If the ladder no longer
+  // contains it — the customer stepped back and picked a slot with less
+  // headroom — fall back to the longest rung that still fits, so the form can
+  // never hold a duration the server will reject. `allowedDurations` always
+  // returns at least [1], so the fallback index is always populated.
+  //
+  // This has to live below `localSelectedPackage` rather than beside the
+  // `duration` state it guards, because of the second exemption:
+  //
+  //  - While `costDataLoading` is true the ladder is PROVISIONAL:
+  //    `hasActivePackage` starts false and only resolves from
+  //    /api/user/active-packages. Clamping against a ladder we already know is
+  //    incomplete is exactly how a legitimately-chosen 4 h would get silently
+  //    cut to 3 h in the window before the package resolves. A package holder
+  //    briefly seeing the 5-rung base ladder is accepted; rewriting their
+  //    selection on the strength of it is not.
+  //  - A selected Play & Food package fixes the duration and hides the picker
+  //    entirely, so the ladder does not govern there. Packages are whole 1/2/3 h
+  //    and are only offered when they fit the slot, so this is belt-and-braces —
+  //    but it also stops a `?package=` deep link that outruns the slot from
+  //    having its duration silently shortened out from under the package label.
+  useEffect(() => {
+    if (costDataLoading || localSelectedPackage) return;
+    const ladder = allowedDurations({ maxHours: maxDuration, hasActivePackage });
+    if (ladder.includes(duration)) return;
+    setDuration(ladder[ladder.length - 1]);
+  }, [duration, maxDuration, hasActivePackage, costDataLoading, localSelectedPackage]);
 
   // Compute cost breakdown reactively (must be after localSelectedPackage declaration)
   const costBreakdown: CostBreakdown | null = (() => {
@@ -893,6 +922,10 @@ export function useBookingDetailsForm({
     setShowClubRentalModal,
     // Derived
     currentAvailability,
+    /** Gates the 4 h and 5 h rungs of the duration ladder. Starts false and
+        resolves from /api/user/active-packages, so the picker grows from 5 tiles
+        to 7 for a package holder shortly after step 3 mounts. */
+    hasActivePackage,
     isLineUser,
     costBreakdown,
     costDataLoading,

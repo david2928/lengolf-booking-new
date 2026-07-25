@@ -14,6 +14,14 @@ interface DurationBayAvailability {
 interface TimeSlot {
   startTime: string;
   endTime: string;
+  /**
+   * Longest bookable session at this slot, in hours. FRACTIONAL since the
+   * availability function moved to v3 — 2.5 is a normal value. Do not narrow
+   * this to an integer type and do not round it: `lib/booking-durations.ts`
+   * filters the duration ladder with `hours <= maxHours`, so rounding 2.5 up to
+   * 3 would offer a duration the server rejects, and rounding down would hide a
+   * bookable 2.5.
+   */
   maxHours: number;
   period: 'morning' | 'afternoon' | 'evening';
   availableBays?: string[];

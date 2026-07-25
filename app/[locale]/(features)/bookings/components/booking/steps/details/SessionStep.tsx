@@ -10,9 +10,12 @@ import {
 } from '@heroicons/react/24/outline';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import type { BayType } from '@/lib/bayConfig';
+import { allowedDurations, formatDurationLabel } from '@/lib/booking-durations';
 import type { TimeSlot, DurationBayAvailability } from '../../../../hooks/useAvailability';
 
 export interface SessionStepProps {
+  /** Longest session this slot fits, in hours. Fractional (2.5) since the
+      availability function moved to v3. Caps the duration ladder. */
   maxDuration: number;
   slotData?: TimeSlot | null;
   duration: number;
@@ -28,6 +31,10 @@ export interface SessionStepProps {
   router: { replace: (href: string, options?: { scroll?: boolean }) => void };
   /** `errors.duration` from the form hook. Rendered but never set today. */
   durationError: string;
+  /** Unlocks the 4 h and 5 h rungs of the duration ladder. Starts false and
+      resolves from `/api/user/active-packages`, so a package holder sees the
+      5-tile ladder for a moment before it becomes 7. */
+  hasActivePackage: boolean;
   currentAvailability: DurationBayAvailability;
   // --- Selected Info Cards + AI Lab warning (moved in from BookingDetails) ---
   selectedDate: Date;
@@ -66,6 +73,7 @@ export function SessionStep({
   setShowPackageModal,
   router,
   durationError,
+  hasActivePackage,
   currentAvailability,
   selectedDate,
   selectedTime,
@@ -77,6 +85,14 @@ export function SessionStep({
   onBack,
 }: SessionStepProps) {
   const t = useTranslations('bookings.detailsStep');
+
+  // The rungs this customer can pick at this slot: 1, 1.5, 2, 2.5, 3, plus 4
+  // and 5 when they hold an active package, all capped by the slot's headroom.
+  // See lib/booking-durations.ts for why 3.5 and 4.5 are not in the ladder.
+  //
+  // Only meaningful in Bay-only mode. A selected Play & Food package hides this
+  // whole section and fixes the duration at the package's own whole-hour length.
+  const durationOptions = allowedDurations({ maxHours: maxDuration, hasActivePackage });
 
   return (
     <>
@@ -302,19 +318,32 @@ export function SessionStep({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             {t('durationLabel')}
           </label>
-          <div className="grid grid-cols-5 gap-2">
-            {Array.from({ length: maxDuration }, (_, i) => i + 1).map((hours) => (
+          {/* Five rungs fill `grid-cols-5` in a single row exactly, which is
+              what a bay-rate customer sees and is unchanged from before. A
+              package holder gets seven, and seven in a 5-column grid leaves a
+              second row with three empty cells that reads as a rendering fault.
+              So drop to four columns once the ladder passes five: seven lays out
+              as 4 + 3 with one trailing gap, and the tiles stay comfortably
+              tappable (~62px wide at a 320px viewport) instead of the ~31px
+              they would get if all seven were crammed into one row.
+
+              Both class strings are literal, not interpolated, so Tailwind's
+              scanner still emits `grid-cols-4` and `grid-cols-5`. */}
+          <div className={`grid gap-2 ${durationOptions.length > 5 ? 'grid-cols-4' : 'grid-cols-5'}`}>
+            {durationOptions.map((hours) => (
               <button
                 key={hours}
                 type="button"
                 onClick={() => setDuration(hours)}
-                className={`flex h-12 items-center justify-center rounded-lg border relative ${
+                /* `tabular-nums` so the decimal points of 1.5 and 2.5 line up
+                   with each other and with the whole-hour tiles. */
+                className={`flex h-12 items-center justify-center rounded-lg border relative tabular-nums ${
                   duration === hours
                     ? 'border-green-600 bg-green-50 text-green-600 font-medium'
                     : 'border-gray-300 text-gray-700 hover:border-green-600'
                 }`}
               >
-                {hours}
+                {formatDurationLabel(hours)}
               </button>
             ))}
           </div>
