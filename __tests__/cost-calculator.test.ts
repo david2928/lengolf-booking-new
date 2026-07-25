@@ -660,9 +660,12 @@ describe('only the best eligible offer applies', () => {
     expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
   });
 
-  test('an offer whose free window prices to ฿0 is not disclosed as a competitor', () => {
-    // free_hours: 0 is falsy, so this row was never a promotion at all; the
-    // surviving offer must apply without a spurious "also considered".
+  test('a malformed bogo row with free_hours: 0 is skipped entirely', () => {
+    // NOT the "free window prices to ฿0" branch, despite the shape: `free_hours: 0`
+    // is falsy, so the row fails the `promo.free_hours` guard and never reaches
+    // the bogo branch at all. The genuine ฿0-free-window path (free_hours >= 1
+    // at duration >= 2, `segmentsCost` rounding to zero) is NOT pinned here and
+    // is likely unreachable with real rate data — don't read this as covering it.
     const zeroBogo: ApplicablePromotion = { ...bogoPromo, id: 'promo-zero', free_hours: 0 };
     const breakdown = withPromos([zeroBogo, pctPromo]);
     expect(breakdown.discounts).toHaveLength(1);
