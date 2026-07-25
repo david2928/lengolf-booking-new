@@ -23,7 +23,13 @@ interface TimeSlot {
    * bookable 2.5.
    */
   maxHours: number;
-  period: 'morning' | 'afternoon' | 'evening';
+  /**
+   * @deprecated Vestigial wire field. The SQL splits the morning at hour < 12,
+   * which contradicts the hour captions the customer reads and the LIFF flow.
+   * Nothing consumes it — group with `getBookingPeriod` from
+   * `lib/booking-periods.ts` instead. Typed only to describe the payload.
+   */
+  period?: 'morning' | 'afternoon' | 'evening';
   availableBays?: string[];
   socialBayCount?: number;
   aiLabCount?: number;

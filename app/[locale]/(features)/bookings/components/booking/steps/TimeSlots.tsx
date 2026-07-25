@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
   ClockIcon,
@@ -14,6 +15,7 @@ import {
 import { useAvailability, type TimeSlot } from '../../../hooks/useAvailability';
 import { BayType } from '@/lib/bayConfig';
 import { BayInfoModal } from '../../BayInfoModal';
+import { BOOKING_PERIODS, getBookingPeriod, periodHourCaptionArgs } from '@/lib/booking-periods';
 
 interface TimeSlotsProps {
   selectedDate: Date;
@@ -52,6 +54,10 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
   };
 
   const filteredSlots = filterSlotsByBayType(availableSlots, bayFilter);
+
+  // The morning caption's start hour is the venue's opening hour, which is
+  // date-dependent — see `lib/opening-hours.ts`.
+  const dateKey = format(selectedDate, 'yyyy-MM-dd');
 
   // Get the appropriate bay type to pass to onTimeSelect
   const getBayTypeForSelection = (): BayType | undefined => {
@@ -131,12 +137,18 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
           transition={{ duration: 0.5 }}
           className="grid grid-cols-1 lg:grid-cols-3 gap-6"
         >
-          {['morning', 'afternoon', 'evening'].map((period) => {
-            const periodSlots = filteredSlots.filter(slot => slot.period === period);
+          {BOOKING_PERIODS.map((period) => {
+            // NOT `slot.period` — that server field splits the morning at 12 and
+            // contradicts the hour caption rendered below it.
+            const periodSlots = filteredSlots.filter(slot => getBookingPeriod(slot.startTime) === period);
             if (periodSlots.length === 0) return null;
 
             return (
-              <div key={period} className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div
+                key={period}
+                data-testid={`period-card-${period}`}
+                className="bg-white rounded-xl shadow-sm overflow-hidden"
+              >
                 {/* Period Header */}
                 <div className="bg-green-700 px-4 py-3 flex items-center justify-between">
                   <div className="flex items-center">
@@ -153,9 +165,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                          period === 'afternoon' ? t('periodAfternoon') :
                          t('periodEvening')}
                         <span className="ml-2 text-sm font-normal opacity-90">
-                          {period === 'morning' ? t('periodMorningHours') :
-                           period === 'afternoon' ? t('periodAfternoonHours') :
-                           t('periodEveningHours')}
+                          {t('periodHours', periodHourCaptionArgs(period, dateKey))}
                         </span>
                       </h3>
                     </div>
