@@ -67,4 +67,69 @@ describe('BookingSummaryBar', () => {
     expect(screen.getByText('฿0')).toBeInTheDocument();
     expect(screen.queryByText('Choose a duration')).not.toBeInTheDocument();
   });
+
+  // A bad total (NaN, Infinity, negative) should never reach a paying
+  // customer. `rate * hours` with an unresolved rate, or a `reduce` over
+  // partially-loaded pricing data, can produce NaN — these guard against
+  // rendering it.
+  test('treats NaN as unpriced rather than rendering ฿NaN', () => {
+    renderBar({ total: NaN, emptyPrompt: 'Choose a duration' });
+    expect(screen.getByText('Choose a duration')).toBeInTheDocument();
+    expect(screen.queryByText('฿NaN')).not.toBeInTheDocument();
+  });
+
+  test('treats Infinity as unpriced rather than rendering ฿∞', () => {
+    renderBar({ total: Infinity, emptyPrompt: 'Choose a duration' });
+    expect(screen.getByText('Choose a duration')).toBeInTheDocument();
+    expect(screen.queryByText('฿∞')).not.toBeInTheDocument();
+  });
+
+  test('treats a negative total as unpriced rather than rendering ฿-500', () => {
+    renderBar({ total: -500, emptyPrompt: 'Choose a duration' });
+    expect(screen.getByText('Choose a duration')).toBeInTheDocument();
+    expect(screen.queryByText('฿-500')).not.toBeInTheDocument();
+  });
+});
+
+describe('BookingSummaryBar has-summary-bar body class (refcounted)', () => {
+  function renderInstance(props: Partial<React.ComponentProps<typeof BookingSummaryBar>> = {}) {
+    return render(
+      <NextIntlClientProvider locale="en" messages={{}}>
+        <BookingSummaryBar
+          total={925}
+          totalLabel="Total"
+          ctaLabel="Confirm booking"
+          onCta={jest.fn()}
+          {...props}
+        />
+      </NextIntlClientProvider>,
+    );
+  }
+
+  afterEach(() => {
+    // Belt-and-suspenders in case a test below leaves the class set — RTL's
+    // automatic cleanup unmounts components but this guards against a
+    // future test forgetting to call unmount() explicitly.
+    document.body.classList.remove('has-summary-bar');
+  });
+
+  test('adds the class while mounted and removes it on unmount', () => {
+    const { unmount } = renderInstance();
+    expect(document.body.classList.contains('has-summary-bar')).toBe(true);
+
+    unmount();
+    expect(document.body.classList.contains('has-summary-bar')).toBe(false);
+  });
+
+  test('keeps the class present after unmounting one of two mounted instances', () => {
+    const a = renderInstance();
+    const b = renderInstance();
+    expect(document.body.classList.contains('has-summary-bar')).toBe(true);
+
+    a.unmount();
+    expect(document.body.classList.contains('has-summary-bar')).toBe(true);
+
+    b.unmount();
+    expect(document.body.classList.contains('has-summary-bar')).toBe(false);
+  });
 });

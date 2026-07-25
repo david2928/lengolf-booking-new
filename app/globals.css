@@ -250,29 +250,40 @@ html[lang="th"] body {
 /*
  * Chat FAB collision avoidance -------------------------------------------
  * components/shared/BookingSummaryBar.tsx adds a `has-summary-bar` class to
- * <body> for as long as it is mounted (see the useEffect there). The chat
- * FAB in components/chat/ChatButton.tsx is a `fixed z-50` circle pinned to
- * `bottom-4 right-4` (`sm:bottom-6 sm:right-6`) and is present on the same
- * pages the summary bar mounts on — notably the bay-booking flow at `/`,
- * which components/chat/ChatWidget.tsx's `isBookingsPage` regex also
- * matches. Raising the bar's own z-index would not fix this: ChatWidgetLoader
- * renders after {children} in app/[locale]/layout.tsx, so at equal
- * z-index the FAB still wins the paint order and the two would still
- * visually collide. Lifting the FAB clear of the bar here instead keeps
- * BookingSummaryBar and ChatButton decoupled — neither imports or knows
- * about the other.
+ * <body> for as long as at least one instance is mounted (refcounted — see
+ * the useEffect there). The chat FAB in components/chat/ChatButton.tsx is a
+ * `fixed z-50` circle pinned to `bottom-4 right-4` (`sm:bottom-6
+ * sm:right-6`), marked with a `data-chat-fab` attribute, and is present on
+ * the same pages the summary bar mounts on — notably the bay-booking flow
+ * at `/`, which components/chat/ChatWidget.tsx's `isBookingsPage` regex
+ * also matches. Raising the bar's own z-index would not fix this:
+ * ChatWidgetLoader renders after {children} in app/[locale]/layout.tsx, so
+ * at equal z-index the FAB still wins the paint order and the two would
+ * still visually collide. Lifting the FAB clear of the bar here instead
+ * keeps BookingSummaryBar and ChatButton decoupled — neither imports the
+ * other, they only agree on this attribute/class contract.
  *
- * This rule is deliberately written OUTSIDE any `@layer` block, matching
- * `.pb-safe` and `.scrollbar-thin` above. Tailwind's own utilities (the
- * `bottom-4` / `sm:bottom-6` this overrides) are emitted inside
- * `@layer utilities` via the `@tailwind utilities;` directive at the top of
- * this file. Per the CSS Cascade Layers spec, any declaration outside a
- * layer beats every declaration inside a layer regardless of specificity —
- * so this selector reliably wins without needing to out-specificity or
- * `!important` the utility classes. The `!important` below is only a
- * defensive belt-and-suspenders in case that assumption is ever
- * invalidated (e.g. `important: true` added to tailwind.config.ts).
+ * We key off `[data-chat-fab]` rather than ChatButton's Tailwind utility
+ * classes so this rule can't silently stop matching if someone tweaks
+ * ChatButton's spacing (e.g. `bottom-4` -> `bottom-5`) without knowing this
+ * rule exists.
+ *
+ * On why this wins over `bottom-4` / `sm:bottom-6`: this project runs
+ * Tailwind CSS 3.4.17, where `@tailwind utilities` is a plain PostCSS
+ * directive that expands to ordinary unlayered CSS — native `@layer`
+ * cascade scoping only shipped in Tailwind v4. (Verified directly: running
+ * this project's Tailwind CLI against a fixture containing `bottom-4
+ * right-4 z-50` produces zero `@layer` at-rules in the output.) So this is
+ * a same-bucket specificity fight: `body.has-summary-bar [data-chat-fab]`
+ * is (0,2,1) against `.bottom-4`'s (0,1,0) — we win on specificity alone,
+ * plus the `!important` below. That `!important` is a guard against
+ * `important: true` ever being added to tailwind.config.ts: v3 with that
+ * flag set emits `!important` on every utility, INCLUDING `.bottom-4`, at
+ * that utility's original (lower) specificity — important declarations do
+ * not gain specificity, they only win ties within the important tier. Two
+ * `!important` rules still resolve by specificity, so our `!important`
+ * keeps winning in that hypothetical too.
  */
-body.has-summary-bar .fixed.bottom-4.right-4.z-50 {
+body.has-summary-bar [data-chat-fab] {
   bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
 }
