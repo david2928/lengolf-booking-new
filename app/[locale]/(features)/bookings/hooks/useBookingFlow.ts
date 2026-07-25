@@ -6,6 +6,7 @@ import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from './useAvailability';
 import { useFlowPersistence } from '@/lib/use-flow-persistence';
+import { pushBayBookingStepViewed } from '@/lib/booking-telemetry';
 
 export function useBookingFlow() {
   const { status } = useSession();
@@ -69,6 +70,14 @@ export function useBookingFlow() {
       if (s.selectedSlotData) setSelectedSlotData(s.selectedSlotData);
     },
   );
+
+  // Fire one funnel event per step entry. Keyed on currentStep alone so a
+  // restore from persistence or a deep-link jump to step 2 also reports, which
+  // is what makes the funnel counts match reality rather than only counting
+  // people who walked the steps in order.
+  useEffect(() => {
+    pushBayBookingStepViewed(currentStep);
+  }, [currentStep]);
 
   useEffect(() => {
     if (searchParams && !isAutoSelecting) {
