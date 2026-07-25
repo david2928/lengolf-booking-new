@@ -145,10 +145,27 @@ Still no behaviour change. All three render one after another exactly as now.
 ### Task C1: SessionStep, ExtrasStep, YourDetailsStep
 
 **Files:**
-- Create: `steps/details/SessionStep.tsx` (from lines 943-1104: package selection, duration, people; plus the bay-type card currently at 812-940)
-- Create: `steps/details/ExtrasStep.tsx` (from lines 1105-1321: club rental, gear up)
-- Create: `steps/details/YourDetailsStep.tsx` (from lines 1322-1510: contact, notes, cost breakdown, marketing consent)
+- Create: `steps/details/SessionStep.tsx` (package selection, duration, people)
+- Create: `steps/details/ExtrasStep.tsx` (club rental, gear up)
+- Create: `steps/details/YourDetailsStep.tsx` (contact, notes, cost breakdown, Back button, marketing consent)
 - Modify: `steps/BookingDetails.tsx`
+
+> **Corrected during execution.** This stage originally assigned the "Selected Info
+> Cards" block (which holds `id="bd-bay"`) and the AI-Lab group-size warning to
+> `SessionStep`. That is impossible while keeping the stage a pure move: those two
+> blocks render **outside** the `<form>`, whereas package/duration/people render
+> inside it. Moving them in insets them by the form's `p-3 sm:p-6` and wraps them
+> in its `rounded-xl shadow-sm`, which is a visible change.
+>
+> Resolution: `SessionStep` owns only the three in-form blocks. The info cards and
+> the AI-Lab warning stay in `BookingDetails.tsx` above the `<form>`, with a comment
+> marking them as conceptually part of the Session sub-step. **Stage D moves them
+> in**, where a visible layout change is expected by design.
+>
+> A third option was considered and rejected: `SessionStep` owning the `<form>` and
+> taking `children`. That is DOM-identical, but it cannot work in stage D, where
+> `SessionStep` must be a single gated screen rather than the wrapper of the other
+> two sub-steps.
 
 - [ ] **Step 1: Move verbatim, props in, no logic**
 
@@ -196,13 +213,37 @@ export type DetailSubStep = (typeof DETAIL_SUB_STEPS)[number];
 
 Expose `subStep`, `subStepIndex`, `goToSubStep`, `nextSubStep`, `prevSubStep`, and `isLast`. Keep it in component state; do NOT put it in the URL. The top-level wizard step already lives in `useBookingFlow` and adding a second source of navigation truth invites the two to disagree.
 
-- [ ] **Step 2: Render one sub-step at a time on mobile**
+- [ ] **Step 2: Move the info cards into SessionStep**
+
+Stage C deliberately left the "Selected Info Cards" block (holding `id="bd-bay"`) and the AI-Lab group-size warning in `BookingDetails.tsx`, outside the `<form>`, to keep that stage a pure move. Move them into `SessionStep` now. This inches those cards inward by the form's padding and wraps them in its shadow, which is fine here because this stage changes the layout intentionally.
+
+`firstInvalidField` finds `bd-bay` with `document.getElementById`, so verify it still resolves after the move. It is a runtime lookup with no type safety.
+
+- [ ] **Step 3: Render one sub-step at a time on mobile**
 
 Render only the active sub-step below `lg:`. Above `lg:` render all three (stage E replaces that with the two-column layout).
 
 Completed sub-steps collapse to a one-line summary with a Change button, matching the mockup: `Session · 1.5 h · Social Bay · 2 people`.
 
-- [ ] **Step 3: Retarget the sticky bar CTA**
+**Navigation design, owner-confirmed 2026-07-25.** Three affordances, each with exactly one meaning, and no meaning served by two controls:
+
+| Control | Meaning |
+|---|---|
+| Header arrow (`page.tsx:68`) | Backward one level: back a sub-step if there is one, else exit step 3 to time selection |
+| "Change" on a collapsed summary | Jump directly to that named sub-step |
+| Sticky bar CTA | Forward only: Continue, then Confirm on the last sub-step |
+
+**Delete the in-form Back button** (currently `YourDetailsStep.tsx:213`). It is not a second capability: it calls the same `handleBack` as the header arrow, so today they are exact duplicates and the in-form one is merely worse placed. Removing it removes redundancy.
+
+Making the header arrow context-aware requires `page.tsx` to know the sub-step. Lift the sub-step state to `useBookingFlow`, or pass a callback up from `BookingDetails`. Prefer whichever keeps a single source of navigation truth; say which you chose and why.
+
+Two options were considered and rejected:
+- **Back in the sticky bar.** On a 375px viewport the CTA already spans x 175→359; a 44px back target would squeeze either the total or the label, and it parks a secondary action beside the primary one, where a misclick costs the customer their place in a filled-in form.
+- **Keep both controls, differentiate them.** Gets the priorities backwards: the more common action (back one sub-step) would sit at the bottom of a scroll while the rarer one (leave step 3) keeps the prominent spot.
+
+**Known and deliberately out of scope:** sub-steps live in component state, not the URL, so browser back and Android gesture-back exit the flow rather than stepping back a sub-step. The top-level wizard already behaves this way — Date, Time and Details share one URL — so this is not a regression. URL-backing sub-steps would add a second source of navigation truth alongside `useBookingFlow` and would interact with the `useFlowPersistence` restore; it deserves its own piece of work.
+
+- [ ] **Step 4: Retarget the sticky bar CTA**
 
 The bar's CTA currently always submits. It must now advance while `!isLast` and submit only on the last sub-step. Extend `firstInvalidField` to validate **only the fields on the current sub-step**, so tapping Continue on Session does not complain about a blank email three screens away:
 
@@ -219,17 +260,17 @@ const firstInvalidFieldForSubStep = (s: DetailSubStep): string | null => {
 
 Session and Extras have no required fields today: duration defaults to 1, people defaults to 1, bay defaults to `'social'`, and club rental defaults to `'standard'`. Note in your report that this means Continue never blocks on those two sub-steps, so nobody later assumes it does.
 
-- [ ] **Step 4: i18n**
+- [ ] **Step 5: i18n**
 
 Add to `bookings.detailsStep` in all five locales: `subStepSession`, `subStepExtras`, `subStepContact`, `subStepProgress` (ICU, e.g. `"Details · {current} of {total}"`), `changeAction`, `ctaContinue`.
 
 **Do NOT reserialise the catalogs.** They are CRLF and a `JSON.stringify` round-trip rewrites every line and still does not match byte-for-byte. Insert the new lines textually, anchored on an existing unique key, and verify with `git diff --stat` that only the lines you added changed.
 
-- [ ] **Step 5: Verify**
+- [ ] **Step 6: Verify**
 
 Four gates, then in a browser: walk Session → Extras → Your details, confirm the bar CTA label changes and only submits on the last sub-step, confirm Change returns you to a completed sub-step with its values intact, and confirm the marketing-consent checkbox is still present and reachable on the last sub-step.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git commit -m "feat(bookings): split booking details into three mobile sub-steps"
@@ -302,7 +343,7 @@ const shouldUpdateProfile = alsoUpdateAccount && profileNeedsUpdate;
 
 Leave the booking payload untouched: the booking still records whatever name, phone and email were entered. Only the **profile write** is gated.
 
-- [ ] **Step 4: i18n**
+- [ ] **Step 5: i18n**
 
 `bookings.detailsStep`: `bookingAsLabel`, `changeContact`, `alsoUpdateAccount`, `alsoUpdateAccountHint`. Same textual-insertion rule as stage D.
 
@@ -316,7 +357,7 @@ This is the one that matters. In a browser with a session:
 
 If you cannot get a session, STOP and report rather than assuming.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git commit -m "feat(bookings): contact identity card with this-booking-only edits by default"
