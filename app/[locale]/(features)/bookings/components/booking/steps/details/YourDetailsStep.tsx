@@ -26,15 +26,16 @@ export interface YourDetailsStepProps {
   costBreakdown: CostBreakdown | null;
   costDataLoading: boolean;
   costLanguage: 'en' | 'th' | 'ja' | 'ko' | 'zh';
-  onBack: () => void;
   isSubmitting: boolean;
   marketingOptIn: boolean;
   setMarketingOptIn: (value: boolean) => void;
 }
 
 /**
- * Your-details section of booking step 3: contact information, customer notes,
- * the projected cost breakdown, the Back button and the marketing opt-in.
+ * Your-details section of booking step 3 — the last mobile sub-step: contact
+ * information, customer notes, the projected cost breakdown and the marketing
+ * opt-in with its consent note (a compliance artifact from PR #18; it must stay
+ * on this sub-step, where the customer confirms).
  * Renders as a fragment so the parent `<form>`'s `space-y-4 sm:space-y-6` keeps
  * applying to these blocks as direct children.
  *
@@ -60,7 +61,6 @@ export function YourDetailsStep({
   costBreakdown,
   costDataLoading,
   costLanguage,
-  onBack,
   isSubmitting,
   marketingOptIn,
   setMarketingOptIn,
@@ -205,18 +205,11 @@ export function YourDetailsStep({
         </div>
       )}
 
-      {/* Back only. The primary action lives in the sticky bar so it is
-          always reachable without scrolling past the whole form. */}
-      <div className="flex justify-start mt-6">
-        <button
-          type="button"
-          onClick={onBack}
-          className="py-2 px-4 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-          disabled={isSubmitting}
-        >
-          {t('back')}
-        </button>
-      </div>
+      {/* No Back button here. Backward navigation is the header arrow only (see
+          `handleHeaderBack` in `useBookingFlow`): it steps back a sub-step, or
+          leaves step 3 from the first one. The button that used to sit here
+          called the very same `handleBack` as that arrow, so it was a duplicate
+          rather than a second capability. */}
 
       {/* Marketing opt-in: only meaningful once an email is entered. */}
       {email.trim().length > 0 && (

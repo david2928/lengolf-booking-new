@@ -46,6 +46,8 @@ export default function BookingsPage() {
     handleDateSelect,
     handleTimeSelect,
     handleBack,
+    handleHeaderBack,
+    detailsSubStep,
     getFixedPeople,
     isPackageMode,
   } = useBookingFlow();
@@ -65,7 +67,7 @@ export default function BookingsPage() {
       <div className="mb-6 flex items-start">
         {currentStep > 1 && (
           <button
-            onClick={handleBack}
+            onClick={handleHeaderBack}
             className="mr-4 p-2 rounded-lg hover:bg-gray-100"
             aria-label={tCommon('goBack')}
           >
@@ -122,6 +124,7 @@ export default function BookingsPage() {
             onClubSetIdChange={setSelectedClubSetId}
             selectedAddOns={selectedAddOns}
             onAddOnsChange={setSelectedAddOns}
+            subStepNav={detailsSubStep}
           />
         )}
       </div>

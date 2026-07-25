@@ -22,6 +22,7 @@ import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from '../../../../hooks/useAvailability';
 import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
+import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
 
 interface Profile {
   name: string;
@@ -62,7 +63,23 @@ export interface BookingDetailsProps {
   onClubSetIdChange?: (id: string | null) => void;
   selectedAddOns?: Record<string, boolean>;
   onAddOnsChange?: (addOns: Record<string, boolean>) => void;
+  /** Mobile sub-step navigation, owned by `useBookingFlow` so the header arrow
+      can step back through it before leaving step 3. */
+  subStepNav: DetailsSubStepNav;
 }
+
+/**
+ * Which sub-step each `bd-*` anchor lives on. Used to navigate to the offending
+ * sub-step before scrolling — an element hidden by `display: none` is still
+ * found by `getElementById` but cannot be scrolled to, so flagging a field on
+ * another sub-step would otherwise fail silently.
+ */
+const SUB_STEP_FOR_FIELD: Record<string, DetailSubStep> = {
+  'bd-bay': 'session',
+  'bd-name': 'contact',
+  'bd-phone': 'contact',
+  'bd-email': 'contact',
+};
 
 export function useBookingDetailsForm({
   selectedDate,
@@ -78,7 +95,9 @@ export function useBookingDetailsForm({
   onClubSetIdChange,
   selectedAddOns = {},
   onAddOnsChange,
+  subStepNav,
 }: BookingDetailsProps) {
+  const { subStep, goToSubStep, nextSubStep, isLast } = subStepNav;
   const t = useTranslations('bookings.detailsStep');
   const tErrors = useTranslations('bookings.errors');
   const formatter = useFormatter();
@@ -709,21 +728,68 @@ export function useBookingDetailsForm({
     return null;
   };
 
-  // Sticky-bar primary action: validate, then submit or scroll to + focus the
-  // first incomplete field. Never a silently disabled button.
+  // Same check, narrowed to the fields the customer can actually see on the
+  // sub-step they are on, so Continue on Session does not complain about a
+  // blank email two screens away.
+  //
+  // Session and Extras have NO required fields today — duration defaults to 1,
+  // people to 1, bay to 'social' and club rental to 'standard' — so Continue
+  // never blocks on either of them. `bd-bay` is listed for completeness (it is
+  // the Session sub-step's only anchor) but is unreachable while `selectedBay`
+  // is seeded with a default.
+  const firstInvalidFieldForSubStep = (s: DetailSubStep): string | null => {
+    if (s === 'session') {
+      if (!selectedBayType && !selectedBay) return 'bd-bay';
+    }
+    if (s === 'contact') {
+      if (!name.trim()) return 'bd-name';
+      if (!phoneNumber || !isValidPhoneNumber(phoneNumber)) return 'bd-phone';
+      if (!email.trim()) return 'bd-email';
+    }
+    return null;
+  };
+
+  // Flag a required field, navigate to the sub-step that owns it if we are not
+  // already there, then scroll to it and focus its input.
+  const flagAndRevealField = (fieldId: string) => {
+    setErrorField(fieldId);
+    const owner = SUB_STEP_FOR_FIELD[fieldId];
+    const needsNavigation = !!owner && owner !== subStep;
+    if (needsNavigation) goToSubStep(owner);
+    // When we navigated, the target is still `display: none` this tick — a
+    // hidden element is found by getElementById but cannot be scrolled to.
+    // Defer past the re-render that unhides it.
+    const reveal = () => {
+      const el = document.getElementById(fieldId);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const input = el.querySelector('input, textarea, select') as HTMLElement | null;
+      window.setTimeout(() => input?.focus({ preventScroll: true }), 350);
+    };
+    if (needsNavigation) {
+      window.setTimeout(reveal, 0);
+    } else {
+      reveal();
+    }
+  };
+
+  // Sticky-bar primary action. Forward only: Continue while there is another
+  // sub-step, Confirm on the last one. Never a silently disabled button — an
+  // incomplete required field flags and scrolls instead.
   const handlePrimaryCta = () => {
-    const bad = firstInvalidField();
+    // Advancing validates only what is on screen; confirming validates the
+    // whole form, so a field on an earlier sub-step can still stop the submit.
+    const bad = isLast ? firstInvalidField() : firstInvalidFieldForSubStep(subStep);
     if (bad) {
-      setErrorField(bad);
-      const el = document.getElementById(bad);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const input = el.querySelector('input, textarea, select') as HTMLElement | null;
-        window.setTimeout(() => input?.focus({ preventScroll: true }), 350);
-      }
+      flagAndRevealField(bad);
       return;
     }
     setErrorField(null);
+    if (!isLast) {
+      nextSubStep();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     void handleSubmit();
   };
 
@@ -741,6 +807,8 @@ export function useBookingDetailsForm({
     onClubSetIdChange,
     selectedAddOns,
     onAddOnsChange,
+    // Mobile sub-step navigation, passed straight through from useBookingFlow.
+    subStepNav,
     // i18n / navigation / session
     t,
     formatter,
