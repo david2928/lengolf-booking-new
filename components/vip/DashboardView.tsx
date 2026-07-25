@@ -1,7 +1,7 @@
 'use client'; // Required as it will be used by a client component page and has conditional rendering
 
 import React from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useTranslations, useFormatter } from 'next-intl';
 import { Calendar, Award, ExternalLink, Edit, Clock } from 'lucide-react';
 // TODO: Resolve Booking type import when vipService is migrated (VIP-FE-001)

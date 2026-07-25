@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import ProfileView from '@/components/vip/ProfileView';
 import { useVipContext } from '../contexts/VipContext';

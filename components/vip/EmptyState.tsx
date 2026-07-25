@@ -2,7 +2,7 @@
 
 import React, { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { LucideIcon, PackageSearch, CalendarOff, Info, SearchX } from 'lucide-react'; // Added SearchX
 
 interface EmptyStateProps {

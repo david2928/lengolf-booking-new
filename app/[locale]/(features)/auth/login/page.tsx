@@ -7,17 +7,22 @@ import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { FaLine, FaFacebook } from 'react-icons/fa';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { getPathname } from '@/i18n/navigation';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 
 export default function LoginPage() {
   const t = useTranslations('auth.login');
+  const locale = useLocale();
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [browserType, setBrowserType] = useState<'line' | 'facebook' | 'other'>('other');
   const searchParams = useSearchParams();
   const error = searchParams?.get('error') || null;
-  const callbackUrl = searchParams?.get('callbackUrl') || '/bookings';
+  // An explicit callbackUrl already carries its own prefix (see useBookingFlow);
+  // only the fallback needs one applied here.
+  const callbackUrl =
+    searchParams?.get('callbackUrl') || getPathname({ href: '/bookings', locale });
 
   useEffect(() => {
     // Function to detect browser type

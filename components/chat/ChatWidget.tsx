@@ -7,7 +7,7 @@
 'use client';
 
 import { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname } from '@/i18n/navigation';
 import { ChatButton } from './ChatButton';
 import { ChatWindow } from './ChatWindow';
 import { useChatSession } from '@/hooks/useChatSession';
@@ -16,13 +16,12 @@ export default function ChatWidget() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Only show chat on the bookings landing page (/bookings and locale-prefixed equivalents)
-  // e.g. /bookings, /th/bookings, /ko/bookings, /ja/bookings, /zh/bookings, or root /
-  const isLiffPage = pathname?.startsWith('/liff');
-  const isBookingsPage = pathname
-    ? /^\/(th|ko|ja|zh)?(\/bookings)?\/?$/.test(pathname)
-    : false;
-  const shouldHide = isLiffPage || !isBookingsPage;
+  // Only show chat on the bookings landing page, or root.
+  // `usePathname` from `@/i18n/navigation` returns the locale-stripped path, so
+  // `/th/bookings` arrives here as `/bookings` and needs no locale alternation.
+  // No /liff check: this widget only mounts from app/[locale]/layout.tsx.
+  const isBookingsPage = pathname ? /^(\/bookings)?\/?$/.test(pathname) : false;
+  const shouldHide = !isBookingsPage;
 
   const {
     chatSession,

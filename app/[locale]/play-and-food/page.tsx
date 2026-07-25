@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Layout } from '@/app/[locale]/(features)/bookings/components/booking/Layout';
