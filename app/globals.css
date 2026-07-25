@@ -287,3 +287,20 @@ html[lang="th"] body {
 body.has-summary-bar [data-chat-fab] {
   bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
 }
+
+/*
+ * The bar is `fixed`, so it covers whatever sits at the very END of the
+ * document — not just the form that mounted it. BOOKING_SUMMARY_BAR_SPACER on
+ * the form is not enough: on the bay-booking flow the shared footer renders
+ * after it, and at the page bottom the bar was intercepting taps on four
+ * footer controls including the Privacy Policy link (verified with
+ * elementFromPoint, not just visually). Padding the document instead means
+ * every consumer clears the bar regardless of what it renders last.
+ *
+ * 7rem clears the measured 87px bar (with subline) plus margin; the inset is
+ * added because the bar's own row carries .pb-safe and grows on devices with a
+ * home indicator.
+ */
+body.has-summary-bar {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+}

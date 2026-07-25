@@ -1336,10 +1336,10 @@ export function BookingDetails({
                   setName(e.target.value);
                   if (errorField === 'bd-name') setErrorField(null);
                 }}
-                className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
+                className={`w-full h-12 px-4 rounded-lg focus:outline-none ${
                   errorField === 'bd-name'
                     ? 'border-amber-500 bg-amber-50'
-                    : !name ? 'border-red-100' : 'border-green-500'
+                    : `bg-gray-50 ${!name ? 'border-red-100' : 'border-green-500'}`
                 } border focus:border-green-500 focus:ring-1 focus:ring-green-500`}
                 placeholder={t('namePlaceholder')}
               />
@@ -1363,14 +1363,16 @@ export function BookingDetails({
                     setPhoneNumber(value);
                     if (errorField === 'bd-phone') setErrorField(null);
                   }}
-                  className={`w-full h-12 px-3 py-2 rounded-lg bg-gray-50 focus:outline-none border focus:border-green-500 focus:ring-1 focus:ring-green-500 custom-phone-input ${
+                  className={`w-full h-12 px-3 py-2 rounded-lg focus:outline-none border focus:border-green-500 focus:ring-1 focus:ring-green-500 custom-phone-input ${
                     errorField === 'bd-phone'
                       ? 'border-amber-500 bg-amber-50'
-                      : errors.phoneNumber
-                      ? 'border-red-500'
-                      : (phoneNumber && isValidPhoneNumber(phoneNumber || ''))
-                      ? 'border-green-500'
-                      : 'border-gray-200'
+                      : `bg-gray-50 ${
+                          errors.phoneNumber
+                            ? 'border-red-500'
+                            : (phoneNumber && isValidPhoneNumber(phoneNumber || ''))
+                            ? 'border-green-500'
+                            : 'border-gray-200'
+                        }`
                   }`}
                 />
               </div>
@@ -1401,12 +1403,12 @@ export function BookingDetails({
                     setEmail(e.target.value);
                     if (errorField === 'bd-email') setErrorField(null);
                   }}
-                  className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
+                  className={`w-full h-12 px-4 rounded-lg focus:outline-none ${
                     errorField === 'bd-email'
                       ? 'border border-amber-500 bg-amber-50 focus:border-green-500 focus:ring-1 focus:ring-green-500'
                       : !email
-                      ? 'border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
-                      : 'border border-green-500'
+                      ? 'bg-gray-50 border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
+                      : 'bg-gray-50 border border-green-500'
                   }`}
                   placeholder={isLineUser ? t('emailPlaceholderLine') : t('emailPlaceholderDefault')}
                 />
