@@ -15,7 +15,12 @@ import {
 import { useAvailability, type TimeSlot } from '../../../hooks/useAvailability';
 import { BayType } from '@/lib/bayConfig';
 import { BayInfoModal } from '../../BayInfoModal';
-import { BOOKING_PERIODS, getBookingPeriod, periodHourCaptionArgs } from '@/lib/booking-periods';
+import {
+  BOOKING_PERIODS,
+  getBookingPeriod,
+  periodHourCaptionArgs,
+  type BookingPeriod,
+} from '@/lib/booking-periods';
 
 interface TimeSlotsProps {
   selectedDate: Date;
@@ -58,6 +63,42 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
   // The morning caption's start hour is the venue's opening hour, which is
   // date-dependent — see `lib/opening-hours.ts`.
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
+
+  // Counts come off the FILTERED list, so the tabs never advertise a slot the
+  // current bay filter has already hidden.
+  const slotsByPeriod = BOOKING_PERIODS.reduce(
+    (acc, period) => {
+      acc[period] = filteredSlots
+        .filter(slot => getBookingPeriod(slot.startTime) === period)
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      return acc;
+    },
+    {} as Record<BookingPeriod, TimeSlot[]>,
+  );
+
+  /**
+   * The period holding the next bookable slot. `BOOKING_PERIODS` is ordered
+   * earliest-first and the availability API already drops elapsed slots for
+   * today, so the first period with anything in it IS the one containing the
+   * next bookable slot — no separate is-today branch needed. Null only when the
+   * filtered list is empty, in which case the empty state renders instead.
+   */
+  const defaultPeriod = BOOKING_PERIODS.find(period => slotsByPeriod[period].length > 0) ?? null;
+
+  const [preferredPeriod, setPreferredPeriod] = useState<BookingPeriod | null>(null);
+
+  // A new date is a new decision — don't carry yesterday's tab over.
+  useEffect(() => {
+    setPreferredPeriod(null);
+  }, [selectedDate]);
+
+  /**
+   * Derived rather than stored: if the bay filter empties the tab the customer
+   * picked, they fall back to the default instead of being stranded on a blank
+   * panel. Flipping the filter back restores their choice.
+   */
+  const activePeriod =
+    preferredPeriod && slotsByPeriod[preferredPeriod].length > 0 ? preferredPeriod : defaultPeriod;
 
   // Get the appropriate bay type to pass to onTimeSelect
   const getBayTypeForSelection = (): BayType | undefined => {
@@ -121,49 +162,131 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
     </div>
   );
 
+  const periodLabel: Record<BookingPeriod, string> = {
+    morning: t('periodMorning'),
+    afternoon: t('periodAfternoon'),
+    evening: t('periodEvening'),
+  };
+
+  const periodIcon = (period: BookingPeriod, className: string) =>
+    period === 'morning' ? (
+      <SunIcon className={className} />
+    ) : period === 'afternoon' ? (
+      <CloudIcon className={className} />
+    ) : (
+      <MoonIcon className={className} />
+    );
+
+  /**
+   * Below `lg` the three period cards stacked into a long scroll. This picks
+   * one. Desktop keeps all three side by side and never sees the strip — it is
+   * `display: none` there, so it leaves the desktop a11y tree too.
+   *
+   * A period with nothing in it stays visible but disabled, so "sold out" is
+   * distinguishable from "not looked at yet" without tapping through.
+   *
+   * Plain JSX rather than an inline component: an inline component would be a
+   * new type on every render, so React would remount the strip and blow away
+   * the focus ring the moment a keyboard user activated a tab.
+   */
+  const periodTabs = (
+    <div
+      role="tablist"
+      aria-label={t('periodTabsLabel')}
+      aria-orientation="horizontal"
+      className="lg:hidden grid grid-cols-3 gap-2 mb-4"
+    >
+      {BOOKING_PERIODS.map((period) => {
+        const count = slotsByPeriod[period].length;
+        const isActive = period === activePeriod;
+        return (
+          <button
+            key={period}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            // An empty period renders no card, so don't point at a missing id.
+            aria-controls={count > 0 ? `period-card-${period}` : undefined}
+            // Starts with the visible label, so voice control still matches.
+            aria-label={t('periodTabAria', { period: periodLabel[period], count })}
+            disabled={count === 0}
+            onClick={() => setPreferredPeriod(period)}
+            className={`flex flex-col items-center justify-center gap-0.5 min-h-[3.5rem] px-1 py-2 rounded-lg border transition-colors ${
+              count === 0
+                ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                : isActive
+                ? 'border-green-700 bg-green-700 text-white'
+                : 'border-gray-200 bg-white text-gray-700 hover:border-green-500 hover:bg-green-50'
+            }`}
+          >
+            {periodIcon(period, `h-4 w-4 flex-shrink-0 ${count === 0 ? 'opacity-60' : ''}`)}
+            <span className="text-xs font-medium leading-tight">{periodLabel[period]}</span>
+            <span
+              aria-hidden="true"
+              className={`text-[11px] leading-none tabular-nums ${
+                count === 0 ? '' : isActive ? 'text-white/80' : 'text-gray-500'
+              }`}
+            >
+              {count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="min-h-[calc(100vh-32rem)]">
       <BayTypeFilter />
-      
+
       {isLoadingSlots ? (
         <div className="flex flex-col items-center justify-center h-full py-20">
           <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
           <p className="mt-4 text-lg text-gray-600">{t('loadingTimes')}</p>
         </div>
       ) : (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-6"
-        >
+        <>
+          {filteredSlots.length > 0 && periodTabs}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+          >
           {BOOKING_PERIODS.map((period) => {
             // NOT `slot.period` — that server field splits the morning at 12 and
             // contradicts the hour caption rendered below it.
-            const periodSlots = filteredSlots.filter(slot => getBookingPeriod(slot.startTime) === period);
+            const periodSlots = slotsByPeriod[period];
             if (periodSlots.length === 0) return null;
 
             return (
               <div
                 key={period}
+                id={`period-card-${period}`}
                 data-testid={`period-card-${period}`}
-                className="bg-white rounded-xl shadow-sm overflow-hidden"
+                // One card below `lg`, all three side by side at `lg` and up.
+                // `hidden` removes the others from the mobile layout entirely
+                // rather than duplicating the markup per breakpoint.
+                className={`bg-white rounded-xl shadow-sm overflow-hidden ${
+                  period === activePeriod ? '' : 'hidden lg:block'
+                }`}
               >
                 {/* Period Header */}
                 <div className="bg-green-700 px-4 py-3 flex items-center justify-between">
                   <div className="flex items-center">
-                    {period === 'morning' ? (
-                      <SunIcon className="h-5 w-5 text-yellow-300 mr-2" />
-                    ) : period === 'afternoon' ? (
-                      <CloudIcon className="h-5 w-5 text-white mr-2" />
-                    ) : (
-                      <MoonIcon className="h-5 w-5 text-blue-200 mr-2" />
+                    {periodIcon(
+                      period,
+                      `h-5 w-5 mr-2 ${
+                        period === 'morning'
+                          ? 'text-yellow-300'
+                          : period === 'afternoon'
+                          ? 'text-white'
+                          : 'text-blue-200'
+                      }`,
                     )}
                     <div>
                       <h3 className="text-lg font-semibold text-white">
-                        {period === 'morning' ? t('periodMorning') :
-                         period === 'afternoon' ? t('periodAfternoon') :
-                         t('periodEvening')}
+                        {periodLabel[period]}
                         <span className="ml-2 text-sm font-normal opacity-90">
                           {t('periodHours', periodHourCaptionArgs(period, dateKey))}
                         </span>
@@ -175,7 +298,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                 {/* Time Slots - Paired by hour */}
                 <div className="divide-y">
                   {(() => {
-                    const sorted = [...periodSlots].sort((a, b) => a.startTime.localeCompare(b.startTime));
+                    const sorted = periodSlots; // already sorted by `slotsByPeriod`
                     const bayType = getBayTypeForSelection();
 
                     // Group into pairs by hour: [12:00, 12:30], [13:00, 13:30], etc.
@@ -266,9 +389,10 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
               </div>
             </motion.div>
           )}
-        </motion.div>
+          </motion.div>
+        </>
       )}
-      
+
       {/* Bay Information Modal */}
       <BayInfoModal 
         isOpen={showBayInfoModal} 

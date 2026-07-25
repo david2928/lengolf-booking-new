@@ -162,7 +162,6 @@
       "periodHours": "({start} - {end})",
       "periodTabsLabel": "时段",
       "periodTabAria": "{period}，{count, plural, =0 {无可预约时段} other {# 个可预约时段}}",
-      "periodNoTimes": "该时段暂无可预约时间。",
       "hoursMaxLabel": "最多 {hours} 小时",
       "noSlots": "该日期没有可用时段。",
       "noSlotsForFilter": "该日期没有可用的 {filter} 时段。",

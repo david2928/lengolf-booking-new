@@ -162,7 +162,6 @@
       "periodHours": "({start} - {end})",
       "periodTabsLabel": "時間帯",
       "periodTabAria": "{period}、{count, plural, =0 {空き時間なし} other {空き時間 #件}}",
-      "periodNoTimes": "この時間帯に空きはありません。",
       "hoursMaxLabel": "最大{hours}時間",
       "noSlots": "この日に空きはありません。",
       "noSlotsForFilter": "この日に {filter} の空きはありません。",

@@ -162,7 +162,6 @@
       "periodHours": "({start} - {end})",
       "periodTabsLabel": "시간대",
       "periodTabAria": "{period}, {count, plural, =0 {예약 가능한 시간 없음} other {예약 가능한 시간 #개}}",
-      "periodNoTimes": "이 시간대에는 예약 가능한 시간이 없습니다.",
       "hoursMaxLabel": "최대 {hours}시간",
       "noSlots": "이 날짜에 이용 가능한 시간대가 없습니다.",
       "noSlotsForFilter": "이 날짜에 이용 가능한 {filter} 시간대가 없습니다.",

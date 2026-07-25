@@ -162,7 +162,6 @@
       "periodHours": "({start} - {end})",
       "periodTabsLabel": "ช่วงเวลา",
       "periodTabAria": "{period}, {count, plural, =0 {ไม่มีเวลาว่าง} other {มีเวลาว่าง # ช่วง}}",
-      "periodNoTimes": "ไม่มีเวลาว่างในช่วงนี้",
       "hoursMaxLabel": "สูงสุด {hours} ชม.",
       "noSlots": "ไม่มีช่วงเวลาว่างสำหรับวันนี้",
       "noSlotsForFilter": "ไม่มีช่วงเวลาว่างของ {filter} สำหรับวันนี้",

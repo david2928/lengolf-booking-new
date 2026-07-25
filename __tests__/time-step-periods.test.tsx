@@ -10,6 +10,7 @@
  * server `period` to prove it is ignored.
  */
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import type { TimeSlot } from '@/app/[locale]/(features)/bookings/hooks/useAvailability';
 import messages from '@/messages/en.json';
@@ -114,6 +115,145 @@ describe('web time step — the morning caption tracks the opening hour', () => 
     expect(within(card('morning')).getByRole('heading')).toHaveTextContent(
       /^Morning\s*\(10:00 - 13:00\)$/,
     );
+  });
+});
+
+/**
+ * Below `lg` the three cards used to stack into a long scroll. They are now a
+ * tab strip. jsdom applies no CSS, so "which card the phone shows" is asserted
+ * through the `hidden lg:block` utility the inactive cards carry — that class
+ * IS the mechanism, and the desktop grid is untouched underneath it.
+ */
+const SOCIAL_ONLY = { availableBays: ['Bay 1'], socialBayCount: 1, aiLabCount: 0 };
+const AI_ONLY = { availableBays: ['Bay 4'], socialBayCount: 0, aiLabCount: 1 };
+
+const tab = (name: RegExp) => screen.getByRole('tab', { name });
+const isHiddenOnMobile = (period: 'morning' | 'afternoon' | 'evening') =>
+  card(period).className.includes('hidden lg:block');
+
+describe('mobile period tabs', () => {
+  test('one tab per period, each carrying its own count', () => {
+    renderWeb([slot('10:00'), slot('10:30'), slot('14:00'), slot('18:00')]);
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(tab(/^Morning/)).toHaveAccessibleName('Morning, 2 times available');
+    expect(tab(/^Afternoon/)).toHaveAccessibleName('Afternoon, 1 time available');
+    expect(tab(/^Evening/)).toHaveAccessibleName('Evening, 1 time available');
+  });
+
+  test('only the selected period is shown below lg; all three stay in the desktop grid', () => {
+    renderWeb([slot('10:00'), slot('14:00'), slot('18:00')]);
+    expect(isHiddenOnMobile('morning')).toBe(false);
+    expect(isHiddenOnMobile('afternoon')).toBe(true);
+    expect(isHiddenOnMobile('evening')).toBe(true);
+    // The desktop layout is deliberately unchanged.
+    expect(card('morning').parentElement).toHaveClass('lg:grid-cols-3');
+    expect(screen.getByRole('tablist')).toHaveClass('lg:hidden');
+  });
+
+  test('tapping a tab swaps the visible period', async () => {
+    const user = userEvent.setup();
+    renderWeb([slot('10:00'), slot('14:00'), slot('18:00')]);
+    await user.click(tab(/^Evening/));
+    expect(isHiddenOnMobile('evening')).toBe(false);
+    expect(isHiddenOnMobile('morning')).toBe(true);
+    expect(tab(/^Evening/)).toHaveAttribute('aria-selected', 'true');
+    expect(tab(/^Morning/)).toHaveAttribute('aria-selected', 'false');
+  });
+});
+
+describe('initial tab selection', () => {
+  test('defaults to the first period that HAS slots, not to Morning', () => {
+    // Morning sold out or already elapsed — the API returns nothing before 14:00.
+    renderWeb([slot('14:00'), slot('18:00')]);
+    expect(tab(/^Morning/)).toBeDisabled();
+    expect(tab(/^Morning/)).toHaveAccessibleName('Morning, no times available');
+    expect(tab(/^Afternoon/)).toHaveAttribute('aria-selected', 'true');
+    expect(isHiddenOnMobile('afternoon')).toBe(false);
+  });
+
+  test('an evening-only date opens on Evening', () => {
+    renderWeb([slot('19:00'), slot('19:30')]);
+    expect(tab(/^Morning/)).toBeDisabled();
+    expect(tab(/^Afternoon/)).toBeDisabled();
+    expect(tab(/^Evening/)).toHaveAttribute('aria-selected', 'true');
+  });
+});
+
+describe('the bay-type filter drives the counts and cannot strand the customer', () => {
+  const MIXED = [
+    slot('10:00', SOCIAL_ONLY),
+    slot('14:00', SOCIAL_ONLY),
+    slot('18:00', AI_ONLY),
+  ];
+
+  test('counts reflect the filtered set, not every slot on the date', async () => {
+    const user = userEvent.setup();
+    renderWeb(MIXED);
+    expect(tab(/^Evening/)).toHaveAccessibleName('Evening, 1 time available');
+
+    await user.click(screen.getByRole('button', { name: /Social Bays/ }));
+    expect(tab(/^Morning/)).toHaveAccessibleName('Morning, 1 time available');
+    expect(tab(/^Evening/)).toHaveAccessibleName('Evening, no times available');
+    expect(tab(/^Evening/)).toBeDisabled();
+  });
+
+  test('a filter that empties the selected tab falls back instead of showing nothing', async () => {
+    const user = userEvent.setup();
+    renderWeb(MIXED);
+
+    await user.click(tab(/^Evening/));
+    expect(isHiddenOnMobile('evening')).toBe(false);
+
+    // Evening is AI-only, so the Social filter wipes it out.
+    await user.click(screen.getByRole('button', { name: /Social Bays/ }));
+    expect(screen.queryByTestId('period-card-evening')).not.toBeInTheDocument();
+    expect(isHiddenOnMobile('morning')).toBe(false);
+    expect(tab(/^Morning/)).toHaveAttribute('aria-selected', 'true');
+
+    // Widening the filter again restores the customer's own choice.
+    await user.click(screen.getByRole('button', { name: /All Bays/ }));
+    expect(isHiddenOnMobile('evening')).toBe(false);
+    expect(tab(/^Evening/)).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('when the filter empties the whole date, the existing empty state takes over', async () => {
+    const user = userEvent.setup();
+    renderWeb([slot('10:00', SOCIAL_ONLY)]);
+
+    await user.click(screen.getByRole('button', { name: /AI Bay/ }));
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.getByText('No available AI Lab slots for this date.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show All Available Times' })).toBeInTheDocument();
+  });
+
+  test('a date with no slots at all keeps the full-width empty state', () => {
+    renderWeb([]);
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    const message = screen.getByText('No available time slots for this date.');
+    expect(message.closest('.lg\\:col-span-3')).toBeInTheDocument();
+  });
+});
+
+describe('the per-slot treatment survives the tab rewrite', () => {
+  test('a maxHours <= 2 slot keeps its amber "limited" caption', () => {
+    renderWeb([slot('10:00', { maxHours: 1.5 }), slot('10:30', { maxHours: 3 })]);
+    const limited = screen.getByRole('button', { name: /10:00/ });
+    expect(limited).toHaveTextContent('1.5hr max');
+    expect(limited.className).toContain('border-amber-200');
+    const unlimited = screen.getByRole('button', { name: /10:30/ });
+    expect(unlimited).not.toHaveTextContent('hr max');
+    expect(unlimited.className).toContain('border-gray-200');
+  });
+
+  test(':00 and :30 of the same hour stay paired on one row', () => {
+    renderWeb([slot('10:00'), slot('10:30'), slot('11:00')]);
+    const rows = within(card('morning')).getAllByRole('button');
+    expect(rows.map(b => b.textContent)).toEqual(['10:00', '10:30', '11:00']);
+    // The pair shares a parent row; the lone 11:00 gets its own.
+    const row = (label: string) =>
+      screen.getByRole('button', { name: label }).parentElement?.parentElement;
+    expect(row('10:00')).toBe(row('10:30'));
+    expect(row('11:00')).not.toBe(row('10:00'));
   });
 });
 
