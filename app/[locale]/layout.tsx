@@ -7,6 +7,7 @@ import { Analytics } from '@vercel/analytics/next';
 import type { ReactNode } from 'react';
 import { routing, isValidLocale, type Locale } from '@/i18n/routing';
 import ChatWidgetLoader from '@/components/chat/ChatWidgetLoader';
+import AttributionCapture from '@/components/shared/AttributionCapture';
 import {
   SITE_URL,
   buildAlternates,
@@ -203,6 +204,7 @@ export default async function LocaleLayout({
       </noscript>
       <NextIntlClientProvider locale={locale} messages={messages}>
         {children}
+        <AttributionCapture />
         <ChatWidgetLoader />
         <Analytics />
       </NextIntlClientProvider>
