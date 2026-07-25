@@ -689,6 +689,219 @@ describe('only the best eligible offer applies', () => {
   });
 });
 
+/**
+ * The identity guard for best-single-offer. The refactor's central claim is that
+ * ONE eligible promotion produces exactly the breakdown the stacking calculator
+ * produced — the change is only ever visible with two or more offers. That was
+ * verified with throwaway harnesses, which is no defence against the next
+ * refactor, and nothing else in this file asserts a WHOLE breakdown for the
+ * one-promotion case: `toHaveLength` and `discounts[0].amount` would all still
+ * pass if a stray note appeared or a locale label silently changed.
+ *
+ * The expectations below are INLINE literals on purpose. Comparing
+ * `calculateCost` against `calculateCost` proves only self-consistency; a
+ * regression that moved both sides would sail through. Every one of these ran
+ * against a boundary-straddling window (13:00/13:30 on a weekday, so the bay
+ * charge prorates across 14:00) because that is where the free-hour placement
+ * and the ฿550/฿750 split can actually diverge.
+ *
+ * `appliedPromotionId` is metadata added after the refactor so the staff LINE
+ * note can name the winner without re-deriving eligibility (see
+ * `app/api/bookings/create/route.ts`). It is the one intended difference from
+ * the pre-refactor output; nothing renders it.
+ */
+describe('a single eligible promotion produces the whole pre-refactor breakdown', () => {
+  const PRORATED_BAY_2H = {
+    id: 'bay-rate',
+    label: 'Bay Rate',
+    labelTh: 'ค่าเบย์',
+    labelJa: 'ベイ料金',
+    labelKo: '베이 요금',
+    labelZh: '球位费用',
+    detail: '1hr × ฿550 + 1hr × ฿750 (Weekday)',
+    detailTh: '1 ชม. × ฿550 + 1 ชม. × ฿750 (วันธรรมดา)',
+    detailJa: '1時間 × ฿550 + 1時間 × ฿750 (平日)',
+    detailKo: '1시간 × ฿550 + 1시간 × ฿750 (평일)',
+    detailZh: '1小时 × ฿550 + 1小时 × ฿750 (工作日)',
+    amount: 1300, // 13:00–15:00 weekday: 1×550 + 1×750
+  };
+  const ESTIMATE_NOTE = {
+    en: 'Estimate only — payment at venue',
+    th: 'ราคาประมาณการ — ชำระที่สถานที่',
+    ja: 'ご予約時の見積もり — 会場でお支払い',
+    ko: '예상 금액 — 현장에서 결제',
+    zh: '预估价格 — 现场付款',
+  };
+
+  test('bogo: the free hour is the LAST hour, priced where it actually falls', () => {
+    // 13:00–15:00 straddles 14:00. The free hour is 14:00–15:00 = ฿750, NOT the
+    // ฿550 first hour and NOT the ฿650 average — this is the whole reason the
+    // boundary case is the one worth pinning.
+    expect(calculateCost({ ...baseInput, startTime: '13:00', duration: 2, applicablePromotions: [bogoPromo] }))
+      .toEqual({
+        lineItems: [PRORATED_BAY_2H],
+        discounts: [{
+          id: 'promo-promo-b1g1',
+          label: 'Buy 1 Get 1 Free',
+          labelTh: 'ซื้อ 1 แถม 1',
+          // Promo rows carry only title_en/title_th; ja/ko/zh fall back to English.
+          labelJa: 'Buy 1 Get 1 Free',
+          labelKo: 'Buy 1 Get 1 Free',
+          labelZh: 'Buy 1 Get 1 Free',
+          amount: -750,
+          promotionId: 'promo-b1g1',
+        }],
+        appliedPromotionId: 'promo-b1g1',
+        subtotal: 1300,
+        totalDiscount: -750,
+        estimatedTotal: 550,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [ESTIMATE_NOTE.en],
+        notesTh: [ESTIMATE_NOTE.th],
+        notesJa: [ESTIMATE_NOTE.ja],
+        notesKo: [ESTIMATE_NOTE.ko],
+        notesZh: [ESTIMATE_NOTE.zh],
+      });
+  });
+
+  test('percentage: taken off the PRORATED bay total, with the pct in every label', () => {
+    const pct: ApplicablePromotion = {
+      id: 'promo-pct', promotion_type: 'percentage', discount_value: 20,
+      applies_to: 'bay_rate', conditions: {}, title_en: '20% Off', title_th: 'ลด 20%',
+    };
+    expect(calculateCost({ ...baseInput, startTime: '13:00', duration: 2, applicablePromotions: [pct] }))
+      .toEqual({
+        lineItems: [PRORATED_BAY_2H],
+        discounts: [{
+          id: 'promo-promo-pct',
+          label: '20% Off (20% off)',
+          labelTh: 'ลด 20% (ลด 20%)',
+          labelJa: '20% Off (20%オフ)',
+          labelKo: '20% Off (20% 할인)',
+          labelZh: '20% Off (20% 折扣)',
+          amount: -260, // 20% of ฿1,300 — the prorated total, not 2 × 20% of ฿550
+          promotionId: 'promo-pct',
+        }],
+        appliedPromotionId: 'promo-pct',
+        subtotal: 1300,
+        totalDiscount: -260,
+        estimatedTotal: 1040,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [ESTIMATE_NOTE.en],
+        notesTh: [ESTIMATE_NOTE.th],
+        notesJa: [ESTIMATE_NOTE.ja],
+        notesKo: [ESTIMATE_NOTE.ko],
+        notesZh: [ESTIMATE_NOTE.zh],
+      });
+  });
+
+  test('fixed_amount: a flat baht row, untouched by where the booking falls', () => {
+    const fixed: ApplicablePromotion = {
+      id: 'promo-fixed', promotion_type: 'fixed_amount', discount_value: 200,
+      applies_to: 'total', conditions: {}, title_en: '฿200 off', title_th: 'ลด ฿200',
+    };
+    expect(calculateCost({ ...baseInput, startTime: '13:00', duration: 2, applicablePromotions: [fixed] }))
+      .toEqual({
+        lineItems: [PRORATED_BAY_2H],
+        discounts: [{
+          id: 'promo-promo-fixed',
+          label: '฿200 off',
+          labelTh: 'ลด ฿200',
+          labelJa: '฿200 off',
+          labelKo: '฿200 off',
+          labelZh: '฿200 off',
+          amount: -200,
+          promotionId: 'promo-fixed',
+        }],
+        appliedPromotionId: 'promo-fixed',
+        subtotal: 1300,
+        totalDiscount: -200,
+        estimatedTotal: 1100,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [ESTIMATE_NOTE.en],
+        notesTh: [ESTIMATE_NOTE.th],
+        notesJa: [ESTIMATE_NOTE.ja],
+        notesKo: [ESTIMATE_NOTE.ko],
+        notesZh: [ESTIMATE_NOTE.zh],
+      });
+  });
+
+  test('a sub-2-hour bogo: no discount row, the hint in all five locales', () => {
+    // The LIVE production shape — one auto-apply B1G1, a new customer, a booking
+    // under two hours. 13:30–15:00 straddles 14:00 (0.5×550 + 1×750 = ฿1,025).
+    // `appliedPromotionId` is set with `discounts` empty: the offer won by
+    // contributing advice, which the staff LINE note has to reproduce.
+    expect(calculateCost({ ...baseInput, startTime: '13:30', duration: 1.5, applicablePromotions: [bogoPromo] }))
+      .toEqual({
+        lineItems: [{
+          id: 'bay-rate',
+          label: 'Bay Rate',
+          labelTh: 'ค่าเบย์',
+          labelJa: 'ベイ料金',
+          labelKo: '베이 요금',
+          labelZh: '球位费用',
+          detail: '0.5hr × ฿550 + 1hr × ฿750 (Weekday)',
+          detailTh: '0.5 ชม. × ฿550 + 1 ชม. × ฿750 (วันธรรมดา)',
+          detailJa: '0.5時間 × ฿550 + 1時間 × ฿750 (平日)',
+          detailKo: '0.5시간 × ฿550 + 1시간 × ฿750 (평일)',
+          detailZh: '0.5小时 × ฿550 + 1小时 × ฿750 (工作日)',
+          amount: 1025,
+        }],
+        discounts: [],
+        appliedPromotionId: 'promo-b1g1',
+        subtotal: 1025,
+        totalDiscount: 0,
+        estimatedTotal: 1025,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [
+          ESTIMATE_NOTE.en,
+          '🎉 Buy 1 Get 1 Free — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days',
+        ],
+        notesTh: [
+          ESTIMATE_NOTE.th,
+          '🎉 ซื้อ 1 แถม 1 — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน',
+        ],
+        notesJa: [
+          ESTIMATE_NOTE.ja,
+          '🎉 Buy 1 Get 1 Free — 2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください',
+        ],
+        notesKo: [
+          ESTIMATE_NOTE.ko,
+          '🎉 Buy 1 Get 1 Free — 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요',
+        ],
+        notesZh: [
+          ESTIMATE_NOTE.zh,
+          '🎉 Buy 1 Get 1 Free — 预订2小时即获1小时免费！或在7天内兑换您的免费时段',
+        ],
+      });
+  });
+
+  test('and none of the four ever names a competitor', () => {
+    // A lone offer competed with nothing. Cheap, but it is the assertion that
+    // would fail loudest if `alsoConsidered` ever stopped excluding the winner.
+    const lone: ApplicablePromotion[][] = [
+      [bogoPromo],
+      [{ id: 'p', promotion_type: 'percentage', discount_value: 20, applies_to: 'bay_rate', conditions: {}, title_en: 'P', title_th: 'พี' }],
+      [{ id: 'f', promotion_type: 'fixed_amount', discount_value: 200, applies_to: 'total', conditions: {}, title_en: 'F', title_th: 'เอฟ' }],
+    ];
+    for (const promos of lone) {
+      for (const duration of [1.5, 2]) {
+        const breakdown = calculateCost({ ...baseInput, startTime: '13:30', duration, applicablePromotions: promos });
+        expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+        expect(breakdown.appliedPromotionId).toBe(promos[0].id);
+      }
+    }
+  });
+});
+
 describe('an unknown balance is byte-identical to the pre-balance calculator', () => {
   const pkgInput: CostCalculationInput = {
     ...baseInput,
