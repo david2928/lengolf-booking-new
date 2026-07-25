@@ -14,6 +14,7 @@ import { isValidLanguage } from '@/lib/liff/translations';
 import { isValidLocale } from '@/i18n/routing';
 import { sanitizeAttribution } from '@/lib/attribution/click-ids';
 import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
+import { b1g1CreditExpiry, grantB1G1NewCustomerCredit } from '@/lib/b1g1-credit';
 
 // Accept any LIFF Language (en/th/ja/zh) OR any main-site Locale (en/th/ko/ja/zh).
 // LIFF's isValidLanguage doesn't include 'ko', but the main flow can produce it.
@@ -969,10 +970,57 @@ export async function POST(request: NextRequest) {
             const discounted = breakdown.discounts.some((d) => d.promotionId === applied.id);
             let promoLabel = applied.title_en;
             if (!discounted && applied.promotion_type === 'bogo' && applied.free_hours) {
-              const expiryDate = new Date(date);
-              expiryDate.setDate(expiryDate.getDate() + 7);
-              const expiryStr = expiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              // Advice-only bogo: the free hour is NOT in this booking, it is
+              // owed. `!discounted` is the same test the label has always used
+              // and the only one that stays correct under slice 4's
+              // non-stacking rule — if a richer offer beat the bogo,
+              // `appliedPromotionId` names that offer instead, this branch
+              // never runs, no hint is printed and no credit is granted. The
+              // grant and the promise agree because they read one decision.
+              const expiry = b1g1CreditExpiry(date);
+              const expiryStr = expiry?.label ?? '';
               promoLabel = `${applied.title_en} (${applied.free_hours} free hr to redeem within 7 days, expires ${expiryStr})`;
+
+              // Record the promise. Same `expiry` object feeds the printed date
+              // above and the stored `expires_at` below, so the two cannot
+              // disagree. Own try/catch: a grant failure must not swallow the
+              // staff note, and unlike the note a dropped grant is a broken
+              // promise to a paying customer — so it logs at error level with
+              // enough context to reconstruct it by hand.
+              if (expiry && customerId) {
+                try {
+                  const grant = await grantB1G1NewCustomerCredit(supabase, {
+                    customerId,
+                    freeHours: applied.free_hours,
+                    expiresAt: expiry.expiresAt,
+                    bookingId: booking.id as string,
+                  });
+                  if (!grant.ok) {
+                    console.error(
+                      `[B1G1] FAILED to record free-hour credit — customer was promised it. customerId=${customerId} bookingId=${booking.id} hours=${applied.free_hours} expires=${expiry.expiresAt.toISOString()} error=${grant.error}`,
+                    );
+                  } else {
+                    console.log(
+                      `[B1G1] ${grant.created ? 'Granted' : 'Already held'} free-hour credit: customerId=${customerId} bookingId=${booking.id} grantId=${grant.grantId} hours=${applied.free_hours} expires=${expiry.expiresAt.toISOString()}`,
+                    );
+                  }
+                } catch (grantError) {
+                  console.error(
+                    `[B1G1] FAILED to record free-hour credit — customer was promised it. customerId=${customerId} bookingId=${booking.id} hours=${applied.free_hours}`,
+                    grantError,
+                  );
+                }
+              } else if (!customerId) {
+                // Unreachable in practice — the route 500s earlier when
+                // customer identification fails, and `isNewCustomer` (which
+                // gates this whole block) only becomes true off a resolved
+                // customer record. Logged rather than dropped so that if it
+                // ever does happen we find out from the promise, not the
+                // customer.
+                console.error(
+                  `[B1G1] Cannot record free-hour credit: no customer_id. bookingId=${booking.id} hours=${applied.free_hours}`,
+                );
+              }
             }
             notificationNotes = notificationNotes
               ? `${notificationNotes}, ${promoLabel}`
