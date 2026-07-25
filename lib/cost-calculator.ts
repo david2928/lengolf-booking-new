@@ -847,10 +847,12 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     // Sorted on the SAME key as the selection, because a `filter` would inherit
     // the arrival order the comment above explains we cannot trust — with three
     // eligible offers the sentence itself would otherwise vary between users.
+    // Compared with `<` rather than `localeCompare`, which is collation- and
+    // ICU-dependent: this list has to read the same for every customer.
     const alsoConsidered = winner.discount
       ? uniqueCandidates
         .filter((candidate) => candidate !== winner)
-        .sort((a, b) => b.value - a.value || a.promotionId.localeCompare(b.promotionId))
+        .sort((a, b) => b.value - a.value || (a.promotionId < b.promotionId ? -1 : a.promotionId > b.promotionId ? 1 : 0))
       : [];
     if (alsoConsidered.length > 0) {
       const list = (lang: Lang) =>
