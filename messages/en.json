@@ -162,7 +162,7 @@
       "periodHours": "({start} - {end})",
       "periodTabsLabel": "Time of day",
       "periodTabAria": "{period}, {count, plural, =0 {no times available} =1 {# time available} other {# times available}}",
-      "hoursMaxLabel": "{hours}hr max",
+      "hoursMaxLabel": "{hours} hr max",
       "noSlots": "No available time slots for this date.",
       "noSlotsForFilter": "No available {filter} slots for this date.",
       "filterLabelSocial": "Social Bay",
