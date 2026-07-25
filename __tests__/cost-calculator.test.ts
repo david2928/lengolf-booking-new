@@ -202,6 +202,56 @@ describe('Early Bird package coverage splits at 14:00', () => {
     expect(breakdown.estimatedTotal).toBe(0);
   });
 
+  /**
+   * The chip and a note used to say the same sentence a few lines apart:
+   * "Covered by Early Bird +" under the Bay Rate line, then "Bay rate covered
+   * by Early Bird +" under the Total. Owner-reported Jul 2026. The chip is the
+   * one that stayed, so a FULLY covered booking must carry the chip data and
+   * contribute NO coverage note in any of the five locales.
+   *
+   * Deliberately asserted as "notes hold nothing but the estimate line" rather
+   * than by matching the old wording — a reworded duplicate would sail straight
+   * past a substring check.
+   */
+  test('full coverage is said once, by the chip, and never repeated in the notes', () => {
+    const { breakdown, charged } = items({ startTime: '13:00', duration: 1 });
+
+    // The chip's inputs. Both surfaces render it off `isCoveredByPackage`.
+    expect(charged?.isCoveredByPackage).toBe(true);
+    expect(charged?.packageName).toBe('Early Bird 10H');
+
+    const ESTIMATE_ONLY = {
+      notes: ['Estimate only, payment at venue'],
+      notesTh: ['ราคาประมาณการ ชำระที่สถานที่'],
+      notesJa: ['ご予約時の見積もり、会場でお支払い'],
+      notesKo: ['예상 금액, 현장에서 결제'],
+      notesZh: ['预估价格，现场付款'],
+    };
+    expect({
+      notes: breakdown.notes,
+      notesTh: breakdown.notesTh,
+      notesJa: breakdown.notesJa,
+      notesKo: breakdown.notesKo,
+      notesZh: breakdown.notesZh,
+    }).toEqual(ESTIMATE_ONLY);
+
+    // And specifically not the package name a second time, however phrased.
+    for (const locale of Object.values(ESTIMATE_ONLY)) {
+      expect(locale.some((n) => n.includes('Early Bird 10H'))).toBe(false);
+    }
+  });
+
+  // The PARTIAL-coverage branch is the counterpart: there the chip explains the
+  // ฿0 head but nothing explains the charged tail, so its note must survive.
+  test('the partial-coverage note is untouched by the full-coverage cleanup', () => {
+    const { breakdown } = items({ startTime: '13:30', duration: 2 });
+    expect(breakdown.notes.some((n) => n.includes('covers until 14:00'))).toBe(true);
+    expect(breakdown.notesTh.some((n) => n.includes('14:00'))).toBe(true);
+    expect(breakdown.notesJa.some((n) => n.includes('14:00'))).toBe(true);
+    expect(breakdown.notesKo.some((n) => n.includes('14:00'))).toBe(true);
+    expect(breakdown.notesZh.some((n) => n.includes('14:00'))).toBe(true);
+  });
+
   test('14:00 start → not covered at all, existing morning-only note fires', () => {
     const { breakdown, covered, charged } = items({ startTime: '14:00', duration: 1 });
     expect(covered).toBeUndefined();

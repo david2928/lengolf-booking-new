@@ -499,11 +499,18 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       packageName: packageDisplayName,
       originalAmount: bayCost,
     });
-    notes.push(`Bay rate covered by ${packageDisplayName ?? 'your package'}`);
-    notesTh.push(`ค่าเบย์รวมอยู่ในแพ็กเกจ ${packageDisplayName ?? 'ของคุณ'}`);
-    notesJa.push(`ベイ料金は${packageDisplayName ?? 'お客様のパッケージ'}に含まれています`);
-    notesKo.push(`베이 요금은 ${packageDisplayName ?? '회원님의 패키지'}에 포함되어 있습니다`);
-    notesZh.push(`球位费用已包含在${packageDisplayName ?? '您的套餐'}中`);
+    // NO coverage note here, deliberately. `isCoveredByPackage` above already
+    // renders a green "Covered by <package>" chip directly beneath this line
+    // item, in BOTH surfaces that render notes — `RailLineItem` in
+    // `SummaryRail.tsx` and the line-item loop in `ProjectedCostBreakdown.tsx`.
+    // A note saying "Bay rate covered by <package>" repeats that exact sentence
+    // a few lines lower, under the Total, which is what the owner reported
+    // (Jul 2026). The chip wins because it sits next to the line it explains.
+    //
+    // The PARTIAL-coverage branch below is NOT the same case: there the
+    // customer is charged for the uncovered tail, no chip explains the charge,
+    // and its note is the only thing that does. Do not "restore symmetry" by
+    // adding one back here.
   } else if (packageAppliesToBay && packageCoveredHours > HOUR_EPSILON) {
     // The package pays for the HEAD of the booking and the tail is charged.
     // Split at `packageCoveredEnd` — 14:00 for an Early Bird booking crossing
