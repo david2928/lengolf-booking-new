@@ -67,12 +67,14 @@ export default function GuestForm({ onClose, callbackUrl = '/bookings' }: GuestF
         return;
       }
 
-      // `signIn(..., { redirect: false })` resolves as soon as the credentials
-      // POST returns, which can be before the session cookie is readable. A
-      // hard navigation at that moment races the cookie write and can land the
-      // user back on the login page as if nothing happened — the symptom being
-      // a customer who fills in the guest form twice. getSession() round-trips
-      // /api/auth/session, so once it resolves the cookie is definitely set.
+      // Confirm the session is actually readable before leaving the page.
+      // `signIn(..., { redirect: false })` resolves once the credentials POST
+      // returns; the Set-Cookie should already be applied at that point, so
+      // this is belt-and-braces rather than a proven fix — it also warms
+      // next-auth's client session cache so the destination page doesn't start
+      // from an empty one. Worth the single round trip: the incident that
+      // prompted this had a customer completing the guest form twice, twelve
+      // seconds apart, and the cause was never established.
       await getSession();
 
       window.location.href = callbackUrl;
