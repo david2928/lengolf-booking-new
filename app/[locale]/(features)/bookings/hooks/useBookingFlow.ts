@@ -6,6 +6,7 @@ import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from './useAvailability';
 import { useFlowPersistence } from '@/lib/use-flow-persistence';
+import { pushBayBookingStepViewed } from '@/lib/booking-telemetry';
 
 export function useBookingFlow() {
   const { status } = useSession();
@@ -33,7 +34,7 @@ export function useBookingFlow() {
   // page under a different /[locale] route) doesn't reset the wizard to step 1.
   // Cleared on the confirmation page; skips restore when a deep-link / auth-return
   // param is present so those flows keep ownership of the initial state.
-  useFlowPersistence(
+  const flowRestored = useFlowPersistence(
     'lengolf.bayBookingFlow',
     {
       currentStep,
@@ -69,6 +70,15 @@ export function useBookingFlow() {
       if (s.selectedSlotData) setSelectedSlotData(s.selectedSlotData);
     },
   );
+
+  // Report the step the customer actually lands on. Gated on `flowRestored`
+  // because useFlowPersistence restores in a mount effect: without the gate this
+  // fires for the initial step 1 and then the restored step, inventing a `date`
+  // view and skipping the restored step's predecessor entirely.
+  useEffect(() => {
+    if (!flowRestored) return;
+    pushBayBookingStepViewed(currentStep);
+  }, [flowRestored, currentStep]);
 
   useEffect(() => {
     if (searchParams && !isAutoSelecting) {

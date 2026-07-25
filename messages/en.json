@@ -291,7 +291,12 @@
       "clubRentalCourseLinkCta": "View daily rates & delivery options",
       "carouselPhotoAlt": "Callaway Paradym Forged Carbon - Photo {index}",
       "durationSwitchedToAi": "Duration changed: Switched to AI Bay (Social bays not available for this duration)",
-      "durationSwitchedToSocial": "Duration changed: Switched to Social Bay (AI bay not available for this duration)"
+      "durationSwitchedToSocial": "Duration changed: Switched to Social Bay (AI bay not available for this duration)",
+      "summaryTotalLabel": "Total",
+      "summaryEmptyPrompt": "Choose a duration to see your total",
+      "errorNeedName": "We need your name to hold the booking.",
+      "errorNeedPhone": "Please enter a valid phone number.",
+      "errorNeedEmail": "We need an email to send your confirmation."
     },
     "confirmation": {
       "pageTitle": "Booking Confirmation - LENGOLF",

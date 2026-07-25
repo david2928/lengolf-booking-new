@@ -32,6 +32,7 @@ import { BayInfoModal } from '../../BayInfoModal';
 import type { TimeSlot } from '../../../hooks/useAvailability';
 import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
 import { ProjectedCostBreakdown } from '@/components/booking/ProjectedCostBreakdown';
+import { BookingSummaryBar, BOOKING_SUMMARY_BAR_SPACER } from '@/components/shared/BookingSummaryBar';
 
 interface Profile {
   name: string;
@@ -185,6 +186,9 @@ export function BookingDetails({
     email: '',
     name: '',
   });
+  // Which required field the sticky CTA flagged as incomplete. Drives the
+  // scroll + highlight. Mirrors the course-rental pattern.
+  const [errorField, setErrorField] = useState<string | null>(null);
   const [showNoAvailabilityModal, setShowNoAvailabilityModal] = useState(false);
   const [showBayInfoModal, setShowBayInfoModal] = useState(false);
   const loadingSteps = [
@@ -589,8 +593,8 @@ export function BookingDetails({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
 
     if (!supabase) {
       toast.error(tErrors('bookingSystemNotReady'));
@@ -775,8 +779,36 @@ export function BookingDetails({
     );
   }
 
+  // Returns the id of the first incomplete required field, or null if valid.
+  // Order matters: it is the order the customer reads the form in.
+  const firstInvalidField = (): string | null => {
+    if (!name.trim()) return 'bd-name';
+    if (!phoneNumber || !isValidPhoneNumber(phoneNumber)) return 'bd-phone';
+    if (!email.trim()) return 'bd-email';
+    if (!selectedBayType && !selectedBay) return 'bd-bay';
+    return null;
+  };
+
+  // Sticky-bar primary action: validate, then submit or scroll to + focus the
+  // first incomplete field. Never a silently disabled button.
+  const handlePrimaryCta = () => {
+    const bad = firstInvalidField();
+    if (bad) {
+      setErrorField(bad);
+      const el = document.getElementById(bad);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const input = el.querySelector('input, textarea, select') as HTMLElement | null;
+        window.setTimeout(() => input?.focus({ preventScroll: true }), 350);
+      }
+      return;
+    }
+    setErrorField(null);
+    void handleSubmit();
+  };
+
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className={`space-y-4 sm:space-y-6 ${BOOKING_SUMMARY_BAR_SPACER}`}>
       {/* Selected Info Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100">
@@ -807,10 +839,10 @@ export function BookingDetails({
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100">
+        <div id="bd-bay" className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100 scroll-mt-24">
           <div className="flex items-center gap-3">
             <div className={`p-2 sm:p-3 rounded-full ${
-              (selectedBayType === 'ai_lab' || selectedBay === 'ai_lab') 
+              (selectedBayType === 'ai_lab' || selectedBay === 'ai_lab')
                 ? 'bg-purple-50' 
                 : 'bg-green-50'
             }`}>
@@ -1293,23 +1325,31 @@ export function BookingDetails({
           
           <div className="space-y-4">
             {/* Name field */}
-            <div>
+            <div id="bd-name" className="scroll-mt-24">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('name')}
               </label>
               <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
-                  !name ? 'border-red-100' : 'border-green-500'
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (errorField === 'bd-name') setErrorField(null);
+                }}
+                className={`w-full h-12 px-4 rounded-lg focus:outline-none ${
+                  errorField === 'bd-name'
+                    ? 'border-amber-500 bg-amber-50'
+                    : `bg-gray-50 ${!name ? 'border-red-100' : 'border-green-500'}`
                 } border focus:border-green-500 focus:ring-1 focus:ring-green-500`}
                 placeholder={t('namePlaceholder')}
               />
+              {errorField === 'bd-name' && (
+                <p className="mt-1 text-sm font-medium text-amber-600">{t('errorNeedName')}</p>
+              )}
             </div>
 
             {/* Phone Number */}
-            <div>
+            <div id="bd-phone" className="scroll-mt-24">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('phoneNumber')}
               </label>
@@ -1319,13 +1359,20 @@ export function BookingDetails({
                   defaultCountry="TH"
                   placeholder={t('phoneNumberPlaceholder')}
                   value={phoneNumber}
-                  onChange={setPhoneNumber}
-                  className={`w-full h-12 px-3 py-2 rounded-lg bg-gray-50 focus:outline-none border focus:border-green-500 focus:ring-1 focus:ring-green-500 custom-phone-input ${
-                    errors.phoneNumber 
-                      ? 'border-red-500' 
-                      : (phoneNumber && isValidPhoneNumber(phoneNumber || '')) 
-                      ? 'border-green-500' 
-                      : 'border-gray-200'
+                  onChange={(value) => {
+                    setPhoneNumber(value);
+                    if (errorField === 'bd-phone') setErrorField(null);
+                  }}
+                  className={`w-full h-12 px-3 py-2 rounded-lg focus:outline-none border focus:border-green-500 focus:ring-1 focus:ring-green-500 custom-phone-input ${
+                    errorField === 'bd-phone'
+                      ? 'border-amber-500 bg-amber-50'
+                      : `bg-gray-50 ${
+                          errors.phoneNumber
+                            ? 'border-red-500'
+                            : (phoneNumber && isValidPhoneNumber(phoneNumber || ''))
+                            ? 'border-green-500'
+                            : 'border-gray-200'
+                        }`
                   }`}
                 />
               </div>
@@ -1335,13 +1382,16 @@ export function BookingDetails({
                   {t('phoneCountryHelper')}
                 </p>
               )}
+              {errorField === 'bd-phone' && (
+                <p className="mt-1 text-sm font-medium text-amber-600">{t('errorNeedPhone')}</p>
+              )}
               {errors.phoneNumber && (
                 <p className="mt-1 text-sm text-red-600">{errors.phoneNumber}</p>
               )}
             </div>
 
             {/* Email */}
-            <div>
+            <div id="bd-email" className="scroll-mt-24">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t('emailAddress')}
               </label>
@@ -1349,11 +1399,16 @@ export function BookingDetails({
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`w-full h-12 px-4 rounded-lg bg-gray-50 focus:outline-none ${
-                    !email
-                      ? 'border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
-                      : 'border border-green-500'
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errorField === 'bd-email') setErrorField(null);
+                  }}
+                  className={`w-full h-12 px-4 rounded-lg focus:outline-none ${
+                    errorField === 'bd-email'
+                      ? 'border border-amber-500 bg-amber-50 focus:border-green-500 focus:ring-1 focus:ring-green-500'
+                      : !email
+                      ? 'bg-gray-50 border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
+                      : 'bg-gray-50 border border-green-500'
                   }`}
                   placeholder={isLineUser ? t('emailPlaceholderLine') : t('emailPlaceholderDefault')}
                 />
@@ -1361,6 +1416,9 @@ export function BookingDetails({
               <p className="mt-1 text-xs text-gray-500">
                 {t('emailConfirmationNote')}
               </p>
+              {errorField === 'bd-email' && (
+                <p className="mt-1 text-sm font-medium text-amber-600">{t('errorNeedEmail')}</p>
+              )}
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email}</p>
               )}
@@ -1397,8 +1455,9 @@ export function BookingDetails({
           </div>
         )}
 
-        {/* Submit Button */}
-        <div className="flex space-x-3 justify-end mt-6">
+        {/* Back only. The primary action lives in the sticky bar so it is
+            always reachable without scrolling past the whole form. */}
+        <div className="flex justify-start mt-6">
           <button
             type="button"
             onClick={onBack}
@@ -1406,27 +1465,6 @@ export function BookingDetails({
             disabled={isSubmitting}
           >
             {t('back')}
-          </button>
-          <button
-            type="submit"
-            disabled={
-              isSubmitting || 
-              !duration || 
-              !phoneNumber || 
-              !isValidPhoneNumber(phoneNumber || '') ||
-              !name ||
-              !email ||
-              (!selectedBayType && !selectedBay)
-            }
-            className={`py-2 px-6 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
-              isSubmitting
-                ? 'bg-green-600 opacity-75'
-                : (duration && phoneNumber && isValidPhoneNumber(phoneNumber || '') && name && email && (selectedBayType || selectedBay))
-                ? 'bg-green-600 hover:bg-green-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            {isSubmitting ? t('processing') : t('confirmBooking')}
           </button>
         </div>
 
@@ -1459,6 +1497,16 @@ export function BookingDetails({
           {t('consentNote')}
         </p>
       </form>
+
+      <BookingSummaryBar
+        total={costBreakdown ? costBreakdown.estimatedTotal : null}
+        totalLabel={t('summaryTotalLabel')}
+        subline={`${duration} hr · ${selectedTime}`}
+        ctaLabel={isSubmitting ? t('processing') : t('confirmBooking')}
+        onCta={handlePrimaryCta}
+        ctaLoading={isSubmitting}
+        emptyPrompt={t('summaryEmptyPrompt')}
+      />
 
       {/* No Availability Modal */}
       {showNoAvailabilityModal && (
