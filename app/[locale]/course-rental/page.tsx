@@ -19,6 +19,7 @@ import { usePricingLoader } from '@/lib/pricing-hook';
 import { useFlowPersistence, clearFlowPersistence } from '@/lib/use-flow-persistence';
 import { pushEventToGtm } from '@/utils/gtm';
 import { courseDeliveryFee } from '@/lib/club-rental/order-pricing';
+import { BOOKING_SUMMARY_BAR_SPACER } from '@/components/shared/BookingSummaryBar';
 
 const STORAGE_BASE = 'https://bisimqmtxjsptehhqpeg.supabase.co/storage/v1/object/public/website-assets';
 
@@ -569,7 +570,9 @@ export default function CourseRentalPage() {
 
   return (
     <Layout hidePromotionBar hideNav compactHeader flushMain hideFooter>
-      <div className={step === 'dates' ? 'w-full' : 'max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24'}>
+      {/* BOOKING_SUMMARY_BAR_SPACER (not a literal pb-*) so this can never drift
+          out of sync with the sticky bar's actual height in BookingSummaryBar. */}
+      <div className={step === 'dates' ? 'w-full' : `max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 ${BOOKING_SUMMARY_BAR_SPACER}`}>
         {/* Header with back button — hidden on the dates landing (the hero is the header) */}
         {step !== 'dates' && (
         <div className="mb-6 flex items-start">

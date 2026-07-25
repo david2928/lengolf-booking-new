@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useFormatter } from 'next-intl';
 
 /** Bottom padding a consumer must apply to its scroll container to clear this bar. */
@@ -29,8 +29,12 @@ interface BookingSummaryBarProps {
   total: number | null;
   /** Uppercase micro-label above the amount, e.g. "Total". */
   totalLabel: string;
-  /** One-line detail under the amount, e.g. "1.5 h, 13:00 to 14:30". */
-  subline?: string;
+  /**
+   * One-line detail under the amount, e.g. "1.5 h, 13:00 to 14:30". Accepts a
+   * ReactNode (not just a string) so callers can colour individual segments —
+   * e.g. a green savings span and an amber fee span — inside the line.
+   */
+  subline?: ReactNode;
   /** Primary action label. */
   ctaLabel: string;
   /** Fires the step's primary action. Validation lives in the parent. */

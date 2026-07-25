@@ -38,6 +38,26 @@ describe('BookingSummaryBar', () => {
     expect(screen.getByText('1.5 h, 13:00 to 14:30')).toBeInTheDocument();
   });
 
+  // subline is typed as ReactNode (not just string) specifically so callers
+  // like RentalPriceSummaryBar can colour individual segments — e.g. green
+  // for a savings amount, amber for a delivery surcharge. Pin this so the
+  // prop never gets narrowed back to `string`, which would silently flatten
+  // those colour cues.
+  test('renders a ReactNode subline, preserving nested coloured markup', () => {
+    renderBar({
+      subline: (
+        <>
+          2d <span className="text-green-600">save ฿300</span>
+        </>
+      ),
+    });
+
+    const savingsSpan = screen.getByText('save ฿300');
+    expect(savingsSpan).toBeInTheDocument();
+    expect(savingsSpan.tagName).toBe('SPAN');
+    expect(savingsSpan).toHaveClass('text-green-600');
+  });
+
   test('CTA is enabled even when the form is incomplete', async () => {
     const { onCta } = renderBar();
     const button = screen.getByRole('button', { name: 'Confirm booking' });
