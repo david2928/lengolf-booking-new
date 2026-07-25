@@ -246,3 +246,33 @@ html[lang="th"] body {
 .pb-safe {
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
 }
+
+/*
+ * Chat FAB collision avoidance -------------------------------------------
+ * components/shared/BookingSummaryBar.tsx adds a `has-summary-bar` class to
+ * <body> for as long as it is mounted (see the useEffect there). The chat
+ * FAB in components/chat/ChatButton.tsx is a `fixed z-50` circle pinned to
+ * `bottom-4 right-4` (`sm:bottom-6 sm:right-6`) and is present on the same
+ * pages the summary bar mounts on — notably the bay-booking flow at `/`,
+ * which components/chat/ChatWidget.tsx's `isBookingsPage` regex also
+ * matches. Raising the bar's own z-index would not fix this: ChatWidgetLoader
+ * renders after {children} in app/[locale]/layout.tsx, so at equal
+ * z-index the FAB still wins the paint order and the two would still
+ * visually collide. Lifting the FAB clear of the bar here instead keeps
+ * BookingSummaryBar and ChatButton decoupled — neither imports or knows
+ * about the other.
+ *
+ * This rule is deliberately written OUTSIDE any `@layer` block, matching
+ * `.pb-safe` and `.scrollbar-thin` above. Tailwind's own utilities (the
+ * `bottom-4` / `sm:bottom-6` this overrides) are emitted inside
+ * `@layer utilities` via the `@tailwind utilities;` directive at the top of
+ * this file. Per the CSS Cascade Layers spec, any declaration outside a
+ * layer beats every declaration inside a layer regardless of specificity —
+ * so this selector reliably wins without needing to out-specificity or
+ * `!important` the utility classes. The `!important` below is only a
+ * defensive belt-and-suspenders in case that assumption is ever
+ * invalidated (e.g. `important: true` added to tailwind.config.ts).
+ */
+body.has-summary-bar .fixed.bottom-4.right-4.z-50 {
+  bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+}

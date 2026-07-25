@@ -56,14 +56,14 @@ describe('BookingSummaryBar', () => {
     expect(onCta).not.toHaveBeenCalled();
   });
 
-  test('shows the empty prompt instead of a zero total when total is 0', () => {
-    renderBar({ total: 0, emptyPrompt: 'Choose a duration' });
+  test('shows the empty prompt instead of a zero total when total is null', () => {
+    renderBar({ total: null, emptyPrompt: 'Choose a duration' });
     expect(screen.getByText('Choose a duration')).toBeInTheDocument();
     expect(screen.queryByText('฿0')).not.toBeInTheDocument();
   });
 
   test('shows a real ฿0 total when the price is genuinely zero', () => {
-    renderBar({ total: 0, emptyPrompt: 'Choose a duration', isZeroValid: true });
+    renderBar({ total: 0, emptyPrompt: 'Choose a duration' });
     expect(screen.getByText('฿0')).toBeInTheDocument();
     expect(screen.queryByText('Choose a duration')).not.toBeInTheDocument();
   });
