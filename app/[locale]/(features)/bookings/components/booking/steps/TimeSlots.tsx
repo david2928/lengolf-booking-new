@@ -182,49 +182,68 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
    * one. Desktop keeps all three side by side and never sees the strip — it is
    * `display: none` there, so it leaves the desktop a11y tree too.
    *
-   * A period with nothing in it stays visible but disabled, so "sold out" is
-   * distinguishable from "not looked at yet" without tapping through.
+   * NOT an ARIA tab pattern, deliberately. At `lg` all three cards render at
+   * once, side by side; they are not tab panels at that breakpoint, so
+   * `role="tabpanel"` would be a lie half the time. What this control actually
+   * is, is a filter over which period the small screen shows — hence
+   * `role="group"` with `aria-pressed` toggle buttons, which promises only
+   * Tab-to-each-and-activate and delivers exactly that. `role="tablist"` would
+   * promise Left/Right roving-tabindex navigation we do not implement.
+   *
+   * A period with nothing in it stays visible and FOCUSABLE, marked
+   * `aria-disabled` rather than `disabled`: the count is the whole point of
+   * showing it (so "sold out" is distinguishable from "not looked at yet"
+   * without tapping through), and the native `disabled` attribute would drop
+   * it out of the tab order and put that information out of reach of exactly
+   * the users who cannot see the greyed-out styling. `aria-disabled` does not
+   * block activation, so the click handler guards instead.
    *
    * Plain JSX rather than an inline component: an inline component would be a
    * new type on every render, so React would remount the strip and blow away
-   * the focus ring the moment a keyboard user activated a tab.
+   * the focus ring the moment a keyboard user activated a button.
    */
-  const periodTabs = (
+  // Named "strip", not "tabs" — see above. The `periodTabsLabel` /
+  // `periodTabAria` message KEYS keep their names to avoid a five-catalog
+  // rename with no user-visible effect; their values say nothing about tabs.
+  const periodStrip = (
     <div
-      role="tablist"
+      role="group"
       aria-label={t('periodTabsLabel')}
-      aria-orientation="horizontal"
       className="lg:hidden grid grid-cols-3 gap-2 mb-4"
     >
       {BOOKING_PERIODS.map((period) => {
         const count = slotsByPeriod[period].length;
         const isActive = period === activePeriod;
+        const isEmpty = count === 0;
         return (
           <button
             key={period}
             type="button"
-            role="tab"
-            aria-selected={isActive}
-            // An empty period renders no card, so don't point at a missing id.
-            aria-controls={count > 0 ? `period-card-${period}` : undefined}
+            aria-pressed={isActive}
+            aria-disabled={isEmpty}
             // Starts with the visible label, so voice control still matches.
+            // The count is `aria-hidden` in the markup and carried here
+            // instead, including the "no times available" =0 case.
             aria-label={t('periodTabAria', { period: periodLabel[period], count })}
-            disabled={count === 0}
-            onClick={() => setPreferredPeriod(period)}
+            // `aria-disabled` is advisory only — enforce it here.
+            onClick={() => {
+              if (isEmpty) return;
+              setPreferredPeriod(period);
+            }}
             className={`flex flex-col items-center justify-center gap-0.5 min-h-[3.5rem] px-1 py-2 rounded-lg border transition-colors ${
-              count === 0
+              isEmpty
                 ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                 : isActive
                 ? 'border-green-700 bg-green-700 text-white'
                 : 'border-gray-200 bg-white text-gray-700 hover:border-green-500 hover:bg-green-50'
             }`}
           >
-            {periodIcon(period, `h-4 w-4 flex-shrink-0 ${count === 0 ? 'opacity-60' : ''}`)}
+            {periodIcon(period, `h-4 w-4 flex-shrink-0 ${isEmpty ? 'opacity-60' : ''}`)}
             <span className="text-xs font-medium leading-tight">{periodLabel[period]}</span>
             <span
               aria-hidden="true"
               className={`text-[11px] leading-none tabular-nums ${
-                count === 0 ? '' : isActive ? 'text-white/80' : 'text-gray-500'
+                isEmpty ? '' : isActive ? 'text-white/80' : 'text-gray-500'
               }`}
             >
               {count}
@@ -246,7 +265,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
         </div>
       ) : (
         <>
-          {filteredSlots.length > 0 && periodTabs}
+          {filteredSlots.length > 0 && periodStrip}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -262,7 +281,6 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
             return (
               <div
                 key={period}
-                id={`period-card-${period}`}
                 data-testid={`period-card-${period}`}
                 // One card below `lg`, all three side by side at `lg` and up.
                 // `hidden` removes the others from the mobile layout entirely

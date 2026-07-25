@@ -1,10 +1,11 @@
 /**
  * The one definition of "morning".
  *
- * Three used to exist and they disagreed: the SQL `period` field split at 12,
- * the customer-facing captions promised 13, and LIFF recomputed at 13. A 12:00
- * or 12:30 slot was grouped as Afternoon on the web under a header reading
- * "(13:00 - 17:00)", and as Morning on LINE.
+ * Four used to exist and they disagreed: the SQL `period` field split at 12,
+ * the customer-facing captions promised 13, LIFF recomputed at 13, and an
+ * unimported duplicate `TimeSlot` interface declared a fourth (now deleted).
+ * A 12:00 or 12:30 slot was grouped as Afternoon on the web under a header
+ * reading "(13:00 - 17:00)", and as Morning on LINE.
  *
  * What is pinned here is not just "13 is the boundary" — it is that the
  * boundary and the printed caption cannot drift apart again. The catalog
@@ -28,6 +29,17 @@ import th from '@/messages/th.json';
 import ko from '@/messages/ko.json';
 import ja from '@/messages/ja.json';
 import zh from '@/messages/zh.json';
+
+/**
+ * Delegates to the real implementation. Only the out-of-range test at the
+ * bottom overrides it — no opening-hour regime that has ever existed can
+ * return 13, so that invariant is otherwise unreachable from real inputs.
+ */
+jest.mock('@/lib/opening-hours', () => {
+  const actual = jest.requireActual('@/lib/opening-hours');
+  return { __esModule: true, getOpeningHour: jest.fn(actual.getOpeningHour) };
+});
+const mockedOpeningHour = getOpeningHour as jest.MockedFunction<typeof getOpeningHour>;
 
 /** On/after the 2026-04-01 transition the venue opens at 09:00. */
 const TODAY = '2026-07-25';
@@ -109,6 +121,52 @@ describe('the caption spans and the grouping share one source', () => {
     expect(formatPeriodHour(9)).toBe('09:00');
     expect(formatPeriodHour(13)).toBe('13:00');
     expect(formatPeriodHour(23)).toBe('23:00');
+  });
+});
+
+/**
+ * An opening hour at or after 13:00 means the venue has no morning at all.
+ * Both real regimes (9 and 10) are safely before it, so this can only be
+ * reached by editing `lib/opening-hours.ts` — which is exactly the edit that
+ * would otherwise ship "(13:00 - 13:00)" or an inverted "(14:00 - 13:00)"
+ * caption without anything noticing. Pinned here so the edit fails in CI.
+ */
+describe('a morning that starts at or after the afternoon is rejected, not printed', () => {
+  // Put the real implementation back so no later file-order change can leak a
+  // fake opening hour into the assertions above.
+  afterEach(() => {
+    mockedOpeningHour.mockClear();
+    mockedOpeningHour.mockImplementation(jest.requireActual('@/lib/opening-hours').getOpeningHour);
+  });
+
+  test.each([AFTERNOON_START_HOUR, AFTERNOON_START_HOUR + 1, EVENING_START_HOUR])(
+    'an opening hour of %i throws instead of producing an empty or inverted span',
+    (hour: number) => {
+      mockedOpeningHour.mockReturnValue(hour);
+      expect(() => periodHourRange('morning', TODAY)).toThrow(RangeError);
+      expect(() => periodHourCaptionArgs('morning', TODAY)).toThrow(/no morning period/);
+    },
+  );
+
+  test('the last hour that still leaves a morning is accepted', () => {
+    mockedOpeningHour.mockReturnValue(AFTERNOON_START_HOUR - 1);
+    expect(periodHourRange('morning', TODAY)).toEqual({
+      startHour: AFTERNOON_START_HOUR - 1,
+      endHour: AFTERNOON_START_HOUR,
+    });
+  });
+
+  test('afternoon and evening are unaffected — they do not consult the opening hour', () => {
+    mockedOpeningHour.mockReturnValue(AFTERNOON_START_HOUR);
+    expect(periodHourRange('afternoon', TODAY)).toEqual({
+      startHour: AFTERNOON_START_HOUR,
+      endHour: EVENING_START_HOUR,
+    });
+    expect(periodHourRange('evening', TODAY)).toEqual({
+      startHour: EVENING_START_HOUR,
+      endHour: CLOSING_HOUR,
+    });
+    expect(mockedOpeningHour).not.toHaveBeenCalled();
   });
 });
 

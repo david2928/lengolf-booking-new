@@ -160,19 +160,6 @@ BEGIN
         END LOOP;
 
         IF max_hours > 0 THEN
-            -- VESTIGIAL. Nothing reads this field any more.
-            --
-            -- Its morning/afternoon split at hour < 12 disagreed with the
-            -- customer-facing captions ("09:00 - 13:00") and with the LIFF
-            -- flow, both of which split at 13. A 12:00 or 12:30 slot was
-            -- therefore grouped as Afternoon on the web under a header
-            -- claiming 13:00-17:00, and as Morning on LINE.
-            --
-            -- `lib/booking-periods.ts` now owns the boundaries for BOTH flows
-            -- and derives the displayed hour captions from the same constants.
-            -- The field is left on the wire only because dropping it means
-            -- another migration to a function shipped this week; do not
-            -- resurrect it as a source of truth.
             period := CASE
                 WHEN slot_hour_part < 12 THEN 'morning'
                 WHEN slot_hour_part < 17 THEN 'afternoon'

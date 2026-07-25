@@ -25,10 +25,10 @@ jest.mock('@/app/[locale]/(features)/bookings/hooks/useAvailability', () => ({
   useAvailability: () => mockAvailability,
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { TimeSlots } = require('@/app/[locale]/(features)/bookings/components/booking/steps/TimeSlots');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const TimeSlotList = require('@/components/liff/booking/TimeSlotList').default;
+// `jest.mock` above is hoisted over these by babel-jest, so plain ESM imports
+// still get the mocked hook — and keep both components properly typed.
+import { TimeSlots } from '@/app/[locale]/(features)/bookings/components/booking/steps/TimeSlots';
+import TimeSlotList from '@/components/liff/booking/TimeSlotList';
 
 /** A weekday on/after the 2026-04-01 opening-hour change, so the venue opens 09:00. */
 const DATE = new Date(2026, 6, 15);
@@ -119,25 +119,46 @@ describe('web time step — the morning caption tracks the opening hour', () => 
 });
 
 /**
- * Below `lg` the three cards used to stack into a long scroll. They are now a
- * tab strip. jsdom applies no CSS, so "which card the phone shows" is asserted
- * through the `hidden lg:block` utility the inactive cards carry — that class
- * IS the mechanism, and the desktop grid is untouched underneath it.
+ * Below `lg` the three cards used to stack into a long scroll. They are now
+ * driven by a period filter strip. jsdom applies no CSS, so "which card the
+ * phone shows" is asserted through the `hidden lg:block` utility the inactive
+ * cards carry — that class IS the mechanism, and the desktop grid is untouched
+ * underneath it.
+ *
+ * The strip is a toggle GROUP, not an ARIA tablist: at `lg` all three cards
+ * render at once, so they are not tab panels and `role="tabpanel"` would be
+ * false half the time. The assertions below pin `role="group"` +
+ * `aria-pressed`, and pin that an empty period stays reachable by keyboard
+ * (`aria-disabled`, never the native `disabled` attribute, which would hide
+ * its count from the very users who cannot see it greyed out).
  */
 const SOCIAL_ONLY = { availableBays: ['Bay 1'], socialBayCount: 1, aiLabCount: 0 };
 const AI_ONLY = { availableBays: ['Bay 4'], socialBayCount: 0, aiLabCount: 1 };
 
-const tab = (name: RegExp) => screen.getByRole('tab', { name });
+const periodStrip = () => screen.getByRole('group', { name: 'Time of day' });
+const periodButton = (name: RegExp) => within(periodStrip()).getByRole('button', { name });
 const isHiddenOnMobile = (period: 'morning' | 'afternoon' | 'evening') =>
   card(period).className.includes('hidden lg:block');
 
-describe('mobile period tabs', () => {
-  test('one tab per period, each carrying its own count', () => {
+describe('mobile period strip', () => {
+  test('one button per period, each carrying its own count', () => {
     renderWeb([slot('10:00'), slot('10:30'), slot('14:00'), slot('18:00')]);
-    expect(screen.getAllByRole('tab')).toHaveLength(3);
-    expect(tab(/^Morning/)).toHaveAccessibleName('Morning, 2 times available');
-    expect(tab(/^Afternoon/)).toHaveAccessibleName('Afternoon, 1 time available');
-    expect(tab(/^Evening/)).toHaveAccessibleName('Evening, 1 time available');
+    expect(within(periodStrip()).getAllByRole('button')).toHaveLength(3);
+    expect(periodButton(/^Morning/)).toHaveAccessibleName('Morning, 2 times available');
+    expect(periodButton(/^Afternoon/)).toHaveAccessibleName('Afternoon, 1 time available');
+    expect(periodButton(/^Evening/)).toHaveAccessibleName('Evening, 1 time available');
+  });
+
+  test('the strip is a toggle group, not a tablist', () => {
+    renderWeb([slot('10:00'), slot('14:00'), slot('18:00')]);
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.queryAllByRole('tablist')).toHaveLength(0);
+    // No `aria-controls` either — there is nothing with `role="tabpanel"` to
+    // point at, and at `lg` the cards are not panels at all.
+    for (const button of within(periodStrip()).getAllByRole('button')) {
+      expect(button).not.toHaveAttribute('aria-controls');
+      expect(button).not.toHaveAttribute('aria-selected');
+    }
   });
 
   test('only the selected period is shown below lg; all three stay in the desktop grid', () => {
@@ -147,35 +168,57 @@ describe('mobile period tabs', () => {
     expect(isHiddenOnMobile('evening')).toBe(true);
     // The desktop layout is deliberately unchanged.
     expect(card('morning').parentElement).toHaveClass('lg:grid-cols-3');
-    expect(screen.getByRole('tablist')).toHaveClass('lg:hidden');
+    expect(periodStrip()).toHaveClass('lg:hidden');
   });
 
-  test('tapping a tab swaps the visible period', async () => {
+  test('tapping a period swaps the visible card', async () => {
     const user = userEvent.setup();
     renderWeb([slot('10:00'), slot('14:00'), slot('18:00')]);
-    await user.click(tab(/^Evening/));
+    await user.click(periodButton(/^Evening/));
     expect(isHiddenOnMobile('evening')).toBe(false);
     expect(isHiddenOnMobile('morning')).toBe(true);
-    expect(tab(/^Evening/)).toHaveAttribute('aria-selected', 'true');
-    expect(tab(/^Morning/)).toHaveAttribute('aria-selected', 'false');
+    expect(periodButton(/^Evening/)).toHaveAttribute('aria-pressed', 'true');
+    expect(periodButton(/^Morning/)).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
-describe('initial tab selection', () => {
+describe('initial period selection', () => {
   test('defaults to the first period that HAS slots, not to Morning', () => {
     // Morning sold out or already elapsed — the API returns nothing before 14:00.
     renderWeb([slot('14:00'), slot('18:00')]);
-    expect(tab(/^Morning/)).toBeDisabled();
-    expect(tab(/^Morning/)).toHaveAccessibleName('Morning, no times available');
-    expect(tab(/^Afternoon/)).toHaveAttribute('aria-selected', 'true');
+    expect(periodButton(/^Morning/)).toHaveAttribute('aria-disabled', 'true');
+    expect(periodButton(/^Morning/)).toHaveAccessibleName('Morning, no times available');
+    expect(periodButton(/^Afternoon/)).toHaveAttribute('aria-pressed', 'true');
     expect(isHiddenOnMobile('afternoon')).toBe(false);
   });
 
   test('an evening-only date opens on Evening', () => {
     renderWeb([slot('19:00'), slot('19:30')]);
-    expect(tab(/^Morning/)).toBeDisabled();
-    expect(tab(/^Afternoon/)).toBeDisabled();
-    expect(tab(/^Evening/)).toHaveAttribute('aria-selected', 'true');
+    expect(periodButton(/^Morning/)).toHaveAttribute('aria-disabled', 'true');
+    expect(periodButton(/^Afternoon/)).toHaveAttribute('aria-disabled', 'true');
+    expect(periodButton(/^Evening/)).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+describe('an empty period stays reachable but inert', () => {
+  test('it keeps the native disabled attribute OFF so it stays in the tab order', () => {
+    renderWeb([slot('14:00')]);
+    const morning = periodButton(/^Morning/);
+    // `toBeDisabled()` would pass on `aria-disabled` too, so assert the
+    // attribute directly — the tab order is what is at stake.
+    expect(morning).not.toHaveAttribute('disabled');
+    morning.focus();
+    expect(morning).toHaveFocus();
+  });
+
+  test('activating it changes nothing', async () => {
+    const user = userEvent.setup();
+    renderWeb([slot('14:00'), slot('18:00')]);
+    await user.click(periodButton(/^Morning/));
+    expect(periodButton(/^Morning/)).toHaveAttribute('aria-pressed', 'false');
+    expect(periodButton(/^Afternoon/)).toHaveAttribute('aria-pressed', 'true');
+    expect(isHiddenOnMobile('afternoon')).toBe(false);
+    expect(screen.queryByTestId('period-card-morning')).not.toBeInTheDocument();
   });
 });
 
@@ -189,31 +232,31 @@ describe('the bay-type filter drives the counts and cannot strand the customer',
   test('counts reflect the filtered set, not every slot on the date', async () => {
     const user = userEvent.setup();
     renderWeb(MIXED);
-    expect(tab(/^Evening/)).toHaveAccessibleName('Evening, 1 time available');
+    expect(periodButton(/^Evening/)).toHaveAccessibleName('Evening, 1 time available');
 
     await user.click(screen.getByRole('button', { name: /Social Bays/ }));
-    expect(tab(/^Morning/)).toHaveAccessibleName('Morning, 1 time available');
-    expect(tab(/^Evening/)).toHaveAccessibleName('Evening, no times available');
-    expect(tab(/^Evening/)).toBeDisabled();
+    expect(periodButton(/^Morning/)).toHaveAccessibleName('Morning, 1 time available');
+    expect(periodButton(/^Evening/)).toHaveAccessibleName('Evening, no times available');
+    expect(periodButton(/^Evening/)).toHaveAttribute('aria-disabled', 'true');
   });
 
-  test('a filter that empties the selected tab falls back instead of showing nothing', async () => {
+  test('a filter that empties the selected period falls back instead of showing nothing', async () => {
     const user = userEvent.setup();
     renderWeb(MIXED);
 
-    await user.click(tab(/^Evening/));
+    await user.click(periodButton(/^Evening/));
     expect(isHiddenOnMobile('evening')).toBe(false);
 
     // Evening is AI-only, so the Social filter wipes it out.
     await user.click(screen.getByRole('button', { name: /Social Bays/ }));
     expect(screen.queryByTestId('period-card-evening')).not.toBeInTheDocument();
     expect(isHiddenOnMobile('morning')).toBe(false);
-    expect(tab(/^Morning/)).toHaveAttribute('aria-selected', 'true');
+    expect(periodButton(/^Morning/)).toHaveAttribute('aria-pressed', 'true');
 
     // Widening the filter again restores the customer's own choice.
     await user.click(screen.getByRole('button', { name: /All Bays/ }));
     expect(isHiddenOnMobile('evening')).toBe(false);
-    expect(tab(/^Evening/)).toHaveAttribute('aria-selected', 'true');
+    expect(periodButton(/^Evening/)).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('when the filter empties the whole date, the existing empty state takes over', async () => {
@@ -221,14 +264,14 @@ describe('the bay-type filter drives the counts and cannot strand the customer',
     renderWeb([slot('10:00', SOCIAL_ONLY)]);
 
     await user.click(screen.getByRole('button', { name: /AI Bay/ }));
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Time of day' })).not.toBeInTheDocument();
     expect(screen.getByText('No available AI Lab slots for this date.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show All Available Times' })).toBeInTheDocument();
   });
 
   test('a date with no slots at all keeps the full-width empty state', () => {
     renderWeb([]);
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Time of day' })).not.toBeInTheDocument();
     const message = screen.getByText('No available time slots for this date.');
     expect(message.closest('.lg\\:col-span-3')).toBeInTheDocument();
   });
