@@ -10,7 +10,7 @@ interface ProjectedCostBreakdownProps {
   language?: Language;
 }
 
-function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number): string {
   return `฿${Math.abs(amount).toLocaleString()}`;
 }
 
@@ -67,7 +67,7 @@ const UI: Record<Language, {
   },
 };
 
-function pickLabel(
+export function pickLabel(
   item: CostLineItem | CostDiscount,
   language: Language,
 ): string {
@@ -80,7 +80,7 @@ function pickLabel(
   }
 }
 
-function pickDetail(item: CostLineItem, language: Language): string | undefined {
+export function pickDetail(item: CostLineItem, language: Language): string | undefined {
   switch (language) {
     case 'th': return item.detailTh ?? item.detail;
     case 'ja': return item.detailJa ?? item.detail;
@@ -90,7 +90,7 @@ function pickDetail(item: CostLineItem, language: Language): string | undefined 
   }
 }
 
-function pickNotes(breakdown: CostBreakdown, language: Language): string[] {
+export function pickNotes(breakdown: CostBreakdown, language: Language): string[] {
   switch (language) {
     case 'th': return breakdown.notesTh;
     case 'ja': return breakdown.notesJa ?? breakdown.notes;
@@ -98,6 +98,65 @@ function pickNotes(breakdown: CostBreakdown, language: Language): string[] {
     case 'zh': return breakdown.notesZh ?? breakdown.notes;
     default: return breakdown.notes;
   }
+}
+
+/**
+ * The money column for one line item: strikethrough-plus-฿0 when a package
+ * covers it, strikethrough-plus-new-price when a promotion cuts it, "Free" for
+ * a genuine zero, otherwise the amount.
+ *
+ * Extracted verbatim from the card below (same element, same classes) so the
+ * desktop SummaryRail can render the same semantics without restating them —
+ * a second copy of this branch is how a rail ends up disagreeing with the form
+ * about what a booking costs.
+ */
+export function CostItemAmount({
+  item,
+  language = 'en',
+}: {
+  item: CostLineItem;
+  language?: Language;
+}) {
+  const ui = UI[language];
+  return (
+    <span className="text-sm font-medium text-gray-900 ml-4 whitespace-nowrap">
+      {item.isCoveredByPackage ? (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="line-through text-gray-400">
+            {formatCurrency(item.originalAmount ?? 0)}
+          </span>
+          <span className="text-green-600 font-semibold">฿0</span>
+        </span>
+      ) : item.originalAmount && item.originalAmount > item.amount ? (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="line-through text-gray-400">
+            {formatCurrency(item.originalAmount)}
+          </span>
+          <span>{formatCurrency(item.amount)}</span>
+        </span>
+      ) : (
+        item.amount === 0 ? (
+          <span className="text-green-600">{ui.free}</span>
+        ) : formatCurrency(item.amount)
+      )}
+    </span>
+  );
+}
+
+/** "Covered by <package>" pill. Extracted alongside CostItemAmount. */
+export function CostItemPackageBadge({
+  item,
+  language = 'en',
+}: {
+  item: CostLineItem;
+  language?: Language;
+}) {
+  const ui = UI[language];
+  return (
+    <span className="inline-block mt-1 text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
+      {item.packageName ? ui.coveredByPackageNamed(item.packageName) : ui.coveredByPackage}
+    </span>
+  );
 }
 
 export function ProjectedCostBreakdown({
@@ -136,35 +195,13 @@ export function ProjectedCostBreakdown({
           <div key={item.id}>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-700">{pickLabel(item, language)}</span>
-              <span className="text-sm font-medium text-gray-900 ml-4 whitespace-nowrap">
-                {item.isCoveredByPackage ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="line-through text-gray-400">
-                      {formatCurrency(item.originalAmount ?? 0)}
-                    </span>
-                    <span className="text-green-600 font-semibold">฿0</span>
-                  </span>
-                ) : item.originalAmount && item.originalAmount > item.amount ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="line-through text-gray-400">
-                      {formatCurrency(item.originalAmount)}
-                    </span>
-                    <span>{formatCurrency(item.amount)}</span>
-                  </span>
-                ) : (
-                  item.amount === 0 ? (
-                    <span className="text-green-600">{ui.free}</span>
-                  ) : formatCurrency(item.amount)
-                )}
-              </span>
+              <CostItemAmount item={item} language={language} />
             </div>
             {pickDetail(item, language) && (
               <p className="text-xs text-gray-400 mt-0.5">{pickDetail(item, language)}</p>
             )}
             {item.isCoveredByPackage && (
-              <span className="inline-block mt-1 text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
-                {item.packageName ? ui.coveredByPackageNamed(item.packageName) : ui.coveredByPackage}
-              </span>
+              <CostItemPackageBadge item={item} language={language} />
             )}
           </div>
         ))}

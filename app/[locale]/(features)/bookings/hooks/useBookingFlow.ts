@@ -7,6 +7,7 @@ import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from './useAvailability';
 import { useFlowPersistence } from '@/lib/use-flow-persistence';
 import { pushBayBookingStepViewed } from '@/lib/booking-telemetry';
+import { useDetailsSubStep, DETAIL_SUB_STEPS } from '../components/booking/steps/details/useDetailsSubStep';
 
 export function useBookingFlow() {
   const { status } = useSession();
@@ -24,6 +25,15 @@ export function useBookingFlow() {
   const [selectedClubSetId, setSelectedClubSetId] = useState<string | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<Record<string, boolean>>({});
   const [selectedSlotData, setSelectedSlotData] = useState<TimeSlot | null>(null);
+
+  // Step 3 is presented as three sub-steps on mobile. The sub-step lives here,
+  // beside `currentStep`, so this hook stays the single source of navigation
+  // truth and the header arrow in page.tsx can resolve "backward one level"
+  // without reaching into BookingDetails. Deliberately NOT part of the
+  // `useFlowPersistence` snapshot below: a restored booking always resumes at
+  // the first sub-step, which is always safe to render.
+  const detailsSubStep = useDetailsSubStep();
+  const { goToSubStep: goToDetailsSubStep, prevSubStep: prevDetailsSubStep, isFirst: isFirstDetailsSubStep } = detailsSubStep;
 
   const hasDeepLink = !!(
     searchParams &&
@@ -148,9 +158,13 @@ export function useBookingFlow() {
     setMaxDuration(maxHours);
     setSelectedBayType(bayType || null);
     setSelectedSlotData(slotData || null);
+    goToDetailsSubStep(DETAIL_SUB_STEPS[0]);
     setCurrentStep(3);
   };
 
+  // Leaves the current wizard step. Unchanged: callers that mean "get me out of
+  // step 3" (the AI Lab warning's back link, the no-availability modal) keep
+  // passing this, so they must NOT become sub-step-aware.
   const handleBack = () => {
     if (currentStep > 1) {
       if (currentStep === 2) {
@@ -158,9 +172,21 @@ export function useBookingFlow() {
       } else if (currentStep === 3) {
         setSelectedTime(null);
         setSelectedBayType(null);
+        goToDetailsSubStep(DETAIL_SUB_STEPS[0]);
       }
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  // The header arrow's action: backward exactly one level. Inside step 3 that
+  // means the previous sub-step; from step 3's first sub-step (and from every
+  // other step) it means the previous wizard step.
+  const handleHeaderBack = () => {
+    if (currentStep === 3 && !isFirstDetailsSubStep) {
+      prevDetailsSubStep();
+      return;
+    }
+    handleBack();
   };
 
   // Package-related helper functions
@@ -194,6 +220,8 @@ export function useBookingFlow() {
     handleDateSelect,
     handleTimeSelect,
     handleBack,
+    handleHeaderBack,
+    detailsSubStep,
     getMaxDuration,
     getFixedPeople,
     isPackageMode,
