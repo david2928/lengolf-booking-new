@@ -421,6 +421,487 @@ describe('a package balance that runs short charges the uncovered tail', () => {
   });
 });
 
+/**
+ * Best single offer only (owner-confirmed 2026-07-25). Offers NEVER stack: the
+ * calculator evaluates every eligible promotion, applies the one worth the most,
+ * and names the rest so the customer is not left thinking one was forgotten.
+ *
+ * Before this, every match pushed its own discount — two eligible B1G1 rows each
+ * waived an hour and a ฿1,500 weekday booking previewed at ฿0.
+ */
+describe('only the best eligible offer applies', () => {
+  const secondBogo: ApplicablePromotion = {
+    ...bogoPromo,
+    id: 'promo-weekday-b1g1',
+    title_en: 'Weekday B1G1',
+    title_th: 'วันธรรมดา B1G1',
+  };
+  const pctPromo: ApplicablePromotion = {
+    id: 'promo-pct',
+    promotion_type: 'percentage',
+    discount_value: 20,
+    applies_to: 'bay_rate',
+    conditions: {},
+    title_en: '20% Off',
+    title_th: 'ลด 20%',
+  };
+
+  function withPromos(promos: ApplicablePromotion[], input: Partial<CostCalculationInput> = {}) {
+    return calculateCost({
+      ...baseInput, startTime: '14:00', duration: 2, applicablePromotions: promos, ...input,
+    });
+  }
+
+  test('two identical bogos apply ONCE, not twice — the ฿0 preview is gone', () => {
+    const breakdown = withPromos([bogoPromo, secondBogo]);
+    expect(breakdown.subtotal).toBe(1500); // 2 × ฿750 weekday afternoon
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.totalDiscount).toBe(-750);
+    expect(breakdown.estimatedTotal).toBe(750);
+  });
+
+  test('two bogos of different value pick the LARGER free-hours award', () => {
+    const twoFreeHours: ApplicablePromotion = { ...bogoPromo, id: 'promo-b2g2', free_hours: 2 };
+    const breakdown = withPromos([bogoPromo, twoFreeHours], { duration: 3 });
+    expect(breakdown.subtotal).toBe(2250);                  // 3 × ฿750
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-b2g2');
+    expect(breakdown.discounts[0].amount).toBe(-1500);      // 2 free hours, not 1
+    expect(breakdown.estimatedTotal).toBe(750);
+  });
+
+  test('bogo vs percentage is decided by VALUE, not by type — bogo wins here', () => {
+    // 2h × ฿750: bogo waives ฿750, 20% off waives ฿300.
+    const breakdown = withPromos([pctPromo, bogoPromo]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-b1g1');
+    expect(breakdown.discounts[0].amount).toBe(-750);
+  });
+
+  test('...and the percentage wins when IT is worth more', () => {
+    // 3h × ฿750 = ฿2,250: bogo waives ฿750, 60% off waives ฿1,350.
+    const bigPct: ApplicablePromotion = { ...pctPromo, discount_value: 60 };
+    const breakdown = withPromos([bogoPromo, bigPct], { duration: 3 });
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+    expect(breakdown.discounts[0].amount).toBe(-1350);
+  });
+
+  test('a fixed_amount offer competes on the same value scale', () => {
+    const bigFixed: ApplicablePromotion = {
+      id: 'promo-fixed', promotion_type: 'fixed_amount', discount_value: 900,
+      applies_to: 'total', conditions: {}, title_en: '฿900 off', title_th: 'ลด ฿900',
+    };
+    const breakdown = withPromos([bogoPromo, bigFixed]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-fixed'); // ฿900 > ฿750
+  });
+
+  test('a tie resolves on the lowest promotion id, independent of array order', () => {
+    // Both waive the same ฿750, so only the tie-break can decide.
+    const forward = withPromos([bogoPromo, secondBogo]);
+    const reversed = withPromos([secondBogo, bogoPromo]);
+    expect(forward.discounts[0].promotionId).toBe('promo-b1g1'); // < 'promo-weekday-b1g1'
+    expect(reversed.discounts[0].promotionId).toBe('promo-b1g1');
+    // Same winner either way — a JSON round-trip cannot flip it.
+    expect(reversed).toEqual(forward);
+  });
+
+  test('every permutation of three offers yields the identical breakdown', () => {
+    // Two promos cannot catch an order-dependent DISCLOSURE — the loser list has
+    // one entry and reordering is unobservable. `/api/promotions/applicable` has
+    // no ORDER BY and is edge-cached, so arrival order is genuinely arbitrary.
+    const third: ApplicablePromotion = {
+      ...pctPromo, id: 'promo-alpha', discount_value: 10, title_en: 'Alpha', title_th: 'อัลฟา',
+    };
+    const trio = [bogoPromo, secondBogo, third];
+    const permutations = [
+      [0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0],
+    ].map((order) => withPromos(order.map((i) => trio[i])));
+    for (const breakdown of permutations) {
+      expect(breakdown).toEqual(permutations[0]);
+    }
+    // ...and the loser list is genuinely ordered, most valuable first.
+    const note = permutations[0].notes.find((n) => n.includes('Only one offer applies'))!;
+    expect(note).toContain('Weekday B1G1, Alpha'); // ฿750 before ฿75
+  });
+
+  test('a duplicated promotion row is not named back at the customer', () => {
+    // `id` is the PK, but a re-render that appends rather than replaces could
+    // duplicate a row. Collapsing on id stops "Also considered: <the winner>".
+    const breakdown = withPromos([bogoPromo, { ...bogoPromo }]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.estimatedTotal).toBe(750);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+  });
+
+  test('the losing offer is disclosed by name in all five locales', () => {
+    const breakdown = withPromos([bogoPromo, secondBogo]);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies per booking'))).toBe(true);
+    expect(breakdown.notes.some((n) => n.includes('Weekday B1G1'))).toBe(true);
+    expect(breakdown.notesTh.some((n) => n.includes('วันธรรมดา B1G1'))).toBe(true);
+    expect(breakdown.notesJa.some((n) => n.includes('Weekday B1G1'))).toBe(true);
+    expect(breakdown.notesKo.some((n) => n.includes('Weekday B1G1'))).toBe(true);
+    expect(breakdown.notesZh.some((n) => n.includes('Weekday B1G1'))).toBe(true);
+  });
+
+  test('two losing offers are both named in one disclosure', () => {
+    const third: ApplicablePromotion = { ...bogoPromo, id: 'promo-third', title_en: 'Third Offer' };
+    const breakdown = withPromos([bogoPromo, secondBogo, third]);
+    expect(breakdown.discounts).toHaveLength(1);
+    const note = breakdown.notes.find((n) => n.includes('Only one offer applies'))!;
+    expect(note).toContain('Weekday B1G1');
+    expect(note).toContain('Third Offer');
+  });
+
+  test('a LONE offer is not disclosed as having competitors', () => {
+    const breakdown = withPromos([bogoPromo]);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    expect(breakdown.notesTh.some((n) => n.includes('ใช้ได้เพียงหนึ่งโปรโมชัน'))).toBe(false);
+  });
+
+  test('no eligible offer means no disclosure and no discount', () => {
+    const newOnly: ApplicablePromotion = {
+      ...bogoPromo, conditions: { new_customer_only: true },
+    };
+    const breakdown = withPromos([newOnly, { ...secondBogo, conditions: { new_customer_only: true } }], {
+      isNewCustomer: false,
+    });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+  });
+
+  test('a sub-2-hour bogo does NOT out-rank a real discount', () => {
+    // 1h booking: the bogo can only advise (worth ฿0); 20% off saves ฿150.
+    const breakdown = withPromos([bogoPromo, pctPromo], { duration: 1 });
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+    expect(breakdown.discounts[0].amount).toBe(-150); // 20% of ฿750
+    expect(breakdown.estimatedTotal).toBe(600);
+  });
+
+  test("...and the losing bogo's 'book 2 hours' hint is suppressed, not shown alongside", () => {
+    const breakdown = withPromos([bogoPromo, pctPromo], { duration: 1 });
+    // Suppressed: at 2h that offer would COMPETE with the applied one and could
+    // still lose, so promising a free hour on top would be a promise we can't keep.
+    expect(breakdown.notes.some((n) => n.includes('Book 2 hours to get 1 hour free'))).toBe(false);
+  });
+
+  test('...and it is not named as an offer that lost, because it never competed', () => {
+    // At 1 hour the bogo is worth ฿0 — it could not have applied whatever else
+    // was on the table. Naming it would frame advice as a competition it lost:
+    // "we applied the one worth the most. Also considered: Buy 1 Get 1 Free".
+    const breakdown = withPromos([bogoPromo, pctPromo], { duration: 1 });
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    expect(breakdown.notes.some((n) => n.includes('Buy 1 Get 1 Free'))).toBe(false);
+    // The real discount still applies and is the only thing claimed.
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+  });
+
+  test('a negative fixed_amount is never named as an offer that lost either', () => {
+    // `value <= 0` is the rule, not `value === 0`: a nonsensical row that would
+    // SURCHARGE the customer is not an offer they missed out on.
+    const surcharge: ApplicablePromotion = {
+      id: 'promo-negative', promotion_type: 'fixed_amount', discount_value: -50,
+      applies_to: 'total', conditions: {}, title_en: 'Bad Row', title_th: 'แถวเสีย',
+    };
+    const breakdown = withPromos([surcharge, pctPromo]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+    expect(breakdown.notes.some((n) => n.includes('Bad Row'))).toBe(false);
+  });
+
+  test('two advice-only bogos apply NOTHING and claim nothing was applied', () => {
+    // 1h booking, two eligible bogos: both are worth ฿0, so no discount exists.
+    // Saying "we applied the one worth the most" beside a ฿0 saving is a claim
+    // the breakdown itself contradicts.
+    const breakdown = withPromos([bogoPromo, secondBogo], { duration: 1 });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.estimatedTotal).toBe(750);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    // The winning offer's actionable hint is still there.
+    expect(breakdown.notes.some((n) => n.includes('Book 2 hours to get 1 hour free'))).toBe(true);
+  });
+
+  test('a LONE sub-2-hour bogo still prints its hint (unchanged behaviour)', () => {
+    const breakdown = withPromos([bogoPromo], { duration: 1 });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.notes.some((n) => n.includes('Book 2 hours to get 1 hour free'))).toBe(true);
+  });
+
+  test('package coverage still suppresses EVERY offer, however many are eligible', () => {
+    const breakdown = withPromos([bogoPromo, secondBogo, pctPromo], {
+      startTime: '13:00', hasActivePackage: true, packageDisplayName: 'Gold (30H)',
+    });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    expect(breakdown.estimatedTotal).toBe(0);
+  });
+
+  test('a Play & Food set still suppresses every bay-rate offer', () => {
+    const breakdown = withPromos([bogoPromo, secondBogo], { playFoodPackageId: 'SET_A' });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+  });
+
+  test('a bay-rate offer suppressed by a package does not beat an eligible total offer', () => {
+    // The bogo is gated off by package coverage, so the ฿100 total-scope offer
+    // is the ONLY candidate and must apply un-competed and un-disclosed.
+    const totalPromo: ApplicablePromotion = {
+      id: 'promo-total', promotion_type: 'fixed_amount', discount_value: 100,
+      applies_to: 'total', conditions: {}, title_en: '฿100 off', title_th: 'ลด ฿100',
+    };
+    const breakdown = withPromos([bogoPromo, totalPromo], {
+      startTime: '13:00', hasActivePackage: true, packageDisplayName: 'Gold (30H)',
+    });
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-total');
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+  });
+
+  test('a malformed bogo row with free_hours: 0 is skipped entirely', () => {
+    // NOT the "free window prices to ฿0" branch, despite the shape: `free_hours: 0`
+    // is falsy, so the row fails the `promo.free_hours` guard and never reaches
+    // the bogo branch at all. The genuine ฿0-free-window path (free_hours >= 1
+    // at duration >= 2, `segmentsCost` rounding to zero) is NOT pinned here and
+    // is likely unreachable with real rate data — don't read this as covering it.
+    const zeroBogo: ApplicablePromotion = { ...bogoPromo, id: 'promo-zero', free_hours: 0 };
+    const breakdown = withPromos([zeroBogo, pctPromo]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+  });
+
+  test('the winner is stable across the isNewCustomer refetch', () => {
+    // `isNewCustomer` resolves from a phone lookup after first render. It can
+    // only add or remove whole candidates — never reshuffle a fixed set.
+    const newOnlyBig: ApplicablePromotion = {
+      ...pctPromo, id: 'promo-pct-new', discount_value: 60, conditions: { new_customer_only: true },
+    };
+    const before = withPromos([bogoPromo, newOnlyBig], { duration: 3, isNewCustomer: false });
+    const after = withPromos([bogoPromo, newOnlyBig], { duration: 3, isNewCustomer: true });
+    expect(before.discounts[0].promotionId).toBe('promo-b1g1');   // ฿750, alone
+    expect(before.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    expect(after.discounts[0].promotionId).toBe('promo-pct-new'); // ฿1,350 wins
+    // Re-running the same input is idempotent — no flicker between winners.
+    expect(withPromos([bogoPromo, newOnlyBig], { duration: 3, isNewCustomer: true })).toEqual(after);
+  });
+});
+
+/**
+ * The identity guard for best-single-offer. The refactor's central claim is that
+ * ONE eligible promotion produces exactly the breakdown the stacking calculator
+ * produced — the change is only ever visible with two or more offers. That was
+ * verified with throwaway harnesses, which is no defence against the next
+ * refactor, and nothing else in this file asserts a WHOLE breakdown for the
+ * one-promotion case: `toHaveLength` and `discounts[0].amount` would all still
+ * pass if a stray note appeared or a locale label silently changed.
+ *
+ * The expectations below are INLINE literals on purpose. Comparing
+ * `calculateCost` against `calculateCost` proves only self-consistency; a
+ * regression that moved both sides would sail through. Every one of these ran
+ * against a boundary-straddling window (13:00/13:30 on a weekday, so the bay
+ * charge prorates across 14:00) because that is where the free-hour placement
+ * and the ฿550/฿750 split can actually diverge.
+ *
+ * `appliedPromotionId` is metadata added after the refactor so the staff LINE
+ * note can name the winner without re-deriving eligibility (see
+ * `app/api/bookings/create/route.ts`). It is the one intended difference from
+ * the pre-refactor output; nothing renders it.
+ */
+describe('a single eligible promotion produces the whole pre-refactor breakdown', () => {
+  const PRORATED_BAY_2H = {
+    id: 'bay-rate',
+    label: 'Bay Rate',
+    labelTh: 'ค่าเบย์',
+    labelJa: 'ベイ料金',
+    labelKo: '베이 요금',
+    labelZh: '球位费用',
+    detail: '1hr × ฿550 + 1hr × ฿750 (Weekday)',
+    detailTh: '1 ชม. × ฿550 + 1 ชม. × ฿750 (วันธรรมดา)',
+    detailJa: '1時間 × ฿550 + 1時間 × ฿750 (平日)',
+    detailKo: '1시간 × ฿550 + 1시간 × ฿750 (평일)',
+    detailZh: '1小时 × ฿550 + 1小时 × ฿750 (工作日)',
+    amount: 1300, // 13:00–15:00 weekday: 1×550 + 1×750
+  };
+  const ESTIMATE_NOTE = {
+    en: 'Estimate only — payment at venue',
+    th: 'ราคาประมาณการ — ชำระที่สถานที่',
+    ja: 'ご予約時の見積もり — 会場でお支払い',
+    ko: '예상 금액 — 현장에서 결제',
+    zh: '预估价格 — 现场付款',
+  };
+
+  test('bogo: the free hour is the LAST hour, priced where it actually falls', () => {
+    // 13:00–15:00 straddles 14:00. The free hour is 14:00–15:00 = ฿750, NOT the
+    // ฿550 first hour and NOT the ฿650 average — this is the whole reason the
+    // boundary case is the one worth pinning.
+    expect(calculateCost({ ...baseInput, startTime: '13:00', duration: 2, applicablePromotions: [bogoPromo] }))
+      .toEqual({
+        lineItems: [PRORATED_BAY_2H],
+        discounts: [{
+          id: 'promo-promo-b1g1',
+          label: 'Buy 1 Get 1 Free',
+          labelTh: 'ซื้อ 1 แถม 1',
+          // Promo rows carry only title_en/title_th; ja/ko/zh fall back to English.
+          labelJa: 'Buy 1 Get 1 Free',
+          labelKo: 'Buy 1 Get 1 Free',
+          labelZh: 'Buy 1 Get 1 Free',
+          amount: -750,
+          promotionId: 'promo-b1g1',
+        }],
+        appliedPromotionId: 'promo-b1g1',
+        subtotal: 1300,
+        totalDiscount: -750,
+        estimatedTotal: 550,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [ESTIMATE_NOTE.en],
+        notesTh: [ESTIMATE_NOTE.th],
+        notesJa: [ESTIMATE_NOTE.ja],
+        notesKo: [ESTIMATE_NOTE.ko],
+        notesZh: [ESTIMATE_NOTE.zh],
+      });
+  });
+
+  test('percentage: taken off the PRORATED bay total, with the pct in every label', () => {
+    const pct: ApplicablePromotion = {
+      id: 'promo-pct', promotion_type: 'percentage', discount_value: 20,
+      applies_to: 'bay_rate', conditions: {}, title_en: '20% Off', title_th: 'ลด 20%',
+    };
+    expect(calculateCost({ ...baseInput, startTime: '13:00', duration: 2, applicablePromotions: [pct] }))
+      .toEqual({
+        lineItems: [PRORATED_BAY_2H],
+        discounts: [{
+          id: 'promo-promo-pct',
+          label: '20% Off (20% off)',
+          labelTh: 'ลด 20% (ลด 20%)',
+          labelJa: '20% Off (20%オフ)',
+          labelKo: '20% Off (20% 할인)',
+          labelZh: '20% Off (20% 折扣)',
+          amount: -260, // 20% of ฿1,300 — the prorated total, not 2 × 20% of ฿550
+          promotionId: 'promo-pct',
+        }],
+        appliedPromotionId: 'promo-pct',
+        subtotal: 1300,
+        totalDiscount: -260,
+        estimatedTotal: 1040,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [ESTIMATE_NOTE.en],
+        notesTh: [ESTIMATE_NOTE.th],
+        notesJa: [ESTIMATE_NOTE.ja],
+        notesKo: [ESTIMATE_NOTE.ko],
+        notesZh: [ESTIMATE_NOTE.zh],
+      });
+  });
+
+  test('fixed_amount: a flat baht row, untouched by where the booking falls', () => {
+    const fixed: ApplicablePromotion = {
+      id: 'promo-fixed', promotion_type: 'fixed_amount', discount_value: 200,
+      applies_to: 'total', conditions: {}, title_en: '฿200 off', title_th: 'ลด ฿200',
+    };
+    expect(calculateCost({ ...baseInput, startTime: '13:00', duration: 2, applicablePromotions: [fixed] }))
+      .toEqual({
+        lineItems: [PRORATED_BAY_2H],
+        discounts: [{
+          id: 'promo-promo-fixed',
+          label: '฿200 off',
+          labelTh: 'ลด ฿200',
+          labelJa: '฿200 off',
+          labelKo: '฿200 off',
+          labelZh: '฿200 off',
+          amount: -200,
+          promotionId: 'promo-fixed',
+        }],
+        appliedPromotionId: 'promo-fixed',
+        subtotal: 1300,
+        totalDiscount: -200,
+        estimatedTotal: 1100,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [ESTIMATE_NOTE.en],
+        notesTh: [ESTIMATE_NOTE.th],
+        notesJa: [ESTIMATE_NOTE.ja],
+        notesKo: [ESTIMATE_NOTE.ko],
+        notesZh: [ESTIMATE_NOTE.zh],
+      });
+  });
+
+  test('a sub-2-hour bogo: no discount row, the hint in all five locales', () => {
+    // The LIVE production shape — one auto-apply B1G1, a new customer, a booking
+    // under two hours. 13:30–15:00 straddles 14:00 (0.5×550 + 1×750 = ฿1,025).
+    // `appliedPromotionId` is set with `discounts` empty: the offer won by
+    // contributing advice, which the staff LINE note has to reproduce.
+    expect(calculateCost({ ...baseInput, startTime: '13:30', duration: 1.5, applicablePromotions: [bogoPromo] }))
+      .toEqual({
+        lineItems: [{
+          id: 'bay-rate',
+          label: 'Bay Rate',
+          labelTh: 'ค่าเบย์',
+          labelJa: 'ベイ料金',
+          labelKo: '베이 요금',
+          labelZh: '球位费用',
+          detail: '0.5hr × ฿550 + 1hr × ฿750 (Weekday)',
+          detailTh: '0.5 ชม. × ฿550 + 1 ชม. × ฿750 (วันธรรมดา)',
+          detailJa: '0.5時間 × ฿550 + 1時間 × ฿750 (平日)',
+          detailKo: '0.5시간 × ฿550 + 1시간 × ฿750 (평일)',
+          detailZh: '0.5小时 × ฿550 + 1小时 × ฿750 (工作日)',
+          amount: 1025,
+        }],
+        discounts: [],
+        appliedPromotionId: 'promo-b1g1',
+        subtotal: 1025,
+        totalDiscount: 0,
+        estimatedTotal: 1025,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [
+          ESTIMATE_NOTE.en,
+          '🎉 Buy 1 Get 1 Free — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days',
+        ],
+        notesTh: [
+          ESTIMATE_NOTE.th,
+          '🎉 ซื้อ 1 แถม 1 — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน',
+        ],
+        notesJa: [
+          ESTIMATE_NOTE.ja,
+          '🎉 Buy 1 Get 1 Free — 2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください',
+        ],
+        notesKo: [
+          ESTIMATE_NOTE.ko,
+          '🎉 Buy 1 Get 1 Free — 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요',
+        ],
+        notesZh: [
+          ESTIMATE_NOTE.zh,
+          '🎉 Buy 1 Get 1 Free — 预订2小时即获1小时免费！或在7天内兑换您的免费时段',
+        ],
+      });
+  });
+
+  test('and none of the four ever names a competitor', () => {
+    // A lone offer competed with nothing. Cheap, but it is the assertion that
+    // would fail loudest if `alsoConsidered` ever stopped excluding the winner.
+    const lone: ApplicablePromotion[][] = [
+      [bogoPromo],
+      [{ id: 'p', promotion_type: 'percentage', discount_value: 20, applies_to: 'bay_rate', conditions: {}, title_en: 'P', title_th: 'พี' }],
+      [{ id: 'f', promotion_type: 'fixed_amount', discount_value: 200, applies_to: 'total', conditions: {}, title_en: 'F', title_th: 'เอฟ' }],
+    ];
+    for (const promos of lone) {
+      for (const duration of [1.5, 2]) {
+        const breakdown = calculateCost({ ...baseInput, startTime: '13:30', duration, applicablePromotions: promos });
+        expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+        expect(breakdown.appliedPromotionId).toBe(promos[0].id);
+      }
+    }
+  });
+});
+
 describe('an unknown balance is byte-identical to the pre-balance calculator', () => {
   const pkgInput: CostCalculationInput = {
     ...baseInput,

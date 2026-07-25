@@ -13,6 +13,7 @@ import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
 import { isValidLanguage } from '@/lib/liff/translations';
 import { isValidLocale } from '@/i18n/routing';
 import { sanitizeAttribution } from '@/lib/attribution/click-ids';
+import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
 
 // Accept any LIFF Language (en/th/ja/zh) OR any main-site Locale (en/th/ko/ja/zh).
 // LIFF's isValidLanguage doesn't include 'ko', but the main flow can produce it.
@@ -895,38 +896,93 @@ export async function POST(request: NextRequest) {
     });
     logTiming('Data formatting', 'success');
     
-    // Append active auto-apply promo labels to notes for staff notification
+    // Append the applied auto-apply promo label to notes for staff notification.
+    //
+    // Offers NEVER stack (owner rule, confirmed 2026-07-25) — the customer's
+    // quote applies exactly one. This block used to select every active
+    // `auto_apply` row and `.join(', ')` the titles, so the staff note and the
+    // quote would disagree the moment a second `auto_apply` row exists. In this
+    // codebase the quote is a promise (staff charge from the POS), so that
+    // mismatch is precisely what `lib/cost-calculator.ts` exists to prevent.
+    //
+    // Selection is therefore NOT re-derived here with a second, weaker set of
+    // rules — the old version ignored `new_customer_only`, package coverage and
+    // Play & Food, so it could name an offer the quote correctly withheld.
+    // `calculateCost` is pure and this route holds every input it needs, so both
+    // surfaces now read ONE decision. Keep it that way: if you need to change
+    // which offer staff are told about, change the calculator.
     let notificationNotes = customer_notes || '';
     if (isNewCustomer) {
       try {
         const { data: autoPromos } = await supabase
           .from('promotions')
-          .select('title_en, promotion_type, free_hours')
+          // Same projection as /api/promotions/applicable — this has to be the
+          // exact row shape the customer's quote was computed from.
+          .select('id, promotion_type, discount_value, free_hours, applies_to, conditions, title_en, title_th')
           .eq('is_active', true)
           .eq('auto_apply', true)
           .not('promotion_type', 'is', null);
         if (autoPromos?.length) {
-          const bookingDate = new Date(date);
-          const expiryDate = new Date(bookingDate);
-          expiryDate.setDate(expiryDate.getDate() + 7);
-          const expiryStr = expiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          const applicablePromotions: ApplicablePromotion[] = autoPromos.map((p) => ({
+            id: p.id,
+            promotion_type: p.promotion_type as ApplicablePromotion['promotion_type'],
+            discount_value: p.discount_value ?? undefined,
+            free_hours: p.free_hours ?? undefined,
+            applies_to: p.applies_to as ApplicablePromotion['applies_to'],
+            conditions: (p.conditions as Record<string, unknown> | null) ?? {},
+            title_en: p.title_en,
+            title_th: p.title_th,
+          }));
 
-          const bookingDuration = parseInt(duration, 10) || 1;
-          const promoLabels = autoPromos.map(p => {
-            if (p.promotion_type === 'bogo' && p.free_hours) {
-              if (bookingDuration >= 2) {
-                return p.title_en;
-              }
-              return `${p.title_en} (${p.free_hours} free hr to redeem within 7 days, expires ${expiryStr})`;
+          const breakdown = calculateCost({
+            date,
+            startTime: start_time,
+            // parseFloat, not parseInt: half-hour durations shipped two slices
+            // ago, so this is '1.5'/'2.5' in the wild. Truncation was latent for
+            // the old `>= 2` branch (every value on the current ladder lands on
+            // the same side either way), but it is load-bearing now — the free
+            // window of a 2.5h bogo is priced at a different position than a 2h
+            // one, and value is what picks the winner. The same parseInt('1.5')
+            // mistake already caused a production bug on the LIFF surface.
+            duration: parseFloat(duration) || 1,
+            clubRentalId: club_rental_type || 'none',
+            addOns: Object.fromEntries((validatedAddOns ?? []).map((a) => [a.key, true])),
+            playFoodPackageId: playFoodPackageId ?? null,
+            hasActivePackage: packageInfo !== 'Normal Bay Rate',
+            packageDisplayName: packageTypeName || undefined,
+            // Balance deliberately omitted. `packageAppliesToBay` is keyed off
+            // package ELIGIBILITY, not the balance, and a percentage promo only
+            // reaches the bay line when no package covers it — so the remaining
+            // hours cannot move the winner, only line-item amounts we don't read.
+            isNewCustomer,
+            applicablePromotions,
+          });
+
+          // The winner, whether it applied a discount or only advice. Read
+          // `appliedPromotionId`, never `discounts[0]`: a sub-2-hour bogo wins by
+          // contributing the "redeem within 7 days" hint and pushes no discount
+          // row — which is the live case today and the one staff must honour.
+          const applied = applicablePromotions.find((p) => p.id === breakdown.appliedPromotionId);
+          if (applied) {
+            // Advice-only exactly when the calculator charged nothing for it —
+            // read back off the breakdown rather than re-testing the duration.
+            const discounted = breakdown.discounts.some((d) => d.promotionId === applied.id);
+            let promoLabel = applied.title_en;
+            if (!discounted && applied.promotion_type === 'bogo' && applied.free_hours) {
+              const expiryDate = new Date(date);
+              expiryDate.setDate(expiryDate.getDate() + 7);
+              const expiryStr = expiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+              promoLabel = `${applied.title_en} (${applied.free_hours} free hr to redeem within 7 days, expires ${expiryStr})`;
             }
-            return p.title_en;
-          }).join(', ');
-          notificationNotes = notificationNotes
-            ? `${notificationNotes}, ${promoLabels}`
-            : promoLabels;
+            notificationNotes = notificationNotes
+              ? `${notificationNotes}, ${promoLabel}`
+              : promoLabel;
+          }
         }
       } catch {
-        // Non-critical — don't block booking
+        // Non-critical — never block a booking over the staff note. Covers the
+        // promotions fetch AND the calculation; on either failure the note simply
+        // carries no promo label.
       }
     }
 
