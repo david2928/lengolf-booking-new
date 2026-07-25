@@ -585,8 +585,31 @@ describe('only the best eligible offer applies', () => {
     // Suppressed: at 2h that offer would COMPETE with the applied one and could
     // still lose, so promising a free hour on top would be a promise we can't keep.
     expect(breakdown.notes.some((n) => n.includes('Book 2 hours to get 1 hour free'))).toBe(false);
-    // It is still acknowledged, by name, in the disclosure.
-    expect(breakdown.notes.some((n) => n.includes('Buy 1 Get 1 Free'))).toBe(true);
+  });
+
+  test('...and it is not named as an offer that lost, because it never competed', () => {
+    // At 1 hour the bogo is worth ฿0 — it could not have applied whatever else
+    // was on the table. Naming it would frame advice as a competition it lost:
+    // "we applied the one worth the most. Also considered: Buy 1 Get 1 Free".
+    const breakdown = withPromos([bogoPromo, pctPromo], { duration: 1 });
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    expect(breakdown.notes.some((n) => n.includes('Buy 1 Get 1 Free'))).toBe(false);
+    // The real discount still applies and is the only thing claimed.
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+  });
+
+  test('a negative fixed_amount is never named as an offer that lost either', () => {
+    // `value <= 0` is the rule, not `value === 0`: a nonsensical row that would
+    // SURCHARGE the customer is not an offer they missed out on.
+    const surcharge: ApplicablePromotion = {
+      id: 'promo-negative', promotion_type: 'fixed_amount', discount_value: -50,
+      applies_to: 'total', conditions: {}, title_en: 'Bad Row', title_th: 'แถวเสีย',
+    };
+    const breakdown = withPromos([surcharge, pctPromo]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+    expect(breakdown.notes.some((n) => n.includes('Bad Row'))).toBe(false);
   });
 
   test('two advice-only bogos apply NOTHING and claim nothing was applied', () => {

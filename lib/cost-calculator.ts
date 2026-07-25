@@ -703,8 +703,10 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
             titleTh: promo.title_th,
           });
         }
-        // A free window that prices to ฿0 contributes nothing at all, so it is
-        // NOT a candidate — it must not be disclosed as an offer that lost.
+        // A free window that prices to ฿0 saves the customer nothing, so there
+        // is no candidate to push. It is invisible at the disclosure for the
+        // same reason the sub-2-hour bogo below is: see the `value > 0` filter
+        // on `alsoConsidered` — an offer worth ฿0 never competed for anything.
       } else {
         candidateNotes.en.push(`🎉 ${promo.title_en} — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
         candidateNotes.th.push(`🎉 ${promo.title_th} — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
@@ -726,7 +728,8 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
 
         // Worth ฿0 today — this offer only advises booking longer. It stays a
         // candidate so a LONE sub-2-hour bogo still prints its hint, but a value
-        // of 0 means it can never out-rank an offer that actually saves money.
+        // of 0 means it can never out-rank an offer that actually saves money —
+        // nor be named as one that lost, which it never was.
         promotionCandidates.push({
           promotionId: promo.id,
           value: 0,
@@ -837,12 +840,23 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     // hours to get 1 hour free" hint is deliberately suppressed: because offers
     // do not stack, at 2 hours that offer would merely compete with the one
     // already applied and could still lose, so the hint would be a promise we
-    // cannot keep. The losing offer is named in the disclosure below instead.
+    // cannot keep. Restoring the hint was considered and rejected on exactly
+    // that ground (owner decision, 2026-07-25) — honest silence beats a nudge we
+    // might not honour. Do not re-litigate it without re-opening the promise.
     //
     // Disclosed ONLY when the winner actually applied a discount. When the best
     // candidate is advice-only (a sub-2-hour bogo), every other candidate is
     // worth ≤ ฿0 too, so nothing was applied — and "we applied the one worth
     // the most" next to a ฿0 saving is a claim the breakdown contradicts.
+    //
+    // `value > 0` because "also considered" has to mean an offer that could
+    // GENUINELY have applied and lost. A ฿0 candidate — the sub-2-hour bogo, or
+    // a nonsensical negative `fixed_amount` — never competed for anything, and
+    // naming it frames advice as a competition it lost: at a 1-hour booking the
+    // customer would read "we applied the one worth the most. Also considered:
+    // Buy 1 Get 1 Free" about an offer that could not have applied at 1 hour.
+    // This is the same reason the ฿0 free window above is not even a candidate;
+    // both zero-value paths end up equally invisible here.
     //
     // Sorted on the SAME key as the selection, because a `filter` would inherit
     // the arrival order the comment above explains we cannot trust — with three
@@ -851,7 +865,7 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     // ICU-dependent: this list has to read the same for every customer.
     const alsoConsidered = winner.discount
       ? uniqueCandidates
-        .filter((candidate) => candidate !== winner)
+        .filter((candidate) => candidate !== winner && candidate.value > 0)
         .sort((a, b) => b.value - a.value || (a.promotionId < b.promotionId ? -1 : a.promotionId > b.promotionId ? 1 : 0))
       : [];
     if (alsoConsidered.length > 0) {
