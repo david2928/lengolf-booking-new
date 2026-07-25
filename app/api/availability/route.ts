@@ -40,10 +40,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters: date and currentTimeInBangkok' }, { status: 400 });
     }
 
-    // 3. Use native database function to fetch availability (v2 adds half-hour start times)
+    // 3. Use native database function to fetch availability. v3 adds half-hour
+    //    DURATIONS (v2 already had half-hour start times) and rounds the
+    //    same-day lead time up to the next half hour, so at 14:10 the 14:30
+    //    slot is offered rather than discarded. `maxHours` and the
+    //    `bayAvailabilityByDuration` keys are therefore fractional: '1.5',
+    //    '2.5'. v2 still exists and is unreferenced; see the migration.
     const supabase = createServerClient();
 
-    const { data: slots, error } = await supabase.rpc('get_available_slots_with_max_hours_v2', {
+    const { data: slots, error } = await supabase.rpc('get_available_slots_with_max_hours_v3', {
       p_date: date,
       p_current_time_bangkok: currentTimeInBangkok,
       p_start_hour: getOpeningHour(date),

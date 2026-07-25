@@ -78,6 +78,7 @@ export function BookingDetails(props: BookingDetailsProps) {
     showClubRentalModal,
     setShowClubRentalModal,
     currentAvailability,
+    hasActivePackage,
     isLineUser,
     costBreakdown,
     costDataLoading,
@@ -197,6 +198,7 @@ export function BookingDetails(props: BookingDetailsProps) {
               setShowPackageModal={setShowPackageModal}
               router={router}
               durationError={errors.duration}
+              hasActivePackage={hasActivePackage}
               currentAvailability={currentAvailability}
               selectedDate={selectedDate}
               selectedTime={selectedTime}
