@@ -2,6 +2,7 @@
 
 import { Language } from '@/lib/liff/translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
+import { BOOKING_PERIODS, getBookingPeriod, type BookingPeriod } from '@/lib/booking-periods';
 
 export interface BayAvailabilityByDuration {
   [duration: string]: {
@@ -29,14 +30,13 @@ interface TimeSlotListProps {
   isLoading?: boolean;
 }
 
-type Period = 'morning' | 'afternoon' | 'evening';
-
-const getPeriod = (time: string): Period => {
-  const hour = parseInt(time.split(':')[0], 10);
-  if (hour < 13) return 'morning';
-  if (hour < 17) return 'afternoon';
-  return 'evening';
-};
+/**
+ * The morning/afternoon/evening split lives in `lib/booking-periods.ts` and is
+ * shared with the web time step. It is NOT the `period` field the availability
+ * API returns — that one splits the morning at 12 and disagrees with the hour
+ * captions the customer reads. See the module for the history.
+ */
+type Period = BookingPeriod;
 
 const periodIcons: Record<Period, JSX.Element> = {
   morning: (
@@ -46,7 +46,7 @@ const periodIcons: Record<Period, JSX.Element> = {
   ),
   afternoon: (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />
     </svg>
   ),
   evening: (
@@ -101,7 +101,7 @@ export default function TimeSlotList({
 
   // Group slots by period
   const groupedSlots = slots.reduce((acc, slot) => {
-    const period = getPeriod(slot.time);
+    const period = getBookingPeriod(slot.time);
     if (!acc[period]) acc[period] = [];
     acc[period].push(slot);
     return acc;
@@ -113,7 +113,7 @@ export default function TimeSlotList({
     evening: t.evening
   };
 
-  const periods: Period[] = ['morning', 'afternoon', 'evening'];
+  const periods: readonly Period[] = BOOKING_PERIODS;
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">

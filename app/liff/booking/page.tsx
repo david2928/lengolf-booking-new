@@ -313,10 +313,13 @@ export default function LiffBookingPage() {
       }
 
       const data = await response.json();
-      const allSlots: TimeSlot[] = (data.slots || []).map((slot: { startTime: string; maxHours: number; period: string; availableBays?: string[]; socialBayCount?: number; aiLabCount?: number; bayAvailabilityByDuration?: BayAvailabilityByDuration }) => ({
+      // The API's `period` field is deliberately dropped: it splits the morning
+      // at 12, which contradicts the hour captions the customer reads.
+      // `TimeSlotList` derives the period from the start time via
+      // `lib/booking-periods.ts` instead.
+      const allSlots: TimeSlot[] = (data.slots || []).map((slot: { startTime: string; maxHours: number; availableBays?: string[]; socialBayCount?: number; aiLabCount?: number; bayAvailabilityByDuration?: BayAvailabilityByDuration }) => ({
         time: slot.startTime,
         maxHours: slot.maxHours,
-        period: slot.period,
         availableBays: slot.availableBays,
         socialBayCount: slot.socialBayCount,
         aiLabCount: slot.aiLabCount,
