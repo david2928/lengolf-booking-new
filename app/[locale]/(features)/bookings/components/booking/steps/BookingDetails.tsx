@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import type { Session } from 'next-auth';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
@@ -284,11 +284,16 @@ export function BookingDetails({
   // Get current duration's bay availability
   const currentAvailability = getBayAvailabilityForDuration(duration);
 
+  // `/auth/signin` is not a page in this app — the login page is `/auth/login`,
+  // and `/api/auth/signin` is NextAuth's API route — so pushing it 404'd the
+  // customer straight out of the flow. signIn() resolves the configured login
+  // page itself and carries a callbackUrl, and the in-progress booking is
+  // restored from sessionStorage (useFlowPersistence) once they land back.
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+      signIn(undefined, { callbackUrl: '/bookings' });
     }
-  }, [status, router]);
+  }, [status]);
 
   useEffect(() => {
 
@@ -604,7 +609,7 @@ export function BookingDetails({
 
     if (!session) {
       toast.error(tErrors('signInToContinue'));
-      router.push('/auth/signin');
+      signIn(undefined, { callbackUrl: '/bookings' });
       return;
     }
 

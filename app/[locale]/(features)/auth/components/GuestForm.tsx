@@ -1,13 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { useTranslations } from 'next-intl';
 
 interface GuestFormProps {
   onClose: () => void;
+  /**
+   * Where to land after signing in. Defaults to the bookings root, but the
+   * login page passes through the `callbackUrl` it was given — which is how a
+   * customer who hit the login wall mid-booking gets returned to the date they
+   * had already picked instead of an empty form.
+   */
+  callbackUrl?: string;
 }
 
 interface GuestFormData {
@@ -16,7 +23,7 @@ interface GuestFormData {
   phone: string | undefined;
 }
 
-export default function GuestForm({ onClose }: GuestFormProps) {
+export default function GuestForm({ onClose, callbackUrl = '/bookings' }: GuestFormProps) {
   const t = useTranslations('auth.login');
   const [formData, setFormData] = useState<GuestFormData>({
     name: '',
@@ -60,7 +67,15 @@ export default function GuestForm({ onClose }: GuestFormProps) {
         return;
       }
 
-      window.location.href = '/bookings';
+      // `signIn(..., { redirect: false })` resolves as soon as the credentials
+      // POST returns, which can be before the session cookie is readable. A
+      // hard navigation at that moment races the cookie write and can land the
+      // user back on the login page as if nothing happened — the symptom being
+      // a customer who fills in the guest form twice. getSession() round-trips
+      // /api/auth/session, so once it resolves the cookie is definitely set.
+      await getSession();
+
+      window.location.href = callbackUrl;
     } catch (err) {
       console.error('Guest login error:', err);
       setError(t('guestSessionFailed'));
