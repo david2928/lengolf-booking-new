@@ -49,6 +49,18 @@ describe('useBookingFlow telemetry on restore', () => {
 
     const emittedSteps = mockedPush.mock.calls.map((call) => call[0]);
     expect(emittedSteps).toEqual([3]);
-    expect(emittedSteps).not.toEqual([1, 3]);
+  });
+
+  // Guards the opposite failure to the one above. If the `flowRestored` gate is
+  // ever tightened to a flag that never flips — or the effect is reordered so it
+  // becomes unreachable — telemetry goes silent for every first-time visitor,
+  // the largest population in the funnel, while the restore test above stays
+  // green. Nobody files a bug about events that never arrive, so it needs a test.
+  test('a fresh mount with no saved snapshot still reports step 1', async () => {
+    renderHook(() => useBookingFlow());
+
+    await waitFor(() => expect(mockedPush).toHaveBeenCalled());
+
+    expect(mockedPush.mock.calls.map((call) => call[0])).toEqual([1]);
   });
 });
