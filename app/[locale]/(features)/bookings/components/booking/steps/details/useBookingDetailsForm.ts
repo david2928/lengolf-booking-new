@@ -773,19 +773,26 @@ export function useBookingDetailsForm({
     }
   };
 
-  // Sticky-bar primary action. Forward only: Continue while there is another
-  // sub-step, Confirm on the last one. Never a silently disabled button — an
-  // incomplete required field flags and scrolls instead.
-  const handlePrimaryCta = () => {
+  // Primary action for both the mobile sticky bar and the desktop summary rail.
+  // Forward only: Continue while there is another sub-step, Confirm on the last
+  // one. Never a silently disabled button — an incomplete required field flags
+  // and scrolls instead.
+  //
+  // `submitNow` is what the desktop rail passes: above `lg:` all three sections
+  // are on screen at once, so there is no sub-step to advance to and the rail's
+  // button always confirms. It shares this function rather than carrying its own
+  // copy so validation and jump-to-error stay in exactly one place.
+  const handlePrimaryCta = (opts?: { submitNow?: boolean }) => {
+    const confirming = opts?.submitNow === true || isLast;
     // Advancing validates only what is on screen; confirming validates the
     // whole form, so a field on an earlier sub-step can still stop the submit.
-    const bad = isLast ? firstInvalidField() : firstInvalidFieldForSubStep(subStep);
+    const bad = confirming ? firstInvalidField() : firstInvalidFieldForSubStep(subStep);
     if (bad) {
       flagAndRevealField(bad);
       return;
     }
     setErrorField(null);
-    if (!isLast) {
+    if (!confirming) {
       nextSubStep();
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;

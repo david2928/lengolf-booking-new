@@ -194,9 +194,13 @@ export function YourDetailsStep({
         </p>
       </div>
 
-      {/* Projected Cost Breakdown */}
+      {/* Projected Cost Breakdown. Mobile only: above `lg:` the sticky
+          SummaryRail carries the same breakdown (with the bay-rate portions
+          split out) a few hundred pixels to the right, and two copies of one
+          total on one screen is worse than either alone — the same reason the
+          sticky bar does not mount on desktop. */}
       {costBreakdown && (
-        <div className="mt-4">
+        <div className="mt-4 lg:hidden">
           <ProjectedCostBreakdown
             breakdown={costBreakdown}
             isLoading={costDataLoading}
