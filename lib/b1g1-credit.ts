@@ -66,10 +66,15 @@ export interface B1G1Expiry {
  * UTC; on a server west of Greenwich it was off by one. The printed label is
  * unchanged on a UTC host — this only removes the dependency on the host.
  *
- * @param bookingDate `yyyy-MM-dd`. Returns null if it is not that shape.
+ * @param bookingDate A `yyyy-M-d` calendar date, optionally with a time suffix
+ *   that is ignored. Returns null only if there is no calendar date to read.
+ *   The route validates `date` for presence but not shape, and the booking row
+ *   is already inserted by the time we get here — so anything Postgres accepted
+ *   into a `date` column must still produce a grant. Returning null would drop
+ *   the credit AND leave the staff note reading "expires ".
  */
 export function b1g1CreditExpiry(bookingDate: string): B1G1Expiry | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(bookingDate);
+  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:\D|$)/.exec(bookingDate);
   if (!m) return null;
 
   const year = Number(m[1]);

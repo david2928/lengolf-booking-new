@@ -65,10 +65,19 @@ describe('b1g1CreditExpiry', () => {
     expect(days).toBe(B1G1_REDEMPTION_DAYS);
   });
 
-  test('rejects anything that is not a yyyy-MM-dd calendar date', () => {
+  test('reads a calendar date out of anything Postgres would have accepted', () => {
+    // The route validates `date` for presence, not shape, and the booking row
+    // is already written by the time the grant runs. A tolerant read here is
+    // what stops an unpadded or timestamped date from silently dropping the
+    // credit and printing "expires " in the staff note.
+    expect(b1g1CreditExpiry('2026-7-5')!.calendarDate).toBe('2026-07-12');
+    expect(b1g1CreditExpiry('2026-07-25T10:00:00Z')!.calendarDate).toBe('2026-08-01');
+  });
+
+  test('returns null when there is no calendar date to read at all', () => {
     expect(b1g1CreditExpiry('')).toBeNull();
     expect(b1g1CreditExpiry('25/07/2026')).toBeNull();
-    expect(b1g1CreditExpiry('2026-07-25T10:00:00Z')).toBeNull();
+    expect(b1g1CreditExpiry('next Tuesday')).toBeNull();
   });
 });
 
