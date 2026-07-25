@@ -41,12 +41,22 @@ describe('perPersonPrice uses the selected party size, not the set capacity', ()
     expect(perPersonPrice(SET_B.price, 1)).toBe(SET_B.price);
   });
 
+  // Derived from SET_C.price rather than a hardcoded array: the behaviour under
+  // test is "distinct and descending, anchored at the ends", which holds at any
+  // price. Pinning the literals meant a price correction broke this test while
+  // the function was working perfectly (Set C moved ฿2,975 -> ฿3,500 on
+  // 2026-07-25 and this was the only failure).
   test('every rung of the people picker gives a distinct, descending figure', () => {
     const perHead = [1, 2, 3, 4, 5].map((n) => perPersonPrice(SET_C.price, n));
-    expect(perHead).toEqual([2975, 1488, 992, 744, 595]);
+
+    // A party of one pays the whole set; a full party pays the capacity figure.
+    expect(perHead[0]).toBe(SET_C.price);
+    expect(perHead[4]).toBe(SET_C.pricePerPerson);
+
     for (let i = 1; i < perHead.length; i++) {
       expect(perHead[i]).toBeLessThan(perHead[i - 1]);
     }
+    expect(new Set(perHead).size).toBe(perHead.length);
   });
 
   test('rounds to whole baht rather than printing a fraction on a price tag', () => {

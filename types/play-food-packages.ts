@@ -25,6 +25,20 @@ export interface PlayFoodPackage {
   badge?: string;
 }
 
+/**
+ * Fallbacks used only when the pricing API is unreachable — `getPlayFoodPackages()`
+ * prefers live prices. Keep them in step with `products.products` ("Food & Play:
+ * Set A/B/C") and with the `mixedPackages` block the pricing API returns.
+ *
+ * A stale value here is not harmless. The booking flow's quote is a *promise*:
+ * staff charge from the POS, so a customer quoted from a stale fallback is billed
+ * a different amount at the bay. Set C drifted to ฿2,975 against a live ฿3,500
+ * (found 2026-07-25), which would have under-quoted by ฿525 during any API outage.
+ *
+ * `pricePerPerson` must stay `price / maxPeople`. Note it assumes a *full* party,
+ * so do not render it as "per person" without recomputing from the party the
+ * customer actually selected — see `lib/play-food-value.ts`.
+ */
 const DEFAULT_PLAY_FOOD_PACKAGES: PlayFoodPackage[] = [
   {
     id: 'SET_A',
@@ -66,8 +80,8 @@ const DEFAULT_PLAY_FOOD_PACKAGES: PlayFoodPackage[] = [
     id: 'SET_C',
     name: 'SET C',
     displayName: 'Premium',
-    price: 2975,
-    pricePerPerson: 595,
+    price: 3500,
+    pricePerPerson: 700,
     duration: 3,
     maxPeople: 5,
     foodItems: [
