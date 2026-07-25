@@ -726,11 +726,11 @@ describe('a single eligible promotion produces the whole pre-refactor breakdown'
     amount: 1300, // 13:00–15:00 weekday: 1×550 + 1×750
   };
   const ESTIMATE_NOTE = {
-    en: 'Estimate only — payment at venue',
-    th: 'ราคาประมาณการ — ชำระที่สถานที่',
-    ja: 'ご予約時の見積もり — 会場でお支払い',
-    ko: '예상 금액 — 현장에서 결제',
-    zh: '预估价格 — 现场付款',
+    en: 'Estimate only, payment at venue',
+    th: 'ราคาประมาณการ ชำระที่สถานที่',
+    ja: 'ご予約時の見積もり、会場でお支払い',
+    ko: '예상 금액, 현장에서 결제',
+    zh: '预估价格，现场付款',
   };
 
   test('bogo: the free hour is the LAST hour, priced where it actually falls', () => {
@@ -863,23 +863,23 @@ describe('a single eligible promotion produces the whole pre-refactor breakdown'
         hourlyRate: 550,
         notes: [
           ESTIMATE_NOTE.en,
-          '🎉 Buy 1 Get 1 Free — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days',
+          '🎉 Buy 1 Get 1 Free: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days',
         ],
         notesTh: [
           ESTIMATE_NOTE.th,
-          '🎉 ซื้อ 1 แถม 1 — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน',
+          '🎉 ซื้อ 1 แถม 1: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน',
         ],
         notesJa: [
           ESTIMATE_NOTE.ja,
-          '🎉 Buy 1 Get 1 Free — 2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください',
+          '🎉 Buy 1 Get 1 Free：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください',
         ],
         notesKo: [
           ESTIMATE_NOTE.ko,
-          '🎉 Buy 1 Get 1 Free — 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요',
+          '🎉 Buy 1 Get 1 Free: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요',
         ],
         notesZh: [
           ESTIMATE_NOTE.zh,
-          '🎉 Buy 1 Get 1 Free — 预订2小时即获1小时免费！或在7天内兑换您的免费时段',
+          '🎉 Buy 1 Get 1 Free：预订2小时即获1小时免费！或在7天内兑换您的免费时段',
         ],
       });
   });

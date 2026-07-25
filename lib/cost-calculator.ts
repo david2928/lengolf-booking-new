@@ -164,11 +164,11 @@ const PACKAGE_FALLBACK_NAME: Record<Lang, string> = {
  * must not imply the amount sits outside the estimate.
  */
 const PACKAGE_SHORTFALL_NOTE: Record<Lang, (pkg: string) => string> = {
-  en: (p) => `${p} does not cover this whole booking — the uncovered time is charged at the normal rate`,
-  th: (p) => `${p} ไม่ครอบคลุมการจองนี้ทั้งหมด — เวลาส่วนที่ไม่ครอบคลุมคิดค่าบริการตามอัตราปกติ`,
+  en: (p) => `${p} does not cover this whole booking. The uncovered time is charged at the normal rate`,
+  th: (p) => `${p} ไม่ครอบคลุมการจองนี้ทั้งหมด เวลาส่วนที่ไม่ครอบคลุมคิดค่าบริการตามอัตราปกติ`,
   ja: (p) => `${p}ではこのご予約の全時間をカバーできません。カバーされない時間は通常料金となります`,
   ko: (p) => `${p}로는 이 예약 전체를 이용할 수 없습니다. 미포함 시간은 정상 요금이 부과됩니다`,
-  zh: (p) => `${p}不足以涵盖整个预订 — 未涵盖的时间按正常价格收费`,
+  zh: (p) => `${p}不足以涵盖整个预订。未涵盖的时间按正常价格收费`,
 };
 
 /**
@@ -179,11 +179,11 @@ const PACKAGE_SHORTFALL_NOTE: Record<Lang, (pkg: string) => string> = {
  * losing offers are named rather than silently dropped.
  */
 const BEST_OFFER_ONLY_NOTE: Record<Lang, (others: string) => string> = {
-  en: (o) => `Only one offer applies per booking — we applied the one worth the most. Also considered: ${o}`,
-  th: (o) => `ใช้ได้เพียงหนึ่งโปรโมชันต่อการจอง — เราใช้โปรโมชันที่คุ้มที่สุดให้คุณแล้ว โปรโมชันอื่นที่พิจารณา: ${o}`,
+  en: (o) => `Only one offer applies per booking, so we applied the one worth the most. Also considered: ${o}`,
+  th: (o) => `ใช้ได้เพียงหนึ่งโปรโมชันต่อการจอง เราใช้โปรโมชันที่คุ้มที่สุดให้คุณแล้ว โปรโมชันอื่นที่พิจารณา: ${o}`,
   ja: (o) => `1回のご予約に適用できる特典は1つのみです。最もお得な特典を適用しました。他に検討した特典：${o}`,
-  ko: (o) => `예약당 하나의 혜택만 적용됩니다 — 가장 유리한 혜택을 적용했습니다. 함께 검토한 혜택: ${o}`,
-  zh: (o) => `每次预订仅可使用一项优惠 — 我们已为您选择最优惠的一项。同时考虑的优惠：${o}`,
+  ko: (o) => `예약당 하나의 혜택만 적용됩니다. 가장 유리한 혜택을 적용했습니다. 함께 검토한 혜택: ${o}`,
+  zh: (o) => `每次预订仅可使用一项优惠，我们已为您选择最优惠的一项。同时考虑的优惠：${o}`,
 };
 
 /** Separator for the "also considered" offer list. CJK uses its own comma. */
@@ -362,11 +362,11 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
 
   const lineItems: CostLineItem[] = [];
   const discounts: CostDiscount[] = [];
-  const notes: string[] = ['Estimate only — payment at venue'];
-  const notesTh: string[] = ['ราคาประมาณการ — ชำระที่สถานที่'];
-  const notesJa: string[] = ['ご予約時の見積もり — 会場でお支払い'];
-  const notesKo: string[] = ['예상 금액 — 현장에서 결제'];
-  const notesZh: string[] = ['预估价格 — 现场付款'];
+  const notes: string[] = ['Estimate only, payment at venue'];
+  const notesTh: string[] = ['ราคาประมาณการ ชำระที่สถานที่'];
+  const notesJa: string[] = ['ご予約時の見積もり、会場でお支払い'];
+  const notesKo: string[] = ['예상 금액, 현장에서 결제'];
+  const notesZh: string[] = ['预估价格，现场付款'];
 
   const [startHourPart, startMinutePart] = (startTime ?? '').split(':');
   const startHour = parseInt(startHourPart, 10);
@@ -466,11 +466,11 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     // keep it untranslated across locales.
     lineItems.push({
       id: 'play-food',
-      label: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
-      labelTh: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
-      labelJa: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
-      labelKo: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
-      labelZh: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
+      label: `${playFoodPkg.name}: ${playFoodPkg.displayName}`,
+      labelTh: `${playFoodPkg.name}: ${playFoodPkg.displayName}`,
+      labelJa: `${playFoodPkg.name}：${playFoodPkg.displayName}`,
+      labelKo: `${playFoodPkg.name}: ${playFoodPkg.displayName}`,
+      labelZh: `${playFoodPkg.name}：${playFoodPkg.displayName}`,
       detail: `${playFoodPkg.duration}hr bay time + food & drinks`,
       detailTh: `${playFoodPkg.duration} ชม. + อาหารและเครื่องดื่ม`,
       detailJa: `${playFoodPkg.duration}時間のベイ利用 + お食事とドリンク`,
@@ -559,8 +559,8 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       pushShortfallNote();
     } else {
       const pkg = packageDisplayName;
-      notes.push(`${pkg ?? 'Your package'} covers until 14:00 — time after 14:00 is charged at the normal rate`);
-      notesTh.push(`${pkg ?? 'แพ็กเกจของคุณ'} ครอบคลุมถึง 14:00 — เวลาหลัง 14:00 คิดค่าบริการตามอัตราปกติ`);
+      notes.push(`${pkg ?? 'Your package'} covers until 14:00. Time after 14:00 is charged at the normal rate`);
+      notesTh.push(`${pkg ?? 'แพ็กเกจของคุณ'} ครอบคลุมถึง 14:00 เวลาหลัง 14:00 คิดค่าบริการตามอัตราปกติ`);
       notesJa.push(`${pkg ?? 'お客様のパッケージ'}は14:00までが対象です。14:00以降は通常料金となります`);
       notesKo.push(`${pkg ?? '회원님의 패키지'}는 14:00까지만 적용됩니다. 14:00 이후는 정상 요금이 부과됩니다`);
       notesZh.push(`${pkg ?? '您的套餐'}仅涵盖至14:00，14:00之后按正常价格收费`);
@@ -607,11 +607,11 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     const clubName = getClubDisplayName(clubRentalId);
     lineItems.push({
       id: 'club-rental',
-      label: `${CLUB_RENTAL_PREFIX.en} — ${clubName}`,
-      labelTh: `${CLUB_RENTAL_PREFIX.th} — ${clubName}`,
-      labelJa: `${CLUB_RENTAL_PREFIX.ja} — ${clubName}`,
-      labelKo: `${CLUB_RENTAL_PREFIX.ko} — ${clubName}`,
-      labelZh: `${CLUB_RENTAL_PREFIX.zh} — ${clubName}`,
+      label: `${CLUB_RENTAL_PREFIX.en}: ${clubName}`,
+      labelTh: `${CLUB_RENTAL_PREFIX.th}: ${clubName}`,
+      labelJa: `${CLUB_RENTAL_PREFIX.ja}：${clubName}`,
+      labelKo: `${CLUB_RENTAL_PREFIX.ko}: ${clubName}`,
+      labelZh: `${CLUB_RENTAL_PREFIX.zh}：${clubName}`,
       detail: buildDurationDetail('en', duration),
       detailTh: buildDurationDetail('th', duration),
       detailJa: buildDurationDetail('ja', duration),
@@ -622,11 +622,11 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   } else if (clubRentalId === 'standard') {
     lineItems.push({
       id: 'club-rental',
-      label: `${CLUB_RENTAL_PREFIX.en} — ${STANDARD_SET_LABEL.en}`,
-      labelTh: `${CLUB_RENTAL_PREFIX.th} — ${STANDARD_SET_LABEL.th}`,
-      labelJa: `${CLUB_RENTAL_PREFIX.ja} — ${STANDARD_SET_LABEL.ja}`,
-      labelKo: `${CLUB_RENTAL_PREFIX.ko} — ${STANDARD_SET_LABEL.ko}`,
-      labelZh: `${CLUB_RENTAL_PREFIX.zh} — ${STANDARD_SET_LABEL.zh}`,
+      label: `${CLUB_RENTAL_PREFIX.en}: ${STANDARD_SET_LABEL.en}`,
+      labelTh: `${CLUB_RENTAL_PREFIX.th}: ${STANDARD_SET_LABEL.th}`,
+      labelJa: `${CLUB_RENTAL_PREFIX.ja}：${STANDARD_SET_LABEL.ja}`,
+      labelKo: `${CLUB_RENTAL_PREFIX.ko}: ${STANDARD_SET_LABEL.ko}`,
+      labelZh: `${CLUB_RENTAL_PREFIX.zh}：${STANDARD_SET_LABEL.zh}`,
       detail: COMPLIMENTARY_LABEL.en,
       detailTh: COMPLIMENTARY_LABEL.th,
       detailJa: COMPLIMENTARY_LABEL.ja,
@@ -646,11 +646,11 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       if (!addOns[item.id]) continue;
       lineItems.push({
         id: `addon-${item.id}`,
-        label: `${ADD_ON_PREFIX.en} — ${item.name}`,
-        labelTh: `${ADD_ON_PREFIX.th} — ${item.name}`,
-        labelJa: `${ADD_ON_PREFIX.ja} — ${item.name}`,
-        labelKo: `${ADD_ON_PREFIX.ko} — ${item.name}`,
-        labelZh: `${ADD_ON_PREFIX.zh} — ${item.name}`,
+        label: `${ADD_ON_PREFIX.en}: ${item.name}`,
+        labelTh: `${ADD_ON_PREFIX.th}: ${item.name}`,
+        labelJa: `${ADD_ON_PREFIX.ja}：${item.name}`,
+        labelKo: `${ADD_ON_PREFIX.ko}: ${item.name}`,
+        labelZh: `${ADD_ON_PREFIX.zh}：${item.name}`,
         amount: item.price,
       });
     }
@@ -722,11 +722,11 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         // same reason the sub-2-hour bogo below is: see the `value > 0` filter
         // on `alsoConsidered` — an offer worth ฿0 never competed for anything.
       } else {
-        candidateNotes.en.push(`🎉 ${promo.title_en} — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
-        candidateNotes.th.push(`🎉 ${promo.title_th} — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
-        candidateNotes.ja.push(`🎉 ${promo.title_en} — 2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください`);
-        candidateNotes.ko.push(`🎉 ${promo.title_en} — 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요`);
-        candidateNotes.zh.push(`🎉 ${promo.title_en} — 预订2小时即获1小时免费！或在7天内兑换您的免费时段`);
+        candidateNotes.en.push(`🎉 ${promo.title_en}: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
+        candidateNotes.th.push(`🎉 ${promo.title_th}: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
+        candidateNotes.ja.push(`🎉 ${promo.title_en}：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください`);
+        candidateNotes.ko.push(`🎉 ${promo.title_en}: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요`);
+        candidateNotes.zh.push(`🎉 ${promo.title_en}：预订2小时即获1小时免费！或在7天内兑换您的免费时段`);
 
         // The free hour waives the BAY charge only — a paid club set is
         // billed on total play time. Disclose it so the venue charge

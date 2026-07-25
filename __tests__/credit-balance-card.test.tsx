@@ -106,6 +106,6 @@ describe('more than one grant', () => {
     expect(screen.getByText('3.5 hrs')).toBeInTheDocument();
 
     const rows = screen.getAllByRole('listitem').map((li) => li.textContent);
-    expect(rows).toEqual(['1 hr — use by Aug 1, 2026', '2.5 hrs — use by Sep 30, 2026']);
+    expect(rows).toEqual(['1 hr, use by Aug 1, 2026', '2.5 hrs, use by Sep 30, 2026']);
   });
 });

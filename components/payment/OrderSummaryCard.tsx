@@ -56,7 +56,7 @@ export async function OrderSummaryCard({ summary }: { summary: RentalOrderSummar
           </span>
           <span className="font-medium text-gray-900 text-right max-w-[60%] break-words">
             {summary.delivery_requested
-              ? summary.delivery_address || '—'
+              ? summary.delivery_address || '-'
               : 'Mercury Ville @ Chidlom'}
           </span>
         </div>
