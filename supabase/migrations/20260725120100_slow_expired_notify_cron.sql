@@ -66,3 +66,56 @@ BEGIN
   RAISE NOTICE 'Set club-rental-expired-notify-1min (jobid %) to */5.', v_jobid;
 END
 $migration$;
+
+-- ---------------------------------------------------------------------------
+-- Retire job 51 — club-rental-payment-reminder-1min
+-- ---------------------------------------------------------------------------
+-- `/api/cron/club-rental-payment-reminder` does not exist. Verified three ways:
+--   1. No such route in lengolf-booking-new @ main (64fab50), lengolf-forms @
+--      master (ab048b9), or on any local branch of either repo.
+--   2. Live probe against the job's ACTUAL target URL (read from cron.job.command,
+--      not assumed): POST returned 404.
+--   3. Control probe against the sibling club-rental-expired-notify on the same
+--      deployment returned 405 — proving the method-probe distinguishes
+--      "absent" from "present but GET-only", so the 404 is a real absence.
+--
+-- The job had been firing every minute at a non-existent route: ~1,440 billed
+-- Vercel invocations/day (~43K/month) doing nothing at all.
+--
+-- Idempotent: only unschedules if present, so re-applying is safe.
+DO $migration$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'club-rental-payment-reminder-1min') THEN
+    PERFORM cron.unschedule('club-rental-payment-reminder-1min');
+    RAISE NOTICE 'Unscheduled club-rental-payment-reminder-1min (route returns 404).';
+  ELSE
+    RAISE NOTICE 'club-rental-payment-reminder-1min already absent — nothing to unschedule.';
+  END IF;
+END
+$migration$;
+
+-- ROLLBACK, if the route is later deployed and the job is wanted back:
+--
+--   SELECT cron.schedule(
+--     'club-rental-payment-reminder-1min',
+--     '*/5 * * * *',   -- do NOT restore at 1-minute; see this file's header
+--     $cron$
+--       SELECT net.http_get(
+--         url := 'https://booking.len.golf/api/cron/club-rental-payment-reminder',
+--         headers := jsonb_build_object(
+--           'Authorization', 'Bearer ' || (
+--             SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cron_secret' LIMIT 1
+--           )
+--         ),
+--         timeout_milliseconds := 30000
+--       ) AS request_id;
+--     $cron$
+--   );
+--
+-- ⚠️ NOTE THE DIFFERENCE FROM THE ORIGINAL. Jobs 50 and 51 were created with the
+-- CRON_API_KEY bearer token HARDCODED IN PLAINTEXT in cron.job.command, unlike
+-- jobs 45/46 which read it from Vault. That token is readable by anyone with DB
+-- access. It is deliberately NOT reproduced here — the rollback above reads from
+-- Vault instead, which is the pattern the lengolf-forms jobs already use.
+-- The hardcoded token should be rotated and job 50 migrated to the Vault pattern
+-- as a follow-up; that is out of scope for this cadence change.
