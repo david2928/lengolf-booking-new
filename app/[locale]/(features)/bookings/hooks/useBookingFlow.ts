@@ -34,7 +34,7 @@ export function useBookingFlow() {
   // page under a different /[locale] route) doesn't reset the wizard to step 1.
   // Cleared on the confirmation page; skips restore when a deep-link / auth-return
   // param is present so those flows keep ownership of the initial state.
-  useFlowPersistence(
+  const flowRestored = useFlowPersistence(
     'lengolf.bayBookingFlow',
     {
       currentStep,
@@ -71,13 +71,14 @@ export function useBookingFlow() {
     },
   );
 
-  // Fire one funnel event per step entry. Keyed on currentStep alone so a
-  // restore from persistence or a deep-link jump to step 2 also reports, which
-  // is what makes the funnel counts match reality rather than only counting
-  // people who walked the steps in order.
+  // Report the step the customer actually lands on. Gated on `flowRestored`
+  // because useFlowPersistence restores in a mount effect: without the gate this
+  // fires for the initial step 1 and then the restored step, inventing a `date`
+  // view and skipping the restored step's predecessor entirely.
   useEffect(() => {
+    if (!flowRestored) return;
     pushBayBookingStepViewed(currentStep);
-  }, [currentStep]);
+  }, [flowRestored, currentStep]);
 
   useEffect(() => {
     if (searchParams && !isAutoSelecting) {

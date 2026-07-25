@@ -21,8 +21,8 @@ export type BayBookingStep = (typeof BAY_BOOKING_STEPS)[number];
  */
 export function pushBayBookingStepViewed(currentStep: number): void {
   const index = currentStep - 1;
+  if (index < 0 || index >= BAY_BOOKING_STEPS.length) return;
   const step = BAY_BOOKING_STEPS[index];
-  if (!step) return;
 
   pushEventToGtm('bay_booking_step_viewed', {
     step,

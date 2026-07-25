@@ -6,6 +6,8 @@ import { BAY_BOOKING_STEPS, pushBayBookingStepViewed } from '@/lib/booking-telem
 
 describe('BAY_BOOKING_STEPS', () => {
   test('is the three-step spine in order', () => {
+    // Locks the GA4 `step` dimension values: renaming one silently breaks every
+    // saved funnel exploration, so a rename must be a deliberate edit here.
     expect(BAY_BOOKING_STEPS).toEqual(['date', 'time', 'details']);
   });
 });
@@ -42,5 +44,14 @@ describe('pushBayBookingStepViewed', () => {
     pushBayBookingStepViewed(4);
 
     expect(window.dataLayer).toHaveLength(0);
+  });
+
+  test('creates the dataLayer when the first event beats the GTM snippet', () => {
+    delete (window as unknown as { dataLayer?: unknown[] }).dataLayer;
+
+    pushBayBookingStepViewed(1);
+
+    expect(window.dataLayer).toHaveLength(1);
+    expect(window.dataLayer[0].step).toBe('date');
   });
 });
