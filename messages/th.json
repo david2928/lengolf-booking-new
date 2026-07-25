@@ -291,7 +291,12 @@
       "clubRentalCourseLinkCta": "ดูราคารายวันและตัวเลือกการจัดส่ง",
       "carouselPhotoAlt": "Callaway Paradym Forged Carbon - รูปที่ {index}",
       "durationSwitchedToAi": "เปลี่ยนระยะเวลา: เปลี่ยนเป็น AI Bay (Social Bay ไม่ว่างสำหรับระยะเวลานี้)",
-      "durationSwitchedToSocial": "เปลี่ยนระยะเวลา: เปลี่ยนเป็น Social Bay (AI Bay ไม่ว่างสำหรับระยะเวลานี้)"
+      "durationSwitchedToSocial": "เปลี่ยนระยะเวลา: เปลี่ยนเป็น Social Bay (AI Bay ไม่ว่างสำหรับระยะเวลานี้)",
+      "summaryTotalLabel": "ยอดรวม",
+      "summaryEmptyPrompt": "เลือกระยะเวลาเพื่อดูยอดรวม",
+      "errorNeedName": "กรุณากรอกชื่อเพื่อยืนยันการจอง",
+      "errorNeedPhone": "กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง",
+      "errorNeedEmail": "กรุณากรอกอีเมลเพื่อรับการยืนยันการจอง"
     },
     "confirmation": {
       "pageTitle": "ยืนยันการจอง - LENGOLF",
