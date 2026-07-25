@@ -12,6 +12,7 @@ import { allocateOrderMoney, courseDeliveryFee, groupAddOns, groupSetNames, roun
 import { resolveOrCreateCustomerId, resolveUserId } from '@/lib/club-rental/resolve-customer';
 import { PROVISIONAL_PAYMENT_EXPIRY_SECONDS } from '@/lib/club-rental/orders';
 import { logOrderEvent } from '@/lib/club-rental/order-events';
+import { sanitizeAttribution } from '@/lib/attribution/click-ids';
 
 /**
  * POST /api/clubs/order — order-aware course-rental write path.
@@ -63,6 +64,7 @@ interface OrderBody {
   payment_method?: 'cash' | 'card';
   payment_method_chosen?: 'online_shopeepay' | 'cash_at_pickup';
   contact_preference?: 'line' | 'email' | 'whatsapp';
+  attribution?: unknown;
 }
 
 /** Build trusted add-on price/label map at request time for dynamic pricing. */
@@ -103,8 +105,15 @@ export async function POST(request: NextRequest) {
       payment_method: rawPaymentMethod,
       payment_method_chosen: rawPaymentMethodChosen,
       contact_preference: rawContactPreference,
+      attribution: rawAttribution,
     } = body;
     const lines: LineInput[] = Array.isArray(body.lines) ? body.lines : [];
+
+    // Google Ads click ID + UTMs. Sanitized server-side (charset + length) —
+    // these end up in an outbound Google Ads API call from the ETL, so a forged
+    // value shouldn't reach it. Anything that fails validation becomes null.
+    // Staff-created orders (source='staff') simply carry nulls.
+    const attribution = sanitizeAttribution(rawAttribution);
 
     // The site locale the customer booked in — persisted on the order header so
     // webhook-driven emails (paid confirmation, refund) render in the booking
@@ -345,6 +354,12 @@ export async function POST(request: NextRequest) {
         source,
         notes: customerNotes || null,
         language: orderLanguage,
+        gclid: attribution.gclid,
+        gbraid: attribution.gbraid,
+        wbraid: attribution.wbraid,
+        utm_source: attribution.utm_source,
+        utm_medium: attribution.utm_medium,
+        utm_campaign: attribution.utm_campaign,
       })
       .select()
       .single();

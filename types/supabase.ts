@@ -79,6 +79,13 @@ export interface Database {
           is_new_customer?: boolean | null
           add_ons?: Json | null
           rental_club_set_id?: string | null
+          gclid?: string | null
+          gbraid?: string | null
+          wbraid?: string | null
+          utm_source?: string | null
+          utm_medium?: string | null
+          utm_campaign?: string | null
+          gclid_conversion_uploaded?: boolean | null
           created_at: string
           updated_at: string
         }
@@ -108,6 +115,13 @@ export interface Database {
           cancellation_reason?: string | null
           add_ons?: Json | null
           rental_club_set_id?: string | null
+          gclid?: string | null
+          gbraid?: string | null
+          wbraid?: string | null
+          utm_source?: string | null
+          utm_medium?: string | null
+          utm_campaign?: string | null
+          gclid_conversion_uploaded?: boolean | null
           created_at?: string
           updated_at?: string
         }
@@ -137,6 +151,13 @@ export interface Database {
           cancellation_reason?: string | null
           add_ons?: Json | null
           rental_club_set_id?: string | null
+          gclid?: string | null
+          gbraid?: string | null
+          wbraid?: string | null
+          utm_source?: string | null
+          utm_medium?: string | null
+          utm_campaign?: string | null
+          gclid_conversion_uploaded?: boolean | null
           created_at?: string
           updated_at?: string
         }
