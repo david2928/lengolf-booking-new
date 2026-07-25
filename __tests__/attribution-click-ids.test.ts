@@ -6,6 +6,7 @@ import {
   parseGclAgCookie,
   parseGclGbCookie,
   resolveCapture,
+  readAttribution,
   EMPTY_ATTRIBUTION,
 } from '@/lib/attribution/click-ids';
 
@@ -239,15 +240,15 @@ describe('resolveCapture', () => {
 
   // This is the path that carries an iOS browser-to-web click from len.golf.
   it('recovers a wbraid from the _gcl_gb cookie with no URL param', () => {
-    const result = resolveCapture('', '_gcl_gb=GCL.1784981831.WB1', null, NOW);
-    expect(result).toMatchObject({ wbraid: 'WB1', capturedAt: 1_784_981_831_000 });
+    const result = resolveCapture('', '_gcl_gb=GCL.1784978000.WB1', null, NOW);
+    expect(result).toMatchObject({ wbraid: 'WB1', capturedAt: 1_784_978_000_000 });
   });
 
   it('picks the newest across all three cookies', () => {
     const cookies = [
       '_gcl_aw=GCL.1700000000.G',
       '_gcl_ag=2.1.kGB$i1700000001$bx',
-      '_gcl_gb=GCL.1784981831.WB',
+      '_gcl_gb=GCL.1784978000.WB',
     ].join('; ');
     expect(resolveCapture('', cookies, null, NOW)).toMatchObject({
       gclid: null,
@@ -319,5 +320,98 @@ describe('resolveCapture', () => {
 
   it('drops a forged click ID instead of storing it', () => {
     expect(resolveCapture('?gclid=<script>alert(1)</script>', '', null, NOW)).toBeNull();
+  });
+
+  // Our capture runs at hydration; GTM is afterInteractive + async, so the
+  // first load can store UTMs before any _gcl_* cookie exists. That record is
+  // stamped with VISIT time, and must not gate the cookie's earlier CLICK time.
+  it('accepts a cookie click older than a stored UTM-only record', () => {
+    const utmOnly = resolveCapture('?utm_source=google', '', null, NOW);
+    expect(utmOnly).toMatchObject({ gclid: null, capturedAt: NOW });
+
+    const earlierClick = `_gcl_aw=GCL.${Math.floor((NOW - 1_800_000) / 1000)}.LATE_COOKIE`;
+    expect(resolveCapture('', earlierClick, utmOnly, NOW + 1000)).toMatchObject({
+      gclid: 'LATE_COOKIE',
+    });
+  });
+
+  it('clamps a future-dated cookie click to now so the TTL can still expire it', () => {
+    const future = `_gcl_aw=GCL.${Math.floor((NOW + 86_400_000) / 1000)}.SKEWED`;
+    const result = resolveCapture('', future, null, NOW);
+    expect(result).toMatchObject({ gclid: 'SKEWED' });
+    expect(result!.capturedAt).toBe(NOW);
+  });
+
+  // A URL carries no timestamp, so a months-old pasted link would otherwise be
+  // stamped fresh and outlive the TTL.
+  it('dates a URL click from the matching cookie rather than assuming it is fresh', () => {
+    const clickSec = Math.floor((NOW - 30 * 86_400_000) / 1000);
+    const result = resolveCapture(
+      '?gclid=SHARED_ID',
+      `_gcl_aw=GCL.${clickSec}.SHARED_ID`,
+      null,
+      NOW,
+    );
+    expect(result).toMatchObject({ gclid: 'SHARED_ID', capturedAt: clickSec * 1000 });
+  });
+
+  it('falls back to now when the URL click has no corroborating cookie', () => {
+    expect(resolveCapture('?gclid=NO_COOKIE', '', null, NOW)?.capturedAt).toBe(NOW);
+  });
+
+  it('keeps stored UTMs when the same click URL is re-loaded without them', () => {
+    const first = resolveCapture('?gclid=abc&utm_source=google', '', null, NOW);
+    const second = resolveCapture('?gclid=abc', '', first, NOW + 1000);
+    expect(second).toMatchObject({ gclid: 'abc', utm_source: 'google', capturedAt: NOW });
+  });
+
+  it('breaks a same-second tie by the gclid → gbraid → wbraid precedence', () => {
+    const sec = 1_784_978_748;
+    const cookies = [
+      `_gcl_aw=GCL.${sec}.G`,
+      `_gcl_ag=2.1.kGB$i${sec}$bx`,
+      `_gcl_gb=GCL.${sec}.WB`,
+    ].join('; ');
+    expect(resolveCapture('', cookies, null, NOW)).toMatchObject({ gclid: 'G', gbraid: null });
+  });
+});
+
+describe('readAttribution', () => {
+  beforeEach(() => localStorage.clear());
+
+  function store(record: Record<string, unknown>) {
+    localStorage.setItem('lengolf.attribution', JSON.stringify(record));
+  }
+
+  it('returns empty attribution when nothing is stored', () => {
+    expect(readAttribution()).toEqual(EMPTY_ATTRIBUTION);
+  });
+
+  it('returns a click captured inside the 90-day window', () => {
+    store({ ...EMPTY_ATTRIBUTION, gclid: 'fresh', capturedAt: Date.now() - 86_400_000 });
+    expect(readAttribution()).toMatchObject({ gclid: 'fresh' });
+  });
+
+  // Google drops a gclid after 90 days, and an expired ID takes precedence over
+  // the hashed identifiers — so keeping it turns a working upload into a miss.
+  it('discards a click past the 90-day window and clears it from storage', () => {
+    store({ ...EMPTY_ATTRIBUTION, gclid: 'expired', capturedAt: Date.now() - 91 * 86_400_000 });
+    expect(readAttribution()).toEqual(EMPTY_ATTRIBUTION);
+    expect(localStorage.getItem('lengolf.attribution')).toBeNull();
+  });
+
+  it('ignores a corrupt record rather than throwing', () => {
+    localStorage.setItem('lengolf.attribution', 'not json');
+    expect(readAttribution()).toEqual(EMPTY_ATTRIBUTION);
+
+    store({ ...EMPTY_ATTRIBUTION, gclid: 'x', capturedAt: 'yesterday' });
+    expect(readAttribution()).toEqual(EMPTY_ATTRIBUTION);
+  });
+
+  // NaN would make `now - capturedAt > TTL` false forever, so the record could
+  // never expire.
+  it('rejects a NaN timestamp instead of storing an immortal record', () => {
+    store({ ...EMPTY_ATTRIBUTION, gclid: 'immortal', capturedAt: NaN });
+    expect(readAttribution()).toEqual(EMPTY_ATTRIBUTION);
   });
 });

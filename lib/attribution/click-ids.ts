@@ -34,9 +34,12 @@ const MAX_CLICK_ID_LENGTH = 512;
 
 /**
  * UTM values come from our own tracking template but are user-editable in the
- * URL. `%` is deliberately excluded: values arrive already decoded from
- * URLSearchParams, so a literal `%` has no legitimate source here and would be
- * a double-decoding hazard for anything downstream that re-encodes them.
+ * URL. `%` is excluded because the account template resolves to IDs, not free
+ * text (`utm_campaign={campaignid}`, `utm_content={adgroupid}`), so a literal
+ * `%` has no legitimate source and would be a double-decoding hazard for
+ * anything downstream that re-encodes these. If the template ever switches to
+ * `{campaignname}`, a campaign like "Summer 50% Off" would null out here —
+ * widen the pattern at that point.
  */
 const UTM_PATTERN = /^[A-Za-z0-9_.\-+| ]+$/;
 const MAX_UTM_LENGTH = 200;
@@ -204,6 +207,15 @@ export function parseGclGbCookie(
  * `_gcl_ag=2.1.k<gbraid>$i<unix-seconds>$b<opaque>` — undocumented, verified by
  * inspection on 2026-07-25. Best-effort: if Google changes the shape this
  * returns null and we simply fall back to the URL param.
+ *
+ * Requiring the timestamp is a deliberate trade. If Google moves the `$i`
+ * field, cookie-based gbraid capture silently drops to zero (URL landings
+ * still work). The alternative — accepting the ID and stamping it "now" —
+ * risks uploading a click up to 90 days old as fresh, and because a click ID
+ * takes precedence over hashed identifiers at Google's end, that converts a
+ * weak-but-working upload into a guaranteed miss. Losing the ID costs us the
+ * status quo; resurrecting a dead one costs us a conversion that would
+ * otherwise have had a chance.
  */
 export function parseGclAgCookie(
   cookieString: string,
@@ -244,7 +256,10 @@ function load(): StoredAttribution | null {
     const raw = localStorage.getItem(ATTRIBUTION_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredAttribution;
-    if (!parsed || typeof parsed.capturedAt !== 'number') return null;
+    // `Number.isFinite` rather than `typeof === 'number'`: a NaN capturedAt
+    // (corrupt storage, hand-edited value) would make `now - capturedAt > TTL`
+    // false forever, so the TTL could never expire the record.
+    if (!parsed || !Number.isFinite(parsed.capturedAt)) return null;
     return parsed;
   } catch {
     return null;
@@ -257,6 +272,38 @@ function save(value: StoredAttribution): void {
   } catch {
     /* private mode / quota — attribution is never worth failing a booking over */
   }
+}
+
+/**
+ * A click cannot have happened in the future. A device with a skewed clock at
+ * click time — or Google switching the cookie's timestamp to milliseconds,
+ * which `seconds * 1000` would launch into the year 58000 — would otherwise
+ * store a `capturedAt` that makes `now - capturedAt` permanently negative. The
+ * TTL check would then never fire and the record would live forever, which is
+ * the exact failure the TTL exists to prevent.
+ */
+function clampClickTime(clickedAt: number, now: number): number {
+  return clickedAt > now ? now : clickedAt;
+}
+
+/**
+ * Find the click time the Google tag recorded for a click ID we read from the
+ * URL, so a URL-borne ID can be dated rather than assumed fresh.
+ */
+function matchCookieClickTime(cookieString: string, fromUrl: Attribution): number | null {
+  if (fromUrl.gclid) {
+    const aw = parseGclAwCookie(cookieString);
+    return aw && aw.gclid === fromUrl.gclid ? aw.clickedAt : null;
+  }
+  if (fromUrl.wbraid) {
+    const gb = parseGclGbCookie(cookieString);
+    return gb && gb.wbraid === fromUrl.wbraid ? gb.clickedAt : null;
+  }
+  if (fromUrl.gbraid) {
+    const ag = parseGclAgCookie(cookieString);
+    return ag && ag.gbraid === fromUrl.gbraid ? ag.clickedAt : null;
+  }
+  return null;
 }
 
 /**
@@ -284,7 +331,25 @@ export function resolveCapture(
       stored.gclid === fromUrl.gclid &&
       stored.gbraid === fromUrl.gbraid &&
       stored.wbraid === fromUrl.wbraid;
-    return { ...fromUrl, capturedAt: sameClick ? stored.capturedAt : now };
+
+    // A URL-borne click ID carries no timestamp of its own, so prefer the click
+    // time from the cookie the tag wrote for that same ID. Without this a
+    // months-old URL — pasted into LINE, or sitting in a bookmark — would be
+    // stamped as fresh and outlive the 90-day TTL that exists to stop us
+    // uploading a dead ID. `now` remains the fallback for the genuinely
+    // uncorroborated case (first load, before gtag has written anything).
+    const corroborated =
+      matchCookieClickTime(cookieString, fromUrl) ??
+      (sameClick ? stored.capturedAt : now);
+
+    return {
+      ...fromUrl,
+      // Same click re-landing keeps stored UTMs when this URL carries none.
+      utm_source: fromUrl.utm_source ?? (sameClick ? stored.utm_source : null),
+      utm_medium: fromUrl.utm_medium ?? (sameClick ? stored.utm_medium : null),
+      utm_campaign: fromUrl.utm_campaign ?? (sameClick ? stored.utm_campaign : null),
+      capturedAt: clampClickTime(corroborated, now),
+    };
   }
 
   // No click ID in the URL — fall back to the cookies Google's own tag wrote,
@@ -296,25 +361,35 @@ export function resolveCapture(
   // would see `stored.gclid === null` on a braid record, treat the stale cookie
   // as new, and overwrite the braid that actually converted — destroying
   // exactly the identifiers this feature exists to capture.
-  const candidates: { ids: Partial<Attribution>; clickedAt: number }[] = [];
+  // `rank` is the tie-break for clicks sharing a second, and mirrors the
+  // gclid → gbraid → wbraid precedence in `collapseClickIds`. Made explicit so
+  // reordering these blocks can't silently change which identifier wins.
+  const candidates: { ids: Partial<Attribution>; clickedAt: number; rank: number }[] = [];
 
   const aw = parseGclAwCookie(cookieString);
   if (aw && aw.gclid !== stored?.gclid) {
-    candidates.push({ ids: { gclid: aw.gclid }, clickedAt: aw.clickedAt });
+    candidates.push({ ids: { gclid: aw.gclid }, clickedAt: aw.clickedAt, rank: 0 });
   }
 
   const ag = parseGclAgCookie(cookieString);
   if (ag && ag.gbraid !== stored?.gbraid) {
-    candidates.push({ ids: { gbraid: ag.gbraid }, clickedAt: ag.clickedAt });
+    candidates.push({ ids: { gbraid: ag.gbraid }, clickedAt: ag.clickedAt, rank: 1 });
   }
 
   const gb = parseGclGbCookie(cookieString);
   if (gb && gb.wbraid !== stored?.wbraid) {
-    candidates.push({ ids: { wbraid: gb.wbraid }, clickedAt: gb.clickedAt });
+    candidates.push({ ids: { wbraid: gb.wbraid }, clickedAt: gb.clickedAt, rank: 2 });
   }
 
-  const newest = candidates.sort((a, b) => b.clickedAt - a.clickedAt)[0];
-  if (newest && (!stored || newest.clickedAt >= stored.capturedAt)) {
+  const newest = candidates.sort((a, b) => b.clickedAt - a.clickedAt || a.rank - b.rank)[0];
+
+  // The recency floor only protects a stored CLICK. A UTM-only record is
+  // stamped with visit time, and our capture runs at hydration — before the
+  // GTM snippet (afterInteractive + async) has had a chance to write any
+  // `_gcl_*` cookie. Letting a visit-time record gate on click time would make
+  // the cookie that arrives moments later look "older" and be rejected on this
+  // and every subsequent load.
+  if (newest && (!stored || !hasClickId(stored) || newest.clickedAt >= stored.capturedAt)) {
     return {
       ...EMPTY_ATTRIBUTION,
       // A different click carries different campaign context, so the previous
@@ -324,7 +399,7 @@ export function resolveCapture(
       utm_medium: fromUrl.utm_medium,
       utm_campaign: fromUrl.utm_campaign,
       ...newest.ids,
-      capturedAt: newest.clickedAt,
+      capturedAt: clampClickTime(newest.clickedAt, now),
     };
   }
 
