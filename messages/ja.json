@@ -258,7 +258,7 @@
       "packageCardOverageTitle": "このご予約はパッケージの残り時間を超えています",
       "packageCardOverageBody": "パッケージは{total}時間のご予約のうち{covered}時間が対象です。残りの{uncovered}時間は฿{amount}となります。",
       "packageCardOverageBodyCapped": "パッケージの残り時間ではこのご予約のうち{covered}時間のみが対象です。続く{uncovered}時間は฿{amount}となります。",
-      "packageCardOverageNote": "会場でのお支払いとなり、見積もりには含まれていません。表示の合計額より多くお支払いいただきます。",
+      "packageCardOverageNote": "この金額は見積もり合計に含まれています。",
       "marketingOptInLabel": "LENGOLFのお知らせとお得な情報を受け取る",
       "marketingOptInDescription": "ベイ特典、コーチングのプロモーション、メンバーイベント。いつでもメールから配信停止できます。",
       "loadingOverlayTitle": "予約を確定しています",

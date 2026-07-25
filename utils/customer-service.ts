@@ -138,10 +138,11 @@ export async function findOrCreateCustomer(
  * package that applies to a booking — a superset of what
  * `getPackageInfoForCustomer` returns.
  *
- * The balance fields exist so the booking flow can DISCLOSE the customer's
- * remaining hours before they submit. They are not authoritative for pricing:
- * `lib/cost-calculator.ts` decides what is charged, and it keys off the
- * `hasActivePackage` boolean only.
+ * `remainingHours` (with `isUnlimited`) reaches `lib/cost-calculator.ts` as
+ * `packageRemainingHours`, so it moves the ESTIMATE: a balance that runs short
+ * charges the uncovered tail of the booking rather than previewing ฿0. It is
+ * still only an estimate — the venue's POS charges the real amount.
+ * `totalHours`/`usedHours`/`expiryDate` are display-only.
  */
 export interface ActivePackageDetails {
   /** Human-readable summary. `'Normal Bay Rate'` when no package applies. */

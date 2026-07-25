@@ -37,12 +37,12 @@ function parseCalendarDate(value: string): Date | null {
  * Remaining package hours, and — when the balance will not stretch across the
  * booking — what the uncovered tail costs.
  *
- * The overage figure is deliberately framed as charged AT THE VENUE and
- * excluded from the estimate. That is not hedging: `lib/cost-calculator.ts`
- * takes only a `hasActivePackage` boolean and zeroes the entire bay line
- * regardless of balance, so the estimate genuinely does not contain this
- * amount. Presenting it as part of the total would contradict the breakdown
- * two panels down. See the pinned test in `__tests__/package-coverage.test.ts`.
+ * The overage figure is INSIDE the estimated total. `lib/cost-calculator.ts`
+ * takes the same balance and charges the uncovered tail as its own bay line, so
+ * the warning and the total quote the same money — the card explains the charge
+ * rather than disclaiming it. Keep that copy honest: if the calculator ever
+ * stops consuming the balance, this note becomes a lie. The agreement is pinned
+ * in `__tests__/package-coverage.test.ts`.
  */
 export function PackageHoursCard({
   coverage,
@@ -66,9 +66,9 @@ export function PackageHoursCard({
   } = coverage;
 
   /**
-   * Always disclosed when there is one. The calculator zeroes the whole
-   * package-ELIGIBLE window regardless of balance, so the shortfall is missing
-   * from the estimate whether or not a 14:00 cap is also in play.
+   * Always disclosed when there is one. The customer still needs to know their
+   * package will not stretch across the booking, even though the estimate now
+   * contains the charge — a package holder does not expect a bay line at all.
    */
   const showOverage = isPartial && shortfallCost !== null;
 
@@ -163,8 +163,8 @@ export function PackageHoursCard({
                 : /* A 14:00-capped (Early Bird) package. `covered + shortfall`
                      is the eligible window, NOT the booking, so this variant
                      must not claim a booking total — the hours would not add
-                     up and the post-14:00 remainder is disclosed separately by
-                     the breakdown's own 14:00 note. */
+                     up, and the post-14:00 remainder is a bay line of its own
+                     in the breakdown. */
                   t('packageCardOverageBodyCapped', {
                     covered: tidyHours(coveredHours),
                     uncovered: tidyHours(shortfallHours),

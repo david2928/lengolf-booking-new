@@ -258,7 +258,7 @@
       "packageCardOverageTitle": "이번 예약이 패키지 잔여 시간을 초과합니다",
       "packageCardOverageBody": "패키지가 이 {total}시간 예약 중 {covered}시간을 적용합니다. 남은 {uncovered}시간은 ฿{amount}입니다.",
       "packageCardOverageBodyCapped": "패키지 잔여 시간으로는 이번 예약 중 {covered}시간만 적용됩니다. 이어지는 {uncovered}시간은 ฿{amount}입니다.",
-      "packageCardOverageNote": "현장에서 결제되며 예상 금액에는 포함되지 않습니다. 표시된 합계보다 더 지불하게 됩니다.",
+      "packageCardOverageNote": "이 금액은 예상 합계에 이미 포함되어 있습니다.",
       "marketingOptInLabel": "LENGOLF 소식 및 프로모션 받기",
       "marketingOptInDescription": "베이 할인, 코칭 프로모션, 멤버 이벤트. 언제든지 이메일에서 수신 거부할 수 있습니다.",
       "loadingOverlayTitle": "예약을 확정하고 있습니다",

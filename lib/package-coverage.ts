@@ -1,12 +1,14 @@
 /**
  * How much of a bay booking the customer's package actually pays for.
  *
- * This is a DISCLOSURE module, not a pricing module. `lib/cost-calculator.ts`
- * remains the only thing that decides what is charged, and it keys off the
- * `hasActivePackage` boolean alone — it has no idea what the customer's balance
- * is. This module exists so the flow can warn the customer *before* they submit
- * that their balance will not stretch across the whole booking, instead of them
- * finding out at the bay when staff charge the overage.
+ * This module owns the coverage arithmetic. `lib/cost-calculator.ts` remains the
+ * only thing that decides what is CHARGED, but it consumes `coveredHours` from
+ * here to size the covered head of the bay line, so the disclosure card and the
+ * estimated total can never quote different amounts for the same booking.
+ *
+ * A caller that has no balance to give (LIFF, the confirmation screen replaying
+ * a stored booking) omits it, and the calculator falls back to
+ * eligibility-only coverage — the behaviour that predates this module.
  *
  * Three things this exists to get right:
  *
@@ -27,6 +29,10 @@
  *     ALREADY charges the post-14:00 remainder as a separate line in the total.
  *     Counting that same time again here would double-bill it in the warning,
  *     so the shortfall is measured strictly inside the package-eligible window.
+ *     The calculator composes the two limits — it charges from wherever the
+ *     covered window ends, whether that is 14:00 or the balance running out —
+ *     so `shortfallCost` is the *additional* amount balance-awareness adds to
+ *     the estimate, not the whole charged tail.
  */
 import { isWeekendDate, getRateSegments } from '@/lib/liff/bay-rates-data';
 
@@ -46,8 +52,12 @@ export const EARLY_BIRD_CUTOFF = 14;
  * start), so a balance that is exact to the customer can miss by ~1e-7 h. At
  * 1e-9 that survived as a warning reading "The remaining 0 hrs is ฿0" — a
  * self-contradicting scare over 0.4 seconds of bay time.
+ *
+ * Exported so `lib/cost-calculator.ts` uses the SAME threshold when it decides
+ * whether a covered or charged window is worth its own line item. Two epsilons
+ * would let the card and the breakdown disagree at the boundary.
  */
-const HOUR_EPSILON = 0.01;
+export const HOUR_EPSILON = 0.01;
 
 export interface PackageCoverageInput {
   /** yyyy-MM-dd — decides weekday vs weekend rates. */
@@ -84,10 +94,9 @@ export interface PackageCoverage {
   /**
    * True when the package is eligible for the whole booking, i.e. no rate-window
    * cap is in play. Callers use this to choose wording only — it must NOT gate
-   * whether the shortfall is disclosed. The calculator zeroes the entire
-   * eligible window regardless of balance (verified: an Early Bird 13:00 2 h
-   * booking with 0.5 h of balance zeroes all of 13:00–14:00), so the shortfall
-   * is missing from the estimate in both cases and must always be shown.
+   * whether the shortfall is disclosed. When `false` (an Early Bird package),
+   * `coveredHours + shortfallHours` is the pre-14:00 eligible window rather than
+   * the booking, so copy for that case must not claim a booking total.
    */
   coversWholeBooking: boolean;
   /** Hours of this booking the package pays for. */

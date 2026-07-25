@@ -8,8 +8,8 @@
  *
  *  - a package with hours to spare shows the balance and NO warning;
  *  - a package that runs out mid-booking shows the tail's real cost, and says
- *    plainly that the amount is not in the estimate (it isn't — the calculator
- *    zeroes the bay line regardless of balance);
+ *    plainly that the amount IS in the estimate (it is — the calculator takes
+ *    the same balance and charges the uncovered tail);
  *  - fractional durations read correctly through the ICU plural, since the
  *    ladder now offers 1.5 / 2.5 h.
  */
@@ -82,7 +82,7 @@ describe('State A — hours to spare', () => {
 
   test('shows no overage warning', () => {
     expect(screen.queryByText(/longer than your package covers/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/not included in the estimate/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/included in the estimated total/i)).not.toBeInTheDocument();
   });
 });
 
@@ -101,18 +101,17 @@ describe('State B — the package runs out mid-booking', () => {
     expect(screen.queryByText(/฿275/)).not.toBeInTheDocument();
   });
 
-  test('says plainly that the amount is not in the estimate', () => {
+  test('says plainly that the amount IS in the estimate', () => {
     renderCard(
       { duration: 1.5, remainingHours: 1 },
       { totalHours: 10, usedHours: 9, expiryDate: null },
     );
-    // The sticky bar and desktop rail both print `estimatedTotal`, which for a
-    // package holder is ฿0. Without this sentence the customer reads "Total ฿0"
-    // and "฿375" on one screen and believes the ฿0.
+    // The sticky bar and desktop rail both print `estimatedTotal`, which now
+    // contains this ฿375 because the calculator takes the same balance. The card
+    // must therefore say the amount is included, not disclaim it — two different
+    // numbers on one screen is worse than either alone.
     expect(
-      screen.getByText(
-        'Charged at the venue — not included in the estimate, so you will pay more than the total shown.',
-      ),
+      screen.getByText('This amount is already included in the estimated total.'),
     ).toBeInTheDocument();
   });
 
@@ -128,12 +127,9 @@ describe('State B — the package runs out mid-booking', () => {
   });
 
   test('an Early Bird shortfall is still disclosed, without claiming a booking total', () => {
-    // The calculator zeroes the whole 13:00–14:00 hour even though the balance
-    // covers only half of it, so ฿275 is genuinely absent from the estimate and
-    // must be shown. But `covered + uncovered` here is the pre-14:00 eligible
-    // window, not the 2 h booking, so this variant must not say "of this 2 hrs
-    // booking" — the hours would not add up, and the post-14:00 hour is
-    // disclosed separately by the breakdown's own 14:00 note.
+    // `covered + uncovered` here is the pre-14:00 eligible window, not the 2 h
+    // booking, so this variant must not say "of this 2 hrs booking" — the hours
+    // would not add up, and the post-14:00 hour is a bay line of its own.
     renderCard(
       { packageDisplayName: 'Early Bird 10H', duration: 2, remainingHours: 0.5 },
       { totalHours: 10, usedHours: 9.5, expiryDate: null },
@@ -143,7 +139,7 @@ describe('State B — the package runs out mid-booking', () => {
         'Your package balance covers only 0.5 hrs of this booking. The next 0.5 hrs is ฿275.',
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/not included in the estimate/i)).toBeInTheDocument();
+    expect(screen.getByText(/included in the estimated total/i)).toBeInTheDocument();
     // No "of this N booking" claim in the capped variant.
     expect(screen.queryByText(/of this 2 hrs booking/)).not.toBeInTheDocument();
     expect(screen.getByText('9.5 of 10 hrs used')).toBeInTheDocument();

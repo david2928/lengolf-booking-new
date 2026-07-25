@@ -258,7 +258,7 @@
       "packageCardOverageTitle": "การจองนี้นานกว่าที่แพ็กเกจของคุณครอบคลุม",
       "packageCardOverageBody": "แพ็กเกจของคุณครอบคลุม {covered} ชม. จากการจอง {total} ชม. นี้ ส่วนที่เหลือ {uncovered} ชม. คิดเป็น ฿{amount}",
       "packageCardOverageBodyCapped": "ยอดคงเหลือในแพ็กเกจของคุณครอบคลุมเพียง {covered} ชม. ของการจองนี้ ส่วน {uncovered} ชม. ถัดไปคิดเป็น ฿{amount}",
-      "packageCardOverageNote": "ชำระที่สถานที่ — ไม่รวมอยู่ในราคาประมาณการ คุณจะจ่ายมากกว่ายอดที่แสดง",
+      "packageCardOverageNote": "ยอดนี้รวมอยู่ในราคาประมาณการแล้ว",
       "marketingOptInLabel": "ส่งข่าวสารและโปรโมชันของ LENGOLF ให้ฉัน",
       "marketingOptInDescription": "ดีลเบย์ โปรโมชันการสอน และอีเวนต์สำหรับสมาชิก สามารถยกเลิกการรับอีเมลได้ตลอดเวลา",
       "loadingOverlayTitle": "กำลังยืนยันการจองของคุณ",

@@ -30,9 +30,15 @@ import { firstIncompleteContactField } from './IdentityCard';
 import { shouldWriteProfile } from './profileWriteBack';
 
 /**
- * The balance half of `/api/user/active-packages`. Disclosure only — these
- * never reach `calculateCost`, which still keys coverage off the
- * `hasActivePackage` boolean alone.
+ * The balance half of `/api/user/active-packages`.
+ *
+ * `remainingHours` + `isUnlimited` are PRICING inputs: they reach
+ * `calculateCost`, which charges the uncovered tail when the balance runs short
+ * so the estimated total agrees with the package card. They are null/false until
+ * the fetch resolves, which the calculator treats as "unknown" and prices
+ * exactly as it did before balances existed — no ฿0 → charge → ฿0 flicker.
+ *
+ * `totalHours`/`usedHours`/`expiryDate` are display-only (the card's meter).
  */
 interface PackageBalance {
   remainingHours: number | null;
@@ -185,8 +191,9 @@ export function useBookingDetailsForm({
   const [packageDisplayName, setPackageDisplayName] = useState<string>();
   /**
    * Balance/expiry for the SAME package `hasActivePackage` refers to — see
-   * `getActivePackageDetailsForCustomer`. Disclosure only: the cost calculator
-   * never sees these, so they cannot move the charged total.
+   * `getActivePackageDetailsForCustomer`. `remainingHours`/`isUnlimited` feed the
+   * cost calculator as well as the card, so a balance that runs short moves the
+   * charged total instead of leaving a ฿0 preview to be corrected at the bay.
    */
   const [packageBalance, setPackageBalance] = useState<PackageBalance>(NO_PACKAGE_BALANCE);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
@@ -533,6 +540,11 @@ export function useBookingDetailsForm({
       playFoodPackageId: localSelectedPackage?.id ?? null,
       hasActivePackage,
       packageDisplayName,
+      // Balance-aware: a package with 1 h left against a 1.5 h booking charges
+      // the 0.5 h tail instead of previewing ฿0. `null` while the fetch is in
+      // flight, which the calculator prices as "unknown balance".
+      packageRemainingHours: packageBalance.remainingHours,
+      packageIsUnlimited: packageBalance.isUnlimited,
       isNewCustomer,
       applicablePromotions,
     });

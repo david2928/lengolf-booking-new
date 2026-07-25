@@ -126,16 +126,39 @@ describe('Early Bird — the shortfall stays inside the package-eligible window'
     expect(c.coveredHours).toBe(0.5);
     expect(c.shortfallHours).toBe(0.5);
     expect(c.shortfallCost).toBe(275);
-    // `eligibleHours` alone is what prevents the double count, so the shortfall
-    // is still fully outside the estimate and MUST be disclosed. The calculator
-    // zeroes the whole 13:00–14:00 hour even though the balance pays for half.
+    // `eligibleHours` alone is what prevents the double count, and the shortfall
+    // must still be disclosed — the customer does not expect ANY bay charge.
     expect(c.isPartial).toBe(true);
     expect(c.coversWholeBooking).toBe(false);
   });
 
-  test('the calculator really does zero an hour the balance cannot pay for', () => {
-    // Pins the premise of the test above: without this, an Early Bird shortfall
-    // could plausibly be dismissed as already covered by the charged line.
+  test('the two limits compose — the balance can end coverage before 14:00 does', () => {
+    // With the balance supplied, the calculator splits at 13:30 (where the
+    // balance runs out) rather than at the 14:00 cutoff, so the ฿275 the module
+    // reports as uncovered lands INSIDE the estimate.
+    const breakdown = calculateCost({
+      date: WEEKDAY,
+      startTime: '13:00',
+      duration: 2,
+      clubRentalId: 'none',
+      hasActivePackage: true,
+      packageDisplayName: 'Early Bird 10H',
+      packageRemainingHours: 0.5,
+      isNewCustomer: false,
+      applicablePromotions: [],
+    });
+    // Covered 13:00–13:30 only; charged 13:30–15:00 = ฿275 + ฿750.
+    expect(breakdown.lineItems.find((i) => i.id === 'bay-rate-covered')!.originalAmount).toBe(275);
+    expect(breakdown.lineItems.find((i) => i.id === 'bay-rate')!.amount).toBe(1025);
+    expect(breakdown.estimatedTotal).toBe(1025);
+    // The 14:00 note would misdescribe a split that happens at 13:30.
+    expect(breakdown.notes.some((n) => n.includes('covers until 14:00'))).toBe(false);
+    expect(breakdown.notes.some((n) => n.includes('does not cover this whole booking'))).toBe(true);
+  });
+
+  test('with NO balance supplied the whole eligible window is still zeroed', () => {
+    // The pre-balance behaviour, kept for callers that have no balance to give
+    // (LIFF, the confirmation screen replaying a stored booking).
     const breakdown = calculateCost({
       date: WEEKDAY,
       startTime: '13:00',
@@ -146,14 +169,10 @@ describe('Early Bird — the shortfall stays inside the package-eligible window'
       isNewCustomer: false,
       applicablePromotions: [],
     });
-    // 13:00–14:00 zeroed in full; only 14:00–15:00 is charged.
     expect(breakdown.lineItems.find((i) => i.id === 'bay-rate-covered')!.amount).toBe(0);
     expect(breakdown.lineItems.find((i) => i.id === 'bay-rate')!.amount).toBe(750);
     expect(breakdown.estimatedTotal).toBe(750);
-    // ...so the ฿275 the balance cannot cover is nowhere in the total.
-    expect(
-      computePackageCoverage({ ...earlyBird, duration: 2, remainingHours: 0.5 })!.shortfallCost,
-    ).toBe(275);
+    expect(breakdown.notes.some((n) => n.includes('covers until 14:00'))).toBe(true);
   });
 
   test('ample balance on a booking crossing 14:00 is State A — the calculator already discloses the cutoff', () => {
@@ -203,32 +222,74 @@ describe('malformed start times are rejected rather than priced', () => {
 });
 
 /**
- * KNOWN, DELIBERATE DIVERGENCE — pinned so nobody "fixes" the copy instead of
- * the cause. `calculateCost` takes `hasActivePackage: boolean` and has no
- * balance input at all, so it zeroes the whole bay line even when the balance
- * cannot pay for it. The disclosure card therefore presents its overage as an
- * amount charged AT THE VENUE and explicitly not included in the estimate.
- * Changing pricing to consume the balance is out of scope for this slice.
+ * The card and the total must quote the SAME money. This used to pin a
+ * deliberate divergence — `calculateCost` had no balance input, zeroed the whole
+ * bay line, and the card disclaimed its overage as "not included in the
+ * estimate". Now the calculator takes `packageRemainingHours` and charges the
+ * uncovered tail, so these assert AGREEMENT instead. If they ever diverge again,
+ * the bug is in pricing, not in the card's copy.
  */
-describe('the calculator zeroes the bay line regardless of balance', () => {
-  test('a 1 h balance against a 1.5 h booking still previews ฿0 bay', () => {
-    const breakdown = calculateCost({
-      date: WEEKDAY,
-      startTime: '13:00',
-      duration: 1.5,
+describe('the calculator charges exactly what this module reports as uncovered', () => {
+  function breakdownFor(input: Partial<PackageCoverageInput> = {}) {
+    const merged = { ...base, ...input };
+    return calculateCost({
+      date: merged.date,
+      startTime: merged.startTime,
+      duration: merged.duration,
       clubRentalId: 'none',
-      hasActivePackage: true,
-      packageDisplayName: 'Gold (30H)',
+      hasActivePackage: merged.hasActivePackage,
+      packageDisplayName: merged.packageDisplayName,
+      packageRemainingHours: merged.remainingHours,
+      packageIsUnlimited: merged.isUnlimited,
       isNewCustomer: false,
       applicablePromotions: [],
     });
-    const bay = breakdown.lineItems.find((i) => i.id === 'bay-rate')!;
-    expect(bay.isCoveredByPackage).toBe(true);
-    expect(bay.amount).toBe(0);
-    expect(breakdown.estimatedTotal).toBe(0);
+  }
 
-    // ...while the disclosure correctly says ฿375 of it is not covered.
-    expect(computePackageCoverage(base)!.shortfallCost).toBe(375);
+  test('a 1 h balance against a 1.5 h booking charges the ฿375 tail, not ฿0', () => {
+    const breakdown = breakdownFor();
+    const covered = breakdown.lineItems.find((i) => i.id === 'bay-rate-covered')!;
+    const charged = breakdown.lineItems.find((i) => i.id === 'bay-rate')!;
+
+    expect(covered.isCoveredByPackage).toBe(true);
+    expect(covered.amount).toBe(0);
+    expect(covered.originalAmount).toBe(550);          // the 13:00–14:00 head
+    expect(charged.isCoveredByPackage).toBeUndefined();
+
+    // Exactly the figure the card prints.
+    expect(charged.amount).toBe(computePackageCoverage(base)!.shortfallCost);
+    expect(breakdown.estimatedTotal).toBe(375);
+  });
+
+  test.each<[string, Partial<PackageCoverageInput>]>([
+    ['the base 13:00 1.5 h / 1 h case', {}],
+    ['a tail straddling 14:00', { duration: 2, remainingHours: 0.5 }],
+    ['a tail crossing 17:00', { startTime: '16:00', duration: 2, remainingHours: 1 }],
+    ['a fractional start', { startTime: '13:30' }],
+    ['weekend rates', { date: WEEKEND }],
+    ['a zero balance', { remainingHours: 0 }],
+  ])('%s — estimatedTotal equals shortfallCost', (_label, input) => {
+    const coverage = computePackageCoverage({ ...base, ...input })!;
+    expect(coverage.shortfallCost).not.toBeNull();
+    expect(breakdownFor(input).estimatedTotal).toBe(coverage.shortfallCost);
+  });
+
+  test('Early Bird — the estimate is the shortfall PLUS the post-14:00 remainder', () => {
+    // The module scopes its shortfall to the pre-14:00 eligible window on
+    // purpose; the calculator charges from where the balance runs out all the
+    // way to the end, so the two differ by exactly the post-cutoff hour.
+    const input = { packageDisplayName: 'Early Bird 10H', duration: 2, remainingHours: 0.5 };
+    const coverage = computePackageCoverage({ ...base, ...input })!;
+    expect(coverage.shortfallCost).toBe(275);        // 13:30–14:00 @ ฿550
+    // 13:30–15:00 = 0.5 h × ฿550 + 1 h × ฿750.
+    expect(breakdownFor(input).estimatedTotal).toBe(275 + 750);
+  });
+
+  test('State A leaves the bay line fully covered, as it always did', () => {
+    const breakdown = breakdownFor({ remainingHours: 12.5 });
+    expect(breakdown.lineItems.find((i) => i.id === 'bay-rate-covered')).toBeUndefined();
+    expect(breakdown.lineItems.find((i) => i.id === 'bay-rate')!.isCoveredByPackage).toBe(true);
+    expect(breakdown.estimatedTotal).toBe(0);
   });
 });
 

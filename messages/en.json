@@ -258,7 +258,7 @@
       "packageCardOverageTitle": "This booking is longer than your package covers",
       "packageCardOverageBody": "Your package covers {covered, plural, =1 {# hr} other {# hrs}} of this {total, plural, =1 {# hr} other {# hrs}} booking. The remaining {uncovered, plural, =1 {# hr} other {# hrs}} is ฿{amount}.",
       "packageCardOverageBodyCapped": "Your package balance covers only {covered, plural, =1 {# hr} other {# hrs}} of this booking. The next {uncovered, plural, =1 {# hr} other {# hrs}} is ฿{amount}.",
-      "packageCardOverageNote": "Charged at the venue — not included in the estimate, so you will pay more than the total shown.",
+      "packageCardOverageNote": "This amount is already included in the estimated total.",
       "marketingOptInLabel": "Send me LENGOLF news & offers",
       "marketingOptInDescription": "Bay deals, coaching promos, member events. You can unsubscribe any time from any email.",
       "loadingOverlayTitle": "Confirming Your Booking",
