@@ -45,7 +45,7 @@ are four distinct classes:
 
 ## Scope
 
-### 1. Import swaps (24 files)
+### 1. Import swaps (21 files)
 
 Swap to `@/i18n/navigation`. No other change; locale is inferred.
 
@@ -63,9 +63,12 @@ Swap to `@/i18n/navigation`. No other change; locale is inferred.
 **VIP (14)** — `vip/{page,bookings,dashboard,link-account,packages,profile,membership}`
 and `components/vip/{BookingsList,DashboardCard,DashboardView,EmptyState,LinkAccountPrompt,PackagesList,SummaryCard,BookingModifyModal,ManualLinkAccountForm}`.
 
-**Marketing / payment / shared (6)** — `golf-club-rental`, `play-and-food`,
-`payment/result` (`useSearchParams` stays), `payment/start/page`,
-`payment/start/HandoffClient`, `components/shared/Header.tsx`.
+**Marketing / shared (3)** — `golf-club-rental`, `play-and-food`,
+`components/shared/Header.tsx`.
+
+The three `app/[locale]/payment/*` files were already on `@/i18n/navigation`
+and need no change; `payment/result` keeps `useSearchParams` from
+`next/navigation`, which is correct.
 
 `Header.tsx` is safe to convert: it is imported only by `bookings/Layout.tsx`
 and `vip/layout.tsx`, both inside `[locale]`.
