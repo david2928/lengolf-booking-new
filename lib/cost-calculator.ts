@@ -92,6 +92,20 @@ export interface CostDiscount {
 export interface CostBreakdown {
   lineItems: CostLineItem[];
   discounts: CostDiscount[];
+  /**
+   * The one promotion this breakdown reflects — offers never stack, so at most
+   * one ever wins. `undefined` when none was eligible.
+   *
+   * Read this, never a second eligibility pass, when another surface has to
+   * agree with the customer's quote (the staff LINE note in
+   * `app/api/bookings/create/route.ts` does). `discounts[0].promotionId` is NOT
+   * a substitute: a sub-2-hour bogo wins by contributing ADVICE ("book 2 hours
+   * to get 1 hour free") and pushes no discount row, yet it is still a promise
+   * made to the customer that staff have to honour.
+   *
+   * Metadata only — no line item, discount, note or total depends on it.
+   */
+  appliedPromotionId?: string;
   subtotal: number;
   totalDiscount: number;
   estimatedTotal: number;
@@ -887,6 +901,10 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   return {
     lineItems,
     discounts,
+    // Left `undefined` rather than `null` when nothing won, so a breakdown with
+    // no eligible offer stays `toEqual`-identical to one produced before this
+    // field existed. Nothing renders it.
+    appliedPromotionId: winner?.promotionId,
     subtotal,
     totalDiscount,
     estimatedTotal,
