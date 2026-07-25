@@ -31,7 +31,11 @@ export function DetailsSubStepSummary({
     <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
       <p className="min-w-0 flex-1 truncate text-sm text-gray-700">
         <span className="font-semibold text-gray-900">{label}</span>
-        <span className="mx-1.5 text-gray-300">·</span>
+        {/* Literal spaces, not `mx-1.5`: the separators inside `value` are plain
+            " · " strings, so a margin-only gap matched them visually but not
+            textually — screen readers and copy/paste got "Session·1 hr" while
+            every later separator had spaces. */}
+        <span className="text-gray-300">{' · '}</span>
         {value}
       </p>
       <button

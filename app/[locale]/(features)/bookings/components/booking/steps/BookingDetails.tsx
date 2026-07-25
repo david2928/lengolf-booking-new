@@ -54,6 +54,10 @@ export function BookingDetails(props: BookingDetailsProps) {
     setCustomerNotes,
     marketingOptIn,
     setMarketingOptIn,
+    isEditingContact,
+    setIsEditingContact,
+    alsoUpdateAccount,
+    setAlsoUpdateAccount,
     localSelectedPackage,
     setLocalSelectedPackage,
     isSubmitting,
@@ -144,6 +148,14 @@ export function BookingDetails(props: BookingDetailsProps) {
     : t('standardSet');
   const addOnCount = Object.values(selectedAddOns).filter(Boolean).length;
 
+  /* Both the collapsed Session summary and the sticky bar's subline print the
+     duration, and both used to hardcode "hr" — English inside otherwise
+     translated Thai. One key, used in both places. Note these two and the
+     desktop `SummaryRail` are mutually exclusive by viewport (`lg:hidden` vs
+     `hidden lg:block`), so the rail's own `summaryRailHours` never shows
+     alongside this. */
+  const durationLabel = t('durationHoursShort', { hours: duration });
+
   return (
     /* `lg:pb-0` drops the bar's spacer above `lg:`, where no bar mounts. */
     <div className={`space-y-4 sm:space-y-6 ${BOOKING_SUMMARY_BAR_SPACER} lg:pb-0`}>
@@ -163,7 +175,9 @@ export function BookingDetails(props: BookingDetailsProps) {
             <div className="lg:hidden">
               <DetailsSubStepSummary
                 label={subStepLabels.session}
-                value={`${duration} hr · ${bayLabel} · ${numberOfPeople}`}
+                /* The people count needs a unit: "· Social Bay · 1" said
+                   nothing about what the 1 counted. */
+                value={`${durationLabel} · ${bayLabel} · ${t('peopleCountShort', { count: numberOfPeople })}`}
                 changeLabel={t('changeAction')}
                 onChange={() => goToSubStep('session')}
               />
@@ -243,6 +257,10 @@ export function BookingDetails(props: BookingDetailsProps) {
               isSubmitting={isSubmitting}
               marketingOptIn={marketingOptIn}
               setMarketingOptIn={setMarketingOptIn}
+              isEditingContact={isEditingContact}
+              onEditContact={() => setIsEditingContact(true)}
+              alsoUpdateAccount={alsoUpdateAccount}
+              setAlsoUpdateAccount={setAlsoUpdateAccount}
             />
           </div>
         </form>
@@ -280,7 +298,7 @@ export function BookingDetails(props: BookingDetailsProps) {
           <BookingSummaryBar
             total={costBreakdown ? costBreakdown.estimatedTotal : null}
             totalLabel={t('summaryTotalLabel')}
-            subline={`${duration} hr · ${selectedTime}`}
+            subline={`${durationLabel} · ${selectedTime}`}
             ctaLabel={
               !isLast
                 ? t('ctaContinue')

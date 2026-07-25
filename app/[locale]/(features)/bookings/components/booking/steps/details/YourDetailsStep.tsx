@@ -5,6 +5,7 @@ import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { ProjectedCostBreakdown } from '@/components/booking/ProjectedCostBreakdown';
 import type { CostBreakdown } from '@/lib/cost-calculator';
+import { IdentityCard, isIdentityComplete } from './IdentityCard';
 
 export interface YourDetailsStepProps {
   name: string;
@@ -29,6 +30,15 @@ export interface YourDetailsStepProps {
   isSubmitting: boolean;
   marketingOptIn: boolean;
   setMarketingOptIn: (value: boolean) => void;
+  /** True once the customer tapped Change on the identity card. Reveals the
+      three inputs and the "also update my account" opt-in. */
+  isEditingContact: boolean;
+  /** Sets `isEditingContact`. Wired to the card's Change button. */
+  onEditContact: () => void;
+  /** Opt-in that lets the submit write the edited values back to `profiles`.
+      Unchecked by default: edits apply to this booking only. */
+  alsoUpdateAccount: boolean;
+  setAlsoUpdateAccount: (value: boolean) => void;
 }
 
 /**
@@ -43,6 +53,14 @@ export interface YourDetailsStepProps {
  * are load-bearing: `firstInvalidField` in `useBookingDetailsForm` locates these
  * fields with `document.getElementById`. Renaming or dropping one silently
  * breaks jump-to-error with no type error.
+ *
+ * For a returning customer whose profile supplied all three values, the inputs
+ * are replaced by a read-only `IdentityCard` — so those ids are then absent from
+ * the DOM. That is safe because the card and jump-to-error share one predicate
+ * (`firstIncompleteContactField`): the card shows exactly when none of the three
+ * fields can be flagged. `contactFlagged` below is belt-and-braces for the
+ * impossible case, so a flag would still yield the inputs rather than scroll to
+ * a node that is not there.
  */
 export function YourDetailsStep({
   name,
@@ -64,13 +82,31 @@ export function YourDetailsStep({
   isSubmitting,
   marketingOptIn,
   setMarketingOptIn,
+  isEditingContact,
+  onEditContact,
+  alsoUpdateAccount,
+  setAlsoUpdateAccount,
 }: YourDetailsStepProps) {
   const t = useTranslations('bookings.detailsStep');
+
+  const contactFlagged =
+    errorField === 'bd-name' || errorField === 'bd-phone' || errorField === 'bd-email';
+  const showIdentityCard =
+    !isEditingContact && !contactFlagged && isIdentityComplete({ name, phoneNumber, email });
 
   return (
     <>
       {/* Contact Information Section */}
       <div className="pt-4 border-t border-gray-200">
+        {showIdentityCard ? (
+          <IdentityCard
+            name={name}
+            phoneNumber={phoneNumber}
+            email={email}
+            onChange={onEditContact}
+          />
+        ) : (
+        <>
         <h3 className="text-sm font-semibold text-gray-900 mb-4">{t('contactInformation')}</h3>
 
         <div className="space-y-4">
@@ -174,6 +210,33 @@ export function YourDetailsStep({
             )}
           </div>
         </div>
+
+        {/* Scope of the edit. Unchecked means this booking records the new
+            values and the saved account keeps its own — owner-confirmed
+            2026-07-25. Only offered once the customer chose to edit; when the
+            fields are shown because the profile never had all three, there is
+            no card to have edited away from. */}
+        {isEditingContact && (
+          <label
+            htmlFor="booking-also-update-account"
+            className="mt-4 flex items-start gap-3 rounded-md border border-gray-200 bg-gray-50 p-3 cursor-pointer"
+          >
+            <input
+              id="booking-also-update-account"
+              type="checkbox"
+              className="mt-1 h-4 w-4 accent-[#005a32]"
+              checked={alsoUpdateAccount}
+              onChange={(e) => setAlsoUpdateAccount(e.target.checked)}
+              disabled={isSubmitting}
+            />
+            <span className="text-sm text-gray-800">
+              <span className="font-medium block">{t('alsoUpdateAccount')}</span>
+              <span className="text-gray-600">{t('alsoUpdateAccountHint')}</span>
+            </span>
+          </label>
+        )}
+        </>
+        )}
       </div>
 
       {/* Add Customer Notes/Special Requests field */}

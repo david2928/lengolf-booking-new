@@ -23,6 +23,7 @@ import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from '../../../../hooks/useAvailability';
 import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
 import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
+import { firstIncompleteContactField } from './IdentityCard';
 
 interface Profile {
   name: string;
@@ -125,6 +126,13 @@ export function useBookingDetailsForm({
   const [customerNotes, setCustomerNotes] = useState('');
   const [marketingOptIn, setMarketingOptIn] = useState<boolean>(false);
   const [vipDataPrepopulated, setVipDataPrepopulated] = useState(false);
+  // Contact editing. A returning customer sees a read-only `IdentityCard`
+  // instead of the three inputs; Change flips `isEditingContact` and reveals
+  // them. `alsoUpdateAccount` is the opt-in that lets the edit reach the saved
+  // `profiles` row — unchecked by default, so an edit is scoped to this booking
+  // (owner-confirmed 2026-07-25; before this it always wrote back silently).
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [alsoUpdateAccount, setAlsoUpdateAccount] = useState(false);
 
   // Club rental availability state
   const [availableClubSets, setAvailableClubSets] = useState<RentalClubSetWithAvailability[]>([]);
@@ -597,8 +605,14 @@ export function useBookingDetailsForm({
           profile.display_name !== name
         );
       
+      // Contact edits are scoped to this booking by default (owner-confirmed
+      // 2026-07-25). The saved `profiles` row changes only when the customer
+      // ticked "also update my account" while editing. The booking payload
+      // below is unaffected: it still records whatever was entered.
+      const shouldUpdateProfile = alsoUpdateAccount && profileNeedsUpdate;
+
       // Update profile if needed
-      if (profileNeedsUpdate && session?.user?.id) {
+      if (shouldUpdateProfile && session?.user?.id) {
         await supabase
           .from('profiles')
           .update({
@@ -720,10 +734,14 @@ export function useBookingDetailsForm({
 
   // Returns the id of the first incomplete required field, or null if valid.
   // Order matters: it is the order the customer reads the form in.
+  //
+  // The three contact checks live in `firstIncompleteContactField` because
+  // `IdentityCard` decides from the same function whether to replace those
+  // inputs with a read-only card. Sharing it is what guarantees a flag can never
+  // target a field the card has taken out of the DOM.
   const firstInvalidField = (): string | null => {
-    if (!name.trim()) return 'bd-name';
-    if (!phoneNumber || !isValidPhoneNumber(phoneNumber)) return 'bd-phone';
-    if (!email.trim()) return 'bd-email';
+    const badContact = firstIncompleteContactField({ name, phoneNumber, email });
+    if (badContact) return badContact;
     if (!selectedBayType && !selectedBay) return 'bd-bay';
     return null;
   };
@@ -742,9 +760,7 @@ export function useBookingDetailsForm({
       if (!selectedBayType && !selectedBay) return 'bd-bay';
     }
     if (s === 'contact') {
-      if (!name.trim()) return 'bd-name';
-      if (!phoneNumber || !isValidPhoneNumber(phoneNumber)) return 'bd-phone';
-      if (!email.trim()) return 'bd-email';
+      return firstIncompleteContactField({ name, phoneNumber, email });
     }
     return null;
   };
@@ -843,6 +859,11 @@ export function useBookingDetailsForm({
     setCustomerNotes,
     marketingOptIn,
     setMarketingOptIn,
+    // Contact editing / write-back scope
+    isEditingContact,
+    setIsEditingContact,
+    alsoUpdateAccount,
+    setAlsoUpdateAccount,
     localSelectedPackage,
     setLocalSelectedPackage,
     // Submit / overlay state
