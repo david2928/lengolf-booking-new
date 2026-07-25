@@ -51,11 +51,18 @@ BEGIN
     FROM cron.job
    WHERE jobname = 'club-rental-expired-notify-1min';
 
+  -- EXCEPTION, not NOTICE: a NOTICE is swallowed by apply_migration and by the
+  -- Supabase SQL editor, so a missed job would record this migration as applied
+  -- while changing nothing. Note pg_cron 1.4+ puts an RLS policy
+  -- (username = current_user) on cron.job, so "not found" can also mean the job
+  -- is owned by a different role.
   IF v_jobid IS NULL THEN
-    RAISE NOTICE 'Job club-rental-expired-notify-1min not found — nothing to alter.';
-  ELSE
-    PERFORM cron.alter_job(v_jobid, schedule := '*/5 * * * *');
-    RAISE NOTICE 'Set club-rental-expired-notify-1min (jobid %) to */5.', v_jobid;
+    RAISE EXCEPTION
+      'Job club-rental-expired-notify-1min not found in cron.job (visible as role %). Nothing altered.',
+      current_user;
   END IF;
+
+  PERFORM cron.alter_job(v_jobid, schedule := '*/5 * * * *');
+  RAISE NOTICE 'Set club-rental-expired-notify-1min (jobid %) to */5.', v_jobid;
 END
 $migration$;
