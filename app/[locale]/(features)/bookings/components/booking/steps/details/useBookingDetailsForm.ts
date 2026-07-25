@@ -23,10 +23,32 @@ import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from '../../../../hooks/useAvailability';
 import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
+import { computePackageCoverage, type PackageCoverage } from '@/lib/package-coverage';
 import { allowedDurations } from '@/lib/booking-durations';
 import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
 import { firstIncompleteContactField } from './IdentityCard';
 import { shouldWriteProfile } from './profileWriteBack';
+
+/**
+ * The balance half of `/api/user/active-packages`. Disclosure only — these
+ * never reach `calculateCost`, which still keys coverage off the
+ * `hasActivePackage` boolean alone.
+ */
+interface PackageBalance {
+  remainingHours: number | null;
+  totalHours: number | null;
+  usedHours: number | null;
+  expiryDate: string | null;
+  isUnlimited: boolean;
+}
+
+const NO_PACKAGE_BALANCE: PackageBalance = {
+  remainingHours: null,
+  totalHours: null,
+  usedHours: null,
+  expiryDate: null,
+  isUnlimited: false,
+};
 
 interface Profile {
   name: string;
@@ -161,6 +183,12 @@ export function useBookingDetailsForm({
   // Cost estimation state
   const [hasActivePackage, setHasActivePackage] = useState(false);
   const [packageDisplayName, setPackageDisplayName] = useState<string>();
+  /**
+   * Balance/expiry for the SAME package `hasActivePackage` refers to — see
+   * `getActivePackageDetailsForCustomer`. Disclosure only: the cost calculator
+   * never sees these, so they cannot move the charged total.
+   */
+  const [packageBalance, setPackageBalance] = useState<PackageBalance>(NO_PACKAGE_BALANCE);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const [applicablePromotions, setApplicablePromotions] = useState<ApplicablePromotion[]>([]);
   const [costDataLoading, setCostDataLoading] = useState(true);
@@ -191,6 +219,16 @@ export function useBookingDetailsForm({
 
         setHasActivePackage(pkgData.hasPackage ?? false);
         setPackageDisplayName(pkgData.packageDisplayName);
+        setPackageBalance({
+          // `?? null` rather than `?? 0`: an absent balance must stay unknown,
+          // because 0 would fire an overage warning for a package that has
+          // hours. `computePackageCoverage` renders nothing on null.
+          remainingHours: pkgData.remainingHours ?? null,
+          totalHours: pkgData.totalHours ?? null,
+          usedHours: pkgData.usedHours ?? null,
+          expiryDate: pkgData.expiryDate ?? null,
+          isUnlimited: pkgData.isUnlimited ?? false,
+        });
         setApplicablePromotions(promoData.promotions ?? []);
       } catch (err) {
         console.error('[CostEstimate] Failed to fetch cost data:', err);
@@ -497,6 +535,28 @@ export function useBookingDetailsForm({
       packageDisplayName,
       isNewCustomer,
       applicablePromotions,
+    });
+  })();
+
+  /**
+   * How much of this booking the package actually pays for. `null` means show
+   * no card — no package, a Play & Food set selected (the set is priced as a
+   * set and draws nothing down), or an unknown balance.
+   *
+   * Derived from the same `date`/`startTime`/`duration` inputs as
+   * `costBreakdown` above, so the two always describe the same window.
+   */
+  const packageCoverage: PackageCoverage | null = (() => {
+    if (!selectedDate || !selectedTime) return null;
+    return computePackageCoverage({
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      startTime: selectedTime,
+      duration,
+      hasActivePackage,
+      packageDisplayName,
+      remainingHours: packageBalance.remainingHours,
+      isUnlimited: packageBalance.isUnlimited,
+      playFoodPackageId: localSelectedPackage?.id ?? null,
     });
   })();
 
@@ -930,6 +990,10 @@ export function useBookingDetailsForm({
         resolves from /api/user/active-packages, so the picker grows from 5 tiles
         to 7 for a package holder shortly after step 3 mounts. */
     hasActivePackage,
+    /** Remaining-hours disclosure for the Extras panel. Null → render no card. */
+    packageCoverage,
+    packageBalance,
+    packageDisplayName,
     isLineUser,
     costBreakdown,
     costDataLoading,

@@ -8,6 +8,7 @@ import { PackageDetailsModal } from './details/modals/PackageDetailsModal';
 import { ClubRentalDetailsModal } from './details/modals/ClubRentalDetailsModal';
 import { SessionStep } from './details/SessionStep';
 import { ExtrasStep } from './details/ExtrasStep';
+import { PackageHoursCard } from './details/PackageHoursCard';
 import { YourDetailsStep } from './details/YourDetailsStep';
 import { DetailsSubStepSummary } from './details/DetailsSubStepSummary';
 import { SummaryRail } from './details/SummaryRail';
@@ -79,6 +80,9 @@ export function BookingDetails(props: BookingDetailsProps) {
     setShowClubRentalModal,
     currentAvailability,
     hasActivePackage,
+    packageCoverage,
+    packageBalance,
+    packageDisplayName,
     isLineUser,
     costBreakdown,
     costDataLoading,
@@ -222,6 +226,22 @@ export function BookingDetails(props: BookingDetailsProps) {
             </div>
           )}
           <div className={panelClass('extras')}>
+            {/* Remaining package hours, plus the partial-coverage warning when
+                the balance will not stretch across the booking. Rendered as a
+                sibling of `ExtrasStep` (which is a fragment) so the panel's
+                `space-y` still spaces it, and so `ExtrasStep`'s prop surface —
+                covered by its own tests — stays untouched. `packageCoverage` is
+                null whenever no card should show, including Play & Food mode. */}
+            {packageCoverage && (
+              <PackageHoursCard
+                coverage={packageCoverage}
+                packageDisplayName={packageDisplayName}
+                totalHours={packageBalance.totalHours}
+                usedHours={packageBalance.usedHours}
+                expiryDate={packageBalance.expiryDate}
+                formatter={formatter}
+              />
+            )}
             <ExtrasStep
               selectedClubRental={selectedClubRental}
               onClubRentalChange={onClubRentalChange}
