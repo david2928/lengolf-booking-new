@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { format } from 'date-fns';
 import {
   CalendarIcon,
   ClockIcon,
@@ -11,7 +13,15 @@ import {
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import type { BayType } from '@/lib/bayConfig';
 import { allowedDurations, formatDurationLabel } from '@/lib/booking-durations';
+import { SetMenuCard } from './SetMenuCard';
 import type { TimeSlot, DurationBayAvailability } from '../../../../hooks/useAvailability';
+
+/**
+ * What the customer is buying. Not an add-on: a Play & Food set replaces the
+ * hourly bay rate and fixes the booking length, which is why it gets its own
+ * fork rather than a tile in a row of extras.
+ */
+type BookingMode = 'bay' | 'food';
 
 export interface SessionStepProps {
   /** Longest session this slot fits, in hours. Fractional (2.5) since the
@@ -90,9 +100,59 @@ export function SessionStep({
   // and 5 when they hold an active package, all capped by the slot's headroom.
   // See lib/booking-durations.ts for why 3.5 and 4.5 are not in the ladder.
   //
-  // Only meaningful in Bay-only mode. A selected Play & Food package hides this
-  // whole section and fixes the duration at the package's own whole-hour length.
+  // Only meaningful in Bay-only mode. Bay + food hides this whole section: the
+  // sets are whole 1/2/3 h and selecting one fixes the duration, so half-hours
+  // are a Bay-only affair.
   const durationOptions = allowedDurations({ maxHours: maxDuration, hasActivePackage });
+
+  // Which side of the fork is open. Seeded from the package so a `?package=SET_B`
+  // deep link (resolved by `useBookingFlow` and handed down as
+  // `localSelectedPackage`) lands on Bay + food with SET_B's card selected,
+  // rather than on Bay only with a package quietly selected underneath.
+  const [mode, setMode] = useState<BookingMode>(localSelectedPackage ? 'food' : 'bay');
+
+  // The deep-linked package can also arrive after this component mounts — the
+  // search-param effect in `useBookingFlow` runs a tick later, and step 3 is
+  // reachable with the param still pending. One-way on purpose: it opens the
+  // fork on Bay + food but never forces it back to Bay only, so a customer who
+  // is browsing the sets without having picked one yet is left alone.
+  useEffect(() => {
+    if (localSelectedPackage) setMode('food');
+  }, [localSelectedPackage]);
+
+  // Back to bay-only pricing. Preserved verbatim from the tile this replaced:
+  // clearing the package also resets duration and party size, and drops the
+  // `?package=` param so a refresh does not re-select it.
+  const selectBayOnly = () => {
+    setMode('bay');
+    setLocalSelectedPackage(null);
+    setDuration(1);
+    setNumberOfPeople(1);
+    router.replace('/bookings', { scroll: false });
+  };
+
+  // Selecting a set still fixes the duration at the set's own length — that is
+  // the behaviour the cards exist to disclose, not to change.
+  const selectSet = (pkg: PlayFoodPackage) => {
+    setMode('food');
+    setLocalSelectedPackage(pkg);
+    setDuration(pkg.duration);
+    router.replace(`/bookings?package=${pkg.id}`, { scroll: false });
+  };
+
+  // The date/time the bay-only anchor on each card is priced against, so the
+  // comparison is true for this slot rather than for the evening rate only.
+  const anchorDate = format(selectedDate, 'yyyy-MM-dd');
+
+  // Read the cap off the selected set instead of assuming 5. Every set is
+  // `maxPeople: 5` today and the picker has always topped out at 5, so this is
+  // the same five tiles — but a set with a different cap would now shorten the
+  // picker instead of offering seats it cannot seat. `grid-cols-5` stays a
+  // literal (Tailwind scans class strings), which is correct while the type of
+  // `maxPeople` is the literal 5; a genuinely variable cap would need the
+  // column count to follow.
+  const seatCap = localSelectedPackage?.maxPeople ?? 5;
+  const peopleOptions = Array.from({ length: seatCap }, (_, i) => i + 1);
 
   return (
     <>
@@ -228,11 +288,15 @@ export function SessionStep({
         </div>
       )}
 
-      {/* Play & Food Package Selection */}
+      {/* What are you booking? — a two-way pricing fork, not an add-on picker.
+          The sets used to share a four-across row with "Bay only", which left
+          each set about 60px wide: no room for a name, so they degraded to "A",
+          "B", "C" and a bare total. Everything persuasive was dropped at exactly
+          the moment of decision. */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <label className="block text-sm font-medium text-gray-700">
-            {t('playFoodPackageLabel')}
+            {t('bookingModeLabel')}
           </label>
           <button
             type="button"
@@ -242,17 +306,14 @@ export function SessionStep({
             {t('viewDetails')}
           </button>
         </div>
-        <div className="grid grid-cols-4 gap-2">
+
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => {
-              setLocalSelectedPackage(null);
-              setDuration(1);
-              setNumberOfPeople(1);
-              router.replace('/bookings', { scroll: false });
-            }}
-            className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs relative ${
-              !localSelectedPackage
+            onClick={selectBayOnly}
+            aria-pressed={mode === 'bay'}
+            className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+              mode === 'bay'
                 ? 'border-green-600 bg-green-50 text-green-600 font-medium'
                 : 'border-gray-300 text-gray-700 hover:border-green-600'
             }`}
@@ -261,59 +322,58 @@ export function SessionStep({
             <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75">{t('bayOnlyDescription')}</span>
           </button>
 
-          {PLAY_FOOD_PACKAGES.map((pkg) => {
-            const isAvailable = pkg.duration <= maxDuration;
-            return (
-              <button
-                key={pkg.id}
-                type="button"
-                disabled={!isAvailable}
-                onClick={() => {
-                  if (isAvailable) {
-                    setLocalSelectedPackage(pkg);
-                    setDuration(pkg.duration);
-                    const newUrl = `/bookings?package=${pkg.id}`;
-                    router.replace(newUrl, { scroll: false });
-                  }
-                }}
-                className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
-                  localSelectedPackage?.id === pkg.id
-                    ? 'border-green-600 bg-green-50 text-green-600 font-medium'
-                    : !isAvailable
-                    ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                    : 'border-gray-300 text-gray-700 hover:border-green-600'
-                }`}
-              >
-                <span className="text-lg font-bold mb-1">{pkg.id.split('_')[1]}</span>
-                <span>฿{pkg.price.toLocaleString()}</span>
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            onClick={() => setMode('food')}
+            aria-pressed={mode === 'food'}
+            className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+              mode === 'food'
+                ? 'border-green-600 bg-green-50 text-green-600 font-medium'
+                : 'border-gray-300 text-gray-700 hover:border-green-600'
+            }`}
+          >
+            <span className="font-semibold text-[11px] sm:text-xs">{t('bayPlusFood')}</span>
+            <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75">{t('bayPlusFoodDescription')}</span>
+          </button>
         </div>
 
-        {localSelectedPackage ? (
-          <div className="mt-4 p-3 bg-green-50 rounded-lg">
-            <div className="text-sm font-medium text-green-800 mb-2">
-              {t('selectedPackageInline', {
-                name: localSelectedPackage.name,
-                duration: localSelectedPackage.duration,
-                price: localSelectedPackage.price.toLocaleString(),
-              })}
-            </div>
-            <div className="text-xs text-gray-600">
-              <span className="font-medium">{t('packageIncludes')}</span> Golf simulator, {localSelectedPackage.foodItems.map(f => f.name).join(', ')}, {localSelectedPackage.drinks.map(d => d.type === 'unlimited' ? `Unlimited ${d.name}` : d.type === 'per_person' ? `${d.quantity}x ${d.name} per person` : `${d.quantity}x ${d.name}`).join(', ')}
-            </div>
-          </div>
-        ) : (
+        {mode === 'bay' ? (
           <div className="mt-3 text-xs text-gray-500 text-center">
             {t('bayOnlyHelper')}
+          </div>
+        ) : (
+          <div className="mt-4 space-y-4">
+            {/* Bay + food is open but nothing is chosen yet, so the booking is
+                still priced as a plain bay rental. Say so rather than let the
+                total quietly disagree with the tab the customer is looking at. */}
+            {!localSelectedPackage && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {t('setPickPrompt')}
+              </p>
+            )}
+
+            {PLAY_FOOD_PACKAGES.map((pkg) => (
+              <SetMenuCard
+                key={pkg.id}
+                pkg={pkg}
+                isSelected={localSelectedPackage?.id === pkg.id}
+                /* A set longer than the slot's headroom stays visible but
+                   unselectable, same rule as the tile it replaced. */
+                isAvailable={pkg.duration <= maxDuration}
+                onSelect={() => selectSet(pkg)}
+                numberOfPeople={numberOfPeople}
+                date={anchorDate}
+                startTime={selectedTime}
+              />
+            ))}
           </div>
         )}
       </div>
 
 
-      {/* Duration Selection - Only for regular bookings */}
-      {!localSelectedPackage && (
+      {/* Duration Selection — Bay only. Selecting a set fixes the length, so the
+          ladder would only offer a way to contradict it. */}
+      {mode === 'bay' && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             {t('durationLabel')}
@@ -386,7 +446,7 @@ export function SessionStep({
           {t('numberOfPeople')}
         </label>
         <div className="grid grid-cols-5 gap-2">
-          {[1, 2, 3, 4, 5].map((num) => (
+          {peopleOptions.map((num) => (
             <button
               key={num}
               type="button"
