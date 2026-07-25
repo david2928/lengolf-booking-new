@@ -194,11 +194,11 @@ export function YourDetailsStep({
         </p>
       </div>
 
-      {/* Projected Cost Breakdown. Mobile only: above `lg:` the sticky
-          SummaryRail carries the same breakdown (with the bay-rate portions
-          split out) a few hundred pixels to the right, and two copies of one
-          total on one screen is worse than either alone — the same reason the
-          sticky bar does not mount on desktop. */}
+      {/* Projected Cost Breakdown. Mobile only: without `lg:hidden` desktop
+          renders the full breakdown TWICE, this copy and the sticky SummaryRail's
+          (which additionally splits the bay-rate portions out) about 300px to the
+          right. Two copies of one total on one screen is worse than either alone
+          — the same reason the sticky bar does not mount on desktop. */}
       {costBreakdown && (
         <div className="mt-4 lg:hidden">
           <ProjectedCostBreakdown

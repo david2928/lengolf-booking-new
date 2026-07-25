@@ -304,3 +304,57 @@ body.has-summary-bar [data-chat-fab] {
 body.has-summary-bar {
   padding-bottom: calc(7rem + env(safe-area-inset-bottom));
 }
+
+/*
+ * Chat FAB vs the DESKTOP summary rail -----------------------------------
+ * The same collision, one breakpoint over. Above `lg:` booking step 3 drops
+ * the sticky bar and puts the total in a 296px right-hand rail
+ * (app/[locale]/(features)/bookings/components/booking/steps/details/SummaryRail.tsx,
+ * laid out by its sibling BookingDetails.tsx), whose LAST element is the
+ * Confirm button. The rail hugs the content box's right edge, and the FAB in
+ * components/chat/ChatButton.tsx is pinned to the viewport's bottom-right, so
+ * on a short laptop viewport the two land on top of each other: measured in a
+ * browser at 1280x720 on a fresh load, the FAB's left edge sat 1px right of the
+ * Confirm button's right edge with 27px of vertical overlap. It worked, but a
+ * one-pixel margin on the primary booking action is not a margin.
+ *
+ * SummaryRail claims `has-summary-rail` on <body> while mounted (refcounted,
+ * same shape as `has-summary-bar` above), and this lifts the FAB above the
+ * button. Vertical, not horizontal, on purpose: shifting the FAB sideways would
+ * mean encoding the container's gutter (`(100vw - max-width)/2 + padding`),
+ * which changes at every breakpoint and would silently stop clearing when one
+ * of them moves. Nothing here knows how wide anything is.
+ *
+ * This and the `has-summary-bar` rule above are mutually exclusive in practice:
+ * BookingDetails only mounts the bar below `lg:` (it is unmounted, not merely
+ * hidden — the class is the reason), and this rule only applies above it. The
+ * rail does claim its class on every viewport, so the media query — not the
+ * class — is what keeps the two apart.
+ *
+ * 8rem clears the button in both of the rail's RESTING positions, measured at
+ * 1280x720 with the FAB at y 536-592: at scroll top the button sits at 619-667
+ * (27px below the FAB) and once pinned at `lg:top-6` it sits at 455-503 (32px
+ * above it). `!important` and the specificity story are the same as for
+ * `has-summary-bar` above: `body.has-summary-rail [data-chat-fab]` is (0,2,1)
+ * against `.sm:bottom-6`'s (0,1,0) — verified in the browser, where the FAB's
+ * computed `bottom` reads 128px with the class and 24px without it.
+ *
+ * KNOWN LIMIT, deliberately not chased: a fixed offset cannot follow a button
+ * that MOVES. Over the ~163px of scroll where the rail slides up to its pin,
+ * the button crosses the FAB's band (worst sample: 48px of shared y at
+ * scrollY 80). Measured `getBoundingClientRect` at every offset from 0 to the
+ * page bottom shows they never actually intersect — the columns stay 1px apart
+ * horizontally and `elementFromPoint` on the button's centre reaches the button
+ * throughout — but in that transit the 1px is the only separation left. Taps
+ * happen at rest, where the clearance is 27-32px, so this is accepted. Same
+ * caveat for a rail taller than ~512px on a 720px viewport: its pinned button
+ * would re-enter the FAB's band and fall back to that 1px. If either case ever
+ * bites, drop the FAB while a rail is up (`display: none` here) rather than
+ * hunting for a better offset — a shift sideways is what this rule
+ * deliberately avoids.
+ */
+@media (min-width: 1024px) {
+  body.has-summary-rail [data-chat-fab] {
+    bottom: calc(8rem + env(safe-area-inset-bottom)) !important;
+  }
+}

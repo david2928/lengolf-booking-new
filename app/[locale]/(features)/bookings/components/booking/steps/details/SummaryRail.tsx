@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CostBreakdown, CostLineItem } from '@/lib/cost-calculator';
 import {
@@ -12,6 +13,15 @@ import {
 } from '@/components/booking/ProjectedCostBreakdown';
 
 type CostLanguage = 'en' | 'th' | 'ja' | 'ko' | 'zh';
+
+// Refcounts how many SummaryRail instances are mounted, so the
+// `has-summary-rail` body class (see the useEffect below and the CSS rule in
+// app/globals.css) is only removed once the LAST instance unmounts. Same shape
+// as summaryBarMountCount in components/shared/BookingSummaryBar.tsx, and for
+// the same reason: an App Router transition can stream in a new subtree while
+// the old one is still mounted, and the first unmount must not strip the class
+// out from under a still-mounted sibling.
+let summaryRailMountCount = 0;
 
 export interface SummaryRailProps {
   costBreakdown: CostBreakdown | null;
@@ -139,6 +149,27 @@ export function SummaryRail({
 }: SummaryRailProps) {
   const t = useTranslations('bookings.detailsStep');
   const notes = costBreakdown ? pickNotes(costBreakdown, costLanguage) : [];
+
+  // The chat FAB (components/chat/ChatButton.tsx) is a fixed z-50 circle pinned
+  // to the viewport's bottom-right corner on this very page, which is where the
+  // rail's Confirm button also ends up on a short laptop viewport — measured at
+  // 1280x720, the two were one pixel apart. Flagging our presence via a body
+  // class keeps the two components decoupled exactly as BookingSummaryBar
+  // already does; the matching rule lives in app/globals.css.
+  //
+  // Claimed on every viewport, not just desktop, so this stays free of a
+  // client-side viewport read: the rail is CSS-hidden below `lg:`, and the CSS
+  // rule that consumes the class is itself scoped to `min-width: 1024px`.
+  useEffect(() => {
+    summaryRailMountCount += 1;
+    document.body.classList.add('has-summary-rail');
+    return () => {
+      summaryRailMountCount -= 1;
+      if (summaryRailMountCount === 0) {
+        document.body.classList.remove('has-summary-rail');
+      }
+    };
+  }, []);
 
   return (
     <section

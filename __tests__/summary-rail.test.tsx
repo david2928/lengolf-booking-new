@@ -46,24 +46,25 @@ const proratedBreakdown: CostBreakdown = {
   ...EMPTY_NOTES,
 };
 
+const baseRailProps: React.ComponentProps<typeof SummaryRail> = {
+  costBreakdown: proratedBreakdown,
+  costDataLoading: false,
+  costLanguage: 'en',
+  selectedDate: new Date('2026-07-15T12:00:00'),
+  selectedTime: '12:00',
+  duration: 3,
+  numberOfPeople: 2,
+  bayLabel: 'Social Bay',
+  ctaLabel: 'Confirm Booking',
+  onCta: () => {},
+  formatDate: (d) => d.toDateString(),
+};
+
 function renderRail(props: Partial<React.ComponentProps<typeof SummaryRail>> = {}) {
   const onCta = jest.fn();
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <SummaryRail
-        costBreakdown={proratedBreakdown}
-        costDataLoading={false}
-        costLanguage="en"
-        selectedDate={new Date('2026-07-15T12:00:00')}
-        selectedTime="12:00"
-        duration={3}
-        numberOfPeople={2}
-        bayLabel="Social Bay"
-        ctaLabel="Confirm Booking"
-        onCta={onCta}
-        formatDate={(d) => d.toDateString()}
-        {...props}
-      />
+      <SummaryRail {...baseRailProps} onCta={onCta} {...props} />
     </NextIntlClientProvider>,
   );
   return { onCta };
@@ -166,5 +167,52 @@ describe('SummaryRail', () => {
     expect(screen.getByText('3 hr')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('Social Bay')).toBeInTheDocument();
+  });
+});
+
+/**
+ * The rail's Confirm button and the chat FAB both end up in the viewport's
+ * bottom-right corner on a short laptop viewport (measured 1px apart at
+ * 1280x720). `has-summary-rail` is how the rail tells the FAB to move without
+ * either component importing the other — see the rule in app/globals.css. The
+ * refcount matters for the same reason it does on BookingSummaryBar: an
+ * overlapping mount must not let the first unmount strip the class from under a
+ * still-mounted sibling, which would drop the FAB back onto the button.
+ */
+describe('SummaryRail has-summary-rail body class (refcounted)', () => {
+  afterEach(() => {
+    document.body.classList.remove('has-summary-rail');
+  });
+
+  test('adds the class while mounted and removes it on unmount', () => {
+    const { unmount } = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <SummaryRail {...baseRailProps} />
+      </NextIntlClientProvider>,
+    );
+    expect(document.body.classList.contains('has-summary-rail')).toBe(true);
+
+    unmount();
+    expect(document.body.classList.contains('has-summary-rail')).toBe(false);
+  });
+
+  test('keeps the class present after unmounting one of two mounted instances', () => {
+    const a = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <SummaryRail {...baseRailProps} />
+      </NextIntlClientProvider>,
+    );
+    const b = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <SummaryRail {...baseRailProps} />
+      </NextIntlClientProvider>,
+    );
+    expect(document.body.classList.contains('has-summary-rail')).toBe(true);
+
+    a.unmount();
+    expect(document.body.classList.contains('has-summary-rail')).toBe(true);
+
+    b.unmount();
+    expect(document.body.classList.contains('has-summary-rail')).toBe(false);
   });
 });
