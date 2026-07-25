@@ -9,6 +9,7 @@ import { ClubRentalDetailsModal } from './details/modals/ClubRentalDetailsModal'
 import { SessionStep } from './details/SessionStep';
 import { ExtrasStep } from './details/ExtrasStep';
 import { PackageHoursCard } from './details/PackageHoursCard';
+import { CreditBalanceCard } from './details/CreditBalanceCard';
 import { YourDetailsStep } from './details/YourDetailsStep';
 import { DetailsSubStepSummary } from './details/DetailsSubStepSummary';
 import { SummaryRail } from './details/SummaryRail';
@@ -82,6 +83,7 @@ export function BookingDetails(props: BookingDetailsProps) {
     hasActivePackage,
     packageCoverage,
     packageBalance,
+    creditBalance,
     packageDisplayName,
     isLineUser,
     costBreakdown,
@@ -242,6 +244,15 @@ export function BookingDetails(props: BookingDetailsProps) {
                 formatter={formatter}
               />
             )}
+            {/* Free-hour credits the customer already holds — the B1G1 hour a
+                previous sub-2-hour booking earned them. Renders NOTHING at a
+                zero balance (and while the fetch is in flight), which is the
+                overwhelmingly common case: it must never appear as an empty
+                "0 hours" card. Read-only and outside the estimate — the card's
+                own copy says so. Sits beside the package card because both
+                answer "what do I already have?" before the extras that add to
+                the bill. */}
+            <CreditBalanceCard credits={creditBalance} formatter={formatter} />
             <ExtrasStep
               selectedClubRental={selectedClubRental}
               onClubRentalChange={onClubRentalChange}

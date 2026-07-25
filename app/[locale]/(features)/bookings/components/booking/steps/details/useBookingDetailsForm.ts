@@ -25,6 +25,7 @@ import type { TimeSlot } from '../../../../hooks/useAvailability';
 import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
 import { computePackageCoverage, type PackageCoverage } from '@/lib/package-coverage';
 import { allowedDurations } from '@/lib/booking-durations';
+import type { CreditGrantBalance } from './CreditBalanceCard';
 import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
 import { firstIncompleteContactField } from './IdentityCard';
 import { shouldWriteProfile } from './profileWriteBack';
@@ -200,6 +201,21 @@ export function useBookingDetailsForm({
   const [applicablePromotions, setApplicablePromotions] = useState<ApplicablePromotion[]>([]);
   const [costDataLoading, setCostDataLoading] = useState(true);
 
+  /**
+   * Free simulator hours the customer already holds — today, the B1G1 hour a
+   * previous sub-2-hour booking earned them.
+   *
+   * `null` until the fetch resolves, `[]` for a genuine zero balance. Same
+   * `?? null` convention as `packageBalance` above: a balance that has not
+   * loaded is NOT a zero balance. Both render nothing, so the distinction is
+   * invisible today — it stops mattering only if something later branches on
+   * "has no credits", which would be wrong for the unloaded state.
+   *
+   * Display only. Credits do NOT reach `calculateCost`; customers cannot
+   * self-redeem and the quoted total is unaffected.
+   */
+  const [creditBalance, setCreditBalance] = useState<CreditGrantBalance[] | null>(null);
+
   // Fetch package + new-customer status for cost estimation
   useEffect(() => {
     if (status !== 'authenticated') {
@@ -244,6 +260,31 @@ export function useBookingDetailsForm({
       }
     }
     fetchCostData();
+    return () => { cancelled = true; };
+  }, [status]);
+
+  // Credit balance, deliberately its OWN effect rather than a third leg of the
+  // Promise.all above. Nothing here feeds pricing or the duration ladder, so a
+  // failure must not be able to take the package and promotion fetches down
+  // with it — that shared `catch` would leave the ladder and the quote empty
+  // over a purely decorative card.
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    let cancelled = false;
+    fetch('/api/user/credit-balance')
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        // The route never 401s and degrades to `{ credits: [] }` on every
+        // failure path, so anything unexpected here reads as "no credits" —
+        // which renders nothing, the safe outcome.
+        setCreditBalance(Array.isArray(data?.credits) ? data.credits : []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[credit-balance] fetch failed:', err);
+        // Stays null — unknown, not zero.
+      });
     return () => { cancelled = true; };
   }, [status]);
 
@@ -1005,6 +1046,8 @@ export function useBookingDetailsForm({
     /** Remaining-hours disclosure for the Extras panel. Null → render no card. */
     packageCoverage,
     packageBalance,
+    /** Free-hour credits. Null → not loaded; `[]` → none. Both render no card. */
+    creditBalance,
     packageDisplayName,
     isLineUser,
     costBreakdown,
