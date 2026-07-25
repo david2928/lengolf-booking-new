@@ -173,11 +173,13 @@ describe('SummaryRail', () => {
 /**
  * The rail's Confirm button and the chat FAB both end up in the viewport's
  * bottom-right corner on a short laptop viewport (measured 1px apart at
- * 1280x720). `has-summary-rail` is how the rail tells the FAB to move without
- * either component importing the other — see the rule in app/globals.css. The
- * refcount matters for the same reason it does on BookingSummaryBar: an
- * overlapping mount must not let the first unmount strip the class from under a
- * still-mounted sibling, which would drop the FAB back onto the button.
+ * 1280x720). `has-summary-rail` is how the rail tells the FAB to get out of the
+ * way — above `lg:` the rule in app/globals.css hides it outright, since the
+ * rail will keep growing and no fixed offset can clear an unknown height —
+ * without either component importing the other. The refcount matters for the
+ * same reason it does on BookingSummaryBar: an overlapping mount must not let
+ * the first unmount strip the class from under a still-mounted sibling, which
+ * would drop the FAB back onto the button.
  */
 describe('SummaryRail has-summary-rail body class (refcounted)', () => {
   afterEach(() => {

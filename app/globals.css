@@ -319,42 +319,52 @@ body.has-summary-bar {
  * one-pixel margin on the primary booking action is not a margin.
  *
  * SummaryRail claims `has-summary-rail` on <body> while mounted (refcounted,
- * same shape as `has-summary-bar` above), and this lifts the FAB above the
- * button. Vertical, not horizontal, on purpose: shifting the FAB sideways would
- * mean encoding the container's gutter (`(100vw - max-width)/2 + padding`),
- * which changes at every breakpoint and would silently stop clearing when one
- * of them moves. Nothing here knows how wide anything is.
+ * same shape as `has-summary-bar` above), and this HIDES the FAB outright while
+ * a rail is up.
  *
- * This and the `has-summary-bar` rule above are mutually exclusive in practice:
- * BookingDetails only mounts the bar below `lg:` (it is unmounted, not merely
- * hidden — the class is the reason), and this rule only applies above it. The
- * rail does claim its class on every viewport, so the media query — not the
- * class — is what keeps the two apart.
+ * WHY NOT AN OFFSET. This rule used to lift the FAB to
+ * `bottom: calc(8rem + env(safe-area-inset-bottom))`, which measured 27-32px of
+ * clearance from the Confirm button in both of the rail's resting positions at
+ * 1280x720. Two cases survived it, both because a fixed offset cannot follow a
+ * button that MOVES:
+ *   - over the ~163px of scroll where the rail slides up to its pin, the button
+ *     crosses the FAB's y-band with only the 1px horizontal gap between the two
+ *     columns as separation;
+ *   - a rail taller than ~512px on a 720px viewport re-enters that band once
+ *     pinned and STAYS there.
+ * The second one is not hypothetical — queued slices add food-set pricing,
+ * package hours and offer lines to the rail, so it will grow past 512px. And
+ * the offset needed to clear a taller rail is unbounded: CSS cannot know the
+ * rail's height, so every future line item would need this number re-measured.
+ * Shifting the FAB sideways is worse still — it would mean encoding the
+ * container's gutter (`(100vw - max-width)/2 + padding`), which changes at
+ * every breakpoint. Nothing here knows how wide anything is, and it shouldn't.
  *
- * 8rem clears the button in both of the rail's RESTING positions, measured at
- * 1280x720 with the FAB at y 536-592: at scroll top the button sits at 619-667
- * (27px below the FAB) and once pinned at `lg:top-6` it sits at 455-503 (32px
- * above it). `!important` and the specificity story are the same as for
- * `has-summary-bar` above: `body.has-summary-rail [data-chat-fab]` is (0,2,1)
- * against `.sm:bottom-6`'s (0,1,0) — verified in the browser, where the FAB's
- * computed `bottom` reads 128px with the class and 24px without it.
+ * This is a deliberate product decision, not a rendering workaround: it
+ * suppresses a support entry point, on ONE step of ONE flow, at ONE breakpoint,
+ * for the moments a customer is looking at the price and the Confirm button.
+ * The chat FAB is available on every other step and every other page.
+ * Owner-accepted 2026-07-25 in preference to chasing the offset.
  *
- * KNOWN LIMIT, deliberately not chased: a fixed offset cannot follow a button
- * that MOVES. Over the ~163px of scroll where the rail slides up to its pin,
- * the button crosses the FAB's band (worst sample: 48px of shared y at
- * scrollY 80). Measured `getBoundingClientRect` at every offset from 0 to the
- * page bottom shows they never actually intersect — the columns stay 1px apart
- * horizontally and `elementFromPoint` on the button's centre reaches the button
- * throughout — but in that transit the 1px is the only separation left. Taps
- * happen at rest, where the clearance is 27-32px, so this is accepted. Same
- * caveat for a rail taller than ~512px on a 720px viewport: its pinned button
- * would re-enter the FAB's band and fall back to that 1px. If either case ever
- * bites, drop the FAB while a rail is up (`display: none` here) rather than
- * hunting for a better offset — a shift sideways is what this rule
- * deliberately avoids.
+ * The MOBILE path is untouched: below `lg:` the rail is not mounted, the sticky
+ * `BookingSummaryBar` is, and `body.has-summary-bar` above still LIFTS the FAB
+ * to 6rem (measured 9px clearance — tight but working). The FAB stays reachable
+ * on mobile, which is where most of this traffic is.
+ *
+ * The two rules remain mutually exclusive in practice: BookingDetails only
+ * mounts the bar below `lg:` (it is unmounted, not merely hidden — the class is
+ * the reason), and this rule only applies above it. The rail does claim its
+ * class on every viewport, so the media query — not the class — is what keeps
+ * the two apart.
+ *
+ * `!important` and the specificity story are the same as for `has-summary-bar`
+ * above: `body.has-summary-rail [data-chat-fab]` is (0,2,1) against the FAB's
+ * own utility classes at (0,1,0), so this wins on specificity alone and the
+ * `!important` is belt-and-braces against `important: true` ever landing in
+ * tailwind.config.ts.
  */
 @media (min-width: 1024px) {
   body.has-summary-rail [data-chat-fab] {
-    bottom: calc(8rem + env(safe-area-inset-bottom)) !important;
+    display: none !important;
   }
 }

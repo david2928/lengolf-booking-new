@@ -24,6 +24,7 @@ import type { TimeSlot } from '../../../../hooks/useAvailability';
 import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
 import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
 import { firstIncompleteContactField } from './IdentityCard';
+import { shouldWriteProfile } from './profileWriteBack';
 
 interface Profile {
   name: string;
@@ -596,20 +597,23 @@ export function useBookingDetailsForm({
         ? (customerNotes ? `${systemLines.join('\n')}\n${customerNotes}` : systemLines.join('\n'))
         : customerNotes;
       
-      // Check if we need to update the user profile
-      const profileNeedsUpdate = 
-        profile && (
-          profile.name !== name || 
-          profile.email !== email || 
-          profile.phone_number !== phoneNumber ||
-          profile.display_name !== name
-        );
-      
       // Contact edits are scoped to this booking by default (owner-confirmed
-      // 2026-07-25). The saved `profiles` row changes only when the customer
-      // ticked "also update my account" while editing. The booking payload
-      // below is unaffected: it still records whatever was entered.
-      const shouldUpdateProfile = alsoUpdateAccount && profileNeedsUpdate;
+      // 2026-07-25), with one exception: a field that was BLANK on the profile
+      // gets filled. Overwriting a stored value needs the "also update my
+      // account" tick; filling a gap does not, because nothing is lost and
+      // refusing would quietly stop capturing emails for LINE customers (who
+      // rarely have one on file, so never see the card, so never see the tick).
+      // See `shouldWriteProfile` for the full reasoning.
+      //
+      // The booking payload below is unaffected either way: it always records
+      // whatever was entered.
+      const shouldUpdateProfile = shouldWriteProfile({
+        profile,
+        name,
+        email,
+        phoneNumber,
+        alsoUpdateAccount,
+      });
 
       // Update profile if needed
       if (shouldUpdateProfile && session?.user?.id) {
