@@ -274,3 +274,180 @@ describe('Early Bird package coverage splits at 14:00', () => {
     expect(breakdown.notesTh.some((n) => n.includes('14:00'))).toBe(true);
   });
 });
+
+/**
+ * `packageRemainingHours` — the bay line reflects how many hours the package
+ * actually has left, so a partially-covered booking stops previewing as ฿0.
+ *
+ * Weekday rates here: ฿550 before 14:00, ฿750 for 14:00–17:00, ฿750 promo
+ * (was ฿1,250) after 17:00.
+ */
+describe('a package balance that runs short charges the uncovered tail', () => {
+  const pkgInput: Partial<CostCalculationInput> = {
+    hasActivePackage: true,
+    packageDisplayName: 'Gold (30H)',
+  };
+
+  function items(input: Partial<CostCalculationInput>) {
+    const breakdown = calculateCost({ ...baseInput, ...pkgInput, ...input });
+    return {
+      breakdown,
+      covered: breakdown.lineItems.find((i) => i.id === 'bay-rate-covered'),
+      charged: breakdown.lineItems.find((i) => i.id === 'bay-rate'),
+    };
+  }
+
+  test('1 h left against a 1.5 h booking charges the TAIL at the afternoon rate', () => {
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00', duration: 1.5, packageRemainingHours: 1,
+    });
+
+    expect(covered?.amount).toBe(0);
+    expect(covered?.isCoveredByPackage).toBe(true);
+    expect(covered?.packageName).toBe('Gold (30H)');
+    expect(covered?.originalAmount).toBe(550);   // 13:00–14:00 × ฿550
+    expect(covered?.detail).toBe('1hr × ฿550/hr (Weekday, Before 14:00)');
+
+    // 14:00–14:30 = 0.5 × ฿750. The HEAD would have been 0.5 × ฿550 = ฿275.
+    expect(charged?.amount).toBe(375);
+    expect(charged?.isCoveredByPackage).toBeUndefined();
+    expect(charged?.detail).toBe('0.5hr × ฿750/hr (Weekday, 14:00 - 17:00)');
+
+    expect(breakdown.estimatedTotal).toBe(375);
+  });
+
+  test('...and specifically not the cheaper head of the booking', () => {
+    const { charged } = items({ startTime: '13:00', duration: 1.5, packageRemainingHours: 1 });
+    expect(charged?.amount).not.toBe(275);
+  });
+
+  test('a tail straddling 14:00 is itself prorated', () => {
+    // 0.5 h balance from 13:00 → covered 13:00–13:30, charged 13:30–15:00.
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00', duration: 2, packageRemainingHours: 0.5,
+    });
+    expect(covered?.originalAmount).toBe(275);   // 0.5 × ฿550
+    expect(charged?.amount).toBe(1025);          // 0.5 × ฿550 + 1 × ฿750
+    expect(charged?.detail).toBe('0.5hr × ฿550 + 1hr × ฿750 (Weekday)');
+    expect(breakdown.estimatedTotal).toBe(1025);
+  });
+
+  test('a tail crossing 17:00 picks up the evening promo strikethrough', () => {
+    // 1 h balance from 16:00 → charged 17:00–18:00, ฿750 promo (was ฿1,250).
+    const { charged } = items({ startTime: '16:00', duration: 2, packageRemainingHours: 1 });
+    expect(charged?.amount).toBe(750);
+    expect(charged?.originalAmount).toBe(1250);
+  });
+
+  test('exact coverage is fully covered — one ฿0 bay line, no overage', () => {
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00', duration: 1.5, packageRemainingHours: 1.5,
+    });
+    expect(covered).toBeUndefined();
+    expect(charged?.amount).toBe(0);
+    expect(charged?.isCoveredByPackage).toBe(true);
+    expect(charged?.originalAmount).toBe(925);   // 1 × ฿550 + 0.5 × ฿750
+    expect(breakdown.estimatedTotal).toBe(0);
+  });
+
+  test('a balance short by float dust does not manufacture a ฿0 tail', () => {
+    const { covered, charged } = items({
+      startTime: '13:00', duration: 1.5, packageRemainingHours: 1.5 - 1e-7,
+    });
+    expect(covered).toBeUndefined();
+    expect(charged?.isCoveredByPackage).toBe(true);
+  });
+
+  test('an unlimited package stays fully covered whatever the balance says', () => {
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00',
+      duration: 3,
+      packageRemainingHours: null,
+      packageIsUnlimited: true,
+    });
+    expect(covered).toBeUndefined();
+    expect(charged?.amount).toBe(0);
+    expect(charged?.isCoveredByPackage).toBe(true);
+    expect(breakdown.estimatedTotal).toBe(0);
+  });
+
+  test('a zero balance charges the whole booking and shows no covered line', () => {
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00', duration: 1.5, packageRemainingHours: 0,
+    });
+    expect(covered).toBeUndefined();
+    expect(charged?.amount).toBe(925);
+    expect(charged?.isCoveredByPackage).toBeUndefined();
+    expect(breakdown.estimatedTotal).toBe(925);
+    expect(breakdown.notes.some((n) => n.includes('does not cover this whole booking'))).toBe(true);
+  });
+
+  test('a shortfall note is emitted in all five locales', () => {
+    const { breakdown } = items({
+      startTime: '13:00', duration: 1.5, packageRemainingHours: 1,
+    });
+    expect(breakdown.notes.some((n) => n.includes('does not cover this whole booking'))).toBe(true);
+    expect(breakdown.notesTh.some((n) => n.includes('ไม่ครอบคลุมการจองนี้ทั้งหมด'))).toBe(true);
+    expect(breakdown.notesJa.some((n) => n.includes('カバーできません'))).toBe(true);
+    expect(breakdown.notesKo.some((n) => n.includes('이용할 수 없습니다'))).toBe(true);
+    expect(breakdown.notesZh.some((n) => n.includes('不足以涵盖整个预订'))).toBe(true);
+    // The name comes from the CRM, not a hardcoded fallback.
+    expect(breakdown.notes.some((n) => n.startsWith('Gold (30H)'))).toBe(true);
+  });
+
+  test('promotions still do not stack on a partially-covered booking', () => {
+    // `packageAppliesToBay` is keyed off eligibility, not the balance, so a
+    // package holder who runs short keeps today's (non-stacking) behaviour.
+    const { breakdown } = items({
+      startTime: '13:00',
+      duration: 2,
+      packageRemainingHours: 0.5,
+      applicablePromotions: [bogoPromo],
+    });
+    expect(breakdown.discounts).toHaveLength(0);
+  });
+
+  test('a Play & Food set still takes precedence and draws nothing down', () => {
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00',
+      duration: 1,
+      playFoodPackageId: 'SET_A',
+      packageRemainingHours: 0,
+    });
+    expect(covered).toBeUndefined();
+    expect(charged).toBeUndefined();
+    expect(breakdown.lineItems.find((i) => i.id === 'play-food')).toBeDefined();
+    expect(breakdown.notes.some((n) => n.includes('does not cover this whole booking'))).toBe(false);
+  });
+});
+
+describe('an unknown balance is byte-identical to the pre-balance calculator', () => {
+  const pkgInput: CostCalculationInput = {
+    ...baseInput,
+    startTime: '13:00',
+    duration: 1.5,
+    hasActivePackage: true,
+    packageDisplayName: 'Gold (30H)',
+  };
+
+  test('null and undefined both fall back to eligibility-only coverage', () => {
+    const omitted = calculateCost(pkgInput);
+    expect(calculateCost({ ...pkgInput, packageRemainingHours: null })).toEqual(omitted);
+    expect(calculateCost({ ...pkgInput, packageRemainingHours: undefined })).toEqual(omitted);
+    // ...which is the ฿0 preview a package holder has always seen. The balance
+    // arrives from a fetch, so this is the FIRST-RENDER state; if it charged
+    // anything the total would flicker ฿0 → charge → ฿0.
+    expect(omitted.estimatedTotal).toBe(0);
+    expect(omitted.lineItems.find((i) => i.id === 'bay-rate')!.isCoveredByPackage).toBe(true);
+  });
+
+  test('NaN is treated as unknown, not as zero', () => {
+    expect(calculateCost({ ...pkgInput, packageRemainingHours: NaN }))
+      .toEqual(calculateCost(pkgInput));
+  });
+
+  test('an Early Bird split is unchanged when no balance is given', () => {
+    const eb = { ...pkgInput, packageDisplayName: 'Early Bird 10H', duration: 2 };
+    expect(calculateCost({ ...eb, packageRemainingHours: null })).toEqual(calculateCost(eb));
+  });
+});

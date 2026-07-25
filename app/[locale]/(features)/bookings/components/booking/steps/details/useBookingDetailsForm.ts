@@ -23,10 +23,38 @@ import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from '../../../../hooks/useAvailability';
 import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
+import { computePackageCoverage, type PackageCoverage } from '@/lib/package-coverage';
 import { allowedDurations } from '@/lib/booking-durations';
 import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
 import { firstIncompleteContactField } from './IdentityCard';
 import { shouldWriteProfile } from './profileWriteBack';
+
+/**
+ * The balance half of `/api/user/active-packages`.
+ *
+ * `remainingHours` + `isUnlimited` are PRICING inputs: they reach
+ * `calculateCost`, which charges the uncovered tail when the balance runs short
+ * so the estimated total agrees with the package card. They are null/false until
+ * the fetch resolves, which the calculator treats as "unknown" and prices
+ * exactly as it did before balances existed — no ฿0 → charge → ฿0 flicker.
+ *
+ * `totalHours`/`usedHours`/`expiryDate` are display-only (the card's meter).
+ */
+interface PackageBalance {
+  remainingHours: number | null;
+  totalHours: number | null;
+  usedHours: number | null;
+  expiryDate: string | null;
+  isUnlimited: boolean;
+}
+
+const NO_PACKAGE_BALANCE: PackageBalance = {
+  remainingHours: null,
+  totalHours: null,
+  usedHours: null,
+  expiryDate: null,
+  isUnlimited: false,
+};
 
 interface Profile {
   name: string;
@@ -161,6 +189,13 @@ export function useBookingDetailsForm({
   // Cost estimation state
   const [hasActivePackage, setHasActivePackage] = useState(false);
   const [packageDisplayName, setPackageDisplayName] = useState<string>();
+  /**
+   * Balance/expiry for the SAME package `hasActivePackage` refers to — see
+   * `getActivePackageDetailsForCustomer`. `remainingHours`/`isUnlimited` feed the
+   * cost calculator as well as the card, so a balance that runs short moves the
+   * charged total instead of leaving a ฿0 preview to be corrected at the bay.
+   */
+  const [packageBalance, setPackageBalance] = useState<PackageBalance>(NO_PACKAGE_BALANCE);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const [applicablePromotions, setApplicablePromotions] = useState<ApplicablePromotion[]>([]);
   const [costDataLoading, setCostDataLoading] = useState(true);
@@ -191,6 +226,16 @@ export function useBookingDetailsForm({
 
         setHasActivePackage(pkgData.hasPackage ?? false);
         setPackageDisplayName(pkgData.packageDisplayName);
+        setPackageBalance({
+          // `?? null` rather than `?? 0`: an absent balance must stay unknown,
+          // because 0 would fire an overage warning for a package that has
+          // hours. `computePackageCoverage` renders nothing on null.
+          remainingHours: pkgData.remainingHours ?? null,
+          totalHours: pkgData.totalHours ?? null,
+          usedHours: pkgData.usedHours ?? null,
+          expiryDate: pkgData.expiryDate ?? null,
+          isUnlimited: pkgData.isUnlimited ?? false,
+        });
         setApplicablePromotions(promoData.promotions ?? []);
       } catch (err) {
         console.error('[CostEstimate] Failed to fetch cost data:', err);
@@ -495,8 +540,35 @@ export function useBookingDetailsForm({
       playFoodPackageId: localSelectedPackage?.id ?? null,
       hasActivePackage,
       packageDisplayName,
+      // Balance-aware: a package with 1 h left against a 1.5 h booking charges
+      // the 0.5 h tail instead of previewing ฿0. `null` while the fetch is in
+      // flight, which the calculator prices as "unknown balance".
+      packageRemainingHours: packageBalance.remainingHours,
+      packageIsUnlimited: packageBalance.isUnlimited,
       isNewCustomer,
       applicablePromotions,
+    });
+  })();
+
+  /**
+   * How much of this booking the package actually pays for. `null` means show
+   * no card — no package, a Play & Food set selected (the set is priced as a
+   * set and draws nothing down), or an unknown balance.
+   *
+   * Derived from the same `date`/`startTime`/`duration` inputs as
+   * `costBreakdown` above, so the two always describe the same window.
+   */
+  const packageCoverage: PackageCoverage | null = (() => {
+    if (!selectedDate || !selectedTime) return null;
+    return computePackageCoverage({
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      startTime: selectedTime,
+      duration,
+      hasActivePackage,
+      packageDisplayName,
+      remainingHours: packageBalance.remainingHours,
+      isUnlimited: packageBalance.isUnlimited,
+      playFoodPackageId: localSelectedPackage?.id ?? null,
     });
   })();
 
@@ -930,6 +1002,10 @@ export function useBookingDetailsForm({
         resolves from /api/user/active-packages, so the picker grows from 5 tiles
         to 7 for a package holder shortly after step 3 mounts. */
     hasActivePackage,
+    /** Remaining-hours disclosure for the Extras panel. Null → render no card. */
+    packageCoverage,
+    packageBalance,
+    packageDisplayName,
     isLineUser,
     costBreakdown,
     costDataLoading,

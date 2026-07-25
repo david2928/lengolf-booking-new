@@ -7,6 +7,7 @@
 import { isWeekendDate, getRateForTime, getRateSegments, timeSlots } from '@/lib/liff/bay-rates-data';
 import { getClubPricing, GOLF_CLUB_OPTIONS, getGearUpItems } from '@/types/golf-club-rental';
 import { getPackageById } from '@/types/play-food-packages';
+import { computePackageCoverage, HOUR_EPSILON } from '@/lib/package-coverage';
 
 // --- Types ---
 
@@ -35,6 +36,26 @@ export interface CostCalculationInput {
   playFoodPackageId?: string | null;
   hasActivePackage: boolean;
   packageDisplayName?: string;
+  /**
+   * Hours left on that package, when the caller knows them.
+   *
+   * OPTIONAL BY DESIGN. Omitted (or `null`) means "balance unknown" and the bay
+   * line falls back to eligibility-only coverage — the whole package-eligible
+   * window zeroed — which is byte-for-byte what this calculator did before the
+   * input existed. That fallback is not just for legacy callers: the balance
+   * arrives from a fetch, so it is genuinely unknown on first render, and
+   * inventing a 0 there would flicker the total from ฿0 to a charge and back.
+   *
+   * When a balance IS supplied and it runs short of the booking, the covered
+   * head of the booking stays covered and the uncovered TAIL becomes a charged
+   * line — priced where it actually falls, so it prorates across 14:00/17:00.
+   */
+  packageRemainingHours?: number | null;
+  /**
+   * Unlimited packages cover their whole eligible window whatever the balance
+   * says. Mirrors `PackageCoverageInput.isUnlimited`.
+   */
+  packageIsUnlimited?: boolean;
   isNewCustomer: boolean;
   applicablePromotions: ApplicablePromotion[];
 }
@@ -110,6 +131,31 @@ const STANDARD_SET_LABEL = {
 };
 const COMPLIMENTARY_LABEL = { en: 'Complimentary', th: 'ฟรี', ja: '無料', ko: '무료', zh: '免费' };
 const ADD_ON_PREFIX = { en: 'Add-on', th: 'เพิ่ม', ja: 'アドオン', ko: '추가 상품', zh: '加购' };
+
+type Lang = 'en' | 'th' | 'ja' | 'ko' | 'zh';
+
+/** Per-locale stand-in when the CRM gave us no package display name. */
+const PACKAGE_FALLBACK_NAME: Record<Lang, string> = {
+  en: 'Your package',
+  th: 'แพ็กเกจของคุณ',
+  ja: 'お客様のパッケージ',
+  ko: '회원님의 패키지',
+  zh: '您的套餐',
+};
+
+/**
+ * Shown when the package's remaining-hours BALANCE does not stretch across the
+ * booking. The uncovered tail is a real charged line in the breakdown, so this
+ * only has to explain why a package holder is being billed for bay time — it
+ * must not imply the amount sits outside the estimate.
+ */
+const PACKAGE_SHORTFALL_NOTE: Record<Lang, (pkg: string) => string> = {
+  en: (p) => `${p} does not cover this whole booking — the uncovered time is charged at the normal rate`,
+  th: (p) => `${p} ไม่ครอบคลุมการจองนี้ทั้งหมด — เวลาส่วนที่ไม่ครอบคลุมคิดค่าบริการตามอัตราปกติ`,
+  ja: (p) => `${p}ではこのご予約の全時間をカバーできません。カバーされない時間は通常料金となります`,
+  ko: (p) => `${p}로는 이 예약 전체를 이용할 수 없습니다. 미포함 시간은 정상 요금이 부과됩니다`,
+  zh: (p) => `${p}不足以涵盖整个预订 — 未涵盖的时间按正常价格收费`,
+};
 
 /** A booking portion priced at one rate (a booking may straddle slot boundaries). */
 interface PricedSegment {
@@ -243,6 +289,8 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     playFoodPackageId,
     hasActivePackage,
     packageDisplayName,
+    packageRemainingHours,
+    packageIsUnlimited,
     isNewCustomer,
     applicablePromotions,
   } = input;
@@ -297,8 +345,56 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     && (!isEarlyBirdPackage || bookingEnd <= EARLY_BIRD_CUTOFF);
   const packageCoversPartially = hasActivePackage && isEarlyBirdPackage
     && !packageCoversThisSlot && startFraction < EARLY_BIRD_CUTOFF;
-  // Promotions never stack on a booking the package pays for (fully or partially)
+  // Promotions never stack on a booking the package pays for (fully or partially).
+  // Deliberately keyed off ELIGIBILITY only, NOT the balance: a package that runs
+  // short keeps exactly today's stacking behaviour.
   const packageAppliesToBay = packageCoversThisSlot || packageCoversPartially;
+
+  // How many hours of the booking the package's BALANCE actually pays for.
+  // `lib/package-coverage.ts` owns this arithmetic — the Early Bird 14:00 cap,
+  // the unlimited case, the float-dust epsilon and the "unknown balance" guard
+  // all live there, and we consume only its `coveredHours`.
+  //
+  // `null` means "no usable balance information": no balance supplied, an
+  // unlimited package, or a balance that comfortably covers the eligible window.
+  // In every one of those cases the eligibility-only windows below are used
+  // unchanged, so the output is identical to before this input existed.
+  const balanceCoverage = computePackageCoverage({
+    date,
+    startTime,
+    duration,
+    hasActivePackage,
+    packageDisplayName,
+    remainingHours: packageRemainingHours ?? null,
+    isUnlimited: packageIsUnlimited,
+    playFoodPackageId,
+  });
+  const balanceCoveredHours = balanceCoverage?.isPartial ? balanceCoverage.coveredHours : null;
+  const packageRunsShort = balanceCoveredHours !== null;
+
+  // The window the package pays for, and the remainder charged at normal rates.
+  // TWO limits can cut the covered window short and they COMPOSE — an Early Bird
+  // package stops at 14:00, and the balance runs out after `balanceCoveredHours`.
+  // `coveredEnd` is whichever comes first, which keeps the charged tail
+  // contiguous and priced from where it really starts.
+  const packageEligibleEnd = packageCoversThisSlot
+    ? bookingEnd
+    : packageCoversPartially ? EARLY_BIRD_CUTOFF : startFraction;
+  const packageCoveredEnd = packageRunsShort
+    ? Math.min(packageEligibleEnd, startFraction + balanceCoveredHours!)
+    : packageEligibleEnd;
+  const packageCoveredHours = packageCoveredEnd - startFraction;
+  const packageChargedHours = bookingEnd - packageCoveredEnd;
+
+  const pushShortfallNote = () => {
+    const named = (lang: Lang) =>
+      PACKAGE_SHORTFALL_NOTE[lang](packageDisplayName ?? PACKAGE_FALLBACK_NAME[lang]);
+    notes.push(named('en'));
+    notesTh.push(named('th'));
+    notesJa.push(named('ja'));
+    notesKo.push(named('ko'));
+    notesZh.push(named('zh'));
+  };
 
   if (playFoodPkg) {
     // Play & Food package replaces bay rate. Package name is brand data;
@@ -317,7 +413,10 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       detailZh: `${playFoodPkg.duration}小时球位使用 + 餐饮`,
       amount: playFoodPkg.price,
     });
-  } else if (packageCoversThisSlot) {
+  } else if (packageAppliesToBay && packageChargedHours <= HOUR_EPSILON) {
+    // Nothing left to charge — the package pays for the whole booking. Reached
+    // by an eligible package with no balance information (the pre-existing
+    // `packageCoversThisSlot` case) and by a balance that exactly covers it.
     lineItems.push({
       id: 'bay-rate',
       label: BAY_RATE_LABEL.en,
@@ -340,15 +439,15 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     notesJa.push(`ベイ料金は${packageDisplayName ?? 'お客様のパッケージ'}に含まれています`);
     notesKo.push(`베이 요금은 ${packageDisplayName ?? '회원님의 패키지'}에 포함되어 있습니다`);
     notesZh.push(`球位费用已包含在${packageDisplayName ?? '您的套餐'}中`);
-  } else if (packageCoversPartially) {
-    // Early Bird booking crossing 14:00 — split into a covered line
-    // (start → 14:00, drawn from the package) and a charged line
-    // (14:00 → end, at the normal prorated rate).
-    const coveredSegments = getPricedSegments(
-      startFraction, EARLY_BIRD_CUTOFF - startFraction, isWeekend,
-    );
+  } else if (packageAppliesToBay && packageCoveredHours > HOUR_EPSILON) {
+    // The package pays for the HEAD of the booking and the tail is charged.
+    // Split at `packageCoveredEnd` — 14:00 for an Early Bird booking crossing
+    // the cutoff, or wherever the remaining-hours balance runs out, whichever
+    // comes first. The charged tail goes through the same segment machinery as
+    // an unpackaged booking, so it prorates across 14:00 and 17:00.
+    const coveredSegments = getPricedSegments(startFraction, packageCoveredHours, isWeekend);
     const chargedSegments = getPricedSegments(
-      EARLY_BIRD_CUTOFF, bookingEnd - EARLY_BIRD_CUTOFF, isWeekend,
+      packageCoveredEnd, packageChargedHours, isWeekend,
     );
     const chargedCost = Math.round(segmentsCost(chargedSegments));
     const chargedOriginal = Math.round(segmentsOriginalCost(chargedSegments));
@@ -377,21 +476,30 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       labelJa: BAY_RATE_LABEL.ja,
       labelKo: BAY_RATE_LABEL.ko,
       labelZh: BAY_RATE_LABEL.zh,
-      detail: buildBayRateDetail('en', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
-      detailTh: buildBayRateDetail('th', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
-      detailJa: buildBayRateDetail('ja', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
-      detailKo: buildBayRateDetail('ko', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
-      detailZh: buildBayRateDetail('zh', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
+      // Slot label comes from where the CHARGED window starts, which is now
+      // `packageCoveredEnd` rather than always the 14:00 cutoff.
+      detail: buildBayRateDetail('en', chargedSegments, isWeekend, Math.floor(packageCoveredEnd)),
+      detailTh: buildBayRateDetail('th', chargedSegments, isWeekend, Math.floor(packageCoveredEnd)),
+      detailJa: buildBayRateDetail('ja', chargedSegments, isWeekend, Math.floor(packageCoveredEnd)),
+      detailKo: buildBayRateDetail('ko', chargedSegments, isWeekend, Math.floor(packageCoveredEnd)),
+      detailZh: buildBayRateDetail('zh', chargedSegments, isWeekend, Math.floor(packageCoveredEnd)),
       amount: chargedCost,
       originalAmount: chargedOriginal > chargedCost ? chargedOriginal : undefined,
     });
 
-    const pkg = packageDisplayName;
-    notes.push(`${pkg ?? 'Your package'} covers until 14:00 — time after 14:00 is charged at the normal rate`);
-    notesTh.push(`${pkg ?? 'แพ็กเกจของคุณ'} ครอบคลุมถึง 14:00 — เวลาหลัง 14:00 คิดค่าบริการตามอัตราปกติ`);
-    notesJa.push(`${pkg ?? 'お客様のパッケージ'}は14:00までが対象です。14:00以降は通常料金となります`);
-    notesKo.push(`${pkg ?? '회원님의 패키지'}는 14:00까지만 적용됩니다. 14:00 이후는 정상 요금이 부과됩니다`);
-    notesZh.push(`${pkg ?? '您的套餐'}仅涵盖至14:00，14:00之后按正常价格收费`);
+    if (packageRunsShort) {
+      // The balance ran out at or before the 14:00 cap, so the cap is not what
+      // ends the coverage here — saying "covers until 14:00" would misdescribe
+      // a split that happens earlier. The balance note is the accurate one.
+      pushShortfallNote();
+    } else {
+      const pkg = packageDisplayName;
+      notes.push(`${pkg ?? 'Your package'} covers until 14:00 — time after 14:00 is charged at the normal rate`);
+      notesTh.push(`${pkg ?? 'แพ็กเกจของคุณ'} ครอบคลุมถึง 14:00 — เวลาหลัง 14:00 คิดค่าบริการตามอัตราปกติ`);
+      notesJa.push(`${pkg ?? 'お客様のパッケージ'}は14:00までが対象です。14:00以降は通常料金となります`);
+      notesKo.push(`${pkg ?? '회원님의 패키지'}는 14:00까지만 적용됩니다. 14:00 이후는 정상 요금이 부과됩니다`);
+      notesZh.push(`${pkg ?? '您的套餐'}仅涵盖至14:00，14:00之后按正常价格收费`);
+    }
   } else {
     const originalTotal = Math.round(segmentsOriginalCost(baySegments));
 
@@ -410,6 +518,13 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       amount: bayCost,
       originalAmount: originalTotal > bayCost ? originalTotal : undefined,
     });
+
+    // An eligible package with a balance too small to pay for any of the
+    // booking — no covered line is worth showing, but the customer still needs
+    // to know why their package did not apply.
+    if (packageRunsShort) {
+      pushShortfallNote();
+    }
 
     if (hasActivePackage && isEarlyBirdPackage && startHour >= 14) {
       const pkg = packageDisplayName;
