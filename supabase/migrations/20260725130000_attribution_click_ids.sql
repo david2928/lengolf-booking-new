@@ -29,7 +29,7 @@ comment on column public.bookings.gclid is
 comment on column public.bookings.gbraid is
   'Google Ads iOS app-originated click ID (?gbraid / _gcl_ag cookie). Cannot be combined with hashed user identifiers on upload.';
 comment on column public.bookings.wbraid is
-  'Google Ads iOS browser-to-web click ID (?wbraid). URL-only — the Google tag writes no readable cookie for it.';
+  'Google Ads iOS browser-to-web click ID (?wbraid / _gcl_gb cookie). Cannot be combined with hashed user identifiers on upload.';
 
 alter table public.club_rental_orders
   add column if not exists gclid text,
@@ -45,4 +45,17 @@ comment on column public.club_rental_orders.gclid is
 comment on column public.club_rental_orders.gbraid is
   'Google Ads iOS app-originated click ID (?gbraid / _gcl_ag cookie). Cannot be combined with hashed user identifiers on upload.';
 comment on column public.club_rental_orders.wbraid is
-  'Google Ads iOS browser-to-web click ID (?wbraid). URL-only — the Google tag writes no readable cookie for it.';
+  'Google Ads iOS browser-to-web click ID (?wbraid / _gcl_gb cookie). Cannot be combined with hashed user identifiers on upload.';
+
+-- The uploader scans daily for rows that carry a click ID and haven't been sent
+-- yet. Partial indexes keep that scan cheap as bookings grows — the predicate
+-- matches a small and self-limiting slice (rows age out of the 90-day window).
+create index if not exists idx_bookings_pending_click_conversion
+  on public.bookings (created_at)
+  where gclid_conversion_uploaded is not true
+    and (gclid is not null or gbraid is not null or wbraid is not null);
+
+create index if not exists idx_club_rental_orders_pending_click_conversion
+  on public.club_rental_orders (created_at)
+  where gclid_conversion_uploaded is not true
+    and (gclid is not null or gbraid is not null or wbraid is not null);

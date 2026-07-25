@@ -70,13 +70,23 @@ config already declares `linker: { domains: ['len.golf'] }`
 Consequence: **no changes to `lengolf-website`, no linker work, and no URL
 decoration are needed for gclid.** Reading the cookie is sufficient.
 
-Two caveats from the same testing session:
+The braids get cookies too, verified the same way against a clean cookie jar:
 
-- `?gbraid=…` writes `_gcl_ag=2.1.k<gbraid>$i<ts>$b<…>`, also shared across
-  subdomains. The format is undocumented, so parsing it is best-effort only.
-- `?wbraid=…` produced no detectable cookie. wbraid is therefore only
-  capturable from the URL, i.e. on direct-to-booking landings. **Accepted
-  gap** — see Follow-ups.
+| URL param | Cookie written | Format |
+|---|---|---|
+| `?gclid=X` | `_gcl_aw` | `GCL.<unix-seconds>.X` (documented) |
+| `?wbraid=X` | `_gcl_gb` | `GCL.<unix-seconds>.X` (same shape) |
+| `?gbraid=X` | `_gcl_ag` | `2.1.k X $i<unix-seconds>` (undocumented) |
+
+Note the counter-intuitive naming: **gbraid goes to `_gcl_ag`, and wbraid
+goes to `_gcl_gb`.** An initial test suggested wbraid had no cookie at all;
+that was an artifact of a pre-existing `_gcl_aw` in the jar. Re-tested with
+all `_gcl_*` cookies cleared, `?wbraid=CLEAN_WB_ONLY` reliably produced
+`_gcl_gb=GCL.1784981831.CLEAN_WB_ONLY`.
+
+All three therefore survive the len.golf → booking.len.golf hop. The
+`_gcl_ag` shape is undocumented, so that parser is best-effort and returns
+null rather than guessing if Google changes it.
 
 ## Google API constraints (research, 2026-07-25)
 
@@ -111,22 +121,37 @@ into iOS in-app inventory, so braids are not negligible here.
 
 ### 1. Capture utility — `lib/attribution/click-ids.ts`
 
-Resolution order, evaluated per identifier:
+Resolution order:
 
-1. URL query param (`gclid`, `gbraid`, `wbraid`, `utm_*`) — authoritative
+1. URL query params (`gclid`, `gbraid`, `wbraid`, `utm_*`) — authoritative
    when present
-2. `_gcl_aw` cookie → gclid (documented `GCL.<ts>.<value>` format)
-3. `_gcl_ag` cookie → gbraid (best-effort regex, wrapped in try/catch)
+2. Otherwise the `_gcl_aw` / `_gcl_gb` / `_gcl_ag` cookies
 
 Captured values are written to `localStorage` under `lengolf.attribution`
 with a `capturedAt` timestamp. Reads discard entries older than **90 days**,
 matching Google's gclid window — a click ID we could no longer upload
-successfully is worse than no click ID, because it would displace the
-hashed-identifier fallback.
+successfully is worse than no click ID, because `gclid` takes precedence over
+`user_identifiers` at Google's end, so a dead ID converts a weak-but-working
+upload into a guaranteed miss.
 
-**Last-touch wins.** A newly-arrived click ID overwrites a stored one. This
-matches Google's own `_gcl_aw` overwrite semantics and the attribution model
-(the click that led to the conversion is the most recent one).
+**Newest click wins.** The cookie branches are compared by *click time*, not
+by "does this differ from what we stored". `_gcl_aw` lives 90 days, so a
+visitor who searched once and later clicked an iOS ad still carries the old
+cookie; an identity comparison sees `stored.gclid === null` on a braid
+record, treats the stale cookie as new, and overwrites the braid that
+actually converted — destroying exactly the identifiers this feature exists
+to capture. Each cookie parser therefore requires a parseable click
+timestamp and returns null without one; an undatable cookie would have to be
+stamped "now", which is how an expired ID gets resurrected as fresh.
+
+`capturedAt` reflects the **click**, not the visit. Re-landing on the same
+click URL (refresh, back button, a shared link) keeps the original age.
+
+Only one of the three identifiers is ever stored. Google permits exactly one
+per uploaded conversion, so both `parseUrl` and `sanitizeAttribution`
+collapse to a single ID with precedence gclid → gbraid → wbraid. Enforcing
+it at the boundary that owns the DB row means the uploader — in a different
+repo, likely written later by someone else — can trust the data.
 
 ### 2. Capture trigger
 
@@ -216,11 +241,7 @@ actually attributed.
 
 ## Follow-ups (not blocking)
 
-- **wbraid on len.golf landings** is unreachable without a small capture
-  script in the `lengolf-website` repo that persists it to a `.len.golf`
-  cookie. Accepted gap; iOS-browser-to-web is the smallest of the three
-  click-ID populations.
-- **UTMs from len.golf landings** are likewise lost. The account-level
+- **UTMs from len.golf landings** are lost. The account-level
   tracking template appends them, but they do not cross the subdomain
   boundary. `utm_*` will populate only for direct-to-booking landings. Not
   an attribution problem — gclid is the attribution key — only an internal
@@ -230,8 +251,10 @@ actually attributed.
 
 ## Testing
 
-- Unit tests for cookie parsing (`_gcl_aw`, `_gcl_ag`), TTL expiry,
-  last-touch overwrite, and the server-side charset/length validation.
+- Unit tests for cookie parsing (`_gcl_aw`, `_gcl_gb`, `_gcl_ag`), TTL
+  expiry, newest-click-wins across *multiple page loads* (a single
+  `resolveCapture` call cannot reproduce the stale-cookie clobber), and the
+  server-side charset/length validation.
 - `npm run typecheck`, `npm run lint`, `npm run build`.
 - A real `npm run dev` + browser page load: verify capture from a URL param,
   and verify capture from a pre-set `_gcl_aw` cookie with no URL param.

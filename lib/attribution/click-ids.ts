@@ -32,8 +32,13 @@ export const ATTRIBUTION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const CLICK_ID_PATTERN = /^[A-Za-z0-9_.-]+$/;
 const MAX_CLICK_ID_LENGTH = 512;
 
-/** UTM values come from our own tracking template but are user-editable in the URL. */
-const UTM_PATTERN = /^[A-Za-z0-9_.\-+|% ]+$/;
+/**
+ * UTM values come from our own tracking template but are user-editable in the
+ * URL. `%` is deliberately excluded: values arrive already decoded from
+ * URLSearchParams, so a literal `%` has no legitimate source here and would be
+ * a double-decoding hazard for anything downstream that re-encodes them.
+ */
+const UTM_PATTERN = /^[A-Za-z0-9_.\-+| ]+$/;
 const MAX_UTM_LENGTH = 200;
 
 export interface Attribution {
@@ -84,6 +89,23 @@ export function sanitizeUtm(value: unknown): string | null {
 }
 
 /**
+ * Google permits exactly one of gclid/gbraid/wbraid per uploaded conversion, so
+ * a row carrying two of them is unusable. Enforce the precedence here — at the
+ * boundary that owns the DB row — rather than leaving it to the uploader in a
+ * separate repo. gclid first: it is the only identifier that can accompany
+ * hashed user identifiers, and it takes precedence over them at Google's end.
+ */
+function collapseClickIds(
+  gclid: string | null,
+  gbraid: string | null,
+  wbraid: string | null,
+): Pick<Attribution, 'gclid' | 'gbraid' | 'wbraid'> {
+  if (gclid) return { gclid, gbraid: null, wbraid: null };
+  if (gbraid) return { gclid: null, gbraid, wbraid: null };
+  return { gclid: null, gbraid: null, wbraid: wbraid ?? null };
+}
+
+/**
  * Normalize an untrusted request body fragment into storable attribution.
  * Used by both write paths (`/api/bookings/create`, `/api/clubs/order`).
  */
@@ -91,9 +113,11 @@ export function sanitizeAttribution(input: unknown): Attribution {
   if (!input || typeof input !== 'object') return { ...EMPTY_ATTRIBUTION };
   const raw = input as Record<string, unknown>;
   return {
-    gclid: sanitizeClickId(raw.gclid),
-    gbraid: sanitizeClickId(raw.gbraid),
-    wbraid: sanitizeClickId(raw.wbraid),
+    ...collapseClickIds(
+      sanitizeClickId(raw.gclid),
+      sanitizeClickId(raw.gbraid),
+      sanitizeClickId(raw.wbraid),
+    ),
     utm_source: sanitizeUtm(raw.utm_source),
     utm_medium: sanitizeUtm(raw.utm_medium),
     utm_campaign: sanitizeUtm(raw.utm_campaign),
@@ -117,23 +141,63 @@ function readCookie(cookieString: string, name: string): string | null {
 }
 
 /**
- * `_gcl_aw=GCL.<unix-seconds>.<gclid>` — the documented Google tag format.
- * The gclid itself may contain dots, so everything past the second one is value.
+ * Both parsers require a parseable click time, not just an ID. The whole point
+ * of reading these cookies is to date the record from the *click*; a cookie we
+ * can't date would have to be stamped with "now", which is precisely how an
+ * expired click ID gets resurrected as fresh and displaces the working
+ * hashed-identifier upload.
  */
+function parseSeconds(value: string | undefined): number | null {
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null;
+}
+
+/**
+ * `GCL.<unix-seconds>.<click-id>` — the Google tag's standard cookie format,
+ * used by `_gcl_aw` (gclid) and `_gcl_gb` (wbraid). The ID itself may contain
+ * dots, so everything past the second one is value.
+ */
+function parseGclCookie(
+  cookieString: string,
+  name: string,
+): { value: string; clickedAt: number } | null {
+  const raw = readCookie(cookieString, name);
+  if (!raw) return null;
+  try {
+    // decodeURIComponent throws URIError on a truncated escape sequence.
+    const parts = decodeURIComponent(raw).split('.');
+    if (parts.length < 3 || parts[0] !== 'GCL') return null;
+    const value = sanitizeClickId(parts.slice(2).join('.'));
+    const clickedAt = parseSeconds(parts[1]);
+    if (!value || clickedAt === null) return null;
+    return { value, clickedAt };
+  } catch {
+    return null;
+  }
+}
+
+/** `_gcl_aw` — gclid. Documented format. */
 export function parseGclAwCookie(
   cookieString: string,
-): { gclid: string; clickedAt: number | null } | null {
-  const raw = readCookie(cookieString, '_gcl_aw');
-  if (!raw) return null;
-  const parts = decodeURIComponent(raw).split('.');
-  if (parts.length < 3 || parts[0] !== 'GCL') return null;
-  const gclid = sanitizeClickId(parts.slice(2).join('.'));
-  if (!gclid) return null;
-  const seconds = Number(parts[1]);
-  return {
-    gclid,
-    clickedAt: Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null,
-  };
+): { gclid: string; clickedAt: number } | null {
+  const parsed = parseGclCookie(cookieString, '_gcl_aw');
+  return parsed && { gclid: parsed.value, clickedAt: parsed.clickedAt };
+}
+
+/**
+ * `_gcl_gb` — wbraid, in the same `GCL.<ts>.<value>` shape as `_gcl_aw`.
+ * Verified in-browser on 2026-07-25: landing with `?wbraid=X` (and no other
+ * `_gcl_*` cookies present) writes `_gcl_gb=GCL.<ts>.X`. The name is
+ * counter-intuitive — `gbraid` goes to `_gcl_ag`, not to `_gcl_gb`.
+ *
+ * This is what lets an iOS browser-to-web click survive the
+ * len.golf → booking.len.golf hop, where the query string does not.
+ */
+export function parseGclGbCookie(
+  cookieString: string,
+): { wbraid: string; clickedAt: number } | null {
+  const parsed = parseGclCookie(cookieString, '_gcl_gb');
+  return parsed && { wbraid: parsed.value, clickedAt: parsed.clickedAt };
 }
 
 /**
@@ -143,18 +207,15 @@ export function parseGclAwCookie(
  */
 export function parseGclAgCookie(
   cookieString: string,
-): { gbraid: string; clickedAt: number | null } | null {
+): { gbraid: string; clickedAt: number } | null {
   const raw = readCookie(cookieString, '_gcl_ag');
   if (!raw) return null;
   try {
     const decoded = decodeURIComponent(raw);
     const gbraid = sanitizeClickId(/(?:^|\.)k([^$]+)\$/.exec(decoded)?.[1]);
-    if (!gbraid) return null;
-    const seconds = Number(/\$i(\d+)/.exec(decoded)?.[1]);
-    return {
-      gbraid,
-      clickedAt: Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null,
-    };
+    const clickedAt = parseSeconds(/\$i(\d+)/.exec(decoded)?.[1]);
+    if (!gbraid || clickedAt === null) return null;
+    return { gbraid, clickedAt };
   } catch {
     return null;
   }
@@ -167,9 +228,11 @@ export function parseGclAgCookie(
 function parseUrl(search: string): Attribution {
   const params = new URLSearchParams(search);
   return {
-    gclid: sanitizeClickId(params.get('gclid')),
-    gbraid: sanitizeClickId(params.get('gbraid')),
-    wbraid: sanitizeClickId(params.get('wbraid')),
+    ...collapseClickIds(
+      sanitizeClickId(params.get('gclid')),
+      sanitizeClickId(params.get('gbraid')),
+      sanitizeClickId(params.get('wbraid')),
+    ),
     utm_source: sanitizeUtm(params.get('utm_source')),
     utm_medium: sanitizeUtm(params.get('utm_medium')),
     utm_campaign: sanitizeUtm(params.get('utm_campaign')),
@@ -214,56 +277,73 @@ export function resolveCapture(
   const fromUrl = parseUrl(urlSearch);
 
   if (hasClickId(fromUrl)) {
-    return { ...fromUrl, capturedAt: now };
+    // Re-landing on the same URL (refresh, back button, a shared link) is not a
+    // new click, so the record keeps its original age.
+    const sameClick =
+      stored !== null &&
+      stored.gclid === fromUrl.gclid &&
+      stored.gbraid === fromUrl.gbraid &&
+      stored.wbraid === fromUrl.wbraid;
+    return { ...fromUrl, capturedAt: sameClick ? stored.capturedAt : now };
   }
 
   // No click ID in the URL — fall back to the cookies Google's own tag wrote,
   // which is the path that carries a len.golf click across to booking.len.golf.
-  const aw = parseGclAwCookie(cookieString);
-  const ag = parseGclAgCookie(cookieString);
+  //
+  // These are compared by CLICK TIME, not by "does this differ from what we
+  // stored". `_gcl_aw` lives 90 days, so a visitor who searched once and later
+  // clicked an iOS ad still carries the old cookie; an identity comparison
+  // would see `stored.gclid === null` on a braid record, treat the stale cookie
+  // as new, and overwrite the braid that actually converted — destroying
+  // exactly the identifiers this feature exists to capture.
+  const candidates: { ids: Partial<Attribution>; clickedAt: number }[] = [];
 
+  const aw = parseGclAwCookie(cookieString);
   if (aw && aw.gclid !== stored?.gclid) {
-    return {
-      ...EMPTY_ATTRIBUTION,
-      ...pickUtms(fromUrl, stored),
-      gclid: aw.gclid,
-      capturedAt: aw.clickedAt ?? now,
-    };
+    candidates.push({ ids: { gclid: aw.gclid }, clickedAt: aw.clickedAt });
   }
 
-  if (!aw && ag && ag.gbraid !== stored?.gbraid) {
+  const ag = parseGclAgCookie(cookieString);
+  if (ag && ag.gbraid !== stored?.gbraid) {
+    candidates.push({ ids: { gbraid: ag.gbraid }, clickedAt: ag.clickedAt });
+  }
+
+  const gb = parseGclGbCookie(cookieString);
+  if (gb && gb.wbraid !== stored?.wbraid) {
+    candidates.push({ ids: { wbraid: gb.wbraid }, clickedAt: gb.clickedAt });
+  }
+
+  const newest = candidates.sort((a, b) => b.clickedAt - a.clickedAt)[0];
+  if (newest && (!stored || newest.clickedAt >= stored.capturedAt)) {
     return {
       ...EMPTY_ATTRIBUTION,
-      ...pickUtms(fromUrl, stored),
-      gbraid: ag.gbraid,
-      capturedAt: ag.clickedAt ?? now,
+      // A different click carries different campaign context, so the previous
+      // click's UTMs must not ride along. They are usually absent here anyway —
+      // UTMs don't cross the len.golf → booking.len.golf boundary.
+      utm_source: fromUrl.utm_source,
+      utm_medium: fromUrl.utm_medium,
+      utm_campaign: fromUrl.utm_campaign,
+      ...newest.ids,
+      capturedAt: newest.clickedAt,
     };
   }
 
   // UTMs can arrive without a click ID (organic, or our tracking template on a
   // non-auto-tagged link). Worth recording, but it isn't a new click, so the
   // existing capturedAt stands.
-  if (stored && (fromUrl.utm_source || fromUrl.utm_medium || fromUrl.utm_campaign)) {
-    return { ...stored, ...pickUtms(fromUrl, stored) };
-  }
-  if (!stored && (fromUrl.utm_source || fromUrl.utm_medium || fromUrl.utm_campaign)) {
-    return { ...fromUrl, capturedAt: now };
+  const hasUrlUtms = !!(fromUrl.utm_source || fromUrl.utm_medium || fromUrl.utm_campaign);
+  if (hasUrlUtms) {
+    return stored
+      ? {
+          ...stored,
+          utm_source: fromUrl.utm_source,
+          utm_medium: fromUrl.utm_medium,
+          utm_campaign: fromUrl.utm_campaign,
+        }
+      : { ...fromUrl, capturedAt: now };
   }
 
   return null; // nothing new — leave the stored record (and its age) alone
-}
-
-function pickUtms(
-  fromUrl: Attribution,
-  stored: StoredAttribution | null,
-): Pick<Attribution, 'utm_source' | 'utm_medium' | 'utm_campaign'> {
-  const hasUrlUtms = !!(fromUrl.utm_source || fromUrl.utm_medium || fromUrl.utm_campaign);
-  const source = hasUrlUtms ? fromUrl : stored;
-  return {
-    utm_source: source?.utm_source ?? null,
-    utm_medium: source?.utm_medium ?? null,
-    utm_campaign: source?.utm_campaign ?? null,
-  };
 }
 
 /** Capture from the current page. Safe to call on every load; no-ops on the server. */
