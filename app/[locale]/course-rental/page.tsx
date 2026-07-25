@@ -147,7 +147,7 @@ export default function CourseRentalPage() {
   // under a different /[locale] route) doesn't bounce the customer back to step 1.
   // Stops persisting and clears the snapshot once a rental is created or we reach
   // the confirmation step, so a fresh visit always starts over.
-  useFlowPersistence(
+  const flowRestored = useFlowPersistence(
     'lengolf.courseRentalFlow',
     { step, selectedQty, startDate, endDate, pickupTime, returnTime, deliveryRequested, deliveryAddress, deliveryNotes, addOnQty, paymentMethod, preferredContact, contactName, contactPhone, contactEmail, notes },
     (s) => {
@@ -225,17 +225,26 @@ export default function CourseRentalPage() {
     fetchSets();
   }, [fetchSets]);
 
-  // Funnel telemetry: push a step-viewed event whenever the user advances.
+  // Funnel telemetry: report the step the customer actually lands on.
   // GTM trigger "Course Rental Step Viewed" fans this out to GA4
   // (event: course_rental_step_viewed) so we can build a per-step drop-off
   // funnel alongside the existing course_rental_confirmed conversion.
+  //
+  // Gated on `flowRestored` because useFlowPersistence restores in a mount
+  // effect: a setState from an earlier effect does not cancel later effects in
+  // the same commit, so without the gate this fires for the initial 'dates'
+  // step and then again for the restored step, inventing a view of a step the
+  // customer never saw and skipping the restored step's predecessors entirely.
+  // Mirrors the same gate in useBookingFlow.ts, deliberately, so the two
+  // funnels stay comparable in GA4.
   useEffect(() => {
+    if (!flowRestored) return;
     pushEventToGtm('course_rental_step_viewed', {
       step,
       step_index: step === 'confirmation' ? STEP_ORDER.length : STEP_ORDER.indexOf(step),
       total_steps: STEP_ORDER.length,
     });
-  }, [step]);
+  }, [flowRestored, step]);
 
   // Each step is a fresh "page" — reset scroll to the top so the customer never
   // lands mid-page (or at the footer) after tapping Continue at the bottom of
