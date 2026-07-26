@@ -257,6 +257,43 @@ export function SessionStep({
         </div>
       </div>
 
+      {/* Party size, up here with the other session facts rather than at the
+          very bottom of the sub-step where it used to sit. Owner asked for it
+          to move up; three things say the same:
+
+           1. It is a FACT about the session, like the date, the time and the
+              bay above it, not an add-on. It is knowable before any of the
+              decisions below and it does not depend on them.
+           2. It PRICES the block underneath it. Every Play & Food set card
+              renders "฿X each for N people" off this value, so at the bottom
+              of the step the customer read a per-head price computed from a
+              party size they had not chosen yet, then scrolled past the
+              answer. Choosing first makes those numbers true when read.
+           3. The AI Lab warning immediately below fires on `numberOfPeople >=
+              3`. Its cause now sits directly above it instead of a screen
+              below, so the callout appears under the control that triggered it.
+
+          Not merged onto one row with Duration, which was the other option:
+          two five-rung rails side by side at 360px give each rung about 29px
+          against the 44px minimum touch target `SegmentedOptions` is built to,
+          and Duration is conditional on `mode === 'bay'` so the row would be
+          half empty whenever a set is chosen.
+
+          Same control and same idiom as Duration, deliberately — these used to
+          be drawn differently on purpose (a track for duration, detached round
+          tokens for the party) so that shape would signal "ordered scale"
+          versus "count" before either label was read. On screen it read as
+          inconsistency rather than as meaning. `SegmentedOptions` carries that
+          reasoning and is the only place either picker is styled, so they
+          cannot drift apart again. */}
+      <SegmentedOptions
+        label={t('numberOfPeople')}
+        icon={UsersIcon}
+        options={peopleOptions}
+        value={numberOfPeople}
+        onChange={setNumberOfPeople}
+      />
+
       {/* AI Lab Group Size Warning. The back link leaves step 3 for step 2,
           which is now exactly where the bay is chosen — and the choice survives
           the trip, so the customer lands on the control holding their current
@@ -400,21 +437,6 @@ export function SessionStep({
         />
       )}
 
-      {/* Same control, same idiom, deliberately. These two sit about 40px apart
-          and used to be drawn differently on purpose — a track for duration,
-          detached round tokens for the party — so that shape would signal
-          "ordered scale" versus "count" before either label was read. On the
-          screen it reads as inconsistency rather than as meaning, which is what
-          the owner reported. `SegmentedOptions` carries the reasoning and is
-          now the only place either picker is styled, so they cannot drift apart
-          again. */}
-      <SegmentedOptions
-        label={t('numberOfPeople')}
-        icon={UsersIcon}
-        options={peopleOptions}
-        value={numberOfPeople}
-        onChange={setNumberOfPeople}
-      />
     </>
   );
 }
