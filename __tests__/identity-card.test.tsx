@@ -50,16 +50,27 @@ function renderCard(props: Partial<ContactIdentity> = {}) {
 }
 
 describe('IdentityCard', () => {
-  test('renders name, phone, email and initials when all three are present and the phone is valid', () => {
+  test('renders name, phone and initials when all three are present and the phone is valid', () => {
     renderCard();
 
     expect(screen.getByText('David Geiermann')).toBeInTheDocument();
     // Grouped for reading, not the raw E.164 digit run the profile stores.
     expect(screen.getByText('+66 81 234 5678')).toBeInTheDocument();
     expect(screen.queryByText('+66812345678')).not.toBeInTheDocument();
-    expect(screen.getByText('david@example.com')).toBeInTheDocument();
     expect(screen.getByText('DG')).toBeInTheDocument();
     expect(screen.getByText('Booking as')).toBeInTheDocument();
+  });
+
+  // The email is still REQUIRED for the card to render at all, and still goes
+  // with the booking — it is only hidden from this recap. Name plus phone
+  // answers "is this me?"; the address was the longest line and the one that
+  // truncated. Asserted rather than left implicit so nobody "restores" it.
+  test('does not print the email address', () => {
+    renderCard();
+
+    expect(screen.queryByText('david@example.com')).not.toBeInTheDocument();
+    // ...but a card with no email still does not render, unchanged.
+    expect(screen.getByText('David Geiermann')).toBeInTheDocument();
   });
 
   // Customers book from several countries, so the card must not present a

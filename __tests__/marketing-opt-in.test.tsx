@@ -12,7 +12,9 @@
  * The contract, and the reason it is not a one-liner: `marketingPreference` is
  * TRI-state and only `true` is evidence of consent.
  *
- *   `true`  → subscribed. Replace the checkbox with a confirmation.
+ *   `true`  → subscribed. Show nothing at all: there is no decision to make,
+ *             and a confirmation line in place of the box is a paragraph of
+ *             unasked-for copy between the customer and the confirm button.
  *   `false` → deliberately opted out. Keep the checkbox; it is their way back.
  *   `null`  → unknown. Not loaded yet, a guest, or no linked customer record.
  *             Keep the checkbox.
@@ -34,8 +36,11 @@ import {
 } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/YourDetailsStep';
 import messages from '@/messages/en.json';
 
-const SUBSCRIBED_COPY = messages.bookings.detailsStep.marketingAlreadySubscribed;
 const OPT_IN_LABEL = messages.bookings.detailsStep.marketingOptInLabel;
+const OPT_IN_DESCRIPTION = messages.bookings.detailsStep.marketingOptInDescription;
+/** The consent note in its two forms. Only the second points at the opt-in. */
+const CONSENT_NOTE = messages.bookings.detailsStep.consentNote;
+const CONSENT_NOTE_WITH_OPT_IN = messages.bookings.detailsStep.consentNoteWithOptIn;
 
 /**
  * A returning customer with an email on file — the opt-in block is gated on a
@@ -104,26 +109,29 @@ describe('isMarketingSubscribed', () => {
 });
 
 describe('YourDetailsStep marketing opt-in', () => {
-  it('hides the checkbox and confirms the subscription when already subscribed', () => {
+  /**
+   * Owner-confirmed: an already-subscribed customer gets the whole block
+   * removed, not swapped for a confirmation line. Nothing about the marketing
+   * list survives — no checkbox, no label, no description, no standalone
+   * sentence — because there is no decision to present.
+   */
+  it('drops the whole block when already subscribed', () => {
     const { checkbox } = renderStep({ marketingPreference: true });
     expect(checkbox()).toBeNull();
-    expect(screen.getByText(SUBSCRIBED_COPY)).toBeInTheDocument();
-    // No stale "Send me..." invitation left behind next to the confirmation.
     expect(screen.queryByText(OPT_IN_LABEL)).toBeNull();
+    expect(screen.queryByText(OPT_IN_DESCRIPTION)).toBeNull();
   });
 
   it('still shows the checkbox when the customer opted out (false)', () => {
     const { checkbox } = renderStep({ marketingPreference: false });
     expect(checkbox()).not.toBeNull();
     expect(screen.getByText(OPT_IN_LABEL)).toBeInTheDocument();
-    expect(screen.queryByText(SUBSCRIBED_COPY)).toBeNull();
   });
 
   it('still shows the checkbox when the preference has not loaded (null)', () => {
     const { checkbox } = renderStep({ marketingPreference: null });
     expect(checkbox()).not.toBeNull();
     expect(screen.getByText(OPT_IN_LABEL)).toBeInTheDocument();
-    expect(screen.queryByText(SUBSCRIBED_COPY)).toBeNull();
   });
 
   it('leaves the checkbox reflecting this booking, not the stored preference', () => {
@@ -134,11 +142,57 @@ describe('YourDetailsStep marketing opt-in', () => {
     expect((checkbox() as HTMLInputElement).checked).toBe(true);
   });
 
-  it('shows neither variant before an email is entered', () => {
-    // The block has always been gated on a non-empty email; the subscribed
-    // branch must not have quietly escaped that gate.
-    const { checkbox } = renderStep({ marketingPreference: true, email: '   ' });
+  it('shows nothing before an email is entered', () => {
+    // The block has always been gated on a non-empty email.
+    const { checkbox } = renderStep({ marketingPreference: null, email: '   ' });
     expect(checkbox()).toBeNull();
-    expect(screen.queryByText(SUBSCRIBED_COPY)).toBeNull();
+    expect(screen.queryByText(OPT_IN_LABEL)).toBeNull();
+  });
+});
+
+/**
+ * The consent note's marketing clause is a pointer ("see the opt-in above"),
+ * and the thing it points at is conditional. When the block is suppressed the
+ * clause referred to nothing on screen, so the note has two complete variants
+ * gated on exactly the flag that renders the checkbox.
+ */
+describe('YourDetailsStep consent note', () => {
+  it('points at the opt-in only when the opt-in is on screen', () => {
+    renderStep({ marketingPreference: null });
+
+    expect(screen.getByText(CONSENT_NOTE_WITH_OPT_IN)).toBeInTheDocument();
+    expect(screen.queryByText(CONSENT_NOTE)).toBeNull();
+  });
+
+  it('drops the clause for an already-subscribed customer', () => {
+    renderStep({ marketingPreference: true });
+
+    expect(screen.getByText(CONSENT_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText(CONSENT_NOTE_WITH_OPT_IN)).toBeNull();
+  });
+
+  it('drops the clause before an email is entered', () => {
+    renderStep({ marketingPreference: null, email: '   ' });
+
+    expect(screen.getByText(CONSENT_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText(CONSENT_NOTE_WITH_OPT_IN)).toBeNull();
+  });
+
+  /**
+   * The two variants share their opening sentence, so a substring matcher would
+   * report the clause-free note as present inside the clause-bearing one. These
+   * assertions rely on testing-library's default whole-string normalisation;
+   * this case fails loudly if either string is ever made a prefix-only match.
+   */
+  it('states the booking-email consent in both states', () => {
+    for (const preference of [true, null] as const) {
+      const { unmount } = render(
+        <NextIntlClientProvider locale="en" messages={messages as never}>
+          <YourDetailsStep {...baseProps} marketingPreference={preference} />
+        </NextIntlClientProvider>,
+      );
+      expect(screen.getByText(/post-visit review email/)).toBeInTheDocument();
+      unmount();
+    }
   });
 });

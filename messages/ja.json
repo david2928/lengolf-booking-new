@@ -112,8 +112,7 @@
       "stepDateTitle": "日付を選択",
       "stepTimeTitle": "時間を選択",
       "stepDetailsTitle": "詳細を入力",
-      "stepDateSubtitle": "ご利用希望日を選択してください。",
-      "stepDetailsSubtitle": "予約の詳細をご記入ください。"
+      "stepDateSubtitle": "ご利用希望日を選択してください。"
     },
     "dateStep": {
       "todayCardTitle": "今日",
@@ -243,11 +242,12 @@
       "back": "戻る",
       "confirmBooking": "予約を確定",
       "processing": "処理中...",
-      "consentNote": "ご予約により、予約ステータス更新および来店後のレビュー依頼メールの受信に同意されたものとみなします。マーケティングメールは別途、上記のオプションをご確認ください。",
+      "consentNote": "ご予約により、予約ステータス更新および来店後のレビュー依頼メールの受信に同意されたものとみなします。",
+      "consentNoteWithOptIn": "ご予約により、予約ステータス更新および来店後のレビュー依頼メールの受信に同意されたものとみなします。マーケティングメールは別途、上記のオプションからお申し込みください。",
       "subStepSession": "セッション",
       "subStepExtras": "オプション",
       "subStepContact": "お客様情報",
-      "subStepProgress": "詳細 · {current} / {total}",
+      "subStepHeaderLine": "{label} · {current} / {total}",
       "changeAction": "変更",
       "ctaContinue": "次へ",
       "bookingAsLabel": "ご予約者",
@@ -273,7 +273,6 @@
       "creditCardStaffNote": "ご来店時にお申し出ください。スタッフが適用いたします。見積もり合計には含まれていません。",
       "marketingOptInLabel": "LENGOLFのお知らせとお得な情報を受け取る",
       "marketingOptInDescription": "ベイ特典、コーチングのプロモーション、メンバーイベント。いつでもメールから配信停止できます。",
-      "marketingAlreadySubscribed": "LENGOLFのお知らせとお得な情報を受け取る設定になっています。いつでもメールから配信停止できます。",
       "loadingOverlayTitle": "予約を確定しています",
       "loadingOverlaySubtitle": "予約処理中です、少々お待ちください",
       "loadingStepCheckingAvailability": "空き状況を確認中",

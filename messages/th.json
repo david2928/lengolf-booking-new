@@ -112,8 +112,7 @@
       "stepDateTitle": "เลือกวันที่",
       "stepTimeTitle": "เลือกเวลา",
       "stepDetailsTitle": "กรอกรายละเอียด",
-      "stepDateSubtitle": "เลือกวันที่ต้องการเล่น",
-      "stepDetailsSubtitle": "กรอกรายละเอียดการจองให้ครบถ้วน"
+      "stepDateSubtitle": "เลือกวันที่ต้องการเล่น"
     },
     "dateStep": {
       "todayCardTitle": "วันนี้",
@@ -243,11 +242,12 @@
       "back": "กลับ",
       "confirmBooking": "ยืนยันการจอง",
       "processing": "กำลังดำเนินการ...",
-      "consentNote": "เมื่อทำการจอง คุณยินยอมรับอีเมลแจ้งสถานะการจองและคำขอรีวิวหลังการเข้าใช้บริการ อีเมลการตลาดจะแยกต่างหาก - ดูตัวเลือกด้านบน",
+      "consentNote": "เมื่อทำการจอง คุณยินยอมรับอีเมลแจ้งสถานะการจองและคำขอรีวิวหลังการเข้าใช้บริการ",
+      "consentNoteWithOptIn": "เมื่อทำการจอง คุณยินยอมรับอีเมลแจ้งสถานะการจองและคำขอรีวิวหลังการเข้าใช้บริการ อีเมลการตลาดแยกต่างหาก โปรดใช้ตัวเลือกด้านบน",
       "subStepSession": "การเล่น",
       "subStepExtras": "รายการเสริม",
       "subStepContact": "ข้อมูลของคุณ",
-      "subStepProgress": "รายละเอียด · {current} จาก {total}",
+      "subStepHeaderLine": "{label} · {current} จาก {total}",
       "changeAction": "แก้ไข",
       "ctaContinue": "ถัดไป",
       "bookingAsLabel": "จองในชื่อ",
@@ -273,7 +273,6 @@
       "creditCardStaffNote": "แจ้งพนักงานเมื่อมาถึง แล้วทีมงานจะใช้สิทธิ์ให้คุณ ยอดนี้ยังไม่รวมอยู่ในราคาประมาณการ",
       "marketingOptInLabel": "ส่งข่าวสารและโปรโมชันของ LENGOLF ให้ฉัน",
       "marketingOptInDescription": "ดีลเบย์ โปรโมชันการสอน และอีเวนต์สำหรับสมาชิก สามารถยกเลิกการรับอีเมลได้ตลอดเวลา",
-      "marketingAlreadySubscribed": "คุณสมัครรับข่าวสารและโปรโมชันของ LENGOLF อยู่แล้ว สามารถยกเลิกการรับอีเมลได้ตลอดเวลา",
       "loadingOverlayTitle": "กำลังยืนยันการจองของคุณ",
       "loadingOverlaySubtitle": "กรุณารอสักครู่ขณะที่เรากำลังดำเนินการจอง",
       "loadingStepCheckingAvailability": "กำลังตรวจสอบช่วงเวลาว่าง",

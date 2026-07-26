@@ -112,8 +112,7 @@
       "stepDateTitle": "날짜 선택",
       "stepTimeTitle": "시간 선택",
       "stepDetailsTitle": "세부정보 입력",
-      "stepDateSubtitle": "플레이하실 날짜를 선택해 주세요.",
-      "stepDetailsSubtitle": "예약 세부정보를 입력해 주세요."
+      "stepDateSubtitle": "플레이하실 날짜를 선택해 주세요."
     },
     "dateStep": {
       "todayCardTitle": "오늘",
@@ -243,11 +242,12 @@
       "back": "뒤로",
       "confirmBooking": "예약 확정",
       "processing": "처리 중...",
-      "consentNote": "예약하시면 예약 상태 업데이트 및 방문 후 리뷰 요청 이메일 수신에 동의하는 것으로 간주됩니다. 마케팅 이메일은 별도로 위의 옵션을 확인해 주세요.",
+      "consentNote": "예약하시면 예약 상태 업데이트 및 방문 후 리뷰 요청 이메일 수신에 동의하는 것으로 간주됩니다.",
+      "consentNoteWithOptIn": "예약하시면 예약 상태 업데이트 및 방문 후 리뷰 요청 이메일 수신에 동의하는 것으로 간주됩니다. 마케팅 이메일은 별도이며 위의 옵션에서 신청할 수 있습니다.",
       "subStepSession": "세션",
       "subStepExtras": "추가 옵션",
       "subStepContact": "고객 정보",
-      "subStepProgress": "상세 정보 · {current} / {total}",
+      "subStepHeaderLine": "{label} · {current} / {total}",
       "changeAction": "변경",
       "ctaContinue": "다음",
       "bookingAsLabel": "예약자",
@@ -273,7 +273,6 @@
       "creditCardStaffNote": "도착하셔서 말씀해 주시면 직원이 적용해 드립니다. 예상 합계에는 포함되어 있지 않습니다.",
       "marketingOptInLabel": "LENGOLF 소식 및 프로모션 받기",
       "marketingOptInDescription": "베이 할인, 코칭 프로모션, 멤버 이벤트. 언제든지 이메일에서 수신 거부할 수 있습니다.",
-      "marketingAlreadySubscribed": "LENGOLF 소식 및 프로모션을 이미 구독 중입니다. 언제든지 이메일에서 수신 거부할 수 있습니다.",
       "loadingOverlayTitle": "예약을 확정하고 있습니다",
       "loadingOverlaySubtitle": "예약을 처리하는 동안 잠시만 기다려 주세요",
       "loadingStepCheckingAvailability": "이용 가능 여부 확인 중",

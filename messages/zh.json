@@ -112,8 +112,7 @@
       "stepDateTitle": "选择日期",
       "stepTimeTitle": "选择时间",
       "stepDetailsTitle": "填写详情",
-      "stepDateSubtitle": "选择您想要的游玩日期。",
-      "stepDetailsSubtitle": "完成您的预约详情。"
+      "stepDateSubtitle": "选择您想要的游玩日期。"
     },
     "dateStep": {
       "todayCardTitle": "今天",
@@ -243,11 +242,12 @@
       "back": "返回",
       "confirmBooking": "确认预约",
       "processing": "处理中...",
-      "consentNote": "通过预约，您同意接收预约状态更新和到访后的评价请求邮件。营销邮件是单独的 - 请参阅上方的选项。",
+      "consentNote": "通过预约，您同意接收预约状态更新和到访后的评价请求邮件。",
+      "consentNoteWithOptIn": "通过预约，您同意接收预约状态更新和到访后的评价请求邮件。营销邮件是单独的，请使用上方的选项订阅。",
       "subStepSession": "场次",
       "subStepExtras": "附加项目",
       "subStepContact": "您的资料",
-      "subStepProgress": "详情 · {current} / {total}",
+      "subStepHeaderLine": "{label} · {current} / {total}",
       "changeAction": "更改",
       "ctaContinue": "继续",
       "bookingAsLabel": "预订人",
@@ -273,7 +273,6 @@
       "creditCardStaffNote": "到店时告知我们，工作人员会为您使用。此时长未计入预估总计。",
       "marketingOptInLabel": "向我发送 LENGOLF 资讯与优惠",
       "marketingOptInDescription": "球道优惠、教练促销、会员活动。您可以随时从任何邮件中取消订阅。",
-      "marketingAlreadySubscribed": "您已订阅 LENGOLF 资讯与优惠。您可以随时从任何邮件中取消订阅。",
       "loadingOverlayTitle": "正在确认您的预约",
       "loadingOverlaySubtitle": "请稍候，我们正在处理您的预约",
       "loadingStepCheckingAvailability": "检查可用性",

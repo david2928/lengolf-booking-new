@@ -20,6 +20,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { SessionStep } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/SessionStep';
+import { SetMenuCard } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/SetMenuCard';
 import { getPlayFoodPackages, type PlayFoodPackage } from '@/types/play-food-packages';
 import messages from '@/messages/en.json';
 
@@ -298,12 +299,70 @@ describe('the card figures come from the live booking, not the static data', () 
     expect(within(setCard('SET C')).queryByText('Most Popular')).toBeNull();
   });
 
-  test('the image slot renders a placeholder until real photography lands', async () => {
+  /**
+   * The slot held a "Photo coming soon" placeholder on every card until the set
+   * photography landed. Now each card resolves its own photo from `pkg.id`, so
+   * the assertion inverts: every set is shot, and none of them still shows the
+   * placeholder.
+   */
+  test('every set renders its own photo in the image slot', async () => {
     const user = userEvent.setup();
     render(<Harness />);
     await user.click(forkButton('Bay + Food'));
 
-    expect(screen.getAllByText('Photo coming soon')).toHaveLength(PACKAGES.length);
+    for (const pkg of PACKAGES) {
+      const photo = within(setCard(pkg.name)).getByRole('img', { name: pkg.name });
+      // next/image rewrites src through the optimizer, so assert on the
+      // original path it carries rather than on the rendered attribute.
+      expect(decodeURIComponent(photo.getAttribute('src') ?? '')).toContain(
+        `/images/play-food/${pkg.id.toLowerCase().replace('_', '-')}.jpg`,
+      );
+    }
+
+    expect(screen.queryByText('Photo coming soon')).toBeNull();
+  });
+});
+
+/**
+ * The image slot's two fallbacks, exercised on the card directly because
+ * `SessionStep` only ever renders the three shot sets.
+ */
+describe('the set card image slot', () => {
+  const renderCard = (props: Partial<React.ComponentProps<typeof SetMenuCard>> = {}) =>
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <SetMenuCard
+          pkg={SET_A}
+          isSelected={false}
+          isAvailable
+          onSelect={() => {}}
+          numberOfPeople={2}
+          date="2026-07-15"
+          startTime="19:00"
+          {...props}
+        />
+      </NextIntlClientProvider>,
+    );
+
+  test('an explicit imageSrc overrides the photo the set id would pick', () => {
+    renderCard({ imageSrc: '/images/play-food/campaign.jpg' });
+
+    const photo = screen.getByRole('img', { name: SET_A.name });
+    expect(decodeURIComponent(photo.getAttribute('src') ?? '')).toContain('campaign.jpg');
+    expect(decodeURIComponent(photo.getAttribute('src') ?? '')).not.toContain('set-a.jpg');
+  });
+
+  /**
+   * The regression this guards: a fourth set added to the package data before
+   * its shoot lands must fall back to the placeholder, not render a broken
+   * image. `SET_IMAGES` is `Partial` for exactly this reason, so the cast below
+   * is simulating a real future state rather than an impossible one.
+   */
+  test('a set with no photo falls back to the placeholder', () => {
+    renderCard({ pkg: { ...SET_A, id: 'SET_D' as PlayFoodPackage['id'], name: 'SET D' } });
+
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(screen.getByText('Photo coming soon')).toBeInTheDocument();
   });
 });
 
@@ -323,5 +382,56 @@ describe('the people picker', () => {
 
     await user.click(within(people).getByRole('button', { name: '3' }));
     expect(within(setCard('SET B')).getByText('฿700')).toBeInTheDocument();
+  });
+
+  /**
+   * The party-size tokens carry their selection as a solid fill rather than the
+   * old pale tint, which means the selected one is no longer distinguishable in
+   * the accessibility tree by anything the DOM exposes unless it says so. Both
+   * pickers therefore report `aria-pressed`, and exactly one token is pressed.
+   */
+  test('marks exactly one party size as pressed, and moves it on click', async () => {
+    const user = userEvent.setup();
+    render(<Harness initialPeople={2} />);
+
+    const people = screen.getByText(messages.bookings.detailsStep.numberOfPeople)
+      .parentElement as HTMLElement;
+
+    expect(within(people).getByRole('button', { pressed: true })).toHaveAccessibleName('2');
+
+    await user.click(within(people).getByRole('button', { name: '4' }));
+    expect(within(people).getByRole('button', { pressed: true })).toHaveAccessibleName('4');
+  });
+});
+
+describe('the duration ladder', () => {
+  const ladder = () =>
+    screen.getByText(messages.bookings.detailsStep.durationLabel).parentElement as HTMLElement;
+
+  test('marks exactly one rung as pressed, and moves it on click', async () => {
+    const user = userEvent.setup();
+    render(<Harness initialDuration={1} />);
+
+    expect(within(ladder()).getByRole('button', { pressed: true })).toHaveAccessibleName('1');
+
+    // 1.5 is unique to the ladder — the party-size tokens are whole numbers.
+    await user.click(within(ladder()).getByRole('button', { name: '1.5' }));
+    expect(within(ladder()).getByRole('button', { pressed: true })).toHaveAccessibleName('1.5');
+  });
+
+  /**
+   * The half-hour rungs are the reason the ladder exists in this shape
+   * (owner-confirmed 25 Jul 2026); a redesign that quietly rounded them away
+   * would be a pricing change wearing a visual change's clothes.
+   */
+  test('still offers the half-hour rungs, capped by the slot headroom', () => {
+    render(<Harness maxDuration={3} />);
+
+    for (const rung of ['1', '1.5', '2', '2.5', '3']) {
+      expect(within(ladder()).getByRole('button', { name: rung })).toBeInTheDocument();
+    }
+    // 4 and 5 stay behind `hasActivePackage`, which the harness leaves false.
+    expect(within(ladder()).queryByRole('button', { name: '4' })).toBeNull();
+    expect(within(ladder()).queryByRole('button', { name: '5' })).toBeNull();
   });
 });

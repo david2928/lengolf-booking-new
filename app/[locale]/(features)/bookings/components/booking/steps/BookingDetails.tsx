@@ -14,7 +14,11 @@ import { YourDetailsStep } from './details/YourDetailsStep';
 import { DetailsSubStepSummary } from './details/DetailsSubStepSummary';
 import { SummaryRail } from './details/SummaryRail';
 import { summaryBarSublineFor } from './details/summarySubline';
-import { DETAIL_SUB_STEPS, type DetailSubStep } from './details/useDetailsSubStep';
+import {
+  DETAIL_SUB_STEPS,
+  SUB_STEP_LABEL_KEYS,
+  type DetailSubStep,
+} from './details/useDetailsSubStep';
 import { useBookingDetailsForm, type BookingDetailsProps } from './details/useBookingDetailsForm';
 import useMediaQuery from '@/hooks/useMediaQuery';
 
@@ -121,10 +125,12 @@ export function BookingDetails(props: BookingDetailsProps) {
     );
   }
 
+  /* Resolved from the shared key map so the collapsed summaries here and the
+     step header in `page.tsx` can never name the same sub-step differently. */
   const subStepLabels: Record<DetailSubStep, string> = {
-    session: t('subStepSession'),
-    extras: t('subStepExtras'),
-    contact: t('subStepContact'),
+    session: t(SUB_STEP_LABEL_KEYS.session),
+    extras: t(SUB_STEP_LABEL_KEYS.extras),
+    contact: t(SUB_STEP_LABEL_KEYS.contact),
   };
 
   /**
@@ -198,14 +204,13 @@ export function BookingDetails(props: BookingDetailsProps) {
   return (
     /* `lg:pb-0` drops the bar's spacer above `lg:`, where no bar mounts. */
     <div className={`space-y-4 sm:space-y-6 ${BOOKING_SUMMARY_BAR_SPACER} lg:pb-0`}>
-      {/* Sub-step progress. Mobile only: on desktop every sub-step is on screen
-          at once, so a "1 of 3" counter would be describing nothing. */}
-      <div className="flex items-baseline justify-between lg:hidden">
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-          {t('subStepProgress', { current: subStepIndex + 1, total: DETAIL_SUB_STEPS.length })}
-        </p>
-        <p className="text-sm font-semibold text-gray-900">{subStepLabels[subStep]}</p>
-      </div>
+      {/* No sub-step progress row here any more. It printed "DETAILS · 1 OF 3"
+          beside the sub-step name, directly under a step header that already
+          read "Provide Details" over a subtitle restating it — four rows of
+          chrome before the first control on a phone. The whole line now sits on
+          the header's own title row in `page.tsx` (`subStepHeaderLine`), so the
+          information survives and the row does not. `subStepLabels` stays: the
+          collapsed summaries below still name their sub-step. */}
 
       {/* One column below `lg:`, form + sticky summary rail above it. */}
       <div className="grid gap-6 items-start lg:grid-cols-[1fr_296px]">
