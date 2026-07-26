@@ -14,7 +14,7 @@ import { YourDetailsStep } from './details/YourDetailsStep';
 import { DetailsSubStepSummary } from './details/DetailsSubStepSummary';
 import { SummaryRail } from './details/SummaryRail';
 import { bayChoiceLabelKey } from './details/bayChoice';
-import { summaryBarSublineFor } from './details/summarySubline';
+import { buildSessionSummaryValue, summaryBarSublineFor } from './details/summarySubline';
 import {
   DETAIL_SUB_STEPS,
   SUB_STEP_LABEL_KEYS,
@@ -229,9 +229,13 @@ export function BookingDetails(props: BookingDetailsProps) {
             <div className="lg:hidden">
               <DetailsSubStepSummary
                 label={subStepLabels.session}
-                /* The people count needs a unit: "· Social Bay · 1" said
-                   nothing about what the 1 counted. */
-                value={`${durationLabel} · ${bayLabel} · ${peopleLabel}`}
+                /* Duration and party size only. The BAY is deliberately absent:
+                   the step header's subline three rows above already names it,
+                   and it is chosen on the time step, not here — see
+                   `buildSessionSummaryValue` for the full rule and for why this
+                   row is the wrong place to state a value its own "Change"
+                   cannot reach. */
+                value={buildSessionSummaryValue({ durationLabel, peopleLabel })}
                 changeLabel={t('changeAction')}
                 onChange={() => goToSubStep('session')}
               />

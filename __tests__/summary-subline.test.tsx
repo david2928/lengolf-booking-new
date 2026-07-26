@@ -33,12 +33,16 @@
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import {
+  buildSessionSummaryValue,
   buildSummaryBarSubline,
   formatFlowDate,
   formatShortDate,
   shortDateLocale,
   summaryBarSublineFor,
 } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/summarySubline';
+/* The step header's own composer, so the "stated once" partition can be
+   asserted against the real string the header prints rather than a copy of it. */
+import { stepHeaderSublineFor } from '@/app/[locale]/(features)/bookings/components/booking/stepHeaderModel';
 import { BookingSummaryBar } from '@/components/shared/BookingSummaryBar';
 import enMessages from '@/messages/en.json';
 
@@ -290,6 +294,87 @@ describe('summaryBarSublineFor', () => {
     // The two segments the caller passes through untouched still arrive.
     expect(th).toContain('1 ชม.');
     expect(th.endsWith('09:30')).toBe(true);
+  });
+});
+
+/**
+ * The collapsed Session row, and the rule that keeps it from restating the step
+ * header.
+ *
+ * The bug: the header's subline read "Sun 26 Jul, from 20:30, Any Bay" and the
+ * row immediately under it read "Session · 1 hr · Any Bay · 1 person". Owner
+ * wanted the booking stated once. It was really stated across two places with
+ * one overlap, which is worse than either — so the fix is not to delete a line
+ * but to draw the split where the decisions are made:
+ *
+ *   header subline   date, start time, BAY   (settled on steps 1 and 2)
+ *   this row         duration, party size    (settled on this sub-step)
+ *
+ * The row keeps its "Change", which is the only way back into the sub-step, so
+ * nothing about editing the session changes.
+ */
+describe('buildSessionSummaryValue', () => {
+  it('states the duration and the party size, in that order', () => {
+    expect(
+      buildSessionSummaryValue({ durationLabel: '1 hr', peopleLabel: '1 person' }),
+    ).toBe('1 hr · 1 person');
+  });
+
+  /**
+   * The regression this exists for. The bay is the fact that used to appear in
+   * both places; it is chosen on the TIME step, so a row whose Change jumps to
+   * the session sub-step should not list it.
+   */
+  it('does not name the bay, which the header states', () => {
+    const row = buildSessionSummaryValue({
+      durationLabel: '1 hr',
+      peopleLabel: '1 person',
+    });
+    for (const bay of ['Social Bay', 'AI Lab', 'Any Bay']) {
+      expect(row).not.toContain(bay);
+    }
+  });
+
+  /**
+   * Stated once, checked as a pair. Either surface alone can be edited without
+   * noticing the other; this asserts the actual partition of the five facts
+   * across the two lines the customer sees stacked.
+   */
+  it('shares no segment with the step header subline above it', () => {
+    const header = stepHeaderSublineFor({
+      locale: 'en',
+      date: new Date(2026, 6, 26, 20, 30),
+      fromTimeLabel: 'from 20:30',
+      bayLabel: 'Any Bay',
+    });
+    const row = buildSessionSummaryValue({
+      durationLabel: '1 hr',
+      peopleLabel: '1 person',
+    });
+
+    expect(header).toBe('Sun 26 Jul, from 20:30, Any Bay');
+    expect(row).toBe('1 hr · 1 person');
+
+    const headerSegments = header.split(', ').map((s) => s.trim());
+    const rowSegments = row.split(' · ').map((s) => s.trim());
+    expect(headerSegments.filter((s) => rowSegments.includes(s))).toEqual([]);
+
+    // ...and between them they still state all five facts.
+    expect([...headerSegments, ...rowSegments]).toHaveLength(5);
+  });
+
+  it('drops an unresolved segment rather than leaving a dangling separator', () => {
+    expect(buildSessionSummaryValue({ durationLabel: '1 hr', peopleLabel: '' })).toBe('1 hr');
+    expect(buildSessionSummaryValue({ durationLabel: '  ', peopleLabel: '2 people' })).toBe(
+      '2 people',
+    );
+    expect(buildSessionSummaryValue({ durationLabel: '', peopleLabel: '' })).toBe('');
+  });
+
+  it('passes localised strings through untouched', () => {
+    expect(
+      buildSessionSummaryValue({ durationLabel: '1 ชม.', peopleLabel: '2 คน' }),
+    ).toBe('1 ชม. · 2 คน');
   });
 });
 

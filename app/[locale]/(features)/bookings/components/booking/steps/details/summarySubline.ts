@@ -178,6 +178,53 @@ export function buildSummaryBarSubline(parts: {
 }
 
 /**
+ * The one-line recap inside the COLLAPSED Session sub-step summary, the row
+ * carrying the "Change" affordance back to that sub-step.
+ *
+ * WHAT IS NOT HERE IS THE POINT. This row used to read
+ * "Session · 1 hr · Any Bay · 1 person" directly under a step header whose
+ * subline read "Sun 26 Jul, from 20:30, Any Bay". Owner: the booking facts are
+ * stated twice at the top, state them once.
+ *
+ * "Twice" was really "split across two places with one overlap", which is worse
+ * than either: the header had the date, the start time and the bay; this row had
+ * the duration, the bay and the party size. Only the BAY appeared in both.
+ *
+ * The split is now drawn where the decisions are made, which puts every fact in
+ * exactly one place:
+ *
+ *   header subline   what steps 1 and 2 settled   date, start time, BAY
+ *   this row         what the session sub-step settled   duration, party size
+ *
+ * The bay stays with the header because that is where it is CHOSEN — the bay
+ * control lives on the time step, and this sub-step only ever recapped it. A row
+ * whose job is "here is what you set here, tap to change it" should not list a
+ * value that tapping it cannot change.
+ *
+ * So: do not add the bay back, and do not add the date or the start time. If a
+ * future header stops naming the bay, this is the function that has to gain it,
+ * and the test that pins the pairing is what will say so.
+ *
+ * The separator is the literal " · " the caller's other segments use, not a
+ * margin: a margin-only gap matched visually but not textually, and screen
+ * readers and copy/paste got "Session·1 hr".
+ */
+export function buildSessionSummaryValue(parts: {
+  /** Localised duration, e.g. "1 hr". Same string as the sticky bar's subline. */
+  durationLabel: string;
+  /**
+   * Localised party size WITH its unit, e.g. "1 person". The unit is required
+   * here: this row has no field label, and a bare "· 1" said nothing about what
+   * the 1 counted.
+   */
+  peopleLabel: string;
+}): string {
+  return [parts.durationLabel, parts.peopleLabel]
+    .filter((segment) => segment.trim().length > 0)
+    .join(' · ');
+}
+
+/**
  * The subline exactly as booking step 3 builds it: format the date, then order
  * the three segments.
  *
