@@ -5,10 +5,15 @@
  * flight. A greyed-out button with no explanation was the exact dead end this
  * component exists to remove.
  */
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
-import { BookingSummaryBar } from '@/components/shared/BookingSummaryBar';
+import {
+  BookingSummaryBar,
+  BOOKING_SUMMARY_BAR_SPACER,
+} from '@/components/shared/BookingSummaryBar';
 
 function renderBar(props: Partial<React.ComponentProps<typeof BookingSummaryBar>> = {}) {
   const onCta = jest.fn();
@@ -151,5 +156,52 @@ describe('BookingSummaryBar has-summary-bar body class (refcounted)', () => {
 
     b.unmount();
     expect(document.body.classList.contains('has-summary-bar')).toBe(false);
+  });
+});
+
+/**
+ * The clearance for the fixed bar belongs to the FORM, never to <body>.
+ *
+ * A `body.has-summary-bar { padding-bottom }` rule shipped once and produced a
+ * scrollbar on screens whose content ended well above the fold: both flows that
+ * mount the bar render inside `Layout`'s `min-h-screen` shell, so the document
+ * is already a full viewport tall, and padding on <body> sits outside that box
+ * and is purely additive. It was also doubling BOOKING_SUMMARY_BAR_SPACER,
+ * which both consumers already apply inside the flow.
+ *
+ * jsdom does not evaluate the stylesheet, so this reads the source. A CSS fact
+ * with no runtime assertion behind it is exactly the kind that gets reinstated
+ * by the next person who sees the bar overlap something.
+ */
+describe('the summary bar never pads the document', () => {
+  const globalsCssSource = readFileSync(
+    join(__dirname, '..', 'app', 'globals.css'),
+    'utf8',
+  );
+  /* Declarations only. The rule this pins is explained at length in a comment
+     that necessarily QUOTES the selector it is warning about, and matching
+     against that prose made the first version of this test fail on the very
+     comment documenting the fix. */
+  const globalsCss = globalsCssSource.replace(/\/\*[\s\S]*?\*\//g, '');
+
+  test('no body.has-summary-bar rule sets padding-bottom', () => {
+    // Every `body.has-summary-bar { ... }` block that is not a descendant
+    // selector (the chat-FAB rule is `body.has-summary-bar [data-chat-fab]`,
+    // which legitimately targets something else).
+    const bodyBlocks = [
+      ...globalsCss.matchAll(/body\.has-summary-bar\s*\{([^}]*)\}/g),
+    ].map((match) => match[1]);
+
+    expect(bodyBlocks.filter((body) => /padding-bottom/.test(body))).toEqual([]);
+  });
+
+  test('the chat FAB rule keyed off the same class is still there', () => {
+    // The class is refcounted and asserted above precisely so this can work;
+    // removing the padding rule must not take the FAB offset with it.
+    expect(globalsCss).toMatch(/body\.has-summary-bar\s+\[data-chat-fab\]/);
+  });
+
+  test('the spacer consumers apply is a bottom padding', () => {
+    expect(BOOKING_SUMMARY_BAR_SPACER).toMatch(/^pb-/);
   });
 });

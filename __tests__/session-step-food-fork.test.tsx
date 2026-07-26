@@ -49,6 +49,8 @@ interface HarnessOverrides {
   routerReplace?: (href: string, options?: { scroll?: boolean }) => void;
   /** The bay chosen on step 2. `null` is "All Bays" — no preference. */
   bayType?: BayType | null;
+  /** Unlocks the 4 h and 5 h rungs — the 7-tile ladder, the widest layout. */
+  hasActivePackage?: boolean;
 }
 
 /** What `BookingDetails` resolves for each bay state, so the harness agrees with it. */
@@ -74,6 +76,7 @@ function Harness({
   onPackageChange,
   routerReplace = () => {},
   bayType = 'social',
+  hasActivePackage = false,
 }: HarnessOverrides) {
   const [duration, setDuration] = useState(initialDuration);
   const [numberOfPeople, setNumberOfPeople] = useState(initialPeople);
@@ -102,7 +105,7 @@ function Harness({
         setShowPackageModal={() => {}}
         router={{ replace: routerReplace }}
         durationError=""
-        hasActivePackage={false}
+        hasActivePackage={hasActivePackage}
         selectedDate={WEEKDAY}
         selectedTime={selectedTime}
         selectedBayType={bayType}
@@ -331,17 +334,48 @@ describe('clearing back to Bay only', () => {
 });
 
 describe('the card figures come from the live booking, not the static data', () => {
-  test('the lead per-person price uses the selected party, with capacity as the curve', async () => {
+  /**
+   * The card leads with the set TOTAL, and the per-head split rides along it as
+   * a qualifier. The split is still computed from the SELECTED party — the
+   * bait-and-switch this whole module exists to prevent is showing the ฿420
+   * five-head figure from `pricePerPerson` to a party of two.
+   */
+  test('the headline is the total, qualified by the split across the selected party', async () => {
     const user = userEvent.setup();
     render(<Harness initialPeople={2} />);
     await user.click(forkButton('Bay + Food'));
 
     const card = setCard('SET B');
-    // ฿2,100 across two heads — not the ฿420 five-head figure in the data.
-    expect(within(card).getByText('฿1,050')).toBeInTheDocument();
-    expect(within(card).getByText(/each at 2 people/)).toBeInTheDocument();
-    // The capacity figure is disclosed as the upsell rather than as the price.
-    expect(within(card).getByText('฿420 each at 5 people')).toBeInTheDocument();
+    expect(within(card).getByText(`฿${SET_B.price.toLocaleString()}`)).toBeInTheDocument();
+    expect(within(card).getByText('฿1,050 each for 2 people')).toBeInTheDocument();
+    // Not the ฿420 five-head figure the package data carries.
+    expect(within(card).queryByText(/฿420/)).toBeNull();
+  });
+
+  /**
+   * The owner's report, as a rendering test: at a party of one the card printed
+   * ฿1,200 twice ("฿1,200 each at 1 person" and "Total ฿1,200 NET"), plus a
+   * capacity figure for a party they had not chosen, plus the split. Four money
+   * statements for one price. Two survive, and neither repeats the other.
+   */
+  test('a party of one sees the price once, and exactly two money lines', async () => {
+    const user = userEvent.setup();
+    render(<Harness initialPeople={1} selectedTime="10:00" />);
+    await user.click(forkButton('Bay + Food'));
+
+    const card = setCard('SET A');
+    // The total, once.
+    expect(within(card).getAllByText(`฿${SET_A.price.toLocaleString()}`)).toHaveLength(1);
+    // No per-head qualifier: at a party of one it is the same number again.
+    expect(within(card).queryByText(/each for/)).toBeNull();
+    // No "Total" label, and no capacity line for a party size not selected.
+    expect(within(card).queryByText(/Total/)).toBeNull();
+    expect(within(card).queryByText(/at 5 people/)).toBeNull();
+    // What remains: the headline, its NET marker, and the bay/food split.
+    expect(within(card).getByText('NET')).toBeInTheDocument();
+    expect(
+      within(card).getByText('฿550 bay time + ฿650 food and drinks'),
+    ).toBeInTheDocument();
   });
 
   test('the duration is printed on the card, because selecting it rewrites the booking', async () => {
@@ -385,7 +419,7 @@ describe('the card figures come from the live booking, not the static data', () 
     await user.click(forkButton('Bay + Food'));
 
     const card = within(setCard('SET B'));
-    expect(card.getByText(`Total ฿${SET_B.price.toLocaleString()} NET`)).toBeInTheDocument();
+    expect(card.getByText(`฿${SET_B.price.toLocaleString()}`)).toBeInTheDocument();
     // ฿1,100 + ฿1,000 = SET B's ฿2,100 total.
     expect(1100 + 1000).toBe(SET_B.price);
     expect(card.getByText('฿1,100 bay time + ฿1,000 food and drinks')).toBeInTheDocument();
@@ -513,7 +547,9 @@ describe('the people picker', () => {
     expect(within(people).queryByRole('button', { name: '6' })).toBeNull();
 
     await user.click(within(people).getByRole('button', { name: '3' }));
-    expect(within(setCard('SET B')).getByText('฿700')).toBeInTheDocument();
+    // The headline total does not move with the party; the qualifier does.
+    expect(within(setCard('SET B')).getByText('฿2,100')).toBeInTheDocument();
+    expect(within(setCard('SET B')).getByText('฿700 each for 3 people')).toBeInTheDocument();
   });
 
   /**
@@ -565,5 +601,93 @@ describe('the duration ladder', () => {
     // 4 and 5 stay behind `hasActivePackage`, which the harness leaves false.
     expect(within(ladder()).queryByRole('button', { name: '4' })).toBeNull();
     expect(within(ladder()).queryByRole('button', { name: '5' })).toBeNull();
+  });
+});
+
+/**
+ * Duration and party size used to be drawn as two different controls on
+ * purpose — a recessed segmented track for the scale, detached round tokens for
+ * the count — so that shape would carry the distinction before either label was
+ * read. Sitting about 40px apart it read as inconsistency instead, which is
+ * what the owner reported on the QA build.
+ *
+ * They are one component now (`SegmentedOptions`). These pin the properties
+ * that made merging them safe, so a future change to one picker cannot quietly
+ * reintroduce a second idiom or shrink a tile under the touch target.
+ */
+describe('the two pickers share one idiom', () => {
+  const block = (label: string) => screen.getByText(label).parentElement as HTMLElement;
+  const durationBlock = () => block(messages.bookings.detailsStep.durationLabel);
+  const peopleBlock = () => block(messages.bookings.detailsStep.numberOfPeople);
+
+  test('both render the same control, styled identically at the same rung count', () => {
+    // Five duration rungs against five party sizes, so any class difference is
+    // a difference of idiom rather than of column count.
+    render(<Harness maxDuration={3} initialDuration={1} initialPeople={1} />);
+
+    const durationRail = within(durationBlock()).getByRole('group');
+    const peopleRail = within(peopleBlock()).getByRole('group');
+    expect(durationRail.className).toBe(peopleRail.className);
+
+    const pressed = (rail: HTMLElement) => within(rail).getByRole('button', { pressed: true });
+    const unpressed = (rail: HTMLElement) =>
+      within(rail).getAllByRole('button', { pressed: false })[0];
+
+    expect(pressed(durationRail).className).toBe(pressed(peopleRail).className);
+    expect(unpressed(durationRail).className).toBe(unpressed(peopleRail).className);
+
+    // The old party-size idiom, gone: no round detached tokens anywhere.
+    expect(peopleRail.querySelector('.rounded-full')).toBeNull();
+  });
+
+  test('each picker is a labelled group, so the buttons are not loose in the form', () => {
+    render(<Harness maxDuration={3} />);
+
+    for (const [blockOf, label] of [
+      [durationBlock, messages.bookings.detailsStep.durationLabel],
+      [peopleBlock, messages.bookings.detailsStep.numberOfPeople],
+    ] as const) {
+      const rail = within(blockOf()).getByRole('group');
+      expect(rail).toHaveAccessibleName(label);
+    }
+  });
+
+  /**
+   * The widest case, and the reason the rail wraps rather than adding columns:
+   * a package holder's seven rungs across a 360px viewport would be ~42px per
+   * tile at seven columns, under the 44px minimum. Four columns lays them out
+   * as 4 + 3 at ~71px.
+   */
+  test('seven duration rungs wrap to four columns instead of shrinking', () => {
+    const { unmount } = render(<Harness maxDuration={5} hasActivePackage />);
+
+    const sevenRail = within(durationBlock()).getByRole('group');
+    expect(within(sevenRail).getAllByRole('button')).toHaveLength(7);
+    expect(sevenRail.className).toContain('grid-cols-4');
+    expect(sevenRail.className).not.toContain('grid-cols-7');
+    unmount();
+
+    // The common case still fills a single five-across row exactly.
+    render(<Harness maxDuration={3} />);
+    const fiveRail = within(durationBlock()).getByRole('group');
+    expect(within(fiveRail).getAllByRole('button')).toHaveLength(5);
+    expect(fiveRail.className).toContain('grid-cols-5');
+  });
+
+  /**
+   * The column count is read off the option count, so a set with a capacity
+   * other than five shortens the rail rather than leaving empty columns. No
+   * literal here has to be kept in step with `maxPeople`.
+   */
+  test('a smaller seat cap gives a shorter rail, not empty columns', () => {
+    // `PlayFoodPackage['maxPeople']` is the literal 5 today, so the cast
+    // simulates a real future state rather than an impossible one — same
+    // reason as the SET_D placeholder case above.
+    const cappedAtThree = { ...SET_B, maxPeople: 3 } as unknown as PlayFoodPackage;
+    render(<Harness initialPackage={cappedAtThree} />);
+
+    const rail = within(peopleBlock()).getByRole('group');
+    expect(within(rail).getAllByRole('button')).toHaveLength(3);
+    expect(rail.className).toContain('grid-cols-3');
   });
 });

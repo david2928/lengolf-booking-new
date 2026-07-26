@@ -15,6 +15,7 @@ import type { PlayFoodPackage } from '@/types/play-food-packages';
 import type { BayType } from '@/lib/bayConfig';
 import { allowedDurations, formatDurationLabel } from '@/lib/booking-durations';
 import { bayChoiceLabelKey } from './bayChoice';
+import { SegmentedOptions } from './SegmentedOptions';
 import { SetMenuCard } from './SetMenuCard';
 
 /**
@@ -177,10 +178,10 @@ export function SessionStep({
 
   // Read the cap off the selected set instead of assuming 5. Every set is
   // `maxPeople: 5` today and the picker has always topped out at 5, so this is
-  // the same five tokens — but a set with a different cap would now shorten the
-  // picker instead of offering seats it cannot seat. The picker lays the tokens
-  // out with `flex flex-wrap` at a fixed size rather than a `grid-cols-N`
-  // literal, so a genuinely variable cap needs no matching column count.
+  // the same five rungs — but a set with a different cap would now shorten the
+  // picker instead of offering seats it cannot seat. `SegmentedOptions` reads
+  // the column count off the array length, so a genuinely variable cap lays
+  // itself out with no matching literal to keep in sync here.
   const seatCap = localSelectedPackage?.maxPeople ?? 5;
   const peopleOptions = Array.from({ length: seatCap }, (_, i) => i + 1);
 
@@ -369,125 +370,52 @@ export function SessionStep({
 
 
       {/* Duration Selection — Bay only. Selecting a set fixes the length, so the
-          ladder would only offer a way to contradict it. */}
+          ladder would only offer a way to contradict it.
+
+          No bay-availability line under it any more. It read "Available for 1
+          hour: 3 Social Bays only" — a count that existed to inform the Social
+          / AI Lab picker that used to sit directly above it. With the bay
+          settled on step 2 it had nothing left to inform, and telling a
+          customer what is available immediately after they have chosen from it
+          is the same second-guessing the picker itself was.
+
+          What that line WAS still doing, and what removing it briefly cost us,
+          is warning that the chosen bay could not last as long as the ladder
+          was offering. That is no longer a warning because it is no longer
+          possible: `maxDuration` arrives capped by the chosen bay type's own
+          headroom, so a rung it cannot serve is not on the ladder. The
+          information the line carried is now expressed as the absence of a tile
+          rather than as a count to interpret — see `bayTypeHeadroom`. Do not
+          restore this comment's earlier claim that the SLOT's headroom was
+          doing that job: it was not, and the gap is what let five surfaces
+          promise a bay the booking would not get. */}
       {mode === 'bay' && (
-        <div>
-          <label className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-            <ClockIcon className="h-4 w-4 text-gray-400" aria-hidden="true" />
-            {t('durationLabel')}
-          </label>
-          {/* A SEGMENTED TRACK, not a row of separate boxes. Duration is an
-              ordered scale — the rungs are one continuous choice from short to
-              long — and a recessed track with the selection sliding along it
-              says that in a way five identical bordered tiles did not. It is
-              also the idiom this very file already uses for the Social / AI Lab
-              toggle above, so the flow has one shape for "pick one of these",
-              not two.
-
-              The party-size picker deliberately does NOT get this treatment.
-              The two sat adjacent looking identical while meaning different
-              things; a track for the scale and detached circles for the count
-              is the distinction, and it survives at a glance.
-
-              Selection is a solid `green-600` fill with white text, replacing
-              `bg-green-50 text-green-600`. That tint was ~1.2:1 against the
-              unselected tiles — at arm's length on a phone the picker read as
-              having nothing selected at all.
-
-              Five rungs fill `grid-cols-5` in a single row exactly, which is
-              what a bay-rate customer sees. A package holder gets seven, and
-              seven in a 5-column grid leaves a second row with three empty
-              cells that reads as a rendering fault. So drop to four columns
-              once the ladder passes five: seven lays out as 4 + 3 with one
-              trailing gap. At a 360px viewport that is a ~71px tile; the
-              five-rung case is ~56px. Both clear the 44px minimum in width, and
-              `h-11` sets it in height.
-
-              Both class strings are literal, not interpolated, so Tailwind's
-              scanner still emits `grid-cols-4` and `grid-cols-5`. */}
-          <div
-            className={`grid gap-1 rounded-xl bg-gray-100 p-1 ${
-              durationOptions.length > 5 ? 'grid-cols-4' : 'grid-cols-5'
-            }`}
-          >
-            {durationOptions.map((hours) => (
-              <button
-                key={hours}
-                type="button"
-                onClick={() => setDuration(hours)}
-                aria-pressed={duration === hours}
-                /* `tabular-nums` so the decimal points of 1.5 and 2.5 line up
-                   with each other and with the whole-hour tiles. */
-                className={`flex h-11 items-center justify-center rounded-lg tabular-nums transition-colors ${
-                  duration === hours
-                    ? 'bg-green-600 font-semibold text-white shadow-sm'
-                    : 'text-gray-700 hover:bg-white/70 active:bg-white'
-                }`}
-              >
-                {formatDurationLabel(hours)}
-              </button>
-            ))}
-          </div>
-          {durationError && (
-            <p className="mt-1 text-sm text-red-600">{durationError}</p>
-          )}
-
-          {/* No bay-availability line here any more. It read "Available for 1
-              hour: 3 Social Bays only" — a count that existed to inform the
-              Social / AI Lab picker directly above it. With the bay settled on
-              step 2 it had nothing left to inform, and telling a customer what
-              is available immediately after they have chosen from it is the
-              same second-guessing the picker itself was.
-
-              What that line WAS still doing, and what removing it briefly cost
-              us, is warning that the chosen bay could not last as long as the
-              ladder was offering. That is no longer a warning because it is no
-              longer possible: `maxDuration` arrives capped by the chosen bay
-              type's own headroom, so a rung it cannot serve is not on the
-              ladder. The information the line carried is now expressed as the
-              absence of a tile rather than as a count to interpret — see
-              `bayTypeHeadroom`. Do not restore this comment's earlier claim
-              that the SLOT's headroom was doing that job: it was not, and the
-              gap is what let five surfaces promise a bay the booking would not
-              get. */}
-        </div>
+        <SegmentedOptions
+          label={t('durationLabel')}
+          icon={ClockIcon}
+          options={durationOptions}
+          value={duration}
+          onChange={setDuration}
+          formatOption={formatDurationLabel}
+          error={durationError}
+        />
       )}
 
-      {/* Number of People — detached circles, on purpose.
-          A party size is a count of people, not a point on a scale, so it gets
-          discrete round tokens rather than the duration track's segments. The
-          two pickers sit adjacent and used to be pixel-identical rows of
-          bordered boxes; shape is what tells them apart now, before any label
-          is read.
-
-          `flex flex-wrap` rather than `grid-cols-5`: the column count no longer
-          has to be a literal matching `maxPeople`, so a set with a cap other
-          than 5 lays out on its own instead of stretching five columns or
-          overflowing. Tokens are a fixed 48px, comfortably over the 44px
-          minimum and unaffected by how many there are. */}
-      <div>
-        <label className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-          <UsersIcon className="h-4 w-4 text-gray-400" aria-hidden="true" />
-          {t('numberOfPeople')}
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {peopleOptions.map((num) => (
-            <button
-              key={num}
-              type="button"
-              onClick={() => setNumberOfPeople(num)}
-              aria-pressed={numberOfPeople === num}
-              className={`flex h-12 w-12 items-center justify-center rounded-full border-2 tabular-nums transition-colors ${
-                numberOfPeople === num
-                  ? 'border-green-600 bg-green-600 font-semibold text-white shadow-sm'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-green-500'
-              }`}
-            >
-              {num}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Same control, same idiom, deliberately. These two sit about 40px apart
+          and used to be drawn differently on purpose — a track for duration,
+          detached round tokens for the party — so that shape would signal
+          "ordered scale" versus "count" before either label was read. On the
+          screen it reads as inconsistency rather than as meaning, which is what
+          the owner reported. `SegmentedOptions` carries the reasoning and is
+          now the only place either picker is styled, so they cannot drift apart
+          again. */}
+      <SegmentedOptions
+        label={t('numberOfPeople')}
+        icon={UsersIcon}
+        options={peopleOptions}
+        value={numberOfPeople}
+        onChange={setNumberOfPeople}
+      />
     </>
   );
 }
