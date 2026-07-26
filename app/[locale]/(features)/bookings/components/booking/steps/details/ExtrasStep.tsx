@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useTranslations, type useFormatter } from 'next-intl';
 import { CheckIcon } from '@heroicons/react/24/outline';
+import { RevealDetailsButton } from '../../affordances';
 import { getIndoorPrice, getSetThumbnailUrl, getGearUpItems } from '@/types/golf-club-rental';
 import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 
@@ -49,13 +50,9 @@ export function ExtrasStep({
           <label className="block text-sm font-medium text-gray-700">
             {t('clubRentalLabel')}
           </label>
-          <button
-            type="button"
-            onClick={() => setShowClubRentalModal(true)}
-            className="text-xs text-green-600 hover:text-green-700 underline"
-          >
+          <RevealDetailsButton onClick={() => setShowClubRentalModal(true)}>
             {t('viewDetails')}
-          </button>
+          </RevealDetailsButton>
         </div>
 
         {/* No Rental / Standard row */}

@@ -15,6 +15,7 @@ import {
 import { useAvailability, type TimeSlot } from '../../../hooks/useAvailability';
 import { BayType } from '@/lib/bayConfig';
 import { BayInfoModal } from '../../BayInfoModal';
+import { RevealDetailsButton } from '../affordances';
 import {
   BOOKING_PERIODS,
   getBookingPeriod,
@@ -125,13 +126,9 @@ export function TimeSlots({ selectedDate, bayType, onBayTypeChange, onTimeSelect
         <span id="bay-type-label" className="text-sm font-medium text-gray-700">
           {t('bayTypeLabel')}
         </span>
-        <button
-          type="button"
-          onClick={() => setShowBayInfoModal(true)}
-          className="shrink-0 text-xs text-gray-500 underline transition-colors hover:text-gray-800"
-        >
+        <RevealDetailsButton onClick={() => setShowBayInfoModal(true)}>
           {t('whatsTheDifference')}
-        </button>
+        </RevealDetailsButton>
       </div>
 
       <div role="group" aria-labelledby="bay-type-label" className="grid grid-cols-3 gap-2">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import {
+  ArrowLeftIcon,
   CalendarIcon,
   ClockIcon,
   UsersIcon,
@@ -11,6 +12,7 @@ import {
   InformationCircleIcon,
   Squares2X2Icon,
 } from '@heroicons/react/24/outline';
+import { ChangeAnswerButton, RevealDetailsButton } from '../../affordances';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import type { BayType } from '@/lib/bayConfig';
 import { allowedDurations, formatDurationLabel } from '@/lib/booking-durations';
@@ -246,13 +248,9 @@ export function SessionStep({
                 <p className={`text-lg sm:text-xl font-bold ${bayCardStyle.label}`}>
                   {bayLabel}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setShowBayInfoModal(true)}
-                  className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors"
-                >
+                <RevealDetailsButton onClick={() => setShowBayInfoModal(true)}>
                   {t('info')}
-                </button>
+                </RevealDetailsButton>
               </div>
             </div>
           </div>
@@ -274,13 +272,18 @@ export function SessionStep({
               <p className="text-sm text-yellow-700">
                 {t('aiLabRecommendationBody')}
               </p>
-              <button
-                type="button"
+              {/* The most destructive control on the sub-step: it unmounts step
+                  3 entirely for step 2. It gets the strongest affordance of the
+                  three, in the callout's own palette so it does not introduce a
+                  second status colour inside an amber box. */}
+              <ChangeAnswerButton
                 onClick={onBack}
-                className="mt-2 text-sm text-yellow-600 hover:text-yellow-500 underline"
+                tone="warning"
+                icon={ArrowLeftIcon}
+                className="mt-2"
               >
                 {t('aiLabBackToSocial')}
-              </button>
+              </ChangeAnswerButton>
             </div>
           </div>
         </div>
@@ -296,13 +299,9 @@ export function SessionStep({
           <label className="block text-sm font-medium text-gray-700">
             {t('bookingModeLabel')}
           </label>
-          <button
-            type="button"
-            onClick={() => setShowPackageModal(true)}
-            className="text-xs text-green-600 hover:text-green-700 underline"
-          >
+          <RevealDetailsButton onClick={() => setShowPackageModal(true)}>
             {t('viewDetails')}
-          </button>
+          </RevealDetailsButton>
         </div>
 
         <div className="grid grid-cols-2 gap-2">

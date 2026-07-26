@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { formatPhoneNumberIntl, isValidPhoneNumber } from 'react-phone-number-input';
+import { ChangeAnswerButton } from '../../affordances';
 
 /** The three contact values the card stands in for. */
 export interface ContactIdentity {
@@ -126,13 +127,7 @@ export function IdentityCard({ name, phoneNumber, email, onChange }: IdentityCar
             {formatPhoneForDisplay(phoneNumber!)}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onChange}
-          className="flex-shrink-0 text-sm font-medium text-green-600 underline hover:text-green-700"
-        >
-          {t('changeContact')}
-        </button>
+        <ChangeAnswerButton onClick={onChange}>{t('changeContact')}</ChangeAnswerButton>
       </div>
     </div>
   );

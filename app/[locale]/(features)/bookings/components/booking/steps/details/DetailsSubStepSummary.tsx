@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { ChangeAnswerButton } from '../../affordances';
 
 export interface DetailsSubStepSummaryProps {
   /** Sub-step name, e.g. "Session". */
@@ -17,9 +18,12 @@ export interface DetailsSubStepSummaryProps {
  * One-line collapsed recap of a completed mobile sub-step, with the single
  * "Change" affordance that jumps directly back to it.
  *
- * `type="button"` is load-bearing: this renders inside the booking `<form>`, so
- * a button with no explicit type would default to `submit` and fire the
- * booking.
+ * The affordance is `ChangeAnswerButton` rather than the green underlined text
+ * it used to be: this navigates, and a few rows away sat a "View Details" link
+ * drawn identically that only opened a modal. See `affordances.tsx` for the
+ * rule. `type="button"` is still load-bearing and now lives in that component:
+ * this renders inside the booking `<form>`, so a button with no explicit type
+ * would default to `submit` and fire the booking.
  */
 export function DetailsSubStepSummary({
   label,
@@ -38,13 +42,7 @@ export function DetailsSubStepSummary({
         <span className="text-gray-300">{' · '}</span>
         {value}
       </p>
-      <button
-        type="button"
-        onClick={onChange}
-        className="flex-shrink-0 text-sm font-medium text-green-600 underline hover:text-green-700"
-      >
-        {changeLabel}
-      </button>
+      <ChangeAnswerButton onClick={onChange}>{changeLabel}</ChangeAnswerButton>
     </div>
   );
 }
