@@ -3,13 +3,15 @@ import { getToken } from 'next-auth/jwt';
 import createIntlMiddleware from 'next-intl/middleware';
 import type { NextRequest } from 'next/server';
 import { routing } from './i18n/routing';
+import { isLineBrowser as isLineUserAgent } from './lib/in-app-browser';
 
 const intlMiddleware = createIntlMiddleware(routing);
 
-// Detect LINE in-app browser from User-Agent header
+// Detect LINE in-app browser from User-Agent header. The matching itself lives
+// in lib/in-app-browser so this LIFF redirect and the login page's provider
+// gating can never disagree about what counts as "a LINE browser".
 function isLineBrowser(request: NextRequest): boolean {
-  const ua = request.headers.get('user-agent')?.toLowerCase() ?? '';
-  return ua.includes('line/') || ua.includes('line ');
+  return isLineUserAgent(request.headers.get('user-agent'));
 }
 
 // Map regular routes to LIFF equivalents for LINE browser users
