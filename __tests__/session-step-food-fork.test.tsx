@@ -324,4 +324,55 @@ describe('the people picker', () => {
     await user.click(within(people).getByRole('button', { name: '3' }));
     expect(within(setCard('SET B')).getByText('฿700')).toBeInTheDocument();
   });
+
+  /**
+   * The party-size tokens carry their selection as a solid fill rather than the
+   * old pale tint, which means the selected one is no longer distinguishable in
+   * the accessibility tree by anything the DOM exposes unless it says so. Both
+   * pickers therefore report `aria-pressed`, and exactly one token is pressed.
+   */
+  test('marks exactly one party size as pressed, and moves it on click', async () => {
+    const user = userEvent.setup();
+    render(<Harness initialPeople={2} />);
+
+    const people = screen.getByText(messages.bookings.detailsStep.numberOfPeople)
+      .parentElement as HTMLElement;
+
+    expect(within(people).getByRole('button', { pressed: true })).toHaveAccessibleName('2');
+
+    await user.click(within(people).getByRole('button', { name: '4' }));
+    expect(within(people).getByRole('button', { pressed: true })).toHaveAccessibleName('4');
+  });
+});
+
+describe('the duration ladder', () => {
+  const ladder = () =>
+    screen.getByText(messages.bookings.detailsStep.durationLabel).parentElement as HTMLElement;
+
+  test('marks exactly one rung as pressed, and moves it on click', async () => {
+    const user = userEvent.setup();
+    render(<Harness initialDuration={1} />);
+
+    expect(within(ladder()).getByRole('button', { pressed: true })).toHaveAccessibleName('1');
+
+    // 1.5 is unique to the ladder — the party-size tokens are whole numbers.
+    await user.click(within(ladder()).getByRole('button', { name: '1.5' }));
+    expect(within(ladder()).getByRole('button', { pressed: true })).toHaveAccessibleName('1.5');
+  });
+
+  /**
+   * The half-hour rungs are the reason the ladder exists in this shape
+   * (owner-confirmed 25 Jul 2026); a redesign that quietly rounded them away
+   * would be a pricing change wearing a visual change's clothes.
+   */
+  test('still offers the half-hour rungs, capped by the slot headroom', () => {
+    render(<Harness maxDuration={3} />);
+
+    for (const rung of ['1', '1.5', '2', '2.5', '3']) {
+      expect(within(ladder()).getByRole('button', { name: rung })).toBeInTheDocument();
+    }
+    // 4 and 5 stay behind `hasActivePackage`, which the harness leaves false.
+    expect(within(ladder()).queryByRole('button', { name: '4' })).toBeNull();
+    expect(within(ladder()).queryByRole('button', { name: '5' })).toBeNull();
+  });
 });
