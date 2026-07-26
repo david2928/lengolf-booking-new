@@ -199,6 +199,7 @@
       "bookingModeLabel": "您想预订什么？",
       "bayPlusFood": "球位 + 餐饮",
       "bayPlusFoodDescription": "含套餐",
+      "bayPlusFoodDrinksHint": "+ 无限量软饮",
       "setPickPrompt": "请在下方选择套餐。未选择前，本次预订按球位租赁价格计算。",
       "setPerPersonSplit": "{count}人时每人฿{price, number}",
       "setPriceSplit": "球位 ฿{bayPrice, number} + 餐饮 ฿{premium, number}",

@@ -199,6 +199,7 @@
       "bookingModeLabel": "무엇을 예약하시나요?",
       "bayPlusFood": "베이 + 식사",
       "bayPlusFoodDescription": "세트 메뉴 포함",
+      "bayPlusFoodDrinksHint": "+ 소프트드링크 무제한",
       "setPickPrompt": "아래에서 세트를 선택해 주세요. 선택하지 않으면 베이 이용 요금만 적용됩니다.",
       "setPerPersonSplit": "{count}명 기준 1인당 ฿{price, number}",
       "setPriceSplit": "베이 ฿{bayPrice, number} + 식사와 음료 ฿{premium, number}",

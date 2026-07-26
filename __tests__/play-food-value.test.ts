@@ -20,8 +20,13 @@
  *   weekday 550 / 750 / 750 and weekend 750 / 950 / 950
  * for the before-14:00, 14:00–17:00 and 17:00–23:00 slots.
  */
-import { bayOnlyCost, perPersonPrice, setValueFigures } from '@/lib/play-food-value';
-import { getPlayFoodPackages } from '@/types/play-food-packages';
+import {
+  bayOnlyCost,
+  everySetIncludesUnlimitedDrinks,
+  perPersonPrice,
+  setValueFigures,
+} from '@/lib/play-food-value';
+import { getPlayFoodPackages, type PlayFoodPackage } from '@/types/play-food-packages';
 
 const WEEKDAY = '2026-07-15'; // Wednesday
 const WEEKEND = '2026-07-18'; // Saturday
@@ -220,5 +225,90 @@ describe('setValueFigures', () => {
         }
       }
     }
+  });
+});
+
+/**
+ * The one-line hint on the "Bay + Food" fork tile.
+ *
+ * It is a claim about the fork, which stands in front of all three sets, so it
+ * may only be made while it holds for all three — the same discipline as
+ * `foodPremium` nulling itself rather than printing an anchor it cannot stand
+ * behind. What it must never become is an assertion typed into the tile, which
+ * would keep claiming drinks after a set stopped including them.
+ *
+ * The hint states an INCLUSION rather than the saving that was originally
+ * asked for, and the reason is worth pinning in the test file as well as in the
+ * module: the à-la-carte prices a saving needs are in neither the pricing
+ * catalog (`/api/pricing` carries the sets under `mixedPackages` and no menu
+ * items at all) nor the database (no table maps a set to its components), and
+ * `foodItems` cannot be matched to `products.products` by name — "Pulled Pork
+ * Sandwich" is stocked as "Pulled Pork Sando", and "French Fries" matches both
+ * a ฿200 main and a ฿70 side. Priced on food alone, every set comes out WORSE
+ * than à la carte before 14:00, because the component plausibly worth the most,
+ * unlimited soft drinks, is the one with no defensible per-head price.
+ */
+describe('the Bay + Food tile only claims drinks while every set includes them', () => {
+  const withDrinks = (drinks: PlayFoodPackage['drinks']) => ({ drinks });
+
+  test('holds for the three sets we actually ship', () => {
+    expect(everySetIncludesUnlimitedDrinks(getPlayFoodPackages())).toBe(true);
+  });
+
+  /**
+   * The copy names SOFT drinks specifically, but the predicate can only check
+   * the `type` flag — matching on `name` would be the same free-text matching
+   * that makes the saving unpriceable. So this pins the gap: today every
+   * unlimited allowance IS soft drinks. A set that ships unlimited beer instead
+   * would pass the predicate while making the copy wrong, and fails here first.
+   */
+  test('and every unlimited allowance is soft drinks, which is what the copy says', () => {
+    for (const pkg of getPlayFoodPackages()) {
+      const unlimited = pkg.drinks.filter((d) => d.type === 'unlimited');
+      expect(unlimited.length).toBeGreaterThan(0);
+      for (const drink of unlimited) {
+        expect(drink.name).toMatch(/soft drinks/i);
+      }
+    }
+  });
+
+  /**
+   * Set C is the case that makes the distinction load-bearing: it carries an
+   * alcoholic drink too, but at one PER PERSON rather than unlimited. The copy
+   * must not generalise that into "unlimited drinks".
+   */
+  test('a per-person allowance is not an unlimited one', () => {
+    const perPersonOnly = withDrinks([
+      { name: 'Beer / Cocktail / Wine', type: 'per_person', quantity: 1 },
+    ]);
+    expect(everySetIncludesUnlimitedDrinks([perPersonOnly])).toBe(false);
+
+    const setC = getPlayFoodPackages().find((p) => p.id === 'SET_C')!;
+    expect(setC.drinks.some((d) => d.type === 'per_person')).toBe(true);
+    expect(setC.drinks.some((d) => d.type === 'unlimited')).toBe(true);
+  });
+
+  test('one set without the allowance retires the claim for the whole fork', () => {
+    const sets = getPlayFoodPackages();
+    const withoutDrinks = { ...sets[1], drinks: [] };
+
+    expect(everySetIncludesUnlimitedDrinks([sets[0], withoutDrinks, sets[2]])).toBe(false);
+  });
+
+  test('it is every, not some', () => {
+    const yes = withDrinks([{ name: 'Soft Drinks', type: 'unlimited' }]);
+    const no = withDrinks([]);
+
+    expect(everySetIncludesUnlimitedDrinks([yes, yes])).toBe(true);
+    expect(everySetIncludesUnlimitedDrinks([yes, no])).toBe(false);
+    expect(everySetIncludesUnlimitedDrinks([no, no])).toBe(false);
+  });
+
+  /**
+   * `Array.prototype.every` is vacuously true on an empty array, which would
+   * advertise unlimited drinks on a fork with no sets behind it at all.
+   */
+  test('no sets means no claim, not a vacuously true one', () => {
+    expect(everySetIncludesUnlimitedDrinks([])).toBe(false);
   });
 });

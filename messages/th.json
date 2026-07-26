@@ -199,6 +199,7 @@
       "bookingModeLabel": "คุณต้องการจองแบบไหน?",
       "bayPlusFood": "เบย์ + อาหาร",
       "bayPlusFoodDescription": "รวมเซ็ตอาหาร",
+      "bayPlusFoodDrinksHint": "+ น้ำอัดลมไม่อั้น",
       "setPickPrompt": "เลือกเซ็ตด้านล่าง หากยังไม่เลือก การจองนี้จะคิดราคาแบบเช่าเบย์เท่านั้น",
       "setPerPersonSplit": "฿{price, number} ต่อคน สำหรับ {count} คน",
       "setPriceSplit": "฿{bayPrice, number} ค่าเบย์ + ฿{premium, number} อาหารและเครื่องดื่ม",

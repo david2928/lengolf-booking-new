@@ -58,6 +58,9 @@ interface HarnessOverrides {
   onBack?: () => void;
   /** Opens the bay-type explainer modal. */
   onShowBayInfo?: (value: boolean) => void;
+  /** The sets on offer. Overridden only to simulate a future set list, e.g.
+      one whose drinks allowance differs from the three we ship today. */
+  packages?: PlayFoodPackage[];
 }
 
 /** What `BookingDetails` resolves for each bay state, so the harness agrees with it. */
@@ -86,6 +89,7 @@ function Harness({
   hasActivePackage = false,
   onBack = () => {},
   onShowBayInfo = () => {},
+  packages = PACKAGES,
 }: HarnessOverrides) {
   const [duration, setDuration] = useState(initialDuration);
   const [numberOfPeople, setNumberOfPeople] = useState(initialPeople);
@@ -110,7 +114,7 @@ function Harness({
           onPackageChange?.(v);
           setPkg(v);
         }}
-        PLAY_FOOD_PACKAGES={PACKAGES}
+        PLAY_FOOD_PACKAGES={packages}
         setShowPackageModal={() => {}}
         router={{ replace: routerReplace }}
         durationError=""
@@ -382,6 +386,93 @@ describe('the fork opens on Bay only by default', () => {
     render(<Harness />);
     expect(forkButton('Bay Only')).toHaveAttribute('aria-pressed', 'true');
     expect(forkButton('Bay + Food')).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+/**
+ * The hint on the Bay + Food tile: one quiet line giving a reason to open the
+ * fork, rather than a tile that only names itself.
+ *
+ * It states an inclusion, not a saving, and that is a data conclusion rather
+ * than a design preference — see the block comment on
+ * `everySetIncludesUnlimitedDrinks`. What these pin is that it stays a hint:
+ * on the tile it argues for, computed from the sets behind it, and quiet
+ * enough not to outweigh the thing it is pointing at.
+ */
+describe('the Bay + Food tile carries a hint', () => {
+  const HINT = messages.bookings.detailsStep.bayPlusFoodDrinksHint;
+
+  test('names what the sets include, on the tile that leads to them', () => {
+    render(<Harness />);
+
+    expect(within(forkButton('Bay + Food')).getByText(HINT)).toBeInTheDocument();
+  });
+
+  /**
+   * It has to be readable BEFORE the fork is opened — that is the whole job.
+   * A hint that only appears once the customer has already committed to
+   * looking is not a reason to look.
+   */
+  test('is visible while Bay only is still the selected side', () => {
+    render(<Harness />);
+
+    expect(forkButton('Bay Only')).toHaveAttribute('aria-pressed', 'true');
+    expect(within(forkButton('Bay + Food')).getByText(HINT)).toBeInTheDocument();
+  });
+
+  test('does not appear on the Bay only tile', () => {
+    render(<Harness />);
+
+    expect(within(forkButton('Bay Only')).queryByText(HINT)).toBeNull();
+    // ...and it is the food tile's own line, not loose in the fork block.
+    expect(screen.getAllByText(HINT)).toHaveLength(1);
+  });
+
+  /**
+   * Subtle means subtle: no tinted panel and no accent of its own. The tile's
+   * selected state is already green, so a second status colour inside it would
+   * compete with the only signal that matters there.
+   */
+  test('is a quiet line, not a coloured callout', () => {
+    render(<Harness />);
+
+    const hint = within(forkButton('Bay + Food')).getByText(HINT);
+    expect(hint.className).not.toMatch(/amber|green|blue|bg-/);
+    expect(hint.className).not.toMatch(/rounded|border/);
+    expect(hint.className).toMatch(/opacity-75/);
+    expect(forkButton('Bay + Food').querySelector('.bg-amber-50')).toBeNull();
+  });
+
+  /**
+   * The extra line must not make one tile taller than the other. Both are grid
+   * items with a min height rather than a fixed one, so the row stretches them
+   * together and the denser tile cannot outgrow its neighbour.
+   */
+  test('does not unbalance the two tiles', () => {
+    render(<Harness />);
+
+    for (const side of ['Bay Only', 'Bay + Food'] as const) {
+      expect(forkButton(side).className).toContain('min-h-[4rem]');
+      // A fixed height would clip the third line instead of accommodating it.
+      expect(forkButton(side).className).not.toMatch(/(^|\s)h-16(\s|$)/);
+    }
+  });
+
+  /**
+   * Read off the package data, so a set that stopped including the allowance
+   * takes the claim down with it rather than leaving the tile advertising it.
+   */
+  test('goes silent when a set stops including unlimited drinks', () => {
+    const [a, b, c] = PACKAGES;
+    render(<Harness packages={[a, { ...b, drinks: [] }, c]} />);
+
+    expect(screen.queryByText(HINT)).toBeNull();
+    // The tile itself is untouched; only the hint line is withdrawn.
+    expect(
+      within(forkButton('Bay + Food')).getByText(
+        messages.bookings.detailsStep.bayPlusFoodDescription,
+      ),
+    ).toBeInTheDocument();
   });
 });
 

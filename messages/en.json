@@ -199,6 +199,7 @@
       "bookingModeLabel": "What are you booking?",
       "bayPlusFood": "Bay + Food",
       "bayPlusFoodDescription": "Set menu included",
+      "bayPlusFoodDrinksHint": "+ unlimited soft drinks",
       "setPickPrompt": "Pick a set below. Until you do, this booking is priced as bay only.",
       "setPerPersonSplit": "฿{price, number} each for {count, plural, =1 {# person} other {# people}}",
       "setPriceSplit": "฿{bayPrice, number} bay time + ฿{premium, number} food and drinks",

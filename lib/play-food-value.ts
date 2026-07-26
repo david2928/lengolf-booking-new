@@ -30,6 +30,50 @@
  * `calculateCost` produces. These are display figures for the set cards.
  */
 import { isWeekendDate, getRateSegments } from '@/lib/liff/bay-rates-data';
+import type { PlayFoodPackage } from '@/types/play-food-packages';
+
+/**
+ * True only when EVERY set on offer includes unlimited drinks.
+ *
+ * This backs the one-line hint on the "Bay + Food" fork tile, which is a claim
+ * about the fork as a whole rather than about any one set — so it may only be
+ * made when it holds for every set behind it. One set without the allowance and
+ * the tile goes quiet, the same way `foodPremium` nulls itself rather than
+ * print an anchor it cannot stand behind.
+ *
+ * WHY THIS IS A PREDICATE AND NOT A PRICE. The obvious hint here is a saving:
+ * what the same food would cost à la carte, less the set price. That number is
+ * not available and is not merely missing plumbing:
+ *
+ *   - The shared pricing API (`lib/pricing.ts` → lengolf-forms `/api/pricing`)
+ *     exposes the Food & Play SETS under `mixedPackages` but carries no
+ *     individual menu items at all, so there is no live source to price
+ *     "Crispy Chicken Sliders" from.
+ *   - Nothing in the database maps a set to its components. `foodItems` below
+ *     is free text, and it does not match `products.products`: "Pulled Pork
+ *     Sandwich" is stocked as "Pulled Pork Sando", "BBQ Brisket Slider" is one
+ *     of three brisket products at two prices, and "French Fries" matches both
+ *     the ฿200 main and a ฿70 side. A name match would silently mis-price.
+ *   - The comparison would be unsound even with those resolved, because the
+ *     component most likely to be worth the most — unlimited soft drinks — has
+ *     no defensible per-head price (the nearest product is a 10-pax free-flow
+ *     item). Dropping it does not make the claim conservative, it inverts it:
+ *     priced on food alone every set is WORSE than à la carte before 14:00
+ *     (Set C by ฿650), which is the opposite of what the sets actually offer.
+ *
+ * So the tile states what is true and checkable instead of computing a figure
+ * that is neither. If per-item prices ever reach the pricing catalog, a saving
+ * belongs here beside `foodPremium` — keyed by product id, never by name.
+ *
+ * Empty in, false out: `Array.prototype.every` is vacuously true on an empty
+ * array, which would advertise drinks with no sets on offer at all.
+ */
+export function everySetIncludesUnlimitedDrinks(
+  packages: ReadonlyArray<Pick<PlayFoodPackage, 'drinks'>>,
+): boolean {
+  if (packages.length === 0) return false;
+  return packages.every((pkg) => pkg.drinks.some((drink) => drink.type === 'unlimited'));
+}
 
 /**
  * Per-head price for a party of `people`. Rounds to whole baht, matching how
