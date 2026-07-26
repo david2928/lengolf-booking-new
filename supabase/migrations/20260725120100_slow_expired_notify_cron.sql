@@ -1,26 +1,36 @@
--- Reduce Vercel function-invocation cost: club-rental-expired-notify 1min -> */5.
+-- Reduce Vercel function-invocation cost: slow club-rental-expired-notify to */5
+-- and retire the 404-ing club-rental-payment-reminder job.
 --
 -- CONTEXT (2026-07-25): the Vercel Pro plan exhausted its $20 monthly credit on
 -- ~Jul 24 with 10 days left in the cycle (+67% vs the same point last cycle).
 -- Four pg_cron jobs on the LENGOLF project (bisimqmtxjsptehhqpeg) were issuing
--- an HTTP call to a Vercel route EVERY MINUTE — 5,760 calls/day, ~145K per
--- billing cycle against a total of 658K invocations (~22%), plus the
+-- an HTTP call to a Vercel route EVERY MINUTE — 5,760 calls/day, ~145K measured
+-- per billing cycle against a total of 658K invocations (~22%), plus the
 -- proportional Function Duration and Observability Events.
 --
--- This migration covers the one job targeting booking.len.golf:
+-- This migration covers the two jobs targeting booking.len.golf:
 --
---   job 50  club-rental-expired-notify-1min   1min -> */5     (this file)
+--   job 50  club-rental-expired-notify-1min    1min -> */5      (block 1)
+--   job 51  club-rental-payment-reminder-1min  unscheduled      (block 2)
+--
+-- Job 51's target route does not exist in any repo — see the verification notes
+-- at the retire block. Slowing a 404 would have been the wrong fix.
 --
 -- The two lengolf-forms.vercel.app jobs (45 lalamove-escalate, 46
 -- club-rental-dispatch-reminder) are handled by the companion migration in the
--- lengolf-forms repo. Job 51 (club-rental-payment-reminder-1min) has NO matching
--- route in EITHER repo at HEAD and is left untouched pending a status-code
--- check — if it is 404ing, the fix is to unschedule it, not to slow it.
+-- lengolf-forms repo.
 --
 -- NOTE: this does NOT touch `shopeepay-expire-unpaid-rentals`, the minute job
 -- that actually cancels the unpaid orders. That one is pure SQL
 -- (shopeepay_expire_unpaid_rentals()) with no HTTP call, so it costs nothing on
 -- Vercel and keeps its 1-minute cancel precision. Only the notify half slows.
+--
+-- HISTORY NOTE: production already carries both effects — they were applied
+-- 2026-07-25 directly to prod as `20260725092743 reduce_cron_vercel_invocations`
+-- (and the related token hardening as `20260725093444
+-- migrate_cron_bearer_tokens_to_vault`), neither of which has a repo file. This
+-- file is the durable in-repo record; against prod it re-applies as a verified
+-- no-op (idempotent by construction below).
 --
 -- ---------------------------------------------------------------------------
 -- Why */5 is safe here
@@ -47,6 +57,16 @@ DO $migration$
 DECLARE
   v_jobid bigint;
 BEGIN
+  -- Fresh/local environments (supabase db reset, preview branches) may not have
+  -- pg_cron at all, and nothing in this repo's migration chain creates job 50 —
+  -- it was scheduled out-of-band. Skip quietly there (same guard as
+  -- 20260429120100_shopeepay_cleanup_cron.sql); the fail-loud check below is
+  -- for prod-like databases where the job SHOULD exist.
+  IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    RAISE NOTICE 'pg_cron not installed — skipping cron cadence change.';
+    RETURN;
+  END IF;
+
   SELECT jobid INTO v_jobid
     FROM cron.job
    WHERE jobname = 'club-rental-expired-notify-1min';
@@ -82,9 +102,17 @@ $migration$;
 -- The job had been firing every minute at a non-existent route: ~1,440 billed
 -- Vercel invocations/day (~43K/month) doing nothing at all.
 --
--- Idempotent: only unschedules if present, so re-applying is safe.
+-- Idempotent: only unschedules if present, so re-applying is safe. The
+-- asymmetry with block 1's fail-loud check is deliberate: if RLS hid this job
+-- from us we couldn't unschedule it anyway, and its live absence was verified
+-- 2026-07-26 — "absent" here is success, not a silent failure mode.
 DO $migration$
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    RAISE NOTICE 'pg_cron not installed — nothing to unschedule.';
+    RETURN;
+  END IF;
+
   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'club-rental-payment-reminder-1min') THEN
     PERFORM cron.unschedule('club-rental-payment-reminder-1min');
     RAISE NOTICE 'Unscheduled club-rental-payment-reminder-1min (route returns 404).';
@@ -104,7 +132,7 @@ $migration$;
 --         url := 'https://booking.len.golf/api/cron/club-rental-payment-reminder',
 --         headers := jsonb_build_object(
 --           'Authorization', 'Bearer ' || (
---             SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cron_secret' LIMIT 1
+--             SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cron_api_key' LIMIT 1
 --           )
 --         ),
 --         timeout_milliseconds := 30000
@@ -112,10 +140,16 @@ $migration$;
 --     $cron$
 --   );
 --
--- ⚠️ NOTE THE DIFFERENCE FROM THE ORIGINAL. Jobs 50 and 51 were created with the
--- CRON_API_KEY bearer token HARDCODED IN PLAINTEXT in cron.job.command, unlike
--- jobs 45/46 which read it from Vault. That token is readable by anyone with DB
--- access. It is deliberately NOT reproduced here — the rollback above reads from
--- Vault instead, which is the pattern the lengolf-forms jobs already use.
--- The hardcoded token should be rotated and job 50 migrated to the Vault pattern
--- as a follow-up; that is out of scope for this cadence change.
+-- `cron_api_key` is the Vault secret the booking.len.golf jobs read (it must
+-- match the route's CRON_API_KEY env check); `cron_secret` is the
+-- lengolf-forms convention. Don't mix them up — a restored job signed with the
+-- wrong secret 401s every tick forever, which is the same
+-- billed-invocations-doing-nothing failure this migration exists to remove.
+--
+-- HARDENING (done): jobs 50/51 were originally created with the CRON_API_KEY
+-- bearer token hardcoded in plaintext in cron.job.command, unlike jobs 45/46
+-- which read from Vault. Job 50 was migrated to the Vault pattern on
+-- 2026-07-25 (`20260725093444 migrate_cron_bearer_tokens_to_vault`, applied
+-- directly to prod); its command now carries no token literal. Whether the
+-- previously-exposed token VALUE was also rotated is NOT confirmed — verify
+-- before considering the exposure closed.
