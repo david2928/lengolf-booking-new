@@ -157,6 +157,27 @@ export function useBookingDetailsForm({
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
   const [customerNotes, setCustomerNotes] = useState('');
   const [marketingOptIn, setMarketingOptIn] = useState<boolean>(false);
+  /**
+   * The customer's EXISTING marketing consent on `customers.marketing_opt_in`,
+   * as reported by `/api/vip/profile`. Purely presentational: it decides
+   * whether the opt-in checkbox is worth showing, and never feeds the payload.
+   * `marketingOptIn` above stays the fresh consent this booking is asking for.
+   *
+   * Tri-state, and the distinction is the whole point — same `?? null`
+   * discipline as `packageBalance` and `creditBalance` above:
+   *
+   *   `true`  → already subscribed. Showing them an unticked "Send me LENGOLF
+   *             news & offers" tells them they are not, which is a lie.
+   *   `false` → deliberately opted out. Must still see the box; it is their
+   *             way back in.
+   *   `null`  → not loaded yet, guest, or no linked customer record. Must ALSO
+   *             still see the box. Treating unknown as subscribed would let a
+   *             slow fetch silently cost a customer the chance to opt in, and
+   *             a fetch is exactly what this is waiting on.
+   *
+   * So only `true` suppresses. Everything else renders the checkbox.
+   */
+  const [marketingPreference, setMarketingPreference] = useState<boolean | null>(null);
   const [vipDataPrepopulated, setVipDataPrepopulated] = useState(false);
   // Contact editing. A returning customer sees a read-only `IdentityCard`
   // instead of the three inputs; Change flips `isEditingContact` and reveals
@@ -450,6 +471,18 @@ export function useBookingDetailsForm({
               setPhoneNumber(formattedPhoneNumber);
             }
             
+            // `/api/vip/profile` returns `marketing_opt_in ?? null`, so an
+            // unlinked or not-yet-known customer arrives as null and must stay
+            // null. The explicit `typeof === 'boolean'` rather than a truthy
+            // check keeps a stray `undefined` (older cached payload in
+            // sessionStorage, written before this field existed) out of the
+            // `false` bucket, where it would read as a deliberate opt-out.
+            setMarketingPreference(
+              typeof vipProfile.marketingPreference === 'boolean'
+                ? vipProfile.marketingPreference
+                : null,
+            );
+
             setVipDataPrepopulated(true);
           }
         } catch {
@@ -1039,6 +1072,8 @@ export function useBookingDetailsForm({
     setCustomerNotes,
     marketingOptIn,
     setMarketingOptIn,
+    /** Existing consent. Display only — `true` hides the opt-in, `false`/`null` show it. */
+    marketingPreference,
     // Contact editing / write-back scope
     isEditingContact,
     setIsEditingContact,

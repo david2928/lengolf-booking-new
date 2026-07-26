@@ -273,6 +273,7 @@
       "creditCardStaffNote": "ご来店時にお申し出ください。スタッフが適用いたします。見積もり合計には含まれていません。",
       "marketingOptInLabel": "LENGOLFのお知らせとお得な情報を受け取る",
       "marketingOptInDescription": "ベイ特典、コーチングのプロモーション、メンバーイベント。いつでもメールから配信停止できます。",
+      "marketingAlreadySubscribed": "LENGOLFのお知らせとお得な情報を受け取る設定になっています。いつでもメールから配信停止できます。",
       "loadingOverlayTitle": "予約を確定しています",
       "loadingOverlaySubtitle": "予約処理中です、少々お待ちください",
       "loadingStepCheckingAvailability": "空き状況を確認中",
