@@ -29,6 +29,7 @@ import type { CreditGrantBalance } from './CreditBalanceCard';
 import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
 import { firstIncompleteContactField } from './IdentityCard';
 import { shouldWriteProfile } from './profileWriteBack';
+import { formatFlowDate } from './summarySubline';
 
 /**
  * The balance half of `/api/user/active-packages`.
@@ -897,9 +898,10 @@ export function useBookingDetailsForm({
     }
   };
 
-  const formatDate = (date: Date) => {
-    return formatter.dateTime(date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-  };
+  /* Goes through the same module as the sticky bar's short date, so the two
+     agree on field order. They render about 100px apart on the last sub-step
+     and used to disagree: "Wed, Jul 29, 2026" above "Wed 29 Jul". */
+  const formatDate = (date: Date) => formatFlowDate(locale, date);
 
   /* The short date the sticky bar shows is NOT defined here. It lives in
      `details/summarySubline.ts` as a free function taking `formatter`, so the
@@ -1004,6 +1006,8 @@ export function useBookingDetailsForm({
     // i18n / navigation / session
     t,
     formatter,
+    /** For `summaryBarSublineFor`, which resolves its own short-date tag. */
+    locale,
     router,
     status,
     costLanguage,

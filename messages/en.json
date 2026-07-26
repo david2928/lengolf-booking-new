@@ -71,7 +71,7 @@
       "perHour": "{hours, plural, =1 {# hour} other {# hours}}"
     },
     "layout": {
-      "headerBadge": "Booking",
+      "headerBadge": "Book a Bay",
       "bayRates": "Bay Rates",
       "promotions": "Promotions",
       "lessons": "Lessons",

@@ -71,7 +71,7 @@
       "perHour": "{hours, plural, =1 {# ชั่วโมง} other {# ชั่วโมง}}"
     },
     "layout": {
-      "headerBadge": "การจอง",
+      "headerBadge": "จองเบย์",
       "bayRates": "ราคาเบย์",
       "promotions": "โปรโมชั่น",
       "lessons": "เรียนกอล์ฟ",

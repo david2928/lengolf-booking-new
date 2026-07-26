@@ -39,6 +39,7 @@ export function BookingDetails(props: BookingDetailsProps) {
     subStepNav,
     t,
     formatter,
+    locale,
     router,
     status,
     costLanguage,
@@ -378,7 +379,7 @@ export function BookingDetails(props: BookingDetailsProps) {
                formats the date and orders the segments, so the wiring is one
                tested unit and a `Date` cannot land in the start-time slot. */
             subline={summaryBarSublineFor({
-              formatter,
+              locale,
               date: selectedDate,
               durationLabel,
               time: selectedTime,

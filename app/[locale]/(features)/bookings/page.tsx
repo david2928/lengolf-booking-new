@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useTranslations, useFormatter, useLocale } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { Layout } from './components/booking/Layout';
 import { BookingStepHeader } from './components/booking/BookingStepHeader';
@@ -33,10 +33,10 @@ export default function BookingsPage() {
      both of those strings live with the rest of step 3 rather than under
      `bookings.page`. */
   const tDetails = useTranslations('bookings.detailsStep');
-  const format = useFormatter();
   /* Not derived from the URL prefix: English is unprefixed under
      `localePrefix: 'as-needed'`, so a path read would report the wrong locale on
-     every English page. Only the header's subline separator needs it. */
+     every English page. The header's subline needs it for both the separator
+     and the short-date form. */
   const locale = useLocale();
 
   const { status } = useSession({
@@ -135,7 +135,6 @@ export default function BookingsPage() {
         }
         questionWide={currentStep === 3 ? tPage('stepDetailsQuestion') : undefined}
         subline={stepHeaderSublineFor({
-          formatter: format,
           locale,
           date: currentStep >= 2 ? selectedDate : null,
           fromTimeLabel:

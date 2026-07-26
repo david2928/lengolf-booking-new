@@ -71,7 +71,7 @@
       "perHour": "{hours, plural, =1 {# 小时} other {# 小时}}"
     },
     "layout": {
-      "headerBadge": "预约",
+      "headerBadge": "预约球位",
       "bayRates": "球位价格",
       "promotions": "优惠活动",
       "lessons": "课程",

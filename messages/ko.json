@@ -71,7 +71,7 @@
       "perHour": "{hours, plural, =1 {#시간} other {#시간}}"
     },
     "layout": {
-      "headerBadge": "예약",
+      "headerBadge": "베이 예약",
       "bayRates": "베이 요금",
       "promotions": "프로모션",
       "lessons": "레슨",

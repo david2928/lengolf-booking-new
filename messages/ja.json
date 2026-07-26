@@ -71,7 +71,7 @@
       "perHour": "{hours, plural, =1 {#時間} other {#時間}}"
     },
     "layout": {
-      "headerBadge": "予約",
+      "headerBadge": "ベイを予約",
       "bayRates": "料金表",
       "promotions": "プロモーション",
       "lessons": "レッスン",

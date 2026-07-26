@@ -1,10 +1,6 @@
-import type { useFormatter } from 'next-intl';
 import { isValidLocale, type Locale } from '@/i18n/routing';
 import { formatShortDate } from './steps/details/summarySubline';
 import type { DetailSubStep } from './steps/details/useDetailsSubStep';
-
-/** next-intl's formatter, as `page.tsx` already holds it. */
-type Formatter = ReturnType<typeof useFormatter>;
 
 /**
  * How many bars the progress indicator draws, and the `total` the position row
@@ -73,10 +69,12 @@ export const SUB_STEP_QUESTION_KEYS = {
  * significant part is a trailing space that is invisible in a JSON diff, so it
  * is exactly the kind of string a translation pass silently eats.
  *
- * Note the date segment can contain a comma of its own — ICU renders the `en`
- * short date as "Wed, Jul 29" — so the composed line is not unambiguously
- * splittable on this separator. That is fine, and is why nothing parses it: the
- * line is read, never re-read by code. Do not add a caller that splits it.
+ * The composed line is still not safely splittable on this separator, and
+ * nothing may parse it. `en` used to render its short date as "Wed, Jul 29",
+ * putting a comma inside the date segment; `formatShortDate` now composes that
+ * one as `en-GB` ("Wed 29 Jul"), so no shipped locale does today. That is a
+ * property of the current date format, not a guarantee about future segments.
+ * The line is read, never re-read by code. Do not add a caller that splits it.
  */
 export const STEP_HEADER_SUBLINE_SEPARATORS: Record<Locale, string> = {
   en: ', ',
@@ -159,8 +157,10 @@ export function buildStepHeaderSubline(
  * two different shapes.
  */
 export function stepHeaderSublineFor(parts: {
-  formatter: Formatter;
-  /** The active locale, which picks the separator. `useLocale()` at the call site. */
+  /**
+   * The active locale, which picks both the separator and the short-date tag.
+   * `useLocale()` at the call site.
+   */
   locale: string;
   /** The booking's date, unformatted — this function owns the formatting. */
   date: Date | null;
@@ -174,7 +174,7 @@ export function stepHeaderSublineFor(parts: {
 }): string {
   return buildStepHeaderSubline(
     [
-      parts.date ? formatShortDate(parts.formatter, parts.date) : null,
+      parts.date ? formatShortDate(parts.locale, parts.date) : null,
       parts.fromTimeLabel,
       parts.bayLabel,
     ],
