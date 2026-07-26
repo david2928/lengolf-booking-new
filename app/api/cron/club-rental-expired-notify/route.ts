@@ -4,9 +4,9 @@
  * Staff LINE notification for course-rental orders auto-cancelled by the
  * expiry function. `shopeepay_expire_unpaid_rentals()` (minute pg_cron,
  * pure SQL) cancels unpaid orders silently — this route is the notify half:
- * a second minute pg_cron job (`club-rental-expired-notify-1min`,
- * net.http_get + Bearer CRON_API_KEY — same auth as the three existing
- * booking.len.golf pg_cron jobs, e.g. process-review-requests) sweeps
+ * a second pg_cron job (`club-rental-expired-notify-1min`, every 5 minutes
+ * since 2026-07-25 — the `-1min` jobname is historical, kept to preserve
+ * jobid history; net.http_get + Bearer CRON_API_KEY from Vault) sweeps
  * orders with `expired_at` stamped and `expired_notify_sent_at` unset and
  * sends one staff-group ping per order.
  *
@@ -26,7 +26,7 @@ import { composeOrderExpiredLineMessage } from '@/lib/club-rental/lineMessage';
 
 export const dynamic = 'force-dynamic';
 // Up to BATCH_LIMIT sequential LINE pushes per tick — keep comfortably inside
-// the function's wall clock. Minute cadence drains any realistic backlog.
+// the function's wall clock. At */5, drain is still 60 orders/hour — ample.
 export const maxDuration = 60;
 
 const BATCH_LIMIT = 5;
