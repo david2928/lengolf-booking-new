@@ -469,6 +469,14 @@ describe('a package balance that runs short charges the uncovered tail', () => {
     expect(breakdown.lineItems.find((i) => i.id === 'play-food')).toBeDefined();
     expect(breakdown.notes.some((n) => n.includes('does not cover this whole booking'))).toBe(false);
   });
+
+  test('the Play & Food detail spaces its hour unit like every other English detail', () => {
+    // It renders in the same panel as the bay-rate detail ("1 hr × ฿550/hr"),
+    // and was the one English string the spacing sweep missed.
+    const { breakdown } = items({ startTime: '13:00', duration: 1, playFoodPackageId: 'SET_A' });
+    const playFood = breakdown.lineItems.find((i) => i.id === 'play-food');
+    expect(playFood?.detail).toBe('1 hr bay time + food & drinks');
+  });
 });
 
 /**

@@ -480,7 +480,9 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       labelJa: `${playFoodPkg.name}：${playFoodPkg.displayName}`,
       labelKo: `${playFoodPkg.name}: ${playFoodPkg.displayName}`,
       labelZh: `${playFoodPkg.name}：${playFoodPkg.displayName}`,
-      detail: `${playFoodPkg.duration}hr bay time + food & drinks`,
+      // Spaced unit, same as `buildBayRateDetail` / `buildDurationDetail` — this
+      // detail renders in the same panel as those.
+      detail: `${playFoodPkg.duration} hr bay time + food & drinks`,
       detailTh: `${playFoodPkg.duration} ชม. + อาหารและเครื่องดื่ม`,
       detailJa: `${playFoodPkg.duration}時間のベイ利用 + お食事とドリンク`,
       detailKo: `${playFoodPkg.duration}시간 베이 이용 + 식사와 음료`,
