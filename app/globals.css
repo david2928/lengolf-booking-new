@@ -289,21 +289,47 @@ body.has-summary-bar [data-chat-fab] {
 }
 
 /*
- * The bar is `fixed`, so it covers whatever sits at the very END of the
- * document — not just the form that mounted it. BOOKING_SUMMARY_BAR_SPACER on
- * the form is not enough: on the bay-booking flow the shared footer renders
- * after it, and at the page bottom the bar was intercepting taps on four
- * footer controls including the Privacy Policy link (verified with
- * elementFromPoint, not just visually). Padding the document instead means
- * every consumer clears the bar regardless of what it renders last.
+ * DELIBERATELY NO `body.has-summary-bar { padding-bottom }` RULE HERE.
+ * ------------------------------------------------------------------------
+ * There used to be one — `calc(7rem + env(safe-area-inset-bottom))` — and it
+ * was the phantom scrollbar the owner reported: a vertical scrollbar on a
+ * screen whose content visibly ended well above the fold. Do not restore it.
  *
- * 7rem clears the measured 87px bar (with subline) plus margin; the inset is
- * added because the bar's own row carries .pb-safe and grows on devices with a
- * home indicator.
+ * Why it always scrolls. Both flows that mount the bar render inside
+ * `Layout`'s `min-h-screen flex flex-col` shell, so the document is ALREADY
+ * guaranteed to be at least one viewport tall before this rule is considered.
+ * Padding on <body> sits OUTSIDE that box and is therefore purely additive:
+ * 100vh + 7rem, on every screen, no matter how little content there is. The
+ * clearance was also being paid twice, since both consumers already apply
+ * BOOKING_SUMMARY_BAR_SPACER (`pb-28`) inside the flow — 224px of it against
+ * a bar measured at 87px.
+ *
+ * Why only mobile saw it. `BookingDetails` genuinely does not mount the bar
+ * above `lg:` (the `isDesktop` gate, not a CSS hide), so the class is never
+ * claimed on a desktop viewport and the document there is honest. Measuring at
+ * a wide viewport finds nothing wrong; the bug lives at ~420px.
+ *
+ * Why the rule is not needed any more. It existed because the bar is `fixed`
+ * and covers whatever is last in the DOCUMENT rather than last in the form:
+ * the shared marketing footer used to render after the form, and the bar was
+ * intercepting taps on four of its controls including the Privacy Policy link
+ * (verified with elementFromPoint). Both consumers now take `hideFooter` —
+ * app/[locale]/(features)/bookings/page.tsx and
+ * app/[locale]/course-rental/page.tsx — so the form IS the last thing in the
+ * document, and BOOKING_SUMMARY_BAR_SPACER on the form is exactly the right
+ * place for the clearance. Course rental mounts the bar only from step 2
+ * onward, which is precisely where its wrapper carries that spacer.
+ *
+ * The in-flow spacer does not have this failure mode: it pads an element
+ * inside `<main class="flex-grow">`, which a short page has already stretched,
+ * so the padding is absorbed rather than added.
+ *
+ * If a consumer ever renders something after the form again, give THAT
+ * consumer the spacer. Do not pad the document.
+ *
+ * The `has-summary-bar` class itself stays — the chat-FAB rule above is keyed
+ * off it and is still doing its job.
  */
-body.has-summary-bar {
-  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
-}
 
 /*
  * Chat FAB vs the DESKTOP summary rail -----------------------------------
