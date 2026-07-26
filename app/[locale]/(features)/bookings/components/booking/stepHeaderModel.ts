@@ -1,18 +1,52 @@
 import { isValidLocale, type Locale } from '@/i18n/routing';
 import { formatShortDate } from './steps/details/summarySubline';
-import type { DetailSubStep } from './steps/details/useDetailsSubStep';
+import { DETAIL_SUB_STEPS, type DetailSubStep } from './steps/details/useDetailsSubStep';
 
 /**
- * How many bars the progress indicator draws, and the `total` the position row
- * prints.
+ * PROGRESS IS A DISPLAY MODEL, NOT THE FUNNEL.
+ * ---------------------------------------------------------------------------
+ * Everything in this block describes what the customer is SHOWN. None of it may
+ * be derived from, or fed back into, `BAY_BOOKING_STEPS` in
+ * `lib/booking-telemetry`. That array names the GA4 funnel events and is read by
+ * dashboards whose value is comparability with history, so it stays
+ * `['date','time','details']` no matter what the header draws.
  *
- * Deliberately a local constant rather than `BAY_BOOKING_STEPS.length` from
- * `lib/booking-telemetry`: that array names the funnel events and is read by the
- * GA4 dashboards. Importing it here would make a header layout change look like
- * a safe edit to a file whose real job is analytics. The two happening to be 3
- * is checked by a test instead, which fails loudly if they ever diverge.
+ * The two are now deliberately DIFFERENT numbers below `lg:`, and that is the
+ * point: the funnel measures three server-meaningful stages, the header counts
+ * the screens a thumb actually swipes through. Conflating them is what produced
+ * the bug this replaces — "Step 3 of 3" with a full bar, shown to someone on the
+ * third of five screens.
+ */
+
+/**
+ * How many bars the progress indicator draws at `lg:` and up, and the `total`
+ * the wide position row prints.
+ *
+ * Above `lg:` step 3 renders all of its sub-steps at once, so a screen really is
+ * a step and three is the honest count.
+ *
+ * Deliberately a local constant rather than `BAY_BOOKING_STEPS.length`:
+ * importing that would make a header layout change look like a safe edit to a
+ * file whose real job is analytics. The two happening to be 3 is checked by a
+ * test instead, which fails loudly if they ever diverge.
  */
 export const BAY_BOOKING_STEP_COUNT = 3;
+
+/**
+ * How many bars the indicator draws below `lg:`, and the `total` the narrow
+ * position row prints.
+ *
+ * Below `lg:` step 3 is split across `DETAIL_SUB_STEPS`, one screen at a time,
+ * so the customer traverses date, time and then each sub-step: five screens.
+ *
+ * DERIVED, not typed as 5, and this is load-bearing: `DETAIL_SUB_STEPS` is the
+ * array `useDetailsSubStep` navigates, so adding or removing a sub-step there
+ * moves the header's count with it. A literal 5 would leave the bars silently
+ * disagreeing with the screens the very next time that array changed. A test
+ * pins today's value at 5 so the derivation cannot quietly drift either.
+ */
+export const BAY_BOOKING_SCREEN_COUNT =
+  BAY_BOOKING_STEP_COUNT - 1 + DETAIL_SUB_STEPS.length;
 
 /**
  * The `bookings.page` key naming each step in the header's label row — "DATE",
@@ -111,6 +145,32 @@ export function stepBarStates(
 /** Clamps a step number onto the 1..`BAY_BOOKING_STEP_COUNT` range. */
 function clampStep(step: number): number {
   return Math.min(Math.max(Math.round(step), 1), BAY_BOOKING_STEP_COUNT);
+}
+
+/**
+ * Where the customer is in the NARROW five-screen walk: date, time, then one
+ * screen per step-3 sub-step.
+ *
+ * Steps 1 and 2 are one screen each and keep their own number. Step 3 is where
+ * the two models come apart: it starts at screen 3 and advances one screen per
+ * sub-step, so `session` is 3, `extras` is 4 and `contact` is 5.
+ *
+ * Reads the sub-step INDEX rather than its name so it stays a pure arithmetic
+ * function of `DETAIL_SUB_STEPS` order — the same order `nextSubStep` and
+ * `prevSubStep` walk, which is why the number always matches the screen.
+ *
+ * Both arguments are clamped. A caller that lost track of either must not be
+ * able to print "Step 7 of 5" or drive `stepBarStates` past its total.
+ */
+export function narrowStepFor(step: number, subStepIndex: number): number {
+  const clamped = clampStep(step);
+  if (clamped < BAY_BOOKING_STEP_COUNT) return clamped;
+
+  const sub = Math.min(
+    Math.max(Math.round(subStepIndex) || 0, 0),
+    DETAIL_SUB_STEPS.length - 1,
+  );
+  return BAY_BOOKING_STEP_COUNT + sub;
 }
 
 /** The `bookings.page` label key for a step, clamped to the steps that exist. */

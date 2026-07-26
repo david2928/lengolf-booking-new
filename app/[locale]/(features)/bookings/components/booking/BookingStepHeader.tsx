@@ -4,12 +4,35 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { BAY_BOOKING_STEP_COUNT, stepBarStates } from './stepHeaderModel';
 
 export interface BookingStepHeaderProps {
-  /** 1-based step the customer is on. Drives which bars are filled. */
+  /**
+   * 1-based screen the customer is on, in the DEFAULT (narrow) model. Drives
+   * which bars are filled. On the booking flow this counts the five screens a
+   * phone walks; see `narrowStepFor`.
+   */
   currentStep: number;
   /** Small-caps step name on the left of the position row, e.g. "Details". */
   label: string;
-  /** Position on the right of that row, e.g. "Step 3 of 3". */
+  /** Position on the right of that row, e.g. "Step 4 of 5". */
   position: string;
+  /**
+   * The progress model to show at `lg:` and up instead of the three props
+   * above, for a flow whose narrow layout splits a step into several screens.
+   * Booking step 3 is the only caller: below `lg:` it is three separate screens
+   * (five in the flow), above `lg:` all of them render at once and the flow is
+   * genuinely three steps.
+   *
+   * Supplying `positionWide` is what turns the two-model rendering on; the
+   * other two are read alongside it. Omitted everywhere else, and the narrow
+   * model then holds at every width.
+   *
+   * NOT a telemetry boundary. Both models are display only — see the block
+   * comment at the top of `stepHeaderModel.ts`.
+   */
+  positionWide?: string;
+  /** The wide model's 1-based step. Defaults to `currentStep`. */
+  currentStepWide?: number;
+  /** Bars drawn in the wide model. Defaults to `totalSteps`. */
+  totalStepsWide?: number;
   /** The large heading: the question being asked right now, e.g. "How long?". */
   question: string;
   /**
@@ -57,10 +80,29 @@ export interface BookingStepHeaderProps {
  * settled choice yet — belong to the flow, and live at the call site in
  * `page.tsx` beside the state they depend on.
  */
+/** One row of segmented bars. Presentational; the caller owns `aria-hidden`. */
+function BarRow({ bars, className }: { bars: boolean[]; className: string }) {
+  return (
+    <div className={className}>
+      {bars.map((filled, index) => (
+        <span
+          key={index}
+          className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
+            filled ? 'bg-green-600' : 'bg-gray-200'
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function BookingStepHeader({
   currentStep,
   label,
   position,
+  positionWide,
+  currentStepWide,
+  totalStepsWide,
   question,
   questionWide,
   subline,
@@ -68,29 +110,42 @@ export function BookingStepHeader({
   backLabel,
   totalSteps = BAY_BOOKING_STEP_COUNT,
 }: BookingStepHeaderProps) {
+  /* Two models are drawn only when the caller supplies a wide POSITION. That
+     string is the accessible equivalent of the wide bars, so a wide bar row
+     without one would put a fact on screen that no screen reader could reach —
+     which is precisely the trade the narrow row is allowed to make only BECAUSE
+     its own position row exists. Gating both on the same prop makes the pair
+     inseparable. */
+  const hasWide = positionWide !== undefined;
   const bars = stepBarStates(currentStep, totalSteps);
+  const barsWide = stepBarStates(currentStepWide ?? currentStep, totalStepsWide ?? totalSteps);
 
   return (
     <header className="mb-5 sm:mb-6">
       {/* The bars carry NO accessible information of their own — `aria-hidden`
           is deliberate, not an omission. The position row below is a real text
-          node saying "Step 3 of 3", so a `role="progressbar"` here would make a
+          node saying "Step 4 of 5", so a `role="progressbar"` here would make a
           screen reader announce the same fact twice, once in words and once as
           a percentage. Announcing it once, in the words the sighted customer
           also reads, is better than announcing it twice in two vocabularies.
 
           `flex-1` over a fixed width so the row spans whatever the container
           gives it, and `transition-colors` so advancing a step fills the next
-          bar rather than cutting to it. */}
-      <div aria-hidden="true" className="flex items-center gap-1.5">
-        {bars.map((filled, index) => (
-          <span
-            key={index}
-            className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
-              filled ? 'bg-green-600' : 'bg-gray-200'
-            }`}
-          />
-        ))}
+          bar rather than cutting to it.
+
+          Both rows live inside ONE `aria-hidden` wrapper rather than carrying
+          the attribute each. That keeps this block a single child of <header>
+          however many models are drawn, so the label/position row below stays
+          the second — the structure the layout and the suite both read. The
+          rows are gated by `hidden`/`lg:hidden` rather than by a viewport
+          measurement, so nothing here depends on a client-side match and the
+          server and client render the same markup. */}
+      <div aria-hidden="true">
+        <BarRow
+          bars={bars}
+          className={`flex items-center gap-1.5 ${hasWide ? 'lg:hidden' : ''}`}
+        />
+        {hasWide && <BarRow bars={barsWide} className="hidden items-center gap-1.5 lg:flex" />}
       </div>
 
       {/* Label left, position right, spread to the edges.
@@ -127,8 +182,20 @@ export function BookingStepHeader({
         <p className="min-w-0 flex-1 truncate text-xs font-semibold uppercase leading-5 tracking-wide text-gray-500">
           {label}
         </p>
+        {/* Same `hidden`/`lg:hidden` pairing as the heading below, and for the
+            same reason: `display: none` drops an element from the accessibility
+            tree as well as from the page, so a screen reader is offered exactly
+            one position — the one describing the layout it is in — rather than
+            two counts of the same flow that disagree with each other. */}
         <p className="shrink-0 text-xs font-semibold uppercase leading-5 tracking-wide text-gray-400 tabular-nums">
-          {position}
+          {hasWide ? (
+            <>
+              <span className="lg:hidden">{position}</span>
+              <span className="hidden lg:inline">{positionWide}</span>
+            </>
+          ) : (
+            position
+          )}
         </p>
       </div>
 

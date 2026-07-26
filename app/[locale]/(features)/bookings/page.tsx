@@ -6,8 +6,10 @@ import dynamic from 'next/dynamic';
 import { Layout } from './components/booking/Layout';
 import { BookingStepHeader } from './components/booking/BookingStepHeader';
 import {
+  BAY_BOOKING_SCREEN_COUNT,
   BAY_BOOKING_STEP_COUNT,
   SUB_STEP_QUESTION_KEYS,
+  narrowStepFor,
   stepHeaderSublineFor,
   stepLabelKey,
   stepQuestionKey,
@@ -98,6 +100,19 @@ export default function BookingsPage() {
    */
   const bayChoiceLabel = currentStep === 3 ? tDetails(bayChoiceLabelKey(selectedBayType)) : null;
 
+  /**
+   * Where the customer is in the FIVE screens a phone walks: date, time, then
+   * one screen per step-3 sub-step. Below `lg:` this is the honest count, and
+   * the bug it fixes was showing "Step 3 of 3" with a full bar to someone on
+   * the third of five.
+   *
+   * The GA4 funnel is untouched by this: `BAY_BOOKING_STEPS` still reports
+   * `date`/`time`/`details`, and nothing here reads or writes it. The wide model
+   * below keeps printing that same three, because above `lg:` step 3 really is
+   * one screen.
+   */
+  const narrowStep = narrowStepFor(currentStep, detailsSubStep.subStepIndex);
+
   const renderContent = () => (
     <div className="min-h-[36rem]">
       {/* In-flow step header. The layout lives in `BookingStepHeader`; what is
@@ -105,8 +120,15 @@ export default function BookingsPage() {
           choices depends on flow state this component holds and that one does
           not.
 
-          Three of them are worth naming:
+          Four of them are worth naming:
 
+          - The PROGRESS is two models, and they are both display. Below `lg:`
+            the customer walks five screens, so the bars and the position count
+            five; above it step 3 renders whole and they count three. Neither
+            number is `BAY_BOOKING_STEPS.length` and neither may become it: the
+            funnel keeps reporting three stages so the GA4 series stays
+            comparable with its own history. What the customer is TOLD and what
+            we MEASURE are allowed to differ, and here they must.
           - The QUESTION at step 3 is the current SUB-step's, not the step's.
             "Details" describes a screen; "How long?" asks for something, and a
             customer who has reached step 3 needs the second. `questionWide`
@@ -122,9 +144,16 @@ export default function BookingsPage() {
             sub-step does it mean the previous step. Passing `undefined` on step
             1 is what removes the control, since there is nowhere to go. */}
       <BookingStepHeader
-        currentStep={currentStep}
+        currentStep={narrowStep}
+        totalSteps={BAY_BOOKING_SCREEN_COUNT}
         label={tPage(stepLabelKey(currentStep))}
         position={tPage('stepPosition', {
+          current: narrowStep,
+          total: BAY_BOOKING_SCREEN_COUNT,
+        })}
+        currentStepWide={currentStep}
+        totalStepsWide={BAY_BOOKING_STEP_COUNT}
+        positionWide={tPage('stepPosition', {
           current: currentStep,
           total: BAY_BOOKING_STEP_COUNT,
         })}
