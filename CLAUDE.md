@@ -124,7 +124,9 @@ The marketing-consent feature (`/preferences/[token]`, GuestForm + BookingDetail
 
 If you rotate `MARKETING_PREFS_SECRET`, every previously-minted preference URL stops verifying. That's intended (it's the kill-switch for emails containing leaked links). Compose a fresh batch of preference URLs for any subsequent email send.
 
-## ShopeePay deploy notes (PR #28, merged 2026-05-27)
+### ⚠️ The DB migration is a deploy prerequisite too (bitten 2026-07-26)
+
+The feature's migration `supabase/migrations/20260426120000_add_marketing_opt_in_audit_columns.sql` was **never applied to prod at merge time**, and the failure mode is vicious: all three consent-write paths (`app/api/bookings/create`, `app/api/preferences/[token]`, `app/api/vip/profile`) name `marketing_opt_in_changed_at`/`marketing_opt_in_source` in a single PostgREST update, and PostgREST rejects the **entire** update when any named column is missing (PGRST204) — so `marketing_opt_in` itself never got written either. Every booking-checkbox opt-in from 2026-04-26 to 2026-07-26 was silently lost (the booking route swallows the error with `console.warn`), and the preference center couldn't record opt-outs. Discovered only because an analytics question noticed zero 2026 opt-ins. Lessons: (1) a repo migration file is not an applied migration — verify against `supabase_migrations.schema_migrations`; (2) fire-and-forget consent writes hide schema drift — if you see `[Booking] Failed to update marketing_opt_in` in Vercel logs, treat it as a schema-drift alarm, not noise.
 
 Course-rental payments and refunds flow through ShopeePay's Checkout-with-Shopee (CwS) integration. Three production prerequisites — all five SHOPEEPAY_* + BACKOFFICE_API_TOKEN env vars must be set across **Production + Preview + Development BEFORE merging code that imports `lib/shopeepay/config.ts`**, OR the build fails at `Collecting page data` with:
 
