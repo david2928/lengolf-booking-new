@@ -181,8 +181,6 @@
       "showAllAvailable": "แสดงช่วงเวลาว่างทั้งหมด"
     },
     "detailsStep": {
-      "selectedDate": "วันที่ที่เลือก",
-      "startTime": "เวลาเริ่ม",
       "bayType": "ประเภทเบย์",
       "aiLab": "AI Lab",
       "socialBay": "Social Bay",
@@ -247,6 +245,7 @@
       "subStepExtrasQuestion": "ต้องการเพิ่มอะไรไหม?",
       "subStepContactQuestion": "ตรวจสอบและยืนยัน",
       "changeAction": "แก้ไข",
+      "changeSlotAction": "เปลี่ยนเวลาหรือเบย์",
       "ctaContinue": "ถัดไป",
       "bookingAsLabel": "จองในชื่อ",
       "changeContact": "แก้ไข",

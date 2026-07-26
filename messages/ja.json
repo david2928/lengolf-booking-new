@@ -181,8 +181,6 @@
       "showAllAvailable": "すべての空き時間を表示"
     },
     "detailsStep": {
-      "selectedDate": "選択日",
-      "startTime": "開始時間",
       "bayType": "ベイのタイプ",
       "aiLab": "AI Lab",
       "socialBay": "Social Bay",
@@ -247,6 +245,7 @@
       "subStepExtrasQuestion": "追加はありますか？",
       "subStepContactQuestion": "内容を確認して確定",
       "changeAction": "変更",
+      "changeSlotAction": "時間・ベイを変更",
       "ctaContinue": "次へ",
       "bookingAsLabel": "ご予約者",
       "changeContact": "変更",

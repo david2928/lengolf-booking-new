@@ -33,6 +33,35 @@ export function useBookingFlow() {
    */
   const [selectedBayType, setSelectedBayType] = useState<BayType | null>(null);
   const [maxDuration, setMaxDuration] = useState<number>(1);
+  /**
+   * How long the session is and how many people are coming.
+   *
+   * Both are SET on step 3 and both live here, which looks like a layering
+   * mistake until you look at what leaving step 3 does: `handleBack` nulls
+   * `selectedTime`, `page.tsx` renders step 3 only while a time is set, so
+   * `BookingDetails` unmounts and every `useState` inside
+   * `useBookingDetailsForm` resets to its initial value. A customer who stepped
+   * back to nudge their start time came forward to a 1-hour booking for one
+   * person, with nothing on screen to say their answers had been dropped.
+   *
+   * That was survivable while the only way back was the header's back arrow.
+   * The session sub-step's slot chip now offers "Change" on the row itself, so
+   * the trip is the advertised path rather than a corner, and these two had to
+   * move to where `selectedBayType`, `selectedClubRental` and `selectedAddOns`
+   * already are — the state that outlives a step.
+   *
+   * NEITHER is a property of the slot, which is what makes carrying them
+   * correct rather than merely convenient: a party of four is still a party of
+   * four half an hour later. Duration is the one that needs a guard, because
+   * the new slot may have less headroom than the old one — see the ladder-clamp
+   * effect in `useBookingDetailsForm`, which snaps a carried duration back onto
+   * the ladder for the slot it lands in. The carry is deliberately NOT clamped
+   * here: this hook does not know the chosen bay type's headroom, and a second
+   * clamp against the coarser `maxDuration` would cut lengths the finer one
+   * allows.
+   */
+  const [duration, setDuration] = useState<number>(1);
+  const [numberOfPeople, setNumberOfPeople] = useState<number>(1);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PlayFoodPackage | null>(null);
   const [selectedClubRental, setSelectedClubRental] = useState<string>('standard');
@@ -66,6 +95,8 @@ export function useBookingFlow() {
       selectedTime,
       selectedBayType,
       maxDuration,
+      duration,
+      numberOfPeople,
       selectedPackageId: selectedPackage ? selectedPackage.id : null,
       selectedClubRental,
       selectedClubSetId,
@@ -88,6 +119,13 @@ export function useBookingFlow() {
       // say" and lands on the right answer for all three states.
       if (s.selectedBayType) setSelectedBayType(s.selectedBayType);
       if (s.maxDuration) setMaxDuration(s.maxDuration);
+      // Truthiness rather than `!== undefined`, and it lands right for both
+      // cases: a snapshot written before these were carried has neither key,
+      // and neither value is ever legitimately 0 or NaN — `allowedDurations`
+      // floors at 1 rung and the party picker at 1 seat. Restoring `undefined`
+      // over the defaults would put it straight into `calculateCost`.
+      if (s.duration) setDuration(s.duration);
+      if (s.numberOfPeople) setNumberOfPeople(s.numberOfPeople);
       if (s.selectedPackageId) {
         const pkg = getPlayFoodPackages().find((p) => p.id === s.selectedPackageId);
         if (pkg) setSelectedPackage(pkg);
@@ -241,6 +279,10 @@ export function useBookingFlow() {
     selectedTime,
     selectedBayType,
     maxDuration,
+    duration,
+    setDuration,
+    numberOfPeople,
+    setNumberOfPeople,
     isAutoSelecting,
     selectedPackage,
     selectedClubRental,

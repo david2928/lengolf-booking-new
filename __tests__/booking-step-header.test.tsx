@@ -12,7 +12,8 @@
  * 3. A heading that ASKS for what the customer is being asked for right now,
  *    which at step 3 means the current sub-step's question, not the step's.
  * 4. A subline carrying what they have chosen SO FAR, accumulating a segment
- *    per step and never printing a segment the flow has no value for.
+ *    per step and never printing a segment the flow has no value for — and
+ *    falling silent on the one screen that states the same facts itself.
  *
  * Plus one thing the mockup does not show and a screenshot cannot check: the
  * back control has to survive, because it is the only way back through step 3's
@@ -29,11 +30,13 @@ import {
   STEP_LABEL_KEYS,
   STEP_QUESTION_KEYS,
   SUB_STEP_QUESTION_KEYS,
+  SUB_STEP_WITH_SLOT_CHIP,
   buildStepHeaderSubline,
   narrowStepFor,
   stepBarStates,
   stepHeaderSublineFor,
   stepHeaderSublineSeparator,
+  stepHeaderSublineSuppressed,
   stepLabelKey,
   stepQuestionKey,
 } from '@/app/[locale]/(features)/bookings/components/booking/stepHeaderModel';
@@ -519,6 +522,70 @@ describe('stepHeaderSublineFor', () => {
       expect(STEP_HEADER_SUBLINE_SEPARATORS[locale].length).toBeGreaterThan(0);
     }
     expect(Object.keys(STEP_HEADER_SUBLINE_SEPARATORS).sort()).toEqual([...LOCALES].sort());
+  });
+});
+
+/**
+ * The subline and step 3's session sub-step both state the date, the start time
+ * and the bay. That was the arrangement the owner objected to twice — the facts
+ * said twice at the top of one screen — and it is settled in one direction: the
+ * chip keeps them because its "Change" leads back to the step that decided them,
+ * and the header yields on that screen only.
+ *
+ * The rule is a function rather than a condition inlined in `page.tsx` because
+ * it is a PAIRING: it is only safe for the header to go quiet where something
+ * else is speaking. Anyone moving the chip has to come here first.
+ */
+describe('stepHeaderSublineSuppressed', () => {
+  test('is silent on the sub-step that carries the slot chip', () => {
+    expect(stepHeaderSublineSuppressed(3, SUB_STEP_WITH_SLOT_CHIP)).toBe(true);
+  });
+
+  test('speaks on every other step-3 sub-step, where the chip is not rendered', () => {
+    for (const subStep of DETAIL_SUB_STEPS) {
+      if (subStep === SUB_STEP_WITH_SLOT_CHIP) continue;
+      expect(stepHeaderSublineSuppressed(3, subStep)).toBe(false);
+    }
+    // ...and there really are others, so the loop above is not vacuous.
+    expect(DETAIL_SUB_STEPS.length).toBeGreaterThan(1);
+  });
+
+  /**
+   * The sub-step hook keeps its state across a trip back to step 2, so a stale
+   * `'session'` is the NORMAL reading on steps 1 and 2 rather than an edge case
+   * — which is exactly how a header could go silent on a step that has no chip
+   * to replace it. The step check is what rules that out.
+   */
+  test('never silences steps 1 and 2, whatever the sub-step still says', () => {
+    for (const step of [1, 2]) {
+      for (const subStep of DETAIL_SUB_STEPS) {
+        expect(stepHeaderSublineSuppressed(step, subStep)).toBe(false);
+      }
+    }
+  });
+
+  test('clamps an out-of-range step rather than reading it literally', () => {
+    expect(stepHeaderSublineSuppressed(0, SUB_STEP_WITH_SLOT_CHIP)).toBe(false);
+    expect(stepHeaderSublineSuppressed(99, SUB_STEP_WITH_SLOT_CHIP)).toBe(true);
+  });
+
+  /**
+   * The chip lives on a real sub-step. If `DETAIL_SUB_STEPS` is ever
+   * reordered or renamed, this fails here rather than as a subline that has
+   * quietly started printing on the screen it was meant to leave alone.
+   */
+  test('names a sub-step the flow actually navigates', () => {
+    expect(DETAIL_SUB_STEPS).toContain(SUB_STEP_WITH_SLOT_CHIP);
+  });
+
+  /**
+   * The header takes `subline` as optional and omits the row entirely when it
+   * is absent, which is what suppression relies on: there is no reserved empty
+   * row left behind for the chip to sit under.
+   */
+  test('an absent subline leaves no row behind', () => {
+    const { container } = renderHeader({ subline: undefined });
+    expect(container.querySelector('header')!.querySelectorAll('p')).toHaveLength(2);
   });
 });
 

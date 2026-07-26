@@ -11,6 +11,7 @@ import {
   SUB_STEP_QUESTION_KEYS,
   narrowStepFor,
   stepHeaderSublineFor,
+  stepHeaderSublineSuppressed,
   stepLabelKey,
   stepQuestionKey,
 } from './components/booking/stepHeaderModel';
@@ -53,6 +54,10 @@ export default function BookingsPage() {
     selectedTime,
     selectedBayType,
     maxDuration,
+    duration,
+    setDuration,
+    numberOfPeople,
+    setNumberOfPeople,
     selectedPackage,
     selectedClubRental,
     selectedClubSetId,
@@ -138,7 +143,12 @@ export default function BookingsPage() {
           - The SUBLINE accumulates. Step 1 passes nothing (nothing has been
             chosen), step 2 passes the date, step 3 adds the start time and the
             bay. `stepHeaderSublineFor` drops whatever is null, so this is one
-            expression rather than a branch per step.
+            expression rather than a branch per step. It then falls silent on
+            one screen: step 3's session sub-step states the same three facts on
+            its own slot chip, with a "Change" that leads back to the step they
+            were decided on, and saying them twice at the top of one screen is
+            what the owner has objected to twice. See
+            `stepHeaderSublineSuppressed`, which owns that rule.
           - The BACK control is `handleHeaderBack`, not `handleBack`: inside
             step 3 backward means the previous sub-step, and only from the first
             sub-step does it mean the previous step. Passing `undefined` on step
@@ -163,15 +173,19 @@ export default function BookingsPage() {
             : tPage(stepQuestionKey(currentStep))
         }
         questionWide={currentStep === 3 ? tPage('stepDetailsQuestion') : undefined}
-        subline={stepHeaderSublineFor({
-          locale,
-          date: currentStep >= 2 ? selectedDate : null,
-          fromTimeLabel:
-            currentStep === 3 && selectedTime
-              ? tPage('sublineFromTime', { time: selectedTime })
-              : null,
-          bayLabel: bayChoiceLabel,
-        })}
+        subline={
+          stepHeaderSublineSuppressed(currentStep, detailsSubStep.subStep)
+            ? undefined
+            : stepHeaderSublineFor({
+                locale,
+                date: currentStep >= 2 ? selectedDate : null,
+                fromTimeLabel:
+                  currentStep === 3 && selectedTime
+                    ? tPage('sublineFromTime', { time: selectedTime })
+                    : null,
+                bayLabel: bayChoiceLabel,
+              })
+        }
         onBack={currentStep > 1 ? handleHeaderBack : undefined}
         backLabel={tCommon('goBack')}
       />
@@ -200,6 +214,14 @@ export default function BookingsPage() {
             selectedTime={selectedTime}
             selectedBayType={selectedBayType}
             maxDuration={maxDuration}
+            /* Controlled by the flow, not by `BookingDetails`: step 3 unmounts
+               whenever the customer steps back to change their slot, so a
+               component-local duration or party size would be reset by the very
+               navigation the session chip's "Change" advertises. */
+            duration={duration}
+            onDurationChange={setDuration}
+            numberOfPeople={numberOfPeople}
+            onNumberOfPeopleChange={setNumberOfPeople}
             slotData={selectedSlotData}
             onBack={handleBack}
             selectedPackage={selectedPackage}
