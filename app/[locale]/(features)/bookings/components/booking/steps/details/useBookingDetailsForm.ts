@@ -11,7 +11,7 @@ import type { Database } from '@/types/supabase';
 import { useRouter } from 'next/navigation';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import type { Session } from 'next-auth';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
@@ -333,11 +333,21 @@ export function useBookingDetailsForm({
   // Get current duration's bay availability
   const currentAvailability = getBayAvailabilityForDuration(duration);
 
+  // `/auth/signin` is not a page in this app — the login page is `/auth/login`,
+  // and `/api/auth/signin` is NextAuth's API route — so pushing it 404'd the
+  // customer straight out of the flow. signIn() resolves the configured login
+  // page itself and carries a callbackUrl, and the in-progress booking is
+  // restored from sessionStorage (useFlowPersistence) once they land back.
+  //
+  // Came from main's embedded-browser fix (c30d562), which patched this in
+  // BookingDetails.tsx before slice 8 extracted the effect into this hook. The
+  // merge resolved that file to the orchestrator, so without porting it here by
+  // hand the fix would have been silently dropped.
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+      signIn(undefined, { callbackUrl: '/bookings' });
     }
-  }, [status, router]);
+  }, [status]);
 
   useEffect(() => {
 
@@ -707,7 +717,8 @@ export function useBookingDetailsForm({
 
     if (!session) {
       toast.error(tErrors('signInToContinue'));
-      router.push('/auth/signin');
+      // See the note on the unauthenticated effect above: /auth/signin 404s.
+      signIn(undefined, { callbackUrl: '/bookings' });
       return;
     }
 

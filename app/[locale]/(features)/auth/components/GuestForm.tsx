@@ -1,13 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { useTranslations } from 'next-intl';
 
 interface GuestFormProps {
   onClose: () => void;
+  /**
+   * Where to land after signing in. Defaults to the bookings root, but the
+   * login page passes through the `callbackUrl` it was given — which is how a
+   * customer who hit the login wall mid-booking gets returned to the date they
+   * had already picked instead of an empty form.
+   */
+  callbackUrl?: string;
 }
 
 interface GuestFormData {
@@ -16,7 +23,7 @@ interface GuestFormData {
   phone: string | undefined;
 }
 
-export default function GuestForm({ onClose }: GuestFormProps) {
+export default function GuestForm({ onClose, callbackUrl = '/bookings' }: GuestFormProps) {
   const t = useTranslations('auth.login');
   const [formData, setFormData] = useState<GuestFormData>({
     name: '',
@@ -60,7 +67,17 @@ export default function GuestForm({ onClose }: GuestFormProps) {
         return;
       }
 
-      window.location.href = '/bookings';
+      // Confirm the session is actually readable before leaving the page.
+      // `signIn(..., { redirect: false })` resolves once the credentials POST
+      // returns; the Set-Cookie should already be applied at that point, so
+      // this is belt-and-braces rather than a proven fix — it also warms
+      // next-auth's client session cache so the destination page doesn't start
+      // from an empty one. Worth the single round trip: the incident that
+      // prompted this had a customer completing the guest form twice, twelve
+      // seconds apart, and the cause was never established.
+      await getSession();
+
+      window.location.href = callbackUrl;
     } catch (err) {
       console.error('Guest login error:', err);
       setError(t('guestSessionFailed'));
