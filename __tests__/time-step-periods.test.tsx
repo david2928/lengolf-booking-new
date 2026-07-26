@@ -9,9 +9,11 @@
  * `lib/booking-periods.ts`, so the fixtures below deliberately carry a WRONG
  * server `period` to prove it is ignored.
  */
+import { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
+import type { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from '@/app/[locale]/(features)/bookings/hooks/useAvailability';
 import messages from '@/messages/en.json';
 
@@ -51,11 +53,41 @@ function slot(startTime: string, overrides: Partial<TimeSlot> = {}): TimeSlot {
   };
 }
 
-function renderWeb(slots: TimeSlot[]) {
+/**
+ * What the step reported to its caller. The bay choice is owned by
+ * `useBookingFlow`, not by `TimeSlots`: step 2 unmounts on the way to step 3
+ * and remounts on the way back, so a component-local choice could not survive
+ * the trip — and the choice is what the booking is made with, so it has to
+ * leave the component. Recording it here lets a test assert that it does,
+ * rather than only that the component re-rendered itself.
+ */
+let lastBayType: BayType | null | undefined;
+const onTimeSelect = jest.fn();
+
+/** Holds the bay choice exactly as the flow hook does. */
+function ControlledTimeSlots({ date }: { date: Date }) {
+  const [bayType, setBayType] = useState<BayType | null>(null);
+  return (
+    <TimeSlots
+      selectedDate={date}
+      bayType={bayType}
+      onBayTypeChange={(next) => {
+        lastBayType = next;
+        setBayType(next);
+      }}
+      onBack={jest.fn()}
+      onTimeSelect={onTimeSelect}
+    />
+  );
+}
+
+function renderWeb(slots: TimeSlot[], date: Date = DATE) {
   mockAvailability.availableSlots = slots;
+  lastBayType = undefined;
+  onTimeSelect.mockClear();
   return render(
     <NextIntlClientProvider locale="en" messages={messages} timeZone="Asia/Bangkok">
-      <TimeSlots selectedDate={DATE} onBack={jest.fn()} onTimeSelect={jest.fn()} />
+      <ControlledTimeSlots date={date} />
     </NextIntlClientProvider>,
   );
 }
@@ -106,12 +138,7 @@ describe('web time step — 12:00 and 12:30 are morning', () => {
 
 describe('web time step — the morning caption tracks the opening hour', () => {
   test('a pre-2026-04-01 date advertises 10:00, not 09:00', () => {
-    mockAvailability.availableSlots = [slot('10:00')];
-    render(
-      <NextIntlClientProvider locale="en" messages={messages} timeZone="Asia/Bangkok">
-        <TimeSlots selectedDate={new Date(2026, 2, 15)} onBack={jest.fn()} onTimeSelect={jest.fn()} />
-      </NextIntlClientProvider>,
-    );
+    renderWeb([slot('10:00')], new Date(2026, 2, 15));
     expect(within(card('morning')).getByRole('heading')).toHaveTextContent(
       /^Morning\s*\(10:00 - 13:00\)$/,
     );
@@ -222,14 +249,69 @@ describe('an empty period stays reachable but inert', () => {
   });
 });
 
-describe('the bay-type filter drives the counts and cannot strand the customer', () => {
+/**
+ * The bay control is the CHOICE, made once here and carried to the booking —
+ * the same single `bayPreference` the LIFF flow has always had. Narrowing the
+ * slot list is a consequence of the choice, not its purpose, so this group
+ * covers both halves: what the customer sees, and what leaves the component.
+ */
+describe('the bay-type choice drives the counts and cannot strand the customer', () => {
   const MIXED = [
     slot('10:00', SOCIAL_ONLY),
     slot('14:00', SOCIAL_ONLY),
     slot('18:00', AI_ONLY),
   ];
 
-  test('counts reflect the filtered set, not every slot on the date', async () => {
+  test('the choice is reported to the flow rather than kept inside the step', async () => {
+    const user = userEvent.setup();
+    renderWeb(MIXED);
+    expect(lastBayType).toBeUndefined();
+
+    await user.click(screen.getByRole('button', { name: /Social Bays/ }));
+    expect(lastBayType).toBe('social');
+
+    await user.click(screen.getByRole('button', { name: /AI Bay/ }));
+    expect(lastBayType).toBe('ai_lab');
+
+    // "All Bays" is a real answer — no preference — and reports as `null`, not
+    // as the absence of a report. The booking is made with it.
+    await user.click(screen.getByRole('button', { name: /All Bays/ }));
+    expect(lastBayType).toBeNull();
+  });
+
+  test('the control states which bay is chosen, so it reads as an answer', async () => {
+    const user = userEvent.setup();
+    renderWeb(MIXED);
+    const group = screen.getByRole('group', { name: 'Bay Type' });
+    const pressed = () =>
+      within(group)
+        .getAllByRole('button')
+        .filter((b) => b.getAttribute('aria-pressed') === 'true')
+        .map((b) => b.textContent);
+
+    // Exactly one at a time, starting on the permissive default.
+    expect(pressed()).toEqual(['All Bays']);
+    await user.click(screen.getByRole('button', { name: /Social Bays/ }));
+    expect(pressed()).toEqual(['Social BaysSocial']);
+  });
+
+  test('picking a time reports the slot only — the bay is already the flow\'s', async () => {
+    const user = userEvent.setup();
+    renderWeb(MIXED);
+    await user.click(screen.getByRole('button', { name: /Social Bays/ }));
+    await user.click(screen.getByRole('button', { name: /10:00/ }));
+
+    // Three arguments, and no bay among them. A fourth `bayType` argument was
+    // the old second source of truth for the same choice.
+    const args = onTimeSelect.mock.calls[0];
+    expect(args).toHaveLength(3);
+    expect(args[0]).toBe('10:00');
+    expect(args[1]).toBe(3);
+    expect(args[2]).toMatchObject({ startTime: '10:00' });
+    expect(args).not.toContain('social');
+  });
+
+  test('counts reflect the chosen bay, not every slot on the date', async () => {
     const user = userEvent.setup();
     renderWeb(MIXED);
     expect(periodButton(/^Evening/)).toHaveAccessibleName('Evening, 1 time available');
@@ -240,33 +322,38 @@ describe('the bay-type filter drives the counts and cannot strand the customer',
     expect(periodButton(/^Evening/)).toHaveAttribute('aria-disabled', 'true');
   });
 
-  test('a filter that empties the selected period falls back instead of showing nothing', async () => {
+  test('a choice that empties the selected period falls back instead of showing nothing', async () => {
     const user = userEvent.setup();
     renderWeb(MIXED);
 
     await user.click(periodButton(/^Evening/));
     expect(isHiddenOnMobile('evening')).toBe(false);
 
-    // Evening is AI-only, so the Social filter wipes it out.
+    // Evening is AI-only, so choosing Social wipes it out.
     await user.click(screen.getByRole('button', { name: /Social Bays/ }));
     expect(screen.queryByTestId('period-card-evening')).not.toBeInTheDocument();
     expect(isHiddenOnMobile('morning')).toBe(false);
     expect(periodButton(/^Morning/)).toHaveAttribute('aria-pressed', 'true');
 
-    // Widening the filter again restores the customer's own choice.
+    // Widening the choice again restores the customer's own period.
     await user.click(screen.getByRole('button', { name: /All Bays/ }));
     expect(isHiddenOnMobile('evening')).toBe(false);
     expect(periodButton(/^Evening/)).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('when the filter empties the whole date, the existing empty state takes over', async () => {
+  test('when the choice empties the whole date, the existing empty state takes over', async () => {
     const user = userEvent.setup();
     renderWeb([slot('10:00', SOCIAL_ONLY)]);
 
     await user.click(screen.getByRole('button', { name: /AI Bay/ }));
     expect(screen.queryByRole('group', { name: 'Time of day' })).not.toBeInTheDocument();
     expect(screen.getByText('No available AI Lab slots for this date.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Show All Available Times' })).toBeInTheDocument();
+
+    // The way out reports the widened choice like any other, so the flow (and
+    // therefore the booking) never keeps a bay the customer has backed out of.
+    await user.click(screen.getByRole('button', { name: 'Show All Available Times' }));
+    expect(lastBayType).toBeNull();
+    expect(screen.getByRole('group', { name: 'Time of day' })).toBeInTheDocument();
   });
 
   test('a date with no slots at all keeps the full-width empty state', () => {

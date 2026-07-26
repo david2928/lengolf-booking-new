@@ -13,9 +13,11 @@
  *    screen drops. Duration and start time are still visible in the form at
  *    this sub-step; the date is not, so the date must not be the segment at
  *    risk.
- * 2. The date is formatted through next-intl's formatter, not
- *    `toLocaleDateString`, so the other four locales get their own month names
- *    and field order.
+ * 2. The date is formatted through `Intl`, per locale, not with a fixed locale
+ *    or a hand-written pattern, so the other four get their own month names and
+ *    field order. English is composed as `en-GB` so it reads day-first with no
+ *    comma ("Sat 25 Jul"), which is the form the mockup draws; `en`'s own CLDR
+ *    short date is "Sat, Jul 25".
  * 3. The DATE reaches the date slot. Contracts 1 and 2 hold for whatever the
  *    caller happens to put there; a call site that passed the start time as the
  *    date would satisfy both. `summaryBarSublineFor` is the whole wiring booking
@@ -23,21 +25,22 @@
  *
  * Note what is deliberately absent: any local restatement of the formatter
  * options. An earlier version of this file defined a probe component that
- * re-implemented `formatDateShort`, which meant swapping `formatter.dateTime`
+ * re-implemented `formatDateShort`, which meant swapping the real formatting
  * for `toLocaleDateString` — the exact regression contract 2 exists to catch —
- * left the suite green. `formatShortDate` is now a free function and the tests
+ * left the suite green. `formatShortDate` is a free function and the tests
  * below call it.
  */
 import { render, screen } from '@testing-library/react';
-import { NextIntlClientProvider, useFormatter } from 'next-intl';
+import { NextIntlClientProvider } from 'next-intl';
 import {
   buildSummaryBarSubline,
+  formatFlowDate,
   formatShortDate,
+  shortDateLocale,
   summaryBarSublineFor,
 } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/summarySubline';
 import { BookingSummaryBar } from '@/components/shared/BookingSummaryBar';
 import enMessages from '@/messages/en.json';
-import thMessages from '@/messages/th.json';
 
 /**
  * Saturday 25 July 2026, the date in the reported screenshot's session.
@@ -50,46 +53,28 @@ import thMessages from '@/messages/th.json';
  */
 const BOOKING_DATE = new Date(2026, 6, 25, 9, 30);
 
-/**
- * Runs `render` under a locale and hands the test the REAL formatter, so the
- * assertions below exercise the shipped code rather than a copy of it.
- * `useFormatter` is a hook, so it has to be read from inside a component.
- */
-function withFormatter(locale: 'en' | 'th', use: (formatter: ReturnType<typeof useFormatter>) => string) {
-  function Probe() {
-    return <span data-testid="out">{use(useFormatter())}</span>;
-  }
-  const messages = locale === 'en' ? enMessages : thMessages;
-  render(
-    <NextIntlClientProvider locale={locale} messages={messages as never}>
-      <Probe />
-    </NextIntlClientProvider>,
-  );
-  return screen.getByTestId('out').textContent ?? '';
-}
-
 describe('buildSummaryBarSubline', () => {
   it('leads with the date, then duration, then start time', () => {
     expect(
-      buildSummaryBarSubline({ date: 'Sat, 25 Jul', duration: '1 hr', time: '09:30' }),
-    ).toBe('Sat, 25 Jul · 1 hr · 09:30');
+      buildSummaryBarSubline({ date: 'Sat 25 Jul', duration: '1 hr', time: '09:30' }),
+    ).toBe('Sat 25 Jul · 1 hr · 09:30');
   });
 
   it('puts the date ahead of both other segments, so truncation never eats it', () => {
     const subline = buildSummaryBarSubline({
-      date: 'Sat, 25 Jul',
+      date: 'Sat 25 Jul',
       duration: '1 hr',
       time: '09:30',
     });
-    expect(subline.indexOf('Sat, 25 Jul')).toBeLessThan(subline.indexOf('1 hr'));
-    expect(subline.indexOf('Sat, 25 Jul')).toBeLessThan(subline.indexOf('09:30'));
+    expect(subline.indexOf('Sat 25 Jul')).toBeLessThan(subline.indexOf('1 hr'));
+    expect(subline.indexOf('Sat 25 Jul')).toBeLessThan(subline.indexOf('09:30'));
     // And it is the very start of the line, not merely early in it.
-    expect(subline.startsWith('Sat, 25 Jul')).toBe(true);
+    expect(subline.startsWith('Sat 25 Jul')).toBe(true);
   });
 
   it('drops an empty segment rather than emitting a dangling separator', () => {
-    expect(buildSummaryBarSubline({ date: 'Sat, 25 Jul', duration: '', time: '09:30' })).toBe(
-      'Sat, 25 Jul · 09:30',
+    expect(buildSummaryBarSubline({ date: 'Sat 25 Jul', duration: '', time: '09:30' })).toBe(
+      'Sat 25 Jul · 09:30',
     );
     expect(buildSummaryBarSubline({ date: '', duration: '1 hr', time: '09:30' })).toBe(
       '1 hr · 09:30',
@@ -99,23 +84,87 @@ describe('buildSummaryBarSubline', () => {
 
 describe('formatShortDate', () => {
   it('names the weekday and the day/month', () => {
-    const label = withFormatter('en', (f) => formatShortDate(f, BOOKING_DATE));
+    const label = formatShortDate('en', BOOKING_DATE);
     expect(label).toContain('Sat');
     expect(label).toContain('25');
     expect(label).toContain('Jul');
   });
 
   it('omits the year, which is noise on a booking days away', () => {
-    expect(withFormatter('en', (f) => formatShortDate(f, BOOKING_DATE))).not.toContain('2026');
+    expect(formatShortDate('en', BOOKING_DATE)).not.toContain('2026');
   });
 
-  it('localises, so it cannot have been built with toLocaleDateString', () => {
-    const th = withFormatter('th', (f) => formatShortDate(f, BOOKING_DATE));
+  /**
+   * The mockup's form, and the reason English is composed as `en-GB`: `en`'s own
+   * CLDR short date is "Sat, Jul 25", month-first with a comma of its own. This
+   * is the one assertion in the file that pins an exact arrangement, because
+   * the arrangement is the requirement.
+   */
+  it('puts the day before the month for English, with no comma', () => {
+    expect(formatShortDate('en', BOOKING_DATE)).toBe('Sat 25 Jul');
+  });
+
+  it('localises, so it cannot have been built with a fixed locale', () => {
+    const th = formatShortDate('th', BOOKING_DATE);
     // Thai renders its own month name; the assertion is deliberately about the
     // ENGLISH form being absent rather than about an exact Thai string, so an
     // ICU data revision cannot make this brittle.
     expect(th).not.toContain('Jul');
     expect(th).not.toContain('Sat');
+  });
+
+  /**
+   * Only English borrows another region's field order. The other four already
+   * read correctly in their own, and Japanese, Korean and Chinese would be
+   * actively wrong forced into a day-month one.
+   */
+  it('leaves every other locale composing in its own conventions', () => {
+    expect(shortDateLocale('en')).toBe('en-GB');
+    for (const locale of ['th', 'ko', 'ja', 'zh']) {
+      expect(shortDateLocale(locale)).toBe(locale);
+    }
+  });
+
+  it('falls back to the default locale rather than throwing on an unknown one', () => {
+    expect(shortDateLocale('de')).toBe(shortDateLocale('en'));
+    expect(() => formatShortDate('de', BOOKING_DATE)).not.toThrow();
+  });
+
+  it('keeps the CJK locales month-first, weekday attached', () => {
+    // Not an exact string: ICU data revises. What must hold is that the month
+    // marker leads and the weekday does not, which is the opposite of English.
+    for (const locale of ['ja', 'zh']) {
+      const label = formatShortDate(locale, BOOKING_DATE);
+      expect(label.indexOf('7')).toBeLessThan(label.indexOf('25'));
+    }
+  });
+});
+
+/**
+ * The full date the rail, the review panel and the Session card print. It shares
+ * `formatShortDate`'s locale mapping because on the last sub-step the review
+ * panel's Date row and the sticky bar's subline are on screen together.
+ */
+describe('formatFlowDate', () => {
+  /**
+   * The alignment that was actually broken was the field ORDER: the rail read
+   * "Sat, Jul 25, 2026" while the bar under it read "Sat 25 Jul". Both are
+   * day-before-month now. The comma is CLDR's own for `en-GB`'s year form and
+   * is left alone: inventing a pattern to remove it is exactly what
+   * `SHORT_DATE_LOCALES` exists to avoid.
+   */
+  it('puts the day before the month, matching the short form', () => {
+    expect(formatFlowDate('en', BOOKING_DATE)).toBe('Sat, 25 Jul 2026');
+    expect(formatShortDate('en', BOOKING_DATE)).toBe('Sat 25 Jul');
+  });
+
+  it('carries the year the short form drops, in every locale', () => {
+    for (const locale of ['en', 'th', 'ko', 'ja', 'zh']) {
+      // Thai renders the Buddhist year and the CJK locales lead with it; the
+      // assertion is only that a year is there, and only here.
+      expect(formatShortDate(locale, BOOKING_DATE)).not.toMatch(/\d{4}/);
+      expect(formatFlowDate(locale, BOOKING_DATE)).toMatch(/\d{4}/);
+    }
   });
 });
 
@@ -126,35 +175,27 @@ describe('formatShortDate', () => {
 describe('summaryBarSublineFor', () => {
   /**
    * The expected date is derived from `formatShortDate` rather than written out
-   * as a literal: ICU orders the day and month per locale ("Sat, Jul 25" under
-   * `en`), and pinning one arrangement would make this a test of the CI box's
-   * ICU data instead of a test of the wiring.
+   * as a literal: the arrangement is per locale, and pinning one here would make
+   * this a test of the CI box's ICU data instead of a test of the wiring. The
+   * `formatShortDate` group above owns the one exact-form assertion.
    */
   it('is exactly the short date, the duration and the start time, in that order', () => {
-    const subline = withFormatter('en', (formatter) =>
-      [
-        summaryBarSublineFor({
-          formatter,
-          date: BOOKING_DATE,
-          durationLabel: '1 hr',
-          time: '09:30',
-        }),
-        formatShortDate(formatter, BOOKING_DATE),
-      ].join('\n'),
-    );
-    const [actual, shortDate] = subline.split('\n');
-    expect(actual).toBe(`${shortDate} · 1 hr · 09:30`);
+    const actual = summaryBarSublineFor({
+      locale: 'en',
+      date: BOOKING_DATE,
+      durationLabel: '1 hr',
+      time: '09:30',
+    });
+    expect(actual).toBe(`${formatShortDate('en', BOOKING_DATE)} · 1 hr · 09:30`);
   });
 
   it('leads with the DATE, not the start time', () => {
-    const subline = withFormatter('en', (formatter) =>
-      summaryBarSublineFor({
-        formatter,
-        date: BOOKING_DATE,
-        durationLabel: '1 hr',
-        time: '09:30',
-      }),
-    );
+    const subline = summaryBarSublineFor({
+      locale: 'en',
+      date: BOOKING_DATE,
+      durationLabel: '1 hr',
+      time: '09:30',
+    });
     // The first segment must be the day, and must not be the clock time — the
     // failure a hand-wired call site produces.
     const [first] = subline.split(' · ');
@@ -164,15 +205,13 @@ describe('summaryBarSublineFor', () => {
     expect(subline.indexOf('Jul')).toBeLessThan(subline.indexOf('09:30'));
   });
 
-  it('formats that date through next-intl, in whatever locale is active', () => {
-    const th = withFormatter('th', (formatter) =>
-      summaryBarSublineFor({
-        formatter,
-        date: BOOKING_DATE,
-        durationLabel: '1 ชม.',
-        time: '09:30',
-      }),
-    );
+  it('formats that date in whatever locale is active', () => {
+    const th = summaryBarSublineFor({
+      locale: 'th',
+      date: BOOKING_DATE,
+      durationLabel: '1 ชม.',
+      time: '09:30',
+    });
     expect(th).not.toContain('Jul');
     expect(th).not.toContain('Sat');
     // The two segments the caller passes through untouched still arrive.
@@ -189,7 +228,7 @@ describe('BookingSummaryBar rendering the composed subline', () => {
           total={550}
           totalLabel="Total"
           subline={buildSummaryBarSubline({
-            date: 'Sat, 25 Jul',
+            date: 'Sat 25 Jul',
             duration: '1 hr',
             time: '09:30',
           })}
@@ -198,6 +237,6 @@ describe('BookingSummaryBar rendering the composed subline', () => {
         />
       </NextIntlClientProvider>,
     );
-    expect(screen.getByText('Sat, 25 Jul · 1 hr · 09:30')).toBeInTheDocument();
+    expect(screen.getByText('Sat 25 Jul · 1 hr · 09:30')).toBeInTheDocument();
   });
 });

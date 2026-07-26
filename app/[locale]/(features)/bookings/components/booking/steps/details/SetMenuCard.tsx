@@ -56,8 +56,9 @@ const SET_IMAGES: Partial<Record<PlayFoodPackage['id'], string>> = {
  * booking length (`setDuration(pkg.duration)`). Before this card existed, a
  * customer who had chosen 1.5 h and tapped SET C was silently booked for 3 h.
  *
- * The **bay-only anchor** is computed from the real date and start time, so the
- * claim is true for this slot rather than for the evening rate only.
+ * The **price split** under the total is computed from the real date and start
+ * time, so the bay figure is true for this slot rather than for the evening
+ * rate only.
  */
 export function SetMenuCard({
   pkg,
@@ -165,6 +166,30 @@ export function SetMenuCard({
           <div className="mt-0.5 text-xs text-gray-500 tabular-nums">
             {t('setTotalLabel')} ฿{pkg.price.toLocaleString()} {tPkg('priceNet')}
           </div>
+          {/* What the total is made of: the bay time this slot would cost on its
+              own, plus what the food and drinks add on top.
+              `foodPremium = price - bayOnlyCost`, so the two figures sum to the
+              Total on the line directly above — which is the whole reason this
+              sits here rather than where it used to.
+              It used to be an amber panel below the includes list: a boxed
+              callout, in the card's only accent colour, roughly the weight of
+              the price itself, arguing FOR the set at a distance from every
+              number it referred to. As a subordinate line under the total it
+              makes the same case as arithmetic the customer can check, and the
+              card is left with three weights (photo, price, action) instead of
+              four.
+              Still generated per slot by `lib/play-food-value.ts` — bay time is
+              genuinely cheaper before 14:00 than in the evening, so a fixed
+              claim would be wrong for half the day — and still omitted outright
+              when the premium is zero, negative or unpriceable. */}
+          {value.bayOnlyCost !== null && value.foodPremium !== null && (
+            <div className="mt-0.5 text-xs text-gray-400 tabular-nums">
+              {t('setPriceSplit', {
+                bayPrice: value.bayOnlyCost,
+                premium: value.foodPremium,
+              })}
+            </div>
+          )}
           {/* The value curve: honest disclosure that doubles as the upsell,
               since a set is designed for a bigger party. */}
           {value.showValueCurve && (
@@ -196,18 +221,6 @@ export function SetMenuCard({
             ))}
           </ul>
         </div>
-
-        {/* Bay-only anchor. Omitted entirely when the food premium is zero or
-            negative for this slot rather than printing something odd. */}
-        {value.bayOnlyCost !== null && value.foodPremium !== null && (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            {t('setBayAnchor', {
-              hours: pkg.duration,
-              bayPrice: value.bayOnlyCost,
-              premium: value.foodPremium,
-            })}
-          </p>
-        )}
 
         <div
           className={`rounded-lg py-2 text-center text-sm font-semibold ${

@@ -13,6 +13,7 @@ import { CreditBalanceCard } from './details/CreditBalanceCard';
 import { YourDetailsStep } from './details/YourDetailsStep';
 import { DetailsSubStepSummary } from './details/DetailsSubStepSummary';
 import { SummaryRail } from './details/SummaryRail';
+import { bayChoiceLabelKey } from './details/bayChoice';
 import { summaryBarSublineFor } from './details/summarySubline';
 import {
   DETAIL_SUB_STEPS,
@@ -28,7 +29,6 @@ export function BookingDetails(props: BookingDetailsProps) {
     selectedTime,
     selectedBayType,
     maxDuration,
-    slotData,
     onBack,
     selectedClubRental,
     onClubRentalChange,
@@ -39,6 +39,7 @@ export function BookingDetails(props: BookingDetailsProps) {
     subStepNav,
     t,
     formatter,
+    locale,
     router,
     status,
     costLanguage,
@@ -47,8 +48,6 @@ export function BookingDetails(props: BookingDetailsProps) {
     PREMIUM_PLUS_CLUB_PRICING,
     duration,
     setDuration,
-    selectedBay,
-    setSelectedBay,
     phoneNumber,
     setPhoneNumber,
     email,
@@ -85,7 +84,6 @@ export function BookingDetails(props: BookingDetailsProps) {
     setShowPackageModal,
     showClubRentalModal,
     setShowClubRentalModal,
-    currentAvailability,
     hasActivePackage,
     packageCoverage,
     packageBalance,
@@ -152,9 +150,11 @@ export function BookingDetails(props: BookingDetailsProps) {
   /** A completed sub-step collapses to a one-line summary — on mobile only. */
   const isCollapsed = (s: DetailSubStep) => DETAIL_SUB_STEPS.indexOf(s) < subStepIndex;
 
-  const bayLabel = (selectedBayType === 'ai_lab' || selectedBay === 'ai_lab')
-    ? t('aiLab')
-    : t('socialBay');
+  /* One source, three states — see `bayChoiceLabelKey`. Every surface below
+     that states the bay (the Session recap card, the collapsed Session summary,
+     the desktop rail and the mobile review panel) reads this same value, and
+     the step header in `page.tsx` resolves the same key. */
+  const bayLabel = t(bayChoiceLabelKey(selectedBayType));
 
   const clubRentalLabel =
     selectedClubRental === 'none' ? t('noRental')
@@ -237,7 +237,6 @@ export function BookingDetails(props: BookingDetailsProps) {
           <div className={panelClass('session')}>
             <SessionStep
               maxDuration={maxDuration}
-              slotData={slotData}
               duration={duration}
               setDuration={setDuration}
               numberOfPeople={numberOfPeople}
@@ -249,12 +248,10 @@ export function BookingDetails(props: BookingDetailsProps) {
               router={router}
               durationError={errors.duration}
               hasActivePackage={hasActivePackage}
-              currentAvailability={currentAvailability}
               selectedDate={selectedDate}
               selectedTime={selectedTime}
               selectedBayType={selectedBayType}
-              selectedBay={selectedBay}
-              setSelectedBay={setSelectedBay}
+              bayLabel={bayLabel}
               setShowBayInfoModal={setShowBayInfoModal}
               formatDate={formatDate}
               onBack={onBack}
@@ -382,7 +379,7 @@ export function BookingDetails(props: BookingDetailsProps) {
                formats the date and orders the segments, so the wiring is one
                tested unit and a `Date` cannot land in the start-time slot. */
             subline={summaryBarSublineFor({
-              formatter,
+              locale,
               date: selectedDate,
               durationLabel,
               time: selectedTime,

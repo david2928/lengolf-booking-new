@@ -14,7 +14,6 @@ import type { PlayFoodPackage } from '@/types/play-food-packages';
 import type { BayType } from '@/lib/bayConfig';
 import { allowedDurations, formatDurationLabel } from '@/lib/booking-durations';
 import { SetMenuCard } from './SetMenuCard';
-import type { TimeSlot, DurationBayAvailability } from '../../../../hooks/useAvailability';
 
 /**
  * What the customer is buying. Not an add-on: a Play & Food set replaces the
@@ -27,7 +26,6 @@ export interface SessionStepProps {
   /** Longest session this slot fits, in hours. Fractional (2.5) since the
       availability function moved to v3. Caps the duration ladder. */
   maxDuration: number;
-  slotData?: TimeSlot | null;
   duration: number;
   setDuration: (value: number) => void;
   numberOfPeople: number;
@@ -45,15 +43,17 @@ export interface SessionStepProps {
       resolves from `/api/user/active-packages`, so a package holder sees the
       5-tile ladder for a moment before it becomes 7. */
   hasActivePackage: boolean;
-  currentAvailability: DurationBayAvailability;
   // --- Selected Info Cards + AI Lab warning (moved in from BookingDetails) ---
   selectedDate: Date;
   selectedTime: string;
-  /** Bay type carried over from the time step. `null` means "All Bays", which
-      is when the in-card Social / AI Lab toggle is offered. */
+  /**
+   * The bay type, decided once on the time step and read-only from here. `null`
+   * is "All Bays" — no preference — which is a valid answer, so this step never
+   * asks again and never blocks on it.
+   */
   selectedBayType?: BayType | null;
-  selectedBay: BayType | null;
-  setSelectedBay: (value: BayType | null) => void;
+  /** Already-localised bay name, including the "Any Bay" case. */
+  bayLabel: string;
   setShowBayInfoModal: (value: boolean) => void;
   formatDate: (date: Date) => string;
   /** Leaves step 3 entirely (the AI Lab warning's "go back to Social Bay"). */
@@ -66,13 +66,14 @@ export interface SessionStepProps {
  * duration and number of people. Renders as a fragment so the parent `<form>`'s
  * `space-y-4 sm:space-y-6` keeps applying to these blocks as direct children.
  *
- * `id="bd-bay"` on the bay-type card is load-bearing: `firstInvalidField` in
- * `useBookingDetailsForm` locates it with `document.getElementById`, which is a
- * runtime lookup with no type safety.
+ * All three info cards are READ-ONLY recaps of choices made on earlier steps.
+ * The bay card used to be the exception — a required Social / AI Lab picker
+ * with an availability line under the duration ladder to feed it — which asked
+ * the customer to decide a second time something the time step had already
+ * settled. The choice now travels from step 2 and this step only reports it.
  */
 export function SessionStep({
   maxDuration,
-  slotData,
   duration,
   setDuration,
   numberOfPeople,
@@ -84,12 +85,10 @@ export function SessionStep({
   router,
   durationError,
   hasActivePackage,
-  currentAvailability,
   selectedDate,
   selectedTime,
   selectedBayType,
-  selectedBay,
-  setSelectedBay,
+  bayLabel,
   setShowBayInfoModal,
   formatDate,
   onBack,
@@ -185,86 +184,50 @@ export function SessionStep({
           </div>
         </div>
 
-        <div id="bd-bay" className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100 scroll-mt-24">
+        {/* The bay, as chosen on the time step. A recap in the same shape as the
+            date and start time beside it, because it is the same kind of thing:
+            something already decided. No asterisk — there is nothing to
+            require, "All Bays" included. */}
+        <div
+          data-testid="booking-bay-card"
+          className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100"
+        >
           <div className="flex items-center gap-3">
             <div className={`p-2 sm:p-3 rounded-full ${
-              (selectedBayType === 'ai_lab' || selectedBay === 'ai_lab')
-                ? 'bg-purple-50'
-                : 'bg-green-50'
+              selectedBayType === 'ai_lab' ? 'bg-purple-50' : 'bg-green-50'
             }`}>
-              {(selectedBayType === 'ai_lab' || selectedBay === 'ai_lab') ? (
+              {selectedBayType === 'ai_lab' ? (
                 <ComputerDesktopIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
               ) : (
                 <UsersIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
               )}
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-600">
-                {t('bayType')} <span className="text-red-500">*</span>
-              </h3>
-              {!selectedBayType ? (
-                <div className="space-y-2 mt-1">
-                  <div className="flex bg-gray-100 rounded-lg p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedBay('social')}
-                      disabled={currentAvailability.social === 0}
-                      className={`flex-1 px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                        selectedBay === 'social'
-                          ? 'bg-green-600 text-white shadow-sm'
-                          : currentAvailability.social === 0
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-gray-600 hover:text-gray-800'
-                      }`}
-                    >
-                      {t('social')} {currentAvailability.social === 0 && t('naSuffix')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedBay('ai_lab')}
-                      disabled={currentAvailability.ai === 0}
-                      className={`flex-1 px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                        selectedBay === 'ai_lab'
-                          ? 'bg-purple-600 text-white shadow-sm'
-                          : currentAvailability.ai === 0
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-gray-600 hover:text-gray-800'
-                      }`}
-                    >
-                      {t('aiLab')} {currentAvailability.ai === 0 && t('naSuffix')}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowBayInfoModal(true)}
-                    className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors"
-                  >
-                    {t('whatsTheDifference')}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <p className={`text-lg sm:text-xl font-bold ${
-                    selectedBayType === 'ai_lab' ? 'text-purple-700' : 'text-green-700'
-                  }`}>
-                    {selectedBayType === 'ai_lab' ? t('aiLab') : t('socialBay')}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowBayInfoModal(true)}
-                    className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors"
-                  >
-                    {t('info')}
-                  </button>
-                </div>
-              )}
+              <h3 className="text-sm font-medium text-gray-600">{t('bayType')}</h3>
+              <div className="flex items-center gap-2">
+                <p className={`text-lg sm:text-xl font-bold ${
+                  selectedBayType === 'ai_lab' ? 'text-purple-700' : 'text-green-700'
+                }`}>
+                  {bayLabel}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowBayInfoModal(true)}
+                  className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors"
+                >
+                  {t('info')}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* AI Lab Group Size Warning */}
-      {(selectedBayType === 'ai_lab' || selectedBay === 'ai_lab') && numberOfPeople >= 3 && (
+      {/* AI Lab Group Size Warning. The back link leaves step 3 for step 2,
+          which is now exactly where the bay is chosen — and the choice survives
+          the trip, so the customer lands on the control holding their current
+          answer rather than on a reset one. */}
+      {selectedBayType === 'ai_lab' && numberOfPeople >= 3 && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
           <div className="flex items-start">
             <InformationCircleIcon className="h-5 w-5 text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -434,38 +397,14 @@ export function SessionStep({
             <p className="mt-1 text-sm text-red-600">{durationError}</p>
           )}
 
-          {/* Bay availability at the chosen duration. Same sentence, same three
-              branches, no longer a bordered blue slab: it was the only blue on
-              the page, and being a boxed panel between the two pickers it read
-              as a third control rather than a footnote on the one above. As a
-              quiet grey line it stays attached to the duration track it
-              describes. The count keeps its emphasis via the leading span. */}
-          {slotData?.bayAvailabilityByDuration && currentAvailability.total > 0 && (
-            <p className="mt-2 flex items-start gap-1.5 text-xs text-gray-600">
-              <InformationCircleIcon
-                className="mt-px h-4 w-4 flex-shrink-0 text-gray-400"
-                aria-hidden="true"
-              />
-              <span>
-                <span className="font-medium text-gray-900">{t('availableForDuration', { duration })}</span>
-                {currentAvailability.social > 0 && currentAvailability.ai > 0 && (
-                  <span>
-                    {t('availableSocialOrAi', { social: currentAvailability.social, ai: currentAvailability.ai })}
-                  </span>
-                )}
-                {currentAvailability.social > 0 && currentAvailability.ai === 0 && (
-                  <span>
-                    {t('availableSocialOnly', { social: currentAvailability.social })}
-                  </span>
-                )}
-                {currentAvailability.social === 0 && currentAvailability.ai > 0 && (
-                  <span>
-                    {t('availableAiOnly')}
-                  </span>
-                )}
-              </span>
-            </p>
-          )}
+          {/* No bay-availability line here any more. It read "Available for 1
+              hour: 3 Social Bays only" — a count that existed to inform the
+              Social / AI Lab picker directly above it. With the bay settled on
+              step 2 it had nothing left to inform, and telling a customer what
+              is available immediately after they have chosen from it is the
+              same second-guessing the picker itself was. The duration ladder is
+              already capped by the slot's own headroom, so a rung that cannot
+              be booked is not offered in the first place. */}
         </div>
       )}
 

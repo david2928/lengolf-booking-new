@@ -20,7 +20,7 @@
  */
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider, useFormatter } from 'next-intl';
+import { NextIntlClientProvider } from 'next-intl';
 import { BookingStepHeader } from '@/app/[locale]/(features)/bookings/components/booking/BookingStepHeader';
 import {
   BAY_BOOKING_STEP_COUNT,
@@ -35,6 +35,7 @@ import {
   stepLabelKey,
   stepQuestionKey,
 } from '@/app/[locale]/(features)/bookings/components/booking/stepHeaderModel';
+import { bayChoiceLabelKey } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/bayChoice';
 import { formatShortDate } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/summarySubline';
 import { DETAIL_SUB_STEPS } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/useDetailsSubStep';
 import { BAY_BOOKING_STEPS } from '@/lib/booking-telemetry';
@@ -85,21 +86,6 @@ function renderHeader(
     </NextIntlClientProvider>,
   );
   return { onBack, ...result };
-}
-
-/** Runs a formatter-dependent expression under a real next-intl formatter. */
-function withFormatter(locale: Locale, use: (formatter: ReturnType<typeof useFormatter>) => string) {
-  function Probe() {
-    return <span data-testid="out">{use(useFormatter())}</span>;
-  }
-  const { unmount } = render(
-    <NextIntlClientProvider locale={locale} messages={CATALOGS[locale] as never}>
-      <Probe />
-    </NextIntlClientProvider>,
-  );
-  const value = screen.getByTestId('out').textContent ?? '';
-  unmount();
-  return value;
 }
 
 describe('stepBarStates', () => {
@@ -207,12 +193,70 @@ describe('the header strings exist in all five locales', () => {
     expect(fragment).toContain('{time}');
   });
 
+  /**
+   * The pill beside the wordmark, above the step header. It read "Booking",
+   * which names a noun the customer is already looking at; the mockup asks it
+   * to name the thing they came to do.
+   */
+  test('the header pill invites the booking rather than labelling the page', () => {
+    expect(
+      (CATALOGS.en.bookings.layout as Record<string, string>).headerBadge,
+    ).toBe('Book a Bay');
+  });
+
+  test.each(LOCALES)('%s carries a header pill of its own', (locale) => {
+    const badge = (CATALOGS[locale].bookings.layout as Record<string, string>).headerBadge;
+    expect(typeof badge).toBe('string');
+    expect(badge.trim().length).toBeGreaterThan(0);
+    expect(badge).not.toContain('—');
+    // Not left in English for the four that are not: the pill is one of the
+    // first strings on the page, so an untranslated one is conspicuous.
+    if (locale !== 'en') expect(badge).not.toBe('Book a Bay');
+  });
+
   // House rule: no em dashes in user-facing copy.
   test.each(LOCALES)('%s uses no em dash', (locale) => {
     const page = CATALOGS[locale].bookings.page as Record<string, string>;
     const details = CATALOGS[locale].bookings.detailsStep as Record<string, string>;
     for (const key of pageKeys) expect(page[key]).not.toContain('—');
     for (const key of detailKeys) expect(details[key]).not.toContain('—');
+  });
+});
+
+/**
+ * The bay reaches the subline through `bayChoiceLabelKey`, the one mapping every
+ * surface that names a bay shares. The header's requirement is that by step 3
+ * the bay is ALWAYS known — which only holds because "no preference" is a named
+ * answer rather than a gap.
+ */
+describe('bayChoiceLabelKey', () => {
+  test('names each of the three answers, including no preference', () => {
+    expect(bayChoiceLabelKey('social')).toBe('socialBay');
+    expect(bayChoiceLabelKey('ai_lab')).toBe('aiLab');
+    expect(bayChoiceLabelKey(null)).toBe('anyBay');
+  });
+
+  test('an absent value is the same answer as an explicit "All Bays"', () => {
+    // `selectedBayType` arrives through an optional prop, so `undefined` and
+    // `null` are the same customer choice and must not diverge.
+    expect(bayChoiceLabelKey(undefined)).toBe(bayChoiceLabelKey(null));
+  });
+
+  test('never falls back to Social for an unstated preference', () => {
+    // The bug this replaced: anything that was not AI Lab printed "Social Bay",
+    // so a booking with no bay preference claimed a Social bay it had not asked
+    // for.
+    expect(bayChoiceLabelKey(null)).not.toBe('socialBay');
+  });
+
+  test.each(LOCALES)('%s can render every bay answer', (locale) => {
+    const details = CATALOGS[locale].bookings.detailsStep as Record<string, string>;
+    for (const bay of ['social', 'ai_lab', null] as const) {
+      const value = details[bayChoiceLabelKey(bay)];
+      expect(typeof value).toBe('string');
+      expect(value.trim().length).toBeGreaterThan(0);
+      expect(value).not.toContain('—');
+    }
   });
 });
 
@@ -251,78 +295,83 @@ describe('buildStepHeaderSubline', () => {
 
 /**
  * The wiring the flow actually calls. `buildStepHeaderSubline` proves the first
- * slot leads the line; these prove the DATE is what goes in it and that it is
- * formatted through next-intl rather than `toLocaleDateString`.
+ * slot leads the line; these prove the DATE is what goes in it, that it is
+ * localised, and that the composed line matches the mockup.
  */
 describe('stepHeaderSublineFor', () => {
   test('is the short date, the start time and the bay, in that order', () => {
-    const out = withFormatter('en', (formatter) =>
-      [
-        stepHeaderSublineFor({
-          formatter,
-          locale: 'en',
-          date: BOOKING_DATE,
-          fromTimeLabel: 'from 13:00',
-          bayLabel: 'Social Bay',
-        }),
-        formatShortDate(formatter, BOOKING_DATE),
-      ].join('\n'),
-    );
-    const [actual, shortDate] = out.split('\n');
-    expect(actual).toBe(`${shortDate}, from 13:00, Social Bay`);
+    const actual = stepHeaderSublineFor({
+      locale: 'en',
+      date: BOOKING_DATE,
+      fromTimeLabel: 'from 13:00',
+      bayLabel: 'Social Bay',
+    });
+    expect(actual).toBe(`${formatShortDate('en', BOOKING_DATE)}, from 13:00, Social Bay`);
   });
 
   /**
-   * Deliberately NOT `subline.split(', ')[0]`. ICU renders the `en` short date
-   * as "Wed, Jul 29" — the date carries a comma of its own, so splitting on the
-   * separator cuts the date in half. That is a property of the data, not a bug:
-   * nothing parses this line, it is only read. The assertion is therefore about
-   * the whole formatted date leading the string.
+   * The mockup's line, end to end. English is composed as `en-GB` so the date
+   * reads day-first with no comma of its own, which is what lets the whole
+   * subline use a plain comma separator without the date being cut in half by
+   * eye.
    */
-  test('leads with the DATE, not the start time', () => {
-    const out = withFormatter('en', (formatter) =>
-      [
-        stepHeaderSublineFor({
-          formatter,
-          locale: 'en',
-          date: BOOKING_DATE,
-          fromTimeLabel: 'from 13:00',
-          bayLabel: 'Social Bay',
-        }),
-        formatShortDate(formatter, BOOKING_DATE),
-      ].join('\n'),
-    );
-    const [subline, shortDate] = out.split('\n');
+  test('reads exactly as the mockup draws it', () => {
+    expect(
+      stepHeaderSublineFor({
+        locale: 'en',
+        date: BOOKING_DATE,
+        fromTimeLabel: 'from 13:00',
+        bayLabel: 'Social Bay',
+      }),
+    ).toBe('Wed 29 Jul, from 13:00, Social Bay');
+  });
 
-    expect(subline.startsWith(shortDate)).toBe(true);
+  test('leads with the DATE, not the start time', () => {
+    const subline = stepHeaderSublineFor({
+      locale: 'en',
+      date: BOOKING_DATE,
+      fromTimeLabel: 'from 13:00',
+      bayLabel: 'Social Bay',
+    });
+
+    expect(subline.startsWith(formatShortDate('en', BOOKING_DATE))).toBe(true);
     expect(subline.indexOf('29')).toBeLessThan(subline.indexOf('13:00'));
     expect(subline.indexOf('Jul')).toBeLessThan(subline.indexOf('Social Bay'));
   });
 
   test('omits the year, matching the sticky bar it shares a formatter with', () => {
-    const subline = withFormatter('en', (formatter) =>
-      stepHeaderSublineFor({ formatter, locale: 'en', date: BOOKING_DATE }),
-    );
-    expect(subline).not.toContain('2026');
+    expect(stepHeaderSublineFor({ locale: 'en', date: BOOKING_DATE })).not.toContain('2026');
   });
 
   test('renders nothing at all at step 1, where nothing has been chosen', () => {
-    const subline = withFormatter('en', (formatter) =>
-      stepHeaderSublineFor({ formatter, locale: 'en', date: null }),
-    );
-    expect(subline).toBe('');
+    expect(stepHeaderSublineFor({ locale: 'en', date: null })).toBe('');
   });
 
-  test('localises the date, so it cannot have been built with toLocaleDateString', () => {
-    const th = withFormatter('th', (formatter) =>
-      stepHeaderSublineFor({
-        formatter,
-        locale: 'th',
+  /**
+   * By step 3 the bay is always known, because "All Bays" is a named answer
+   * rather than a gap. The three of them are the whole set the subline can end
+   * with, and none of them may leave it dangling on the separator.
+   */
+  test('names the bay for every choice, including no preference', () => {
+    for (const bayLabel of ['Social Bay', 'AI Lab', 'Any Bay']) {
+      const subline = stepHeaderSublineFor({
+        locale: 'en',
         date: BOOKING_DATE,
-        fromTimeLabel: 'เริ่ม 13:00 น.',
-        bayLabel: 'Social Bay',
-      }),
-    );
+        fromTimeLabel: 'from 13:00',
+        bayLabel,
+      });
+      expect(subline).toBe(`Wed 29 Jul, from 13:00, ${bayLabel}`);
+      expect(subline.endsWith(', ')).toBe(false);
+    }
+  });
+
+  test('localises the date, so it cannot have been built with a fixed locale', () => {
+    const th = stepHeaderSublineFor({
+      locale: 'th',
+      date: BOOKING_DATE,
+      fromTimeLabel: 'เริ่ม 13:00 น.',
+      bayLabel: 'Social Bay',
+    });
     expect(th).not.toContain('Jul');
     expect(th).not.toContain('Wed');
     // The two segments the caller passes through untouched still arrive.
@@ -336,25 +385,19 @@ describe('stepHeaderSublineFor', () => {
    * CJK font stacks in `globals.css`.
    */
   test('sets the separator the way each locale sets it', () => {
-    const ja = withFormatter('ja', (formatter) =>
-      stepHeaderSublineFor({
-        formatter,
-        locale: 'ja',
-        date: BOOKING_DATE,
-        fromTimeLabel: '13:00 から',
-      }),
-    );
+    const ja = stepHeaderSublineFor({
+      locale: 'ja',
+      date: BOOKING_DATE,
+      fromTimeLabel: '13:00 から',
+    });
     expect(ja).toContain('、');
     expect(ja).not.toContain(', ');
 
-    const zh = withFormatter('zh', (formatter) =>
-      stepHeaderSublineFor({
-        formatter,
-        locale: 'zh',
-        date: BOOKING_DATE,
-        fromTimeLabel: '13:00 开始',
-      }),
-    );
+    const zh = stepHeaderSublineFor({
+      locale: 'zh',
+      date: BOOKING_DATE,
+      fromTimeLabel: '13:00 开始',
+    });
     expect(zh).toContain('，');
     expect(zh).not.toContain(', ');
   });
@@ -369,7 +412,7 @@ describe('stepHeaderSublineFor', () => {
   /**
    * Every locale the site ships needs a separator. A `Record<Locale, string>`
    * makes that a typecheck error rather than a runtime fallback, but only while
-   * someone keeps using the type — this notices if the map is ever widened.
+   * someone keeps using the type. This notices if the map is ever widened.
    */
   test('has a separator for every locale the site ships', () => {
     for (const locale of LOCALES) {

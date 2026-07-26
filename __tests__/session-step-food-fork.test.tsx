@@ -13,12 +13,17 @@
  *     selected, not on Bay only with a package quietly selected underneath.
  *   - Clearing back to Bay only resets duration and party size as before.
  *   - The per-person lead figure follows the selected party size.
- *   - The bay-only anchor is generated per slot, so morning and evening differ.
+ *   - The bay/food price split is generated per slot, so morning and evening
+ *     differ, and it sums to the total it sits under.
+ *   - The bay arrives already chosen and is only REPORTED here, never asked
+ *     again — including the "All Bays" case, which names itself rather than
+ *     silently reading as Social.
  */
 import { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
+import type { BayType } from '@/lib/bayConfig';
 import { SessionStep } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/SessionStep';
 import { SetMenuCard } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/SetMenuCard';
 import { getPlayFoodPackages, type PlayFoodPackage } from '@/types/play-food-packages';
@@ -42,7 +47,16 @@ interface HarnessOverrides {
   onPeopleChange?: (value: number) => void;
   onPackageChange?: (value: PlayFoodPackage | null) => void;
   routerReplace?: (href: string, options?: { scroll?: boolean }) => void;
+  /** The bay chosen on step 2. `null` is "All Bays" — no preference. */
+  bayType?: BayType | null;
 }
+
+/** What `BookingDetails` resolves for each bay state, so the harness agrees with it. */
+const BAY_LABEL: Record<'social' | 'ai_lab' | 'any', string> = {
+  social: messages.bookings.detailsStep.socialBay,
+  ai_lab: messages.bookings.detailsStep.aiLab,
+  any: messages.bookings.detailsStep.anyBay,
+};
 
 /**
  * Stateful wrapper: the real parent owns duration / people / package state, so
@@ -59,6 +73,7 @@ function Harness({
   onPeopleChange,
   onPackageChange,
   routerReplace = () => {},
+  bayType = 'social',
 }: HarnessOverrides) {
   const [duration, setDuration] = useState(initialDuration);
   const [numberOfPeople, setNumberOfPeople] = useState(initialPeople);
@@ -68,7 +83,6 @@ function Harness({
     <NextIntlClientProvider locale="en" messages={messages}>
       <SessionStep
         maxDuration={maxDuration}
-        slotData={null}
         duration={duration}
         setDuration={(v) => {
           onDurationChange?.(v);
@@ -89,12 +103,10 @@ function Harness({
         router={{ replace: routerReplace }}
         durationError=""
         hasActivePackage={false}
-        currentAvailability={{ social: 2, ai: 1, total: 3, bays: [] }}
         selectedDate={WEEKDAY}
         selectedTime={selectedTime}
-        selectedBayType="social"
-        selectedBay="social"
-        setSelectedBay={() => {}}
+        selectedBayType={bayType}
+        bayLabel={BAY_LABEL[bayType ?? 'any']}
         setShowBayInfoModal={() => {}}
         formatDate={(d) => d.toDateString()}
         onBack={() => {}}
@@ -114,6 +126,60 @@ const durationLadderPresent = () =>
 const setCard = (name: string) => screen.getByRole('button', { name: new RegExp(name) });
 const setCardPresent = (name: string) =>
   screen.queryByRole('button', { name: new RegExp(name) }) !== null;
+
+/**
+ * The bay is chosen once, on step 2. This step used to ask a second time — a
+ * required `Bay Type *` toggle plus an availability line under the duration
+ * ladder feeding it — which is what made the customer answer twice.
+ */
+describe('the bay is reported, not asked again', () => {
+  const bayCard = () => screen.getByTestId('booking-bay-card');
+
+  test.each([
+    ['social' as const, BAY_LABEL.social],
+    ['ai_lab' as const, BAY_LABEL.ai_lab],
+    [null, BAY_LABEL.any],
+  ])('a %s choice is stated as "%s"', (bayType, label) => {
+    render(<Harness bayType={bayType} />);
+    expect(within(bayCard()).getByText(label)).toBeInTheDocument();
+  });
+
+  test('no Social / AI Lab toggle is offered, for any of the three choices', () => {
+    for (const bayType of ['social', 'ai_lab', null] as const) {
+      const { unmount } = render(<Harness bayType={bayType} />);
+      // The only control on the card is the info link that opens the modal.
+      const buttons = within(bayCard()).getAllByRole('button');
+      expect(buttons.map((b) => b.textContent)).toEqual([messages.bookings.detailsStep.info]);
+      unmount();
+    }
+  });
+
+  test('the bay is not marked required — "All Bays" is a complete answer', () => {
+    render(<Harness bayType={null} />);
+    expect(within(bayCard()).queryByText('*')).not.toBeInTheDocument();
+  });
+
+  test('no bay-availability line sits under the duration ladder', () => {
+    render(<Harness />);
+    // "Available for 1 hour: 3 Social Bays only" and its two siblings.
+    expect(screen.queryByText(/Available for/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Social Bays only/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/AI Bay only/)).not.toBeInTheDocument();
+  });
+
+  test('the AI Lab group-size warning still fires, and only for AI Lab', () => {
+    const { unmount } = render(<Harness bayType="ai_lab" initialPeople={3} />);
+    expect(
+      screen.getByText(messages.bookings.detailsStep.aiLabRecommendationTitle),
+    ).toBeInTheDocument();
+    unmount();
+
+    render(<Harness bayType={null} initialPeople={3} />);
+    expect(
+      screen.queryByText(messages.bookings.detailsStep.aiLabRecommendationTitle),
+    ).not.toBeInTheDocument();
+  });
+});
 
 describe('the fork opens on Bay only by default', () => {
   test('the duration ladder is shown and no set cards are rendered', () => {
@@ -251,25 +317,54 @@ describe('the card figures come from the live booking, not the static data', () 
     expect(within(setCard('SET C')).getByText('3 hours')).toBeInTheDocument();
   });
 
-  test('the bay-only anchor differs between a morning and an evening slot', async () => {
+  test('the price split differs between a morning and an evening slot', async () => {
     const user = userEvent.setup();
 
     const { unmount } = render(<Harness selectedTime="10:00" />);
     await user.click(forkButton('Bay + Food'));
     // 2h weekday morning bay = 2 × ฿550 = ฿1,100, so SET B's food adds ฿1,000.
     expect(
-      within(setCard('SET B')).getByText(/2 hours of bay time alone is ฿1,100/),
+      within(setCard('SET B')).getByText('฿1,100 bay time + ฿1,000 food and drinks'),
     ).toBeInTheDocument();
-    expect(within(setCard('SET B')).getByText(/food and drinks for ฿1,000/)).toBeInTheDocument();
     unmount();
 
     render(<Harness selectedTime="19:00" />);
     await user.click(forkButton('Bay + Food'));
     // 2h weekday evening bay = 2 × ฿750 = ฿1,500, so the premium is ฿600.
     expect(
-      within(setCard('SET B')).getByText(/2 hours of bay time alone is ฿1,500/),
+      within(setCard('SET B')).getByText('฿1,500 bay time + ฿600 food and drinks'),
     ).toBeInTheDocument();
-    expect(within(setCard('SET B')).getByText(/food and drinks for ฿600/)).toBeInTheDocument();
+  });
+
+  /**
+   * The split replaced an amber panel that argued for the set below the includes
+   * list. As a subordinate line under the total it has to actually add up to
+   * that total, which is what makes it a decomposition rather than a fourth
+   * claim — and is the reason it can sit there quietly at all.
+   */
+  test('the split adds up to the total printed directly above it', async () => {
+    const user = userEvent.setup();
+    render(<Harness selectedTime="10:00" />);
+    await user.click(forkButton('Bay + Food'));
+
+    const card = within(setCard('SET B'));
+    expect(card.getByText(`Total ฿${SET_B.price.toLocaleString()} NET`)).toBeInTheDocument();
+    // ฿1,100 + ฿1,000 = SET B's ฿2,100 total.
+    expect(1100 + 1000).toBe(SET_B.price);
+    expect(card.getByText('฿1,100 bay time + ฿1,000 food and drinks')).toBeInTheDocument();
+  });
+
+  test('the split is a quiet line, not the amber callout it replaced', async () => {
+    const user = userEvent.setup();
+    render(<Harness selectedTime="10:00" />);
+    await user.click(forkButton('Bay + Food'));
+
+    const split = within(setCard('SET B')).getByText('฿1,100 bay time + ฿1,000 food and drinks');
+    // No boxed panel and no accent colour competing with the price above it.
+    expect(split.className).not.toMatch(/amber/);
+    expect(split.className).not.toMatch(/rounded/);
+    expect(split.className).toContain('text-xs');
+    expect(setCard('SET B').querySelector('.bg-amber-50')).toBeNull();
   });
 
   test('every set itemises its food and drinks with the unlimited distinction kept', async () => {
