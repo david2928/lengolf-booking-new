@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
-import { ProjectedCostBreakdown } from '@/components/booking/ProjectedCostBreakdown';
+import { BookingReviewPanel, type BookingReviewFacts } from './BookingReviewPanel';
 import type { CostBreakdown } from '@/lib/cost-calculator';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import { IdentityCard, isIdentityComplete } from './IdentityCard';
@@ -45,6 +45,11 @@ export interface YourDetailsStepProps {
   costBreakdown: CostBreakdown | null;
   costDataLoading: boolean;
   costLanguage: 'en' | 'th' | 'ja' | 'ko' | 'zh';
+  /**
+   * The when/where/who facts the mobile review panel shows above the confirm
+   * action, all pre-formatted by the caller so this step never re-derives them.
+   */
+  review: BookingReviewFacts;
   isSubmitting: boolean;
   marketingOptIn: boolean;
   setMarketingOptIn: (value: boolean) => void;
@@ -108,6 +113,7 @@ export function YourDetailsStep({
   costBreakdown,
   costDataLoading,
   costLanguage,
+  review,
   isSubmitting,
   marketingOptIn,
   setMarketingOptIn,
@@ -288,20 +294,23 @@ export function YourDetailsStep({
         </p>
       </div>
 
-      {/* Projected Cost Breakdown. Mobile only: without `lg:hidden` desktop
-          renders the full breakdown TWICE, this copy and the sticky SummaryRail's
-          (which additionally splits the bay-rate portions out) about 300px to the
-          right. Two copies of one total on one screen is worse than either alone
-          — the same reason the sticky bar does not mount on desktop. */}
-      {costBreakdown && (
-        <div className="mt-4 lg:hidden">
-          <ProjectedCostBreakdown
-            breakdown={costBreakdown}
-            isLoading={costDataLoading}
-            language={costLanguage}
-          />
-        </div>
-      )}
+      {/* Review panel: the booking's facts followed by the projected cost
+          breakdown, immediately before the confirm action. Mobile only, and it
+          owns the `lg:hidden` itself — without that, desktop renders the full
+          breakdown TWICE, this copy and the sticky SummaryRail's (which
+          additionally splits the bay-rate portions out) about 300px to the
+          right. Two copies of one total on one screen is worse than either
+          alone, the same reason the sticky bar does not mount on desktop.
+
+          This is the SAME breakdown that used to render bare here, now with the
+          date, start time, duration, bay and party size above it — so the panel
+          adds the facts without adding a second total. */}
+      <BookingReviewPanel
+        {...review}
+        costBreakdown={costBreakdown}
+        costDataLoading={costDataLoading}
+        costLanguage={costLanguage}
+      />
 
       {/* No Back button here. Backward navigation is the header arrow only (see
           `handleHeaderBack` in `useBookingFlow`): it steps back a sub-step, or

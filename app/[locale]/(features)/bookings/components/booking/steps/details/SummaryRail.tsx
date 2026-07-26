@@ -76,7 +76,15 @@ export function splitProratedDetail(
   return { portions, qualifier };
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+/**
+ * One label/value row of the booking facts list.
+ *
+ * Exported so the mobile `BookingReviewPanel` renders the same five facts in
+ * the same shape rather than restating the markup — the two are mutually
+ * exclusive by viewport, so this is one row definition serving both, not a
+ * duplicated one.
+ */
+export function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
       <dt className="text-xs text-gray-500">{label}</dt>

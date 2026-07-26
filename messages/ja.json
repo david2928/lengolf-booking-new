@@ -346,6 +346,8 @@
       "summaryRailDuration": "利用時間",
       "summaryRailPeople": "人数",
       "summaryRailBay": "ベイ",
+      "reviewPanelTitle": "ご予約内容の確認",
+      "reviewPanelIntro": "ご確認のうえ、ご予約を確定してください。",
       "summaryRailHours": "{hours}時間",
       "errorNeedName": "予約のためお名前をご入力ください。",
       "errorNeedPhone": "有効な電話番号をご入力ください。",

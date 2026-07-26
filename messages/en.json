@@ -346,6 +346,8 @@
       "summaryRailDuration": "Duration",
       "summaryRailPeople": "People",
       "summaryRailBay": "Bay",
+      "reviewPanelTitle": "Review your booking",
+      "reviewPanelIntro": "Please check these details before you confirm.",
       "summaryRailHours": "{hours} hr",
       "errorNeedName": "We need your name to hold the booking.",
       "errorNeedPhone": "Please enter a valid phone number.",

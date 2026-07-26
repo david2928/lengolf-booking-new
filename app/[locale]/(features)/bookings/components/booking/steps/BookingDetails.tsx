@@ -165,6 +165,21 @@ export function BookingDetails(props: BookingDetailsProps) {
      `hidden lg:block`), so the rail's own `summaryRailHours` never shows
      alongside this. */
   const durationLabel = t('durationHoursShort', { hours: duration });
+  const peopleLabel = t('peopleCountShort', { count: numberOfPeople });
+
+  /* The facts the mobile review panel shows above the confirm action. Built
+     here, from the SAME strings the collapsed sub-step summaries and the sticky
+     bar's subline already print, so the panel cannot describe the booking
+     differently from the rest of step 3. Desktop ignores this: `SummaryRail`
+     carries the identical five facts in its own column. */
+  const reviewFacts = {
+    selectedDate,
+    selectedTime,
+    durationLabel,
+    peopleLabel,
+    bayLabel,
+    formatDate,
+  };
 
   return (
     /* `lg:pb-0` drops the bar's spacer above `lg:`, where no bar mounts. */
@@ -187,7 +202,7 @@ export function BookingDetails(props: BookingDetailsProps) {
                 label={subStepLabels.session}
                 /* The people count needs a unit: "· Social Bay · 1" said
                    nothing about what the 1 counted. */
-                value={`${durationLabel} · ${bayLabel} · ${t('peopleCountShort', { count: numberOfPeople })}`}
+                value={`${durationLabel} · ${bayLabel} · ${peopleLabel}`}
                 changeLabel={t('changeAction')}
                 onChange={() => goToSubStep('session')}
               />
@@ -290,6 +305,7 @@ export function BookingDetails(props: BookingDetailsProps) {
               costBreakdown={costBreakdown}
               costDataLoading={costDataLoading}
               costLanguage={costLanguage}
+              review={reviewFacts}
               isSubmitting={isSubmitting}
               marketingOptIn={marketingOptIn}
               marketingPreference={marketingPreference}
