@@ -15,6 +15,11 @@ import { isValidLocale } from '@/i18n/routing';
 import { sanitizeAttribution } from '@/lib/attribution/click-ids';
 import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
 import {
+  getPosDiscountTitle,
+  withNoPosDiscountInstruction,
+  withPosDiscountInstruction,
+} from '@/lib/pos-discount';
+import {
   b1g1CreditExpiry,
   b1g1DisagreementLog,
   grantB1G1NewCustomerCredit,
@@ -965,142 +970,213 @@ export async function POST(request: NextRequest) {
     // `calculateCost` is pure and this route holds every input it needs, so both
     // surfaces now read ONE decision. Keep it that way: if you need to change
     // which offer staff are told about, change the calculator.
+    //
+    // This block used to sit inside `if (isNewCustomer)`, from when the only
+    // auto-apply row was the new-customer B1G1. The weekday off-peak B1G1
+    // applies to EVERY customer, so under that gate a returning customer would
+    // see a discounted quote and staff would get a note that never mentioned it
+    // — the quote-versus-POS mismatch this whole block exists to prevent, and
+    // the majority case for that offer. What the free-hour CREDIT branch below
+    // is gated on now is `promotions.grants_credit`, which is the fact that gate
+    // was standing in for: the set of bookings that mint a B1G1 grant is
+    // unchanged, byte for byte.
+    //
+    // Nothing else widens. `calculateCost` receives the same `isNewCustomer` and
+    // still withholds every `new_customer_only` offer from a returning
+    // customer; a returning customer with no eligible offer simply produces no
+    // winner and no label, exactly as before.
     let notificationNotes = customer_notes || '';
-    if (isNewCustomer) {
-      try {
-        const { data: autoPromos } = await supabase
-          .from('promotions')
-          // Same projection as /api/promotions/applicable — this has to be the
-          // exact row shape the customer's quote was computed from.
-          .select('id, promotion_type, discount_value, free_hours, applies_to, conditions, title_en, title_th')
-          .eq('is_active', true)
-          .eq('auto_apply', true)
-          .not('promotion_type', 'is', null);
-        if (autoPromos?.length) {
-          const applicablePromotions: ApplicablePromotion[] = autoPromos.map((p) => ({
-            id: p.id,
-            promotion_type: p.promotion_type as ApplicablePromotion['promotion_type'],
-            discount_value: p.discount_value ?? undefined,
-            free_hours: p.free_hours ?? undefined,
-            applies_to: p.applies_to as ApplicablePromotion['applies_to'],
-            conditions: (p.conditions as Record<string, unknown> | null) ?? {},
-            title_en: p.title_en,
-            title_th: p.title_th,
-          }));
+    try {
+      const { data: autoPromos } = await supabase
+        .from('promotions')
+        // The customer's quote is computed from /api/promotions/applicable, so
+        // every column `calculateCost` reads has to be present in BOTH
+        // projections or the two decisions can differ. `pos_discount_id` is the
+        // one column this route reads and that one does not: nothing in the
+        // calculation touches it, no client renders it, and that endpoint is
+        // unauthenticated and edge-cached, so it stays server-side.
+        .select('id, promotion_type, discount_value, free_hours, applies_to, conditions, title_en, title_th, pos_discount_id, grants_credit')
+        .eq('is_active', true)
+        .eq('auto_apply', true)
+        .not('promotion_type', 'is', null);
+      if (autoPromos?.length) {
+        const applicablePromotions: ApplicablePromotion[] = autoPromos.map((p) => ({
+          id: p.id,
+          promotion_type: p.promotion_type as ApplicablePromotion['promotion_type'],
+          discount_value: p.discount_value ?? undefined,
+          free_hours: p.free_hours ?? undefined,
+          applies_to: p.applies_to as ApplicablePromotion['applies_to'],
+          conditions: (p.conditions as Record<string, unknown> | null) ?? {},
+          title_en: p.title_en,
+          title_th: p.title_th,
+          pos_discount_id: (p.pos_discount_id as string | null) ?? null,
+          grants_credit: p.grants_credit === true,
+        }));
 
-          const breakdown = calculateCost({
-            date,
-            startTime: start_time,
-            // parseFloat, not parseInt: half-hour durations shipped two slices
-            // ago, so this is '1.5'/'2.5' in the wild. Truncation was latent for
-            // the old `>= 2` branch (every value on the current ladder lands on
-            // the same side either way), but it is load-bearing now — the free
-            // window of a 2.5h bogo is priced at a different position than a 2h
-            // one, and value is what picks the winner. The same parseInt('1.5')
-            // mistake already caused a production bug on the LIFF surface.
-            duration: parseFloat(duration) || 1,
-            clubRentalId: club_rental_type || 'none',
-            addOns: Object.fromEntries((validatedAddOns ?? []).map((a) => [a.key, true])),
-            playFoodPackageId: playFoodPackageId ?? null,
-            hasActivePackage: packageInfo !== 'Normal Bay Rate',
-            packageDisplayName: packageTypeName || undefined,
-            // Balance deliberately omitted. `packageAppliesToBay` is keyed off
-            // package ELIGIBILITY, not the balance, and a percentage promo only
-            // reaches the bay line when no package covers it — so the remaining
-            // hours cannot move the winner, only line-item amounts we don't read.
-            isNewCustomer,
-            applicablePromotions,
-          });
+        const breakdown = calculateCost({
+          date,
+          startTime: start_time,
+          // parseFloat, not parseInt: half-hour durations shipped two slices
+          // ago, so this is '1.5'/'2.5' in the wild. Truncation was latent for
+          // the old `>= 2` branch (every value on the current ladder lands on
+          // the same side either way), but it is load-bearing now — the free
+          // window of a 2.5h bogo is priced at a different position than a 2h
+          // one, and value is what picks the winner. The same parseInt('1.5')
+          // mistake already caused a production bug on the LIFF surface.
+          duration: parseFloat(duration) || 1,
+          clubRentalId: club_rental_type || 'none',
+          addOns: Object.fromEntries((validatedAddOns ?? []).map((a) => [a.key, true])),
+          playFoodPackageId: playFoodPackageId ?? null,
+          hasActivePackage: packageInfo !== 'Normal Bay Rate',
+          packageDisplayName: packageTypeName || undefined,
+          // Balance deliberately omitted. `packageAppliesToBay` is keyed off
+          // package ELIGIBILITY, not the balance, and a percentage promo only
+          // reaches the bay line when no package covers it — so the remaining
+          // hours cannot move the winner, only line-item amounts we don't read.
+          isNewCustomer,
+          applicablePromotions,
+        });
 
-          // The winner, whether it applied a discount or only advice. Read
-          // `appliedPromotionId`, never `discounts[0]`: a sub-2-hour bogo wins by
-          // contributing the "redeem within 7 days" hint and pushes no discount
-          // row — which is the live case today and the one staff must honour.
-          const applied = applicablePromotions.find((p) => p.id === breakdown.appliedPromotionId);
-          if (applied) {
-            // Advice-only exactly when the calculator charged nothing for it —
-            // read back off the breakdown rather than re-testing the duration.
-            const discounted = breakdown.discounts.some((d) => d.promotionId === applied.id);
-            let promoLabel = applied.title_en;
-            if (!discounted && applied.promotion_type === 'bogo' && applied.free_hours) {
-              // Advice-only bogo: the free hour is NOT in this booking, it is
-              // owed. `!discounted` is the same test the label has always used
-              // and the only one that stays correct under slice 4's
-              // non-stacking rule — if a richer offer beat the bogo,
-              // `appliedPromotionId` names that offer instead, this branch
-              // never runs, no hint is printed and no credit is granted. The
-              // grant and the promise agree because they read one decision.
-              const expiry = b1g1CreditExpiry(date);
-              const expiryStr = expiry?.label ?? '';
-              promoLabel = `${applied.title_en} (${applied.free_hours} free hr to redeem within 7 days, expires ${expiryStr})`;
+        // The winner, whether it applied a discount or only advice. Read
+        // `appliedPromotionId`, never `discounts[0]`: a sub-2-hour bogo wins by
+        // contributing the "redeem within 7 days" hint and pushes no discount
+        // row — which is the live case today and the one staff must honour.
+        const applied = applicablePromotions.find((p) => p.id === breakdown.appliedPromotionId);
+        if (applied) {
+          // Advice-only exactly when the calculator charged nothing for it —
+          // read back off the breakdown rather than re-testing the duration.
+          const discounted = breakdown.discounts.some((d) => d.promotionId === applied.id);
+          let promoLabel = applied.title_en;
+          // `grants_credit`, NOT `promotion_type === 'bogo'`.
+          //
+          // The type check was written when 'bogo' had exactly one row and so
+          // meant "the new-customer B1G1". It survives today only on a
+          // coincidence: the weekday off-peak row is also a bogo with
+          // `free_hours: 1` on `bay_rate`, worth exactly the same on every
+          // booking both can win, so the uuid tie-break keeps handing the win to
+          // the new-customer row. Deactivate that row at campaign end, or change
+          // either row's `free_hours`, and the coincidence ends and the weekday
+          // promotion starts minting `b1g1_new_customer` credits — no code
+          // change, no review. The column states the fact instead of inferring
+          // it, and `lib/cost-calculator.ts` gates the customer-facing "redeem
+          // within 7 days" copy on the same column, so the promise and the grant
+          // read one decision.
+          //
+          // `isNewCustomer` is deliberately no longer a term here. It was added
+          // when this block moved out of `if (isNewCustomer)`, and against the
+          // new-customer B1G1 it is redundant: that row carries
+          // `new_customer_only: true`, so `calculateCost` never makes it a
+          // candidate for a returning customer and it cannot be `applied`.
+          // Keeping it would have implied the grant is safe for any bogo a new
+          // customer wins, which is the assumption being removed. The grant's
+          // real gate, `b1g1Eligibility` below, is untouched.
+          if (!discounted && applied.grants_credit && applied.free_hours) {
+            // Advice-only bogo: the free hour is NOT in this booking, it is
+            // owed. `!discounted` is the same test the label has always used
+            // and the only one that stays correct under slice 4's
+            // non-stacking rule — if a richer offer beat the bogo,
+            // `appliedPromotionId` names that offer instead, this branch
+            // never runs, no hint is printed and no credit is granted. The
+            // grant and the promise agree because they read one decision.
+            const expiry = b1g1CreditExpiry(date);
+            const expiryStr = expiry?.label ?? '';
+            promoLabel = `${applied.title_en} (${applied.free_hours} free hr to redeem within 7 days, expires ${expiryStr})`;
 
-              // Record the promise. Same `expiry` object feeds the printed date
-              // above and the stored `expires_at` below, so the two cannot
-              // disagree. Own try/catch: a grant failure must not swallow the
-              // staff note, and unlike the note a dropped grant is a broken
-              // promise to a paying customer — so it logs at error level with
-              // enough context to reconstruct it by hand.
-              //
-              // The GRANT is gated on `b1g1Eligibility`; the staff note above is
-              // not, and its wording and trigger are unchanged. They are allowed
-              // to diverge here precisely because the note is a note and the
-              // grant is money: a returning customer who typed an unseen phone
-              // reaches this branch with `isNewCustomer` true, and minting them a
-              // second free hour under a fresh customer id is the bug this gate
-              // exists to stop. The disagreement was already logged above.
-              if (!b1g1Eligibility.eligible) {
-                console.error(
-                  `[B1G1] SKIPPED grant: the staff note printed the free-hour promise but the customer is not eligible for a grant. ` +
-                    `customerId=${customerId} userId=${userId} bookingId=${booking.id} hours=${applied.free_hours} ` +
-                    `phoneNew=${b1g1Eligibility.phoneNew} profileHasPriorBooking=${b1g1Eligibility.profileHasPriorBooking} ` +
-                    `error=${b1g1Eligibility.error ?? 'none'}`,
-                );
-              } else if (expiry && customerId) {
-                try {
-                  const grant = await grantB1G1NewCustomerCredit(supabase, {
-                    customerId,
-                    freeHours: applied.free_hours,
-                    expiresAt: expiry.expiresAt,
-                    bookingId: booking.id as string,
-                  });
-                  if (!grant.ok) {
-                    console.error(
-                      `[B1G1] FAILED to record free-hour credit — customer was promised it. customerId=${customerId} bookingId=${booking.id} hours=${applied.free_hours} expires=${expiry.expiresAt.toISOString()} error=${grant.error}`,
-                    );
-                  } else {
-                    console.log(
-                      `[B1G1] ${grant.created ? 'Granted' : 'Already held'} free-hour credit: customerId=${customerId} bookingId=${booking.id} grantId=${grant.grantId} hours=${applied.free_hours} expires=${expiry.expiresAt.toISOString()}`,
-                    );
-                  }
-                } catch (grantError) {
+            // Record the promise. Same `expiry` object feeds the printed date
+            // above and the stored `expires_at` below, so the two cannot
+            // disagree. Own try/catch: a grant failure must not swallow the
+            // staff note, and unlike the note a dropped grant is a broken
+            // promise to a paying customer — so it logs at error level with
+            // enough context to reconstruct it by hand.
+            //
+            // The GRANT is gated on `b1g1Eligibility`; the staff note above is
+            // not, and its wording and trigger are unchanged. They are allowed
+            // to diverge here precisely because the note is a note and the
+            // grant is money: a returning customer who typed an unseen phone
+            // reaches this branch with `isNewCustomer` true, and minting them a
+            // second free hour under a fresh customer id is the bug this gate
+            // exists to stop. The disagreement was already logged above.
+            if (!b1g1Eligibility.eligible) {
+              console.error(
+                `[B1G1] SKIPPED grant: the staff note printed the free-hour promise but the customer is not eligible for a grant. ` +
+                  `customerId=${customerId} userId=${userId} bookingId=${booking.id} hours=${applied.free_hours} ` +
+                  `phoneNew=${b1g1Eligibility.phoneNew} profileHasPriorBooking=${b1g1Eligibility.profileHasPriorBooking} ` +
+                  `error=${b1g1Eligibility.error ?? 'none'}`,
+              );
+            } else if (expiry && customerId) {
+              try {
+                const grant = await grantB1G1NewCustomerCredit(supabase, {
+                  customerId,
+                  freeHours: applied.free_hours,
+                  expiresAt: expiry.expiresAt,
+                  bookingId: booking.id as string,
+                });
+                if (!grant.ok) {
                   console.error(
-                    `[B1G1] FAILED to record free-hour credit — customer was promised it. customerId=${customerId} bookingId=${booking.id} hours=${applied.free_hours}`,
-                    grantError,
+                    `[B1G1] FAILED to record free-hour credit — customer was promised it. customerId=${customerId} bookingId=${booking.id} hours=${applied.free_hours} expires=${expiry.expiresAt.toISOString()} error=${grant.error}`,
+                  );
+                } else {
+                  console.log(
+                    `[B1G1] ${grant.created ? 'Granted' : 'Already held'} free-hour credit: customerId=${customerId} bookingId=${booking.id} grantId=${grant.grantId} hours=${applied.free_hours} expires=${expiry.expiresAt.toISOString()}`,
                   );
                 }
-              } else {
-                // Both arms are unreachable in practice: `isB1G1GrantEligible`
-                // denies without a customer id, so eligible implies one, and
-                // `b1g1CreditExpiry` only returns null on a date Postgres could
-                // not have accepted into the booking row above. Logged rather
-                // than dropped so that if either ever does happen we find out
-                // from the log, not from the customer.
+              } catch (grantError) {
                 console.error(
-                  `[B1G1] Cannot record free-hour credit: ${!customerId ? 'no customer_id' : `unreadable booking date "${date}"`}. ` +
-                    `bookingId=${booking.id} hours=${applied.free_hours}`,
+                  `[B1G1] FAILED to record free-hour credit — customer was promised it. customerId=${customerId} bookingId=${booking.id} hours=${applied.free_hours}`,
+                  grantError,
                 );
               }
+            } else {
+              // Both arms are unreachable in practice: `isB1G1GrantEligible`
+              // denies without a customer id, so eligible implies one, and
+              // `b1g1CreditExpiry` only returns null on a date Postgres could
+              // not have accepted into the booking row above. Logged rather
+              // than dropped so that if either ever does happen we find out
+              // from the log, not from the customer.
+              console.error(
+                `[B1G1] Cannot record free-hour credit: ${!customerId ? 'no customer_id' : `unreadable booking date "${date}"`}. ` +
+                  `bookingId=${booking.id} hours=${applied.free_hours}`,
+              );
             }
-            notificationNotes = notificationNotes
-              ? `${notificationNotes}, ${promoLabel}`
-              : promoLabel;
           }
+
+          // Tell staff what to do at the till — and that turns entirely on
+          // whether THIS booking was discounted, not on which offer won.
+          //
+          // `discounted` is the gate because the paired `pos.discounts` rows are
+          // percentage / 100.00 / item. On a booking of 2 hours or more the item
+          // is the second hour and zeroing it is exactly right. On a shorter
+          // booking the offer contributed advice and no discount, the item is
+          // the WHOLE booking, and the same instruction tells staff to zero a
+          // booking the customer was quoted in full. One hour is the default
+          // duration on the ladder, so that is the majority of an off-peak
+          // offer's bookings, not an edge case.
+          //
+          // The advice-only branch says so out loud rather than falling silent.
+          // The note still names the offer, because the customer saw it; a named
+          // offer with no instruction beside it invites a staff member to apply
+          // the discount from memory, which is the same failure by a slower
+          // route.
+          //
+          // `getPosDiscountTitle` never throws and returns null on every failure
+          // path, so a POS read problem costs this one clause and leaves the
+          // promo label intact.
+          promoLabel = discounted
+            ? withPosDiscountInstruction(
+                promoLabel,
+                await getPosDiscountTitle(supabase, applied.pos_discount_id),
+              )
+            : withNoPosDiscountInstruction(promoLabel);
+
+          notificationNotes = notificationNotes
+            ? `${notificationNotes}, ${promoLabel}`
+            : promoLabel;
         }
-      } catch {
-        // Non-critical — never block a booking over the staff note. Covers the
-        // promotions fetch AND the calculation; on either failure the note simply
-        // carries no promo label.
       }
+    } catch {
+      // Non-critical — never block a booking over the staff note. Covers the
+      // promotions fetch AND the calculation; on either failure the note simply
+      // carries no promo label.
     }
 
     // Send notifications in parallel and wait for them to complete
