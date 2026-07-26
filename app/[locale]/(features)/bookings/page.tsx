@@ -58,7 +58,7 @@ export default function BookingsPage() {
   // different page rather than a load.
   if (status === 'loading') {
     return (
-      <Layout hideFooter>
+      <Layout hidePromotionBar compactHeader flushMain hideFooter>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -87,7 +87,10 @@ export default function BookingsPage() {
               : tPage('stepDetailsTitle')
             }
           </h2>
-          <p className="text-gray-600 mt-1">
+          {/* `text-sm`: the subtitle is supporting text under a `text-2xl`
+              heading, and at the default body size it competed with the h2 for
+              the eye. Matches the course-rental step header exactly. */}
+          <p className="text-gray-600 mt-1 text-sm">
             {currentStep === 1
               ? tPage('stepDateSubtitle')
               : currentStep === 2
@@ -136,12 +139,33 @@ export default function BookingsPage() {
   );
 
   return (
-    /* `hideFooter`: the long marketing footer (address, hours, socials,
-       privacy) belongs on a landing page, not inside a checkout. Left on, it
-       renders under the steps and pushes the sticky total bar's spacer far
-       down the scroll. Course rental suppresses it for the same reason. */
-    <Layout hideFooter>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    /* Chrome treatment, matched to the course-rental flow. Each prop is a
+       deliberate pick, not a copied set:
+
+       - `hidePromotionBar`  TAKEN. The new-customer promo banner only renders
+         once `hasBookings` resolves to false, so it drops in asynchronously
+         and shoves the steps down mid-interaction. Marketing inside a checkout.
+       - `compactHeader`     TAKEN. Slimmer header on mobile only (desktop is
+         unchanged), which is free vertical space in a flow that also spends a
+         fixed strip at the bottom on the sticky total bar.
+       - `flushMain`         TAKEN. Layout's default <main> adds its own
+         `container mx-auto px-4 sm:px-6 lg:px-8 py-8` around the wrapper
+         below, so horizontal padding was being applied twice. The page now
+         owns its padding outright.
+       - `hideFooter`        TAKEN. See the commit that added it: the long
+         marketing footer belongs on a landing page, not under a checkout.
+       - `hideNav`           NOT TAKEN. It strips the desktop Bay Rates /
+         Promotions / Lessons / club-rental links. Unlike course rental, which
+         is a self-contained product flow, `/bookings` step 1 IS this app's
+         landing surface (the header badge even links back to it) and a
+         customer on it may legitimately be browsing rather than committed.
+         Making it step-conditional would trade that for a header that
+         restructures itself as the customer advances — the same chrome flicker
+         the loading-state props above exist to prevent. Mobile is unaffected
+         either way: those links live in the burger menu, which `hideNav`
+         does not touch. */
+    <Layout hidePromotionBar compactHeader flushMain hideFooter>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {renderContent()}
       </div>
     </Layout>
