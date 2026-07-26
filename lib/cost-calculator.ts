@@ -8,6 +8,7 @@ import { isWeekendDate, getRateForTime, getRateSegments, timeSlots } from '@/lib
 import { getClubPricing, GOLF_CLUB_OPTIONS, getGearUpItems } from '@/types/golf-club-rental';
 import { getPackageById } from '@/types/play-food-packages';
 import { computePackageCoverage, HOUR_EPSILON } from '@/lib/package-coverage';
+import { isPromotionEligible } from '@/lib/promotion-conditions';
 
 // --- Types ---
 
@@ -20,6 +21,17 @@ export interface ApplicablePromotion {
   conditions: Record<string, unknown>;
   title_en: string;
   title_th: string;
+  /**
+   * The `pos.discounts` row staff must apply at the till to honour this offer,
+   * when the promotion declares one. Null means the mapping is unconfirmed, NOT
+   * that no discount is needed.
+   *
+   * Nothing in the calculation reads this — it carries through to the staff LINE
+   * note in `app/api/bookings/create/route.ts`, which names the winning offer.
+   * It lives on this type so the note reads it off the SAME row the quote was
+   * computed from rather than re-deriving a mapping by convention.
+   */
+  pos_discount_id?: string | null;
 }
 
 export interface CostCalculationInput {
@@ -693,8 +705,17 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   for (const promo of applicablePromotions) {
     // Hoisted out of the per-type branches it used to be duplicated in — the
     // types are mutually exclusive, so this is the same gate as before.
-    const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
-    if (isNewCustomerOnly && !isNewCustomer) continue;
+    //
+    // This used to read exactly ONE key (`new_customer_only`) and ignore the
+    // rest of the jsonb. `lib/promotion-conditions.ts` now evaluates the whole
+    // object and DENIES on any key it does not recognise — see its header for
+    // why an unread condition is the expensive direction to be wrong in.
+    //
+    // Evaluated against `date`/`startTime` — the BOOKING's — never `now()`. A
+    // customer browsing on Monday morning for a Saturday evening slot is asked
+    // about Saturday evening, because that is the session the quote prices and
+    // the session staff will charge for.
+    if (!isPromotionEligible(promo.conditions, { date, startTime, isNewCustomer })) continue;
 
     const candidateNotes = emptyLocalizedNotes();
 

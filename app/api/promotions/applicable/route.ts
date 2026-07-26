@@ -8,7 +8,7 @@ export async function GET() {
     const supabase = createAdminClient();
     const { data: promotions, error } = await supabase
       .from('promotions')
-      .select('id, promotion_type, discount_value, free_hours, applies_to, conditions, title_en, title_th')
+      .select('id, promotion_type, discount_value, free_hours, applies_to, conditions, title_en, title_th, pos_discount_id')
       .eq('is_active', true)
       .eq('auto_apply', true)
       .not('promotion_type', 'is', null);
@@ -29,6 +29,11 @@ export async function GET() {
       conditions: promo.conditions ?? {},
       title_en: promo.title_en,
       title_th: promo.title_th,
+      // Carried so this projection stays byte-identical to the one the staff
+      // note is computed from in /api/bookings/create — the two are required to
+      // be the same row shape. Opaque id only; the POS discount's title is
+      // resolved server-side and never reaches the browser.
+      pos_discount_id: promo.pos_discount_id ?? null,
     }));
 
     return NextResponse.json(
