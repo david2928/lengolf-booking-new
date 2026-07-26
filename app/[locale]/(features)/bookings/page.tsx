@@ -52,9 +52,13 @@ export default function BookingsPage() {
     isPackageMode,
   } = useBookingFlow();
 
+  // Session-loading placeholder. It carries the SAME Layout props as the real
+  // return below: any difference here shows up as chrome appearing or
+  // disappearing the moment the session resolves, which reads as a flash of a
+  // different page rather than a load.
   if (status === 'loading') {
     return (
-      <Layout>
+      <Layout hideFooter>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -132,7 +136,11 @@ export default function BookingsPage() {
   );
 
   return (
-    <Layout>
+    /* `hideFooter`: the long marketing footer (address, hours, socials,
+       privacy) belongs on a landing page, not inside a checkout. Left on, it
+       renders under the steps and pushes the sticky total bar's spacer far
+       down the scroll. Course rental suppresses it for the same reason. */
+    <Layout hideFooter>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {renderContent()}
       </div>
