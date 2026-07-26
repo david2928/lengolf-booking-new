@@ -141,7 +141,7 @@ export function ExtrasStep({
                         isSelected ? 'text-green-700' :
                         isPremiumPlus ? 'text-[#003d1f]' : 'text-gray-900'
                       }`}>
-                        {isPremiumPlus ? t('premiumPlusLabel') : t('premiumLabel')} — {clubSet.gender === 'mens' ? t('clubSetMens') : t('clubSetWomens')}
+                        {isPremiumPlus ? t('premiumPlusLabel') : t('premiumLabel')} {clubSet.gender === 'mens' ? t('clubSetMens') : t('clubSetWomens')}
                       </span>
                       {!isAvailable && (
                         <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">{t('clubSetUnavailable')}</span>

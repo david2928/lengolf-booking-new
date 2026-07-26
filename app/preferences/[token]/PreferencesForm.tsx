@@ -111,7 +111,7 @@ export default function PreferencesForm({
         <span className="text-sm text-gray-800">
           <span className="font-medium block">Booking confirmations &amp; receipts</span>
           <span className="text-gray-500">
-            Required for service — we always send these for active bookings.
+            Required for service. We always send these for active bookings.
           </span>
         </span>
       </label>
@@ -120,8 +120,8 @@ export default function PreferencesForm({
       {status.kind === 'saved' && (
         <p className="text-sm text-emerald-700">
           {status.optIn
-            ? "Saved — you're subscribed to news & offers."
-            : "Saved — you've unsubscribed from marketing emails."}
+            ? "Saved. You're subscribed to news & offers."
+            : "Saved. You've unsubscribed from marketing emails."}
         </p>
       )}
       {status.kind === 'error' && (

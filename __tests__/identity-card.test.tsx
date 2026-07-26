@@ -26,6 +26,7 @@ import {
   IdentityCard,
   contactInitials,
   firstIncompleteContactField,
+  formatPhoneForDisplay,
   isIdentityComplete,
   type ContactIdentity,
 } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/IdentityCard';
@@ -53,10 +54,19 @@ describe('IdentityCard', () => {
     renderCard();
 
     expect(screen.getByText('David Geiermann')).toBeInTheDocument();
-    expect(screen.getByText('+66812345678')).toBeInTheDocument();
+    // Grouped for reading, not the raw E.164 digit run the profile stores.
+    expect(screen.getByText('+66 81 234 5678')).toBeInTheDocument();
+    expect(screen.queryByText('+66812345678')).not.toBeInTheDocument();
     expect(screen.getByText('david@example.com')).toBeInTheDocument();
     expect(screen.getByText('DG')).toBeInTheDocument();
     expect(screen.getByText('Booking as')).toBeInTheDocument();
+  });
+
+  // Customers book from several countries, so the card must not present a
+  // foreign number in Thai national format.
+  test('a non-Thai number keeps its own country grouping', () => {
+    renderCard({ phoneNumber: '+4915112345678' });
+    expect(screen.getByText('+49 1511 2345678')).toBeInTheDocument();
   });
 
   // Each of these must render nothing at all, because the caller reads the same
@@ -136,6 +146,39 @@ describe('firstIncompleteContactField', () => {
       expect(isIdentityComplete(contact)).toBe(firstIncompleteContactField(contact) === null);
     },
   );
+});
+
+describe('formatPhoneForDisplay', () => {
+  test('groups an E.164 number in international format', () => {
+    expect(formatPhoneForDisplay('+66842695447')).toBe('+66 84 269 5447');
+    expect(formatPhoneForDisplay('+66812345678')).toBe('+66 81 234 5678');
+  });
+
+  // `formatPhoneNumberIntl` returns '' for anything it cannot parse. The card
+  // is gated on `isValidPhoneNumber` so this should be unreachable, but a blank
+  // line where the customer's own phone number belongs is the one outcome that
+  // must not be possible.
+  test.each(['not-a-number', '0842695447', '   '])(
+    'falls back to the raw value rather than rendering nothing (%s)',
+    (raw) => {
+      expect(formatPhoneForDisplay(raw)).toBe(raw);
+    },
+  );
+
+  // A too-short-but-parseable number still formats ("+6612" → "+66 12"). It
+  // cannot reach the card (`isValidPhoneNumber` rejects it) and the point of
+  // the case is only that it does not vanish.
+  test('never returns an empty string for a non-empty input', () => {
+    for (const raw of ['not-a-number', '+6612', '0842695447', '+66842695447']) {
+      expect(formatPhoneForDisplay(raw)).not.toBe('');
+    }
+  });
+
+  test('is display-only — it never rewrites the value it was given', () => {
+    const stored = '+66842695447';
+    expect(formatPhoneForDisplay(stored)).not.toBe(stored);
+    expect(stored).toBe('+66842695447');
+  });
 });
 
 describe('contactInitials', () => {

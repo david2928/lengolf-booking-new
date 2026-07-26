@@ -281,7 +281,7 @@ describe('the per-slot treatment survives the tab rewrite', () => {
   test('a maxHours <= 2 slot keeps its amber "limited" caption', () => {
     renderWeb([slot('10:00', { maxHours: 1.5 }), slot('10:30', { maxHours: 3 })]);
     const limited = screen.getByRole('button', { name: /10:00/ });
-    expect(limited).toHaveTextContent('1.5hr max');
+    expect(limited).toHaveTextContent('1.5 hr max');
     expect(limited.className).toContain('border-amber-200');
     const unlimited = screen.getByRole('button', { name: /10:30/ });
     expect(unlimited).not.toHaveTextContent('hr max');

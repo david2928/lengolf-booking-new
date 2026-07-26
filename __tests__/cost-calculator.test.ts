@@ -43,25 +43,25 @@ describe('bay rate proration across the 14:00 boundary', () => {
   test('13:30 1h weekday straddles morning/afternoon → ฿650 (0.5×550 + 0.5×750)', () => {
     const { item } = bayItem({ startTime: '13:30', duration: 1 });
     expect(item.amount).toBe(650);
-    expect(item.detail).toBe('0.5hr × ฿550 + 0.5hr × ฿750 (Weekday)');
+    expect(item.detail).toBe('0.5 hr × ฿550 + 0.5 hr × ฿750 (Weekday)');
   });
 
   test('13:00 1h weekday stays fully in the morning slot → ฿550, unchanged format', () => {
     const { item } = bayItem({ startTime: '13:00', duration: 1 });
     expect(item.amount).toBe(550);
-    expect(item.detail).toBe('1hr × ฿550/hr (Weekday, Before 14:00)');
+    expect(item.detail).toBe('1 hr × ฿550/hr (Weekday, Before 14:00)');
   });
 
   test('12:00 3h weekday spans the boundary → 2×550 + 1×750 = ฿1,850', () => {
     const { item } = bayItem({ startTime: '12:00', duration: 3 });
     expect(item.amount).toBe(1850);
-    expect(item.detail).toBe('2hr × ฿550 + 1hr × ฿750 (Weekday)');
+    expect(item.detail).toBe('2 hr × ฿550 + 1 hr × ฿750 (Weekday)');
   });
 
   test('14:00 2h weekend is single-rate afternoon → ฿1,900', () => {
     const { item } = bayItem({ date: WEEKEND, startTime: '14:00', duration: 2 });
     expect(item.amount).toBe(1900);
-    expect(item.detail).toBe('2hr × ฿950/hr (Weekend, 14:00 - 17:00)');
+    expect(item.detail).toBe('2 hr × ฿950/hr (Weekend, 14:00 - 17:00)');
   });
 
   test('16:00 2h weekday crossing into evening promo shows prorated strikethrough original', () => {
@@ -74,7 +74,7 @@ describe('bay rate proration across the 14:00 boundary', () => {
   test('same-price slots merge for display but drop the (now wrong) slot label', () => {
     const { item } = bayItem({ startTime: '16:00', duration: 2 });
     // 16:00–18:00 is not within "14:00 - 17:00", so no slot label
-    expect(item.detail).toBe('2hr × ฿750/hr (Weekday)');
+    expect(item.detail).toBe('2 hr × ฿750/hr (Weekday)');
   });
 
   test('08:00 start inherits the morning rate instead of pricing at ฿0', () => {
@@ -85,7 +85,7 @@ describe('bay rate proration across the 14:00 boundary', () => {
   test('non-half-hour start rounds amount to whole baht and hours to 2dp', () => {
     const { item } = bayItem({ startTime: '13:20', duration: 1 });
     expect(item.amount).toBe(617); // 2/3×550 + 1/3×750 = 616.67 → 617
-    expect(item.detail).toBe('0.67hr × ฿550 + 0.33hr × ฿750 (Weekday)');
+    expect(item.detail).toBe('0.67 hr × ฿550 + 0.33 hr × ฿750 (Weekday)');
   });
 });
 
@@ -188,7 +188,7 @@ describe('Early Bird package coverage splits at 14:00', () => {
 
     expect(charged?.amount).toBe(1125); // 1.5 × ฿750
     expect(charged?.isCoveredByPackage).toBeUndefined();
-    expect(charged?.detail).toBe('1.5hr × ฿750/hr (Weekday, 14:00 - 17:00)');
+    expect(charged?.detail).toBe('1.5 hr × ฿750/hr (Weekday, 14:00 - 17:00)');
 
     expect(breakdown.estimatedTotal).toBe(1125);
     expect(breakdown.notes.some((n) => n.includes('covers until 14:00'))).toBe(true);
@@ -200,6 +200,56 @@ describe('Early Bird package coverage splits at 14:00', () => {
     expect(charged?.amount).toBe(0);
     expect(charged?.isCoveredByPackage).toBe(true);
     expect(breakdown.estimatedTotal).toBe(0);
+  });
+
+  /**
+   * The chip and a note used to say the same sentence a few lines apart:
+   * "Covered by Early Bird +" under the Bay Rate line, then "Bay rate covered
+   * by Early Bird +" under the Total. Owner-reported Jul 2026. The chip is the
+   * one that stayed, so a FULLY covered booking must carry the chip data and
+   * contribute NO coverage note in any of the five locales.
+   *
+   * Deliberately asserted as "notes hold nothing but the estimate line" rather
+   * than by matching the old wording — a reworded duplicate would sail straight
+   * past a substring check.
+   */
+  test('full coverage is said once, by the chip, and never repeated in the notes', () => {
+    const { breakdown, charged } = items({ startTime: '13:00', duration: 1 });
+
+    // The chip's inputs. Both surfaces render it off `isCoveredByPackage`.
+    expect(charged?.isCoveredByPackage).toBe(true);
+    expect(charged?.packageName).toBe('Early Bird 10H');
+
+    const ESTIMATE_ONLY = {
+      notes: ['Estimate only, payment at venue'],
+      notesTh: ['ราคาประมาณการ ชำระที่สถานที่'],
+      notesJa: ['ご予約時の見積もり、会場でお支払い'],
+      notesKo: ['예상 금액, 현장에서 결제'],
+      notesZh: ['预估价格，现场付款'],
+    };
+    expect({
+      notes: breakdown.notes,
+      notesTh: breakdown.notesTh,
+      notesJa: breakdown.notesJa,
+      notesKo: breakdown.notesKo,
+      notesZh: breakdown.notesZh,
+    }).toEqual(ESTIMATE_ONLY);
+
+    // And specifically not the package name a second time, however phrased.
+    for (const locale of Object.values(ESTIMATE_ONLY)) {
+      expect(locale.some((n) => n.includes('Early Bird 10H'))).toBe(false);
+    }
+  });
+
+  // The PARTIAL-coverage branch is the counterpart: there the chip explains the
+  // ฿0 head but nothing explains the charged tail, so its note must survive.
+  test('the partial-coverage note is untouched by the full-coverage cleanup', () => {
+    const { breakdown } = items({ startTime: '13:30', duration: 2 });
+    expect(breakdown.notes.some((n) => n.includes('covers until 14:00'))).toBe(true);
+    expect(breakdown.notesTh.some((n) => n.includes('14:00'))).toBe(true);
+    expect(breakdown.notesJa.some((n) => n.includes('14:00'))).toBe(true);
+    expect(breakdown.notesKo.some((n) => n.includes('14:00'))).toBe(true);
+    expect(breakdown.notesZh.some((n) => n.includes('14:00'))).toBe(true);
   });
 
   test('14:00 start → not covered at all, existing morning-only note fires', () => {
@@ -237,7 +287,7 @@ describe('Early Bird package coverage splits at 14:00', () => {
     const { charged } = items({ startTime: '13:00', duration: 5 });
     // charged 14:00–18:00 weekday: 3h afternoon ฿750 + 1h evening ฿750 (promo)
     expect(charged?.amount).toBe(3000);
-    expect(charged?.detail).toBe('4hr × ฿750/hr (Weekday)');
+    expect(charged?.detail).toBe('4 hr × ฿750/hr (Weekday)');
     // evening hour had a ฿1,250 pre-promo price → prorated strikethrough
     expect(charged?.originalAmount).toBe(3500);
   });
@@ -306,12 +356,12 @@ describe('a package balance that runs short charges the uncovered tail', () => {
     expect(covered?.isCoveredByPackage).toBe(true);
     expect(covered?.packageName).toBe('Gold (30H)');
     expect(covered?.originalAmount).toBe(550);   // 13:00–14:00 × ฿550
-    expect(covered?.detail).toBe('1hr × ฿550/hr (Weekday, Before 14:00)');
+    expect(covered?.detail).toBe('1 hr × ฿550/hr (Weekday, Before 14:00)');
 
     // 14:00–14:30 = 0.5 × ฿750. The HEAD would have been 0.5 × ฿550 = ฿275.
     expect(charged?.amount).toBe(375);
     expect(charged?.isCoveredByPackage).toBeUndefined();
-    expect(charged?.detail).toBe('0.5hr × ฿750/hr (Weekday, 14:00 - 17:00)');
+    expect(charged?.detail).toBe('0.5 hr × ฿750/hr (Weekday, 14:00 - 17:00)');
 
     expect(breakdown.estimatedTotal).toBe(375);
   });
@@ -328,7 +378,7 @@ describe('a package balance that runs short charges the uncovered tail', () => {
     });
     expect(covered?.originalAmount).toBe(275);   // 0.5 × ฿550
     expect(charged?.amount).toBe(1025);          // 0.5 × ฿550 + 1 × ฿750
-    expect(charged?.detail).toBe('0.5hr × ฿550 + 1hr × ฿750 (Weekday)');
+    expect(charged?.detail).toBe('0.5 hr × ฿550 + 1 hr × ฿750 (Weekday)');
     expect(breakdown.estimatedTotal).toBe(1025);
   });
 
@@ -418,6 +468,14 @@ describe('a package balance that runs short charges the uncovered tail', () => {
     expect(charged).toBeUndefined();
     expect(breakdown.lineItems.find((i) => i.id === 'play-food')).toBeDefined();
     expect(breakdown.notes.some((n) => n.includes('does not cover this whole booking'))).toBe(false);
+  });
+
+  test('the Play & Food detail spaces its hour unit like every other English detail', () => {
+    // It renders in the same panel as the bay-rate detail ("1 hr × ฿550/hr"),
+    // and was the one English string the spacing sweep missed.
+    const { breakdown } = items({ startTime: '13:00', duration: 1, playFoodPackageId: 'SET_A' });
+    const playFood = breakdown.lineItems.find((i) => i.id === 'play-food');
+    expect(playFood?.detail).toBe('1 hr bay time + food & drinks');
   });
 });
 
@@ -718,7 +776,7 @@ describe('a single eligible promotion produces the whole pre-refactor breakdown'
     labelJa: 'ベイ料金',
     labelKo: '베이 요금',
     labelZh: '球位费用',
-    detail: '1hr × ฿550 + 1hr × ฿750 (Weekday)',
+    detail: '1 hr × ฿550 + 1 hr × ฿750 (Weekday)',
     detailTh: '1 ชม. × ฿550 + 1 ชม. × ฿750 (วันธรรมดา)',
     detailJa: '1時間 × ฿550 + 1時間 × ฿750 (平日)',
     detailKo: '1시간 × ฿550 + 1시간 × ฿750 (평일)',
@@ -726,11 +784,11 @@ describe('a single eligible promotion produces the whole pre-refactor breakdown'
     amount: 1300, // 13:00–15:00 weekday: 1×550 + 1×750
   };
   const ESTIMATE_NOTE = {
-    en: 'Estimate only — payment at venue',
-    th: 'ราคาประมาณการ — ชำระที่สถานที่',
-    ja: 'ご予約時の見積もり — 会場でお支払い',
-    ko: '예상 금액 — 현장에서 결제',
-    zh: '预估价格 — 现场付款',
+    en: 'Estimate only, payment at venue',
+    th: 'ราคาประมาณการ ชำระที่สถานที่',
+    ja: 'ご予約時の見積もり、会場でお支払い',
+    ko: '예상 금액, 현장에서 결제',
+    zh: '预估价格，现场付款',
   };
 
   test('bogo: the free hour is the LAST hour, priced where it actually falls', () => {
@@ -846,7 +904,7 @@ describe('a single eligible promotion produces the whole pre-refactor breakdown'
           labelJa: 'ベイ料金',
           labelKo: '베이 요금',
           labelZh: '球位费用',
-          detail: '0.5hr × ฿550 + 1hr × ฿750 (Weekday)',
+          detail: '0.5 hr × ฿550 + 1 hr × ฿750 (Weekday)',
           detailTh: '0.5 ชม. × ฿550 + 1 ชม. × ฿750 (วันธรรมดา)',
           detailJa: '0.5時間 × ฿550 + 1時間 × ฿750 (平日)',
           detailKo: '0.5시간 × ฿550 + 1시간 × ฿750 (평일)',
@@ -863,23 +921,23 @@ describe('a single eligible promotion produces the whole pre-refactor breakdown'
         hourlyRate: 550,
         notes: [
           ESTIMATE_NOTE.en,
-          '🎉 Buy 1 Get 1 Free — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days',
+          '🎉 Buy 1 Get 1 Free: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days',
         ],
         notesTh: [
           ESTIMATE_NOTE.th,
-          '🎉 ซื้อ 1 แถม 1 — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน',
+          '🎉 ซื้อ 1 แถม 1: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน',
         ],
         notesJa: [
           ESTIMATE_NOTE.ja,
-          '🎉 Buy 1 Get 1 Free — 2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください',
+          '🎉 Buy 1 Get 1 Free：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください',
         ],
         notesKo: [
           ESTIMATE_NOTE.ko,
-          '🎉 Buy 1 Get 1 Free — 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요',
+          '🎉 Buy 1 Get 1 Free: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요',
         ],
         notesZh: [
           ESTIMATE_NOTE.zh,
-          '🎉 Buy 1 Get 1 Free — 预订2小时即获1小时免费！或在7天内兑换您的免费时段',
+          '🎉 Buy 1 Get 1 Free：预订2小时即获1小时免费！或在7天内兑换您的免费时段',
         ],
       });
   });

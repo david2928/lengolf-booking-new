@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { isValidPhoneNumber } from 'react-phone-number-input';
+import { formatPhoneNumberIntl, isValidPhoneNumber } from 'react-phone-number-input';
 
 /** The three contact values the card stands in for. */
 export interface ContactIdentity {
@@ -62,6 +62,25 @@ export function contactInitials(name: string): string {
     .toUpperCase();
 }
 
+/**
+ * `+66842695447` → `+66 84 269 5447`. **Display only** — the E.164 value the
+ * card was handed is what gets submitted and written back to the profile, and
+ * nothing downstream reads this string.
+ *
+ * International rather than national format because customers book from
+ * several countries and the card must never present a Thai-looking `084 269
+ * 5447` for a number that is not Thai.
+ *
+ * `formatPhoneNumberIntl` returns `''` for anything it cannot parse, so fall
+ * back to the raw value: a blank line where a phone number belongs is worse
+ * than an unformatted one. The card only renders once `isValidPhoneNumber`
+ * passes, so this should be unreachable — it is here because the cost of being
+ * wrong about that is an empty line in the customer's own contact details.
+ */
+export function formatPhoneForDisplay(phoneNumber: string): string {
+  return formatPhoneNumberIntl(phoneNumber) || phoneNumber;
+}
+
 export interface IdentityCardProps extends ContactIdentity {
   /** Reveals the three inputs. Wired to `setIsEditingContact(true)`. */
   onChange: () => void;
@@ -97,7 +116,9 @@ export function IdentityCard({ name, phoneNumber, email, onChange }: IdentityCar
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-gray-900">{name}</p>
-          <p className="truncate text-xs text-gray-600">{phoneNumber}</p>
+          <p className="truncate text-xs text-gray-600">
+            {formatPhoneForDisplay(phoneNumber!)}
+          </p>
           <p className="truncate text-xs text-gray-600">{email}</p>
         </div>
         <button

@@ -4,7 +4,7 @@
  * The contract that matters: a booking crossing the 14:00 / 17:00 rate
  * boundaries is priced per portion, and the rail must show each portion on its
  * own line. The calculator hands that split over as ONE `bay-rate` line item
- * whose detail reads `"2hr × ฿550 + 1hr × ฿750 (Weekday)"`, so a rail that just
+ * whose detail reads `"2 hr × ฿550 + 1 hr × ฿750 (Weekday)"`, so a rail that just
  * printed `detail` would bury the split most customers ask about in a wrapped
  * run-on inside a 296px column.
  *
@@ -26,13 +26,13 @@ const proratedBreakdown: CostBreakdown = {
     {
       id: 'bay-rate',
       label: 'Bay Rate',
-      detail: '2hr × ฿550 + 1hr × ฿750 (Weekday)',
+      detail: '2 hr × ฿550 + 1 hr × ฿750 (Weekday)',
       amount: 1850,
     },
     {
       id: 'club-rental',
       label: 'Club Rental — Standard Set',
-      detail: '3hr',
+      detail: '3 hr',
       amount: 0,
     },
   ],
@@ -74,8 +74,8 @@ describe('SummaryRail', () => {
   test('renders each prorated bay-rate portion as its own line', () => {
     renderRail();
 
-    const first = screen.getByText('2hr × ฿550');
-    const second = screen.getByText('1hr × ฿750');
+    const first = screen.getByText('2 hr × ฿550');
+    const second = screen.getByText('1 hr × ฿750');
 
     expect(first).toBeInTheDocument();
     expect(second).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe('SummaryRail', () => {
     expect(screen.getByText('Weekday')).toBeInTheDocument();
     // And the compound detail is NOT also printed verbatim.
     expect(
-      screen.queryByText('2hr × ฿550 + 1hr × ฿750 (Weekday)'),
+      screen.queryByText('2 hr × ฿550 + 1 hr × ฿750 (Weekday)'),
     ).not.toBeInTheDocument();
   });
 
@@ -120,7 +120,7 @@ describe('SummaryRail', () => {
           {
             id: 'bay-rate',
             label: 'Bay Rate',
-            detail: '1hr × ฿550/hr (Weekday, Before 14:00)',
+            detail: '1 hr × ฿550/hr (Weekday, Before 14:00)',
             amount: 550,
           },
         ],
@@ -128,7 +128,7 @@ describe('SummaryRail', () => {
     });
 
     expect(
-      screen.getByText('1hr × ฿550/hr (Weekday, Before 14:00)'),
+      screen.getByText('1 hr × ฿550/hr (Weekday, Before 14:00)'),
     ).toBeInTheDocument();
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
@@ -164,9 +164,15 @@ describe('SummaryRail', () => {
   test('renders the booking facts', () => {
     renderRail();
     expect(screen.getByText('12:00')).toBeInTheDocument();
-    expect(screen.getByText('3 hr')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('Social Bay')).toBeInTheDocument();
+
+    // Scoped to the Duration row rather than a bare `getByText('3 hr')`,
+    // because the club-rental line's detail now reads "3 hr" too. That
+    // collision is the point: before Jul 2026 the calculator emitted "3hr" and
+    // the two spellings of one duration sat on the same screen.
+    expect(screen.getByText('Duration').nextElementSibling).toHaveTextContent('3 hr');
+    expect(screen.getAllByText('3 hr')).toHaveLength(2);
   });
 });
 
