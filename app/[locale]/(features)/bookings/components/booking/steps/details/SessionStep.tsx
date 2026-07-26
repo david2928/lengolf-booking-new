@@ -9,11 +9,38 @@ import {
   UsersIcon,
   ComputerDesktopIcon,
   InformationCircleIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import type { BayType } from '@/lib/bayConfig';
 import { allowedDurations, formatDurationLabel } from '@/lib/booking-durations';
+import { bayChoiceLabelKey } from './bayChoice';
 import { SetMenuCard } from './SetMenuCard';
+
+/**
+ * How each bay answer looks on the recap card.
+ *
+ * Keyed by `bayChoiceLabelKey`'s three-way result rather than by a fresh
+ * `=== 'ai_lab'` test, which is what this used to be — and a two-way test over
+ * a three-way answer has to put one of the three somewhere it does not belong.
+ * "All Bays" landed in the Social branch: the same green `UsersIcon` and the
+ * same `text-green-700`, pixel-identical to a Social Bay card with only the
+ * word differing. The meaning was carried entirely by the label, which is the
+ * one part of a card a customer scanning it does not read first.
+ *
+ * So no preference gets a neutral grey and a grid glyph — the visual claim
+ * "any of these" rather than the visual claim "the social ones". Grey also
+ * reads as unaccented next to two accented options, which is what declining to
+ * choose is.
+ */
+const BAY_CARD_STYLE: Record<
+  ReturnType<typeof bayChoiceLabelKey>,
+  { iconWrap: string; icon: string; label: string }
+> = {
+  aiLab: { iconWrap: 'bg-purple-50', icon: 'text-purple-600', label: 'text-purple-700' },
+  socialBay: { iconWrap: 'bg-green-50', icon: 'text-green-600', label: 'text-green-700' },
+  anyBay: { iconWrap: 'bg-gray-100', icon: 'text-gray-500', label: 'text-gray-700' },
+};
 
 /**
  * What the customer is buying. Not an add-on: a Play & Food set replaces the
@@ -23,8 +50,13 @@ import { SetMenuCard } from './SetMenuCard';
 type BookingMode = 'bay' | 'food';
 
 export interface SessionStepProps {
-  /** Longest session this slot fits, in hours. Fractional (2.5) since the
-      availability function moved to v3. Caps the duration ladder. */
+  /** Longest session THIS BOOKING fits, in hours — the slot's headroom already
+      narrowed to what the bay type chosen on step 2 can serve (`bayTypeHeadroom`
+      in `lib/booking-durations.ts`). Fractional (2.5) since the availability
+      function moved to v3. Caps both the duration ladder and the Play & Food
+      set cards. NOT the raw `TimeSlot.maxHours`: that is the headroom of
+      whichever bay lasts longest, which is a different bay from the customer's
+      whenever the two come apart. */
   maxDuration: number;
   duration: number;
   setDuration: (value: number) => void;
@@ -152,6 +184,17 @@ export function SessionStep({
   const seatCap = localSelectedPackage?.maxPeople ?? 5;
   const peopleOptions = Array.from({ length: seatCap }, (_, i) => i + 1);
 
+  /* The recap card's colours and glyph, resolved through the SAME three-way
+     mapping that produced `bayLabel` in `BookingDetails`. Sharing the key is
+     what stops the card's appearance and its wording from disagreeing about
+     which of the three answers this is. */
+  const bayChoice = bayChoiceLabelKey(selectedBayType);
+  const bayCardStyle = BAY_CARD_STYLE[bayChoice];
+  const BayIcon =
+    bayChoice === 'aiLab' ? ComputerDesktopIcon
+    : bayChoice === 'socialBay' ? UsersIcon
+    : Squares2X2Icon;
+
   return (
     <>
       {/* Selected Info Cards */}
@@ -193,21 +236,13 @@ export function SessionStep({
           className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100"
         >
           <div className="flex items-center gap-3">
-            <div className={`p-2 sm:p-3 rounded-full ${
-              selectedBayType === 'ai_lab' ? 'bg-purple-50' : 'bg-green-50'
-            }`}>
-              {selectedBayType === 'ai_lab' ? (
-                <ComputerDesktopIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
-              ) : (
-                <UsersIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
-              )}
+            <div className={`p-2 sm:p-3 rounded-full ${bayCardStyle.iconWrap}`}>
+              <BayIcon className={`h-6 w-6 sm:h-8 sm:w-8 ${bayCardStyle.icon}`} />
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-600">{t('bayType')}</h3>
               <div className="flex items-center gap-2">
-                <p className={`text-lg sm:text-xl font-bold ${
-                  selectedBayType === 'ai_lab' ? 'text-purple-700' : 'text-green-700'
-                }`}>
+                <p className={`text-lg sm:text-xl font-bold ${bayCardStyle.label}`}>
                   {bayLabel}
                 </p>
                 <button
@@ -402,9 +437,19 @@ export function SessionStep({
               Social / AI Lab picker directly above it. With the bay settled on
               step 2 it had nothing left to inform, and telling a customer what
               is available immediately after they have chosen from it is the
-              same second-guessing the picker itself was. The duration ladder is
-              already capped by the slot's own headroom, so a rung that cannot
-              be booked is not offered in the first place. */}
+              same second-guessing the picker itself was.
+
+              What that line WAS still doing, and what removing it briefly cost
+              us, is warning that the chosen bay could not last as long as the
+              ladder was offering. That is no longer a warning because it is no
+              longer possible: `maxDuration` arrives capped by the chosen bay
+              type's own headroom, so a rung it cannot serve is not on the
+              ladder. The information the line carried is now expressed as the
+              absence of a tile rather than as a count to interpret — see
+              `bayTypeHeadroom`. Do not restore this comment's earlier claim
+              that the SLOT's headroom was doing that job: it was not, and the
+              gap is what let five surfaces promise a bay the booking would not
+              get. */}
         </div>
       )}
 
