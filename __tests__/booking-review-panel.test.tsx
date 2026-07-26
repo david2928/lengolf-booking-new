@@ -214,6 +214,30 @@ describe('BookingReviewPanel', () => {
     expect(screen.queryByText('Estimated Total')).not.toBeInTheDocument();
   });
 
+  /**
+   * The panel's header used to print `summaryRailPaymentNote` — the very
+   * sentence `ProjectedCostBreakdown` prints in its own header a few rows
+   * below, so "Payment at venue" appeared twice on the mobile confirm screen.
+   * The breakdown owns everything about the money, including when it is paid;
+   * the panel owns the when/where/who. Counting rather than asserting absence
+   * is the point: the phrase must still be on screen, exactly once.
+   */
+  test('leaves the payment note to the breakdown, said once', () => {
+    renderPanel();
+
+    expect(screen.getAllByText('Payment at venue')).toHaveLength(1);
+  });
+
+  test('says nothing about the money outside the breakdown it renders', () => {
+    renderPanel({ costBreakdown: null });
+
+    const panel = screen.getByRole('region', { name: 'Review your booking' });
+    // With the breakdown gone the panel is facts only — no payment note, no
+    // total, no currency of any kind left behind in its own copy.
+    expect(within(panel).queryByText('Payment at venue')).toBeNull();
+    expect(within(panel).queryByText(/฿/)).toBeNull();
+  });
+
   test('stays out of the desktop layout, where SummaryRail owns these facts', () => {
     renderPanel();
 

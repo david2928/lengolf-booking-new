@@ -91,12 +91,16 @@ export function BookingReviewPanel({
   return (
     <section aria-labelledby="booking-review-title" className="mt-4 space-y-4 lg:hidden">
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-baseline justify-between gap-2">
-          <h3 id="booking-review-title" className="text-base font-semibold text-gray-900">
-            {t('reviewPanelTitle')}
-          </h3>
-          <span className="text-xs text-gray-400">{t('summaryRailPaymentNote')}</span>
-        </div>
+        {/* No payment note here. `ProjectedCostBreakdown` prints "Payment at
+            venue" in its own header a few rows below, and this header printed
+            the same sentence from `summaryRailPaymentNote` — the identical
+            string twice on one screen. Where and when the customer pays is a
+            fact about the money, so the breakdown owns it; this panel owns the
+            when/where/who. The desktop `SummaryRail` keeps the note because it
+            renders its own totals and never mounts alongside the breakdown. */}
+        <h3 id="booking-review-title" className="text-base font-semibold text-gray-900">
+          {t('reviewPanelTitle')}
+        </h3>
         <p className="mt-1 text-xs text-gray-500">{t('reviewPanelIntro')}</p>
 
         {/* The `summaryRail*` label keys are shared with the desktop rail rather
