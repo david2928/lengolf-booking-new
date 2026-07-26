@@ -49,6 +49,8 @@ interface HarnessOverrides {
   routerReplace?: (href: string, options?: { scroll?: boolean }) => void;
   /** The bay chosen on step 2. `null` is "All Bays" — no preference. */
   bayType?: BayType | null;
+  /** Unlocks the 4 h and 5 h rungs — the 7-tile ladder, the widest layout. */
+  hasActivePackage?: boolean;
 }
 
 /** What `BookingDetails` resolves for each bay state, so the harness agrees with it. */
@@ -74,6 +76,7 @@ function Harness({
   onPackageChange,
   routerReplace = () => {},
   bayType = 'social',
+  hasActivePackage = false,
 }: HarnessOverrides) {
   const [duration, setDuration] = useState(initialDuration);
   const [numberOfPeople, setNumberOfPeople] = useState(initialPeople);
@@ -102,7 +105,7 @@ function Harness({
         setShowPackageModal={() => {}}
         router={{ replace: routerReplace }}
         durationError=""
-        hasActivePackage={false}
+        hasActivePackage={hasActivePackage}
         selectedDate={WEEKDAY}
         selectedTime={selectedTime}
         selectedBayType={bayType}
@@ -598,5 +601,93 @@ describe('the duration ladder', () => {
     // 4 and 5 stay behind `hasActivePackage`, which the harness leaves false.
     expect(within(ladder()).queryByRole('button', { name: '4' })).toBeNull();
     expect(within(ladder()).queryByRole('button', { name: '5' })).toBeNull();
+  });
+});
+
+/**
+ * Duration and party size used to be drawn as two different controls on
+ * purpose — a recessed segmented track for the scale, detached round tokens for
+ * the count — so that shape would carry the distinction before either label was
+ * read. Sitting about 40px apart it read as inconsistency instead, which is
+ * what the owner reported on the QA build.
+ *
+ * They are one component now (`SegmentedOptions`). These pin the properties
+ * that made merging them safe, so a future change to one picker cannot quietly
+ * reintroduce a second idiom or shrink a tile under the touch target.
+ */
+describe('the two pickers share one idiom', () => {
+  const block = (label: string) => screen.getByText(label).parentElement as HTMLElement;
+  const durationBlock = () => block(messages.bookings.detailsStep.durationLabel);
+  const peopleBlock = () => block(messages.bookings.detailsStep.numberOfPeople);
+
+  test('both render the same control, styled identically at the same rung count', () => {
+    // Five duration rungs against five party sizes, so any class difference is
+    // a difference of idiom rather than of column count.
+    render(<Harness maxDuration={3} initialDuration={1} initialPeople={1} />);
+
+    const durationRail = within(durationBlock()).getByRole('group');
+    const peopleRail = within(peopleBlock()).getByRole('group');
+    expect(durationRail.className).toBe(peopleRail.className);
+
+    const pressed = (rail: HTMLElement) => within(rail).getByRole('button', { pressed: true });
+    const unpressed = (rail: HTMLElement) =>
+      within(rail).getAllByRole('button', { pressed: false })[0];
+
+    expect(pressed(durationRail).className).toBe(pressed(peopleRail).className);
+    expect(unpressed(durationRail).className).toBe(unpressed(peopleRail).className);
+
+    // The old party-size idiom, gone: no round detached tokens anywhere.
+    expect(peopleRail.querySelector('.rounded-full')).toBeNull();
+  });
+
+  test('each picker is a labelled group, so the buttons are not loose in the form', () => {
+    render(<Harness maxDuration={3} />);
+
+    for (const [blockOf, label] of [
+      [durationBlock, messages.bookings.detailsStep.durationLabel],
+      [peopleBlock, messages.bookings.detailsStep.numberOfPeople],
+    ] as const) {
+      const rail = within(blockOf()).getByRole('group');
+      expect(rail).toHaveAccessibleName(label);
+    }
+  });
+
+  /**
+   * The widest case, and the reason the rail wraps rather than adding columns:
+   * a package holder's seven rungs across a 360px viewport would be ~42px per
+   * tile at seven columns, under the 44px minimum. Four columns lays them out
+   * as 4 + 3 at ~71px.
+   */
+  test('seven duration rungs wrap to four columns instead of shrinking', () => {
+    const { unmount } = render(<Harness maxDuration={5} hasActivePackage />);
+
+    const sevenRail = within(durationBlock()).getByRole('group');
+    expect(within(sevenRail).getAllByRole('button')).toHaveLength(7);
+    expect(sevenRail.className).toContain('grid-cols-4');
+    expect(sevenRail.className).not.toContain('grid-cols-7');
+    unmount();
+
+    // The common case still fills a single five-across row exactly.
+    render(<Harness maxDuration={3} />);
+    const fiveRail = within(durationBlock()).getByRole('group');
+    expect(within(fiveRail).getAllByRole('button')).toHaveLength(5);
+    expect(fiveRail.className).toContain('grid-cols-5');
+  });
+
+  /**
+   * The column count is read off the option count, so a set with a capacity
+   * other than five shortens the rail rather than leaving empty columns. No
+   * literal here has to be kept in step with `maxPeople`.
+   */
+  test('a smaller seat cap gives a shorter rail, not empty columns', () => {
+    // `PlayFoodPackage['maxPeople']` is the literal 5 today, so the cast
+    // simulates a real future state rather than an impossible one — same
+    // reason as the SET_D placeholder case above.
+    const cappedAtThree = { ...SET_B, maxPeople: 3 } as unknown as PlayFoodPackage;
+    render(<Harness initialPackage={cappedAtThree} />);
+
+    const rail = within(peopleBlock()).getByRole('group');
+    expect(within(rail).getAllByRole('button')).toHaveLength(3);
+    expect(rail.className).toContain('grid-cols-3');
   });
 });
