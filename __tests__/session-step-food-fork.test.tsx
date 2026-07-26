@@ -331,17 +331,48 @@ describe('clearing back to Bay only', () => {
 });
 
 describe('the card figures come from the live booking, not the static data', () => {
-  test('the lead per-person price uses the selected party, with capacity as the curve', async () => {
+  /**
+   * The card leads with the set TOTAL, and the per-head split rides along it as
+   * a qualifier. The split is still computed from the SELECTED party — the
+   * bait-and-switch this whole module exists to prevent is showing the ฿420
+   * five-head figure from `pricePerPerson` to a party of two.
+   */
+  test('the headline is the total, qualified by the split across the selected party', async () => {
     const user = userEvent.setup();
     render(<Harness initialPeople={2} />);
     await user.click(forkButton('Bay + Food'));
 
     const card = setCard('SET B');
-    // ฿2,100 across two heads — not the ฿420 five-head figure in the data.
-    expect(within(card).getByText('฿1,050')).toBeInTheDocument();
-    expect(within(card).getByText(/each at 2 people/)).toBeInTheDocument();
-    // The capacity figure is disclosed as the upsell rather than as the price.
-    expect(within(card).getByText('฿420 each at 5 people')).toBeInTheDocument();
+    expect(within(card).getByText(`฿${SET_B.price.toLocaleString()}`)).toBeInTheDocument();
+    expect(within(card).getByText('฿1,050 each for 2 people')).toBeInTheDocument();
+    // Not the ฿420 five-head figure the package data carries.
+    expect(within(card).queryByText(/฿420/)).toBeNull();
+  });
+
+  /**
+   * The owner's report, as a rendering test: at a party of one the card printed
+   * ฿1,200 twice ("฿1,200 each at 1 person" and "Total ฿1,200 NET"), plus a
+   * capacity figure for a party they had not chosen, plus the split. Four money
+   * statements for one price. Two survive, and neither repeats the other.
+   */
+  test('a party of one sees the price once, and exactly two money lines', async () => {
+    const user = userEvent.setup();
+    render(<Harness initialPeople={1} selectedTime="10:00" />);
+    await user.click(forkButton('Bay + Food'));
+
+    const card = setCard('SET A');
+    // The total, once.
+    expect(within(card).getAllByText(`฿${SET_A.price.toLocaleString()}`)).toHaveLength(1);
+    // No per-head qualifier: at a party of one it is the same number again.
+    expect(within(card).queryByText(/each for/)).toBeNull();
+    // No "Total" label, and no capacity line for a party size not selected.
+    expect(within(card).queryByText(/Total/)).toBeNull();
+    expect(within(card).queryByText(/at 5 people/)).toBeNull();
+    // What remains: the headline, its NET marker, and the bay/food split.
+    expect(within(card).getByText('NET')).toBeInTheDocument();
+    expect(
+      within(card).getByText('฿550 bay time + ฿650 food and drinks'),
+    ).toBeInTheDocument();
   });
 
   test('the duration is printed on the card, because selecting it rewrites the booking', async () => {
@@ -385,7 +416,7 @@ describe('the card figures come from the live booking, not the static data', () 
     await user.click(forkButton('Bay + Food'));
 
     const card = within(setCard('SET B'));
-    expect(card.getByText(`Total ฿${SET_B.price.toLocaleString()} NET`)).toBeInTheDocument();
+    expect(card.getByText(`฿${SET_B.price.toLocaleString()}`)).toBeInTheDocument();
     // ฿1,100 + ฿1,000 = SET B's ฿2,100 total.
     expect(1100 + 1000).toBe(SET_B.price);
     expect(card.getByText('฿1,100 bay time + ฿1,000 food and drinks')).toBeInTheDocument();
@@ -513,7 +544,9 @@ describe('the people picker', () => {
     expect(within(people).queryByRole('button', { name: '6' })).toBeNull();
 
     await user.click(within(people).getByRole('button', { name: '3' }));
-    expect(within(setCard('SET B')).getByText('฿700')).toBeInTheDocument();
+    // The headline total does not move with the party; the qualifier does.
+    expect(within(setCard('SET B')).getByText('฿2,100')).toBeInTheDocument();
+    expect(within(setCard('SET B')).getByText('฿700 each for 3 people')).toBeInTheDocument();
   });
 
   /**

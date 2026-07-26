@@ -7,8 +7,16 @@
  *  1. **Per person comes from the party the customer actually selected.**
  *     `PlayFoodPackage.pricePerPerson` is `price / maxPeople`, i.e. it assumes
  *     five heads. Printing ฿240 to someone who picked two is a bait-and-switch,
- *     so the cards compute from `numberOfPeople` and disclose the capacity
- *     figure separately as the value curve ("฿420 each at 5 people").
+ *     so the per-head figure is computed from `numberOfPeople` and from nothing
+ *     else. That rule is the reason this module exists and must not be undone.
+ *
+ *     What HAS gone is the capacity figure this used to return alongside it —
+ *     the "value curve", ฿420 each at 5 people. It was disclosure: the card led
+ *     with a per-head price, so the five-head number it was NOT showing had to
+ *     be named somewhere. The card now leads with the set total, which is the
+ *     same number at every party size, so there is no per-head price to
+ *     disclose against and the capacity figure was left arguing for a party the
+ *     customer had not chosen, next to the one they had. See `SetMenuCard`.
  *
  *  2. **The bay-only anchor is generated, never hardcoded.** A set's persuasive
  *     number is what the same bay time would cost on its own — and that is
@@ -78,8 +86,6 @@ export interface SetValueInput {
   price: number;
   /** Set length in hours — also the window the bay anchor is priced over. */
   duration: number;
-  /** The set's own capacity, read from the package rather than assumed to be 5. */
-  maxPeople: number;
   /** The party size the customer selected in this booking. */
   numberOfPeople: number;
   date: string;
@@ -87,13 +93,20 @@ export interface SetValueInput {
 }
 
 export interface SetValueFigures {
-  /** Lead figure: the set total split across the selected party. */
+  /** The set total split across the SELECTED party. Never `price / maxPeople`. */
   perPerson: number;
-  /** The same split at the set's capacity — the honest upsell. */
-  perPersonAtCapacity: number;
-  maxPeople: number;
-  /** False once the customer is already at capacity, where the curve says nothing. */
-  showValueCurve: boolean;
+  /**
+   * False whenever the split lands back on the total itself — at a party of
+   * one, and at the defensive head counts `perPersonPrice` floors to one. The
+   * card drops the qualifier in that case rather than print the same number
+   * twice under two different labels, which is what the owner saw at a party
+   * of one: "฿1,200 each at 1 person" above "Total ฿1,200 NET".
+   *
+   * Derived by comparing the figures rather than testing `numberOfPeople >= 2`,
+   * so it states the actual condition (the two differ) instead of a proxy for
+   * it that a rounding change could quietly break.
+   */
+  showPerPerson: boolean;
   /** Bay-only cost for the same window, or null when it cannot be priced. */
   bayOnlyCost: number | null;
   /**
@@ -108,18 +121,16 @@ export interface SetValueFigures {
 export function setValueFigures({
   price,
   duration,
-  maxPeople,
   numberOfPeople,
   date,
   startTime,
 }: SetValueInput): SetValueFigures {
   const bay = bayOnlyCost({ date, startTime, durationHours: duration });
   const premium = bay === null ? null : price - bay;
+  const perPerson = perPersonPrice(price, numberOfPeople);
   return {
-    perPerson: perPersonPrice(price, numberOfPeople),
-    perPersonAtCapacity: perPersonPrice(price, maxPeople),
-    maxPeople,
-    showValueCurve: numberOfPeople < maxPeople,
+    perPerson,
+    showPerPerson: perPerson !== price,
     bayOnlyCost: bay,
     foodPremium: premium !== null && premium > 0 ? premium : null,
   };

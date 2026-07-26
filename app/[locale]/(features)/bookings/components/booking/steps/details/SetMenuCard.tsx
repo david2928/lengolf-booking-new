@@ -81,7 +81,6 @@ export function SetMenuCard({
   const value = setValueFigures({
     price: pkg.price,
     duration: pkg.duration,
-    maxPeople: pkg.maxPeople,
     numberOfPeople,
     date,
     startTime,
@@ -153,24 +152,57 @@ export function SetMenuCard({
           )}
         </div>
 
-        {/* Per person leads; the total is secondary. */}
+        {/* TWO money lines, and never the same number twice.
+            This block used to carry four statements for one price. At a party
+            of one they collapsed into a card that said ฿1,200 twice under two
+            different labels ("฿1,200 each at 1 person", then "Total ฿1,200
+            NET"), advertised ฿240 each at a party size the customer had not
+            selected, and split the total a fourth way. The owner's verdict was
+            "too much information still, a bit confusing", and the reason it
+            read that way is that only one of the four was the price.
+
+            What is left:
+              1. The TOTAL, as the headline. It is what the customer pays, it
+                 does not move with the party size, and it is the figure the
+                 booking is actually priced at. The per-head split rides along
+                 it as a qualifier ONLY when it differs from it, so a party of
+                 one sees one number and a party of two sees the divide they
+                 asked for. "Total" as a word is gone with it: the headline of
+                 a set card is self-evidently the set's price, and the label
+                 was only ever there to stop the old per-person lead being
+                 mistaken for it.
+              2. The bay/food split, unchanged, one line, the case for the set.
+
+            Deliberately NOT kept: the capacity line ("฿240 each at 5 people").
+            It existed as disclosure — while the card led with a per-head
+            figure, the five-head figure it was not showing had to be named. A
+            total-led card has no per-head price to disclose against, which
+            leaves the line arguing for a party the customer has not chosen,
+            in the card's accent colour, against the price they are looking at.
+            See `lib/play-food-value.ts`, which no longer computes it. */}
         <div>
-          <div className="flex items-baseline gap-1.5 flex-wrap">
+          <div className="flex items-baseline gap-x-2 gap-y-0.5 flex-wrap">
             <span className="text-2xl font-bold text-green-700 tabular-nums">
-              ฿{value.perPerson.toLocaleString()}
+              ฿{pkg.price.toLocaleString()}
             </span>
-            <span className="text-xs text-gray-600">
-              {t('setPerPersonEach', { count: numberOfPeople })}
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              {tPkg('priceNet')}
             </span>
-          </div>
-          <div className="mt-0.5 text-xs text-gray-500 tabular-nums">
-            {t('setTotalLabel')} ฿{pkg.price.toLocaleString()} {tPkg('priceNet')}
+            {/* Still computed from the SELECTED party, never `pricePerPerson`
+                (which is `price / maxPeople` and would show a five-head figure
+                to a party of two). What changed is only that it is dropped when
+                it has nothing to say. */}
+            {value.showPerPerson && (
+              <span className="text-xs text-gray-600 tabular-nums">
+                {t('setPerPersonSplit', { price: value.perPerson, count: numberOfPeople })}
+              </span>
+            )}
           </div>
           {/* What the total is made of: the bay time this slot would cost on its
               own, plus what the food and drinks add on top.
               `foodPremium = price - bayOnlyCost`, so the two figures sum to the
-              Total on the line directly above — which is the whole reason this
-              sits here rather than where it used to.
+              headline total on the line directly above — which is the whole
+              reason this sits here rather than where it used to.
               It used to be an amber panel below the includes list: a boxed
               callout, in the card's only accent colour, roughly the weight of
               the price itself, arguing FOR the set at a distance from every
@@ -182,7 +214,8 @@ export function SetMenuCard({
               genuinely cheaper before 14:00 than in the evening, so a fixed
               claim would be wrong for half the day — and still omitted outright
               when the premium is zero, negative or unpriceable.
-              `text-gray-500`, matching the Total it decomposes, NOT the lighter
+              `text-gray-500`, matching the NET marker beside the total it
+              decomposes, NOT the lighter
               `text-gray-400` this started as: #9ca3af on white is 2.54:1, under
               the 4.5:1 AA threshold and under even the 3:1 large-text one. It
               is subordinate to the total by size and position; making it
@@ -195,13 +228,6 @@ export function SetMenuCard({
                 bayPrice: value.bayOnlyCost,
                 premium: value.foodPremium,
               })}
-            </div>
-          )}
-          {/* The value curve: honest disclosure that doubles as the upsell,
-              since a set is designed for a bigger party. */}
-          {value.showValueCurve && (
-            <div className="mt-0.5 text-xs font-medium text-green-700 tabular-nums">
-              {t('setValueCurve', { price: value.perPersonAtCapacity, count: value.maxPeople })}
             </div>
           )}
         </div>

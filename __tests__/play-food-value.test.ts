@@ -6,7 +6,10 @@
  *  1. Per person is computed from the party the customer SELECTED, never from
  *     `PlayFoodPackage.pricePerPerson` (which is `price / maxPeople`, i.e. it
  *     always assumes five heads). Showing the five-head figure to a party of two
- *     would be a bait-and-switch.
+ *     would be a bait-and-switch. This survived the card's simplification: the
+ *     capacity figure it used to return beside it did not, because the card now
+ *     leads with the set TOTAL and a per-head figure is only printed when it
+ *     differs from that total. `showPerPerson` is that condition.
  *  2. The bay-only anchor is GENERATED from the slot, not hardcoded. Bay time is
  *     genuinely cheaper before 14:00 (฿550/h weekday) than in the evening
  *     (฿750/h), so the same set has a different anchor depending on when the
@@ -106,7 +109,6 @@ describe('setValueFigures', () => {
     setValueFigures({
       price: pkg.price,
       duration: pkg.duration,
-      maxPeople: pkg.maxPeople,
       numberOfPeople,
       date,
       startTime,
@@ -132,31 +134,49 @@ describe('setValueFigures', () => {
     expect(figures(SET_C, 5, WEEKEND, '19:00').bayOnlyCost).toBe(2850); // 3 × 950
   });
 
-  test('the lead per-person figure tracks the selected party, and the curve shows capacity', () => {
+  test('the per-person figure tracks the selected party, never the set capacity', () => {
     const two = figures(SET_B, 2, WEEKDAY, '19:00');
     expect(two.perPerson).toBe(1050);
-    expect(two.perPersonAtCapacity).toBe(420);
-    expect(two.maxPeople).toBe(5);
-    expect(two.showValueCurve).toBe(true);
-  });
+    // The five-head figure the package data carries is NOT what gets shown.
+    expect(two.perPerson).not.toBe(SET_B.pricePerPerson);
+    expect(two.showPerPerson).toBe(true);
 
-  test('the value curve is dropped once the party is already at capacity', () => {
     const five = figures(SET_B, 5, WEEKDAY, '19:00');
-    expect(five.perPerson).toBe(five.perPersonAtCapacity);
-    expect(five.showValueCurve).toBe(false);
+    expect(five.perPerson).toBe(SET_B.pricePerPerson);
+    expect(five.showPerPerson).toBe(true);
   });
 
-  test('capacity comes from the set, so a smaller cap would change the curve', () => {
-    const capped = setValueFigures({
-      price: SET_B.price,
-      duration: SET_B.duration,
-      maxPeople: 4,
-      numberOfPeople: 2,
-      date: WEEKDAY,
-      startTime: '19:00',
-    });
-    expect(capped.maxPeople).toBe(4);
-    expect(capped.perPersonAtCapacity).toBe(525); // 2100 / 4, not 2100 / 5
+  /**
+   * The owner's complaint, as a predicate. At a party of one the split IS the
+   * total, so printing it produced "฿1,200 each at 1 person" directly above
+   * "Total ฿1,200 NET" — the same number twice under two different labels.
+   */
+  test('the per-person qualifier is suppressed when it is just the total again', () => {
+    const one = figures(SET_B, 1, WEEKDAY, '19:00');
+    expect(one.perPerson).toBe(SET_B.price);
+    expect(one.showPerPerson).toBe(false);
+  });
+
+  test('a defensive head count floors to one, and is suppressed for the same reason', () => {
+    for (const people of [0, -3, Number.NaN]) {
+      const broken = figures(SET_B, people, WEEKDAY, '19:00');
+      expect(broken.perPerson).toBe(SET_B.price);
+      expect(broken.showPerPerson).toBe(false);
+    }
+  });
+
+  /**
+   * Every party size from 2 up shows the qualifier, and no two show the same
+   * figure — the guard against a rounding change quietly collapsing two rungs
+   * onto one number, or onto the total.
+   */
+  test('every party size above one qualifies the total with a distinct figure', () => {
+    const shown = [2, 3, 4, 5].map((n) => figures(SET_C, n, WEEKDAY, '19:00'));
+    for (const f of shown) {
+      expect(f.showPerPerson).toBe(true);
+      expect(f.perPerson).not.toBe(SET_C.price);
+    }
+    expect(new Set(shown.map((f) => f.perPerson)).size).toBe(shown.length);
   });
 
   test('a zero or negative premium is nulled so the card omits the anchor line', () => {
@@ -164,7 +184,6 @@ describe('setValueFigures', () => {
     const negative = setValueFigures({
       price: 500,
       duration: 2,
-      maxPeople: 5,
       numberOfPeople: 2,
       date: WEEKDAY,
       startTime: '10:00',
@@ -175,7 +194,6 @@ describe('setValueFigures', () => {
     const exactlyZero = setValueFigures({
       price: 1100,
       duration: 2,
-      maxPeople: 5,
       numberOfPeople: 2,
       date: WEEKDAY,
       startTime: '10:00',
