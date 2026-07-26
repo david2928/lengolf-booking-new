@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CostBreakdown, CostLineItem } from '@/lib/cost-calculator';
+import { ConsentNote } from './ConsentNote';
 import {
   CostItemAmount,
   CostItemPackageBadge,
@@ -132,7 +133,8 @@ function RailLineItem({
 
 /**
  * Desktop-only right column of booking step 3: what the customer chose, what it
- * costs broken down per prorated portion, and the confirm action.
+ * costs broken down per prorated portion, the confirm action, and the consent
+ * disclosure directly beneath it.
  *
  * `onCta` must be the form hook's `handlePrimaryCta` (in its confirm mode) —
  * the rail owns no validation of its own, so jump-to-error stays in one place.
@@ -268,6 +270,15 @@ export function SummaryRail({
         )}
         {ctaLabel}
       </button>
+
+      {/* The booking-email consent disclosure, directly under the button whose
+          press it describes. This is the desktop half of a two-mount pair: the
+          rail is inside an aside classed `hidden lg:block`, and the mobile copy
+          at the end of `YourDetailsStep` is classed `lg:hidden`, so exactly one
+          renders at any width. No visibility class here — adding one would
+          double-gate against the aside and is how a disclosure disappears at
+          some width nobody tested. See `ConsentNote` for the whole argument. */}
+      <ConsentNote className="mt-3" />
     </section>
   );
 }

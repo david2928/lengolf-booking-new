@@ -240,7 +240,6 @@
       "confirmBooking": "确认预约",
       "processing": "处理中...",
       "consentNote": "通过预约，您同意接收预约状态更新和到访后的评价请求邮件。",
-      "consentNoteWithOptIn": "通过预约，您同意接收预约状态更新和到访后的评价请求邮件。营销邮件是单独的，请使用上方的选项订阅。",
       "subStepSession": "场次",
       "subStepExtras": "附加项目",
       "subStepContact": "您的资料",
