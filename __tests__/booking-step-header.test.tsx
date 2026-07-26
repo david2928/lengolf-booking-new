@@ -35,6 +35,7 @@ import {
   stepLabelKey,
   stepQuestionKey,
 } from '@/app/[locale]/(features)/bookings/components/booking/stepHeaderModel';
+import { bayChoiceLabelKey } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/bayChoice';
 import { formatShortDate } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/summarySubline';
 import { DETAIL_SUB_STEPS } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/useDetailsSubStep';
 import { BAY_BOOKING_STEPS } from '@/lib/booking-telemetry';
@@ -213,6 +214,43 @@ describe('the header strings exist in all five locales', () => {
     const details = CATALOGS[locale].bookings.detailsStep as Record<string, string>;
     for (const key of pageKeys) expect(page[key]).not.toContain('—');
     for (const key of detailKeys) expect(details[key]).not.toContain('—');
+  });
+});
+
+/**
+ * The bay reaches the subline through `bayChoiceLabelKey`, the one mapping every
+ * surface that names a bay shares. The header's requirement is that by step 3
+ * the bay is ALWAYS known — which only holds because "no preference" is a named
+ * answer rather than a gap.
+ */
+describe('bayChoiceLabelKey', () => {
+  test('names each of the three answers, including no preference', () => {
+    expect(bayChoiceLabelKey('social')).toBe('socialBay');
+    expect(bayChoiceLabelKey('ai_lab')).toBe('aiLab');
+    expect(bayChoiceLabelKey(null)).toBe('anyBay');
+  });
+
+  test('an absent value is the same answer as an explicit "All Bays"', () => {
+    // `selectedBayType` arrives through an optional prop, so `undefined` and
+    // `null` are the same customer choice and must not diverge.
+    expect(bayChoiceLabelKey(undefined)).toBe(bayChoiceLabelKey(null));
+  });
+
+  test('never falls back to Social for an unstated preference', () => {
+    // The bug this replaced: anything that was not AI Lab printed "Social Bay",
+    // so a booking with no bay preference claimed a Social bay it had not asked
+    // for.
+    expect(bayChoiceLabelKey(null)).not.toBe('socialBay');
+  });
+
+  test.each(LOCALES)('%s can render every bay answer', (locale) => {
+    const details = CATALOGS[locale].bookings.detailsStep as Record<string, string>;
+    for (const bay of ['social', 'ai_lab', null] as const) {
+      const value = details[bayChoiceLabelKey(bay)];
+      expect(typeof value).toBe('string');
+      expect(value.trim().length).toBeGreaterThan(0);
+      expect(value).not.toContain('—');
+    }
   });
 });
 

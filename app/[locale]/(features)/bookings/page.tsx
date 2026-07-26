@@ -13,6 +13,7 @@ import {
   stepQuestionKey,
 } from './components/booking/stepHeaderModel';
 import { DateSelection } from './components/booking/steps/DateSelection';
+import { bayChoiceLabelKey } from './components/booking/steps/details/bayChoice';
 import { useBookingFlow } from './hooks/useBookingFlow';
 
 const TimeSlots = dynamic(
@@ -59,6 +60,7 @@ export default function BookingsPage() {
     setSelectedClubSetId,
     setSelectedAddOns,
     handleDateSelect,
+    handleBayTypeSelect,
     handleTimeSelect,
     handleBack,
     handleHeaderBack,
@@ -82,27 +84,19 @@ export default function BookingsPage() {
   }
   
   /**
-   * The bay, for the header's subline — and null unless it is genuinely a
-   * SETTLED choice, which is narrower than "we have a value".
+   * The bay, for the header's subline.
    *
-   * `selectedBayType` is set only when step 2's bay filter was on Social or AI
-   * Lab; on the default "All bays" filter `TimeSlots` passes `undefined` and the
-   * customer picks the bay inside step 3's Session sub-step instead. Exactly
-   * that distinction is what `SessionStep` branches on: a set `selectedBayType`
-   * renders read-only, an unset one renders the picker.
+   * By step 3 this is ALWAYS known: step 2's bay control is the choice, and its
+   * three answers are Social, AI Lab and "All Bays" — the last meaning no
+   * preference, which is why it names itself rather than going unsaid. There is
+   * no longer a state where the bay is pending, so there is no longer a reason
+   * for the subline to fall silent about it; the header prints the same string
+   * `BookingDetails` puts on the recap card, the rail and the review panel.
    *
-   * So printing it only when it is set gives two things at once. The subline
-   * stays true to what it claims to be — choices carried in from EARLIER steps,
-   * not the one being made right now. And the header can never contradict the
-   * form, because the only case where the form could still change the bay is
-   * the case where the header says nothing about it.
+   * Null before step 3 only, where the subline is still accumulating and the
+   * customer has not reached the bay yet.
    */
-  const settledBayLabel =
-    currentStep === 3 && selectedBayType
-      ? selectedBayType === 'ai_lab'
-        ? tDetails('aiLab')
-        : tDetails('socialBay')
-      : null;
+  const bayChoiceLabel = currentStep === 3 ? tDetails(bayChoiceLabelKey(selectedBayType)) : null;
 
   const renderContent = () => (
     <div className="min-h-[36rem]">
@@ -148,7 +142,7 @@ export default function BookingsPage() {
             currentStep === 3 && selectedTime
               ? tPage('sublineFromTime', { time: selectedTime })
               : null,
-          bayLabel: settledBayLabel,
+          bayLabel: bayChoiceLabel,
         })}
         onBack={currentStep > 1 ? handleHeaderBack : undefined}
         backLabel={tCommon('goBack')}
@@ -162,6 +156,11 @@ export default function BookingsPage() {
         {currentStep === 2 && selectedDate && (
           <TimeSlots
             selectedDate={selectedDate}
+            /* Controlled by the flow, not by `TimeSlots` itself: step 2
+               unmounts on the way to step 3 and remounts on the way back, so a
+               component-local choice would be lost each time. */
+            bayType={selectedBayType}
+            onBayTypeChange={handleBayTypeSelect}
             onTimeSelect={handleTimeSelect}
             onBack={handleBack}
           />

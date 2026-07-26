@@ -17,6 +17,20 @@ export function useBookingFlow() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  /**
+   * The bay type the customer wants, chosen ONCE on step 2 and carried from
+   * there — the same single `bayPreference` the LIFF flow has always had.
+   *
+   * `null` is a real answer, not an unset field: it is "All Bays", i.e. no
+   * preference, which `/api/bookings/create` honours by assigning whichever bay
+   * is free. So this is optional exactly as LIFF's is, and step 3 never asks
+   * again.
+   *
+   * It lives HERE rather than inside `TimeSlots` because step 2 unmounts: the
+   * choice has to survive stepping forward to step 3, stepping back to step 2,
+   * and a sessionStorage restore after a language switch. A component-local
+   * filter could survive none of those.
+   */
   const [selectedBayType, setSelectedBayType] = useState<BayType | null>(null);
   const [maxDuration, setMaxDuration] = useState<number>(1);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
@@ -68,6 +82,10 @@ export function useBookingFlow() {
       setCurrentStep(wantStep >= 3 && canStep3 ? 3 : wantStep >= 2 && canStep2 ? 2 : 1);
       if (s.selectedDateIso) setSelectedDate(new Date(s.selectedDateIso));
       if (s.selectedTime) setSelectedTime(s.selectedTime);
+      // A saved `null` needs no restore: it IS the initial value, and it means
+      // "All Bays" rather than "not chosen yet", so the truthiness guard here
+      // reads as "only overwrite the default when there is something else to
+      // say" and lands on the right answer for all three states.
       if (s.selectedBayType) setSelectedBayType(s.selectedBayType);
       if (s.maxDuration) setMaxDuration(s.maxDuration);
       if (s.selectedPackageId) {
@@ -153,10 +171,21 @@ export function useBookingFlow() {
     setCurrentStep(2);
   };
 
-  const handleTimeSelect = (time: string, maxHours: number, bayType?: BayType, slotData?: TimeSlot) => {
+  /**
+   * Step 2's bay control. Separate from `handleTimeSelect` because the bay is
+   * chosen BEFORE a slot — it narrows which slots are offered — and because it
+   * must be changeable without re-picking a time.
+   */
+  const handleBayTypeSelect = (bayType: BayType | null) => {
+    setSelectedBayType(bayType);
+  };
+
+  // No `bayType` argument: the bay is already in flow state by the time a slot
+  // is tapped, and taking it here as well would give the same choice two
+  // sources that could disagree.
+  const handleTimeSelect = (time: string, maxHours: number, slotData?: TimeSlot) => {
     setSelectedTime(time);
     setMaxDuration(maxHours);
-    setSelectedBayType(bayType || null);
     setSelectedSlotData(slotData || null);
     goToDetailsSubStep(DETAIL_SUB_STEPS[0]);
     setCurrentStep(3);
@@ -165,13 +194,17 @@ export function useBookingFlow() {
   // Leaves the current wizard step. Unchanged: callers that mean "get me out of
   // step 3" (the AI Lab warning's back link, the no-availability modal) keep
   // passing this, so they must NOT become sub-step-aware.
+  //
+  // `selectedBayType` is deliberately NOT cleared on the way out of step 3. It
+  // is step 2's own answer, and step 2 is exactly where this lands the
+  // customer — clearing it would reset the control they came back to change.
+  // That is the whole point of the AI Lab warning's back link below.
   const handleBack = () => {
     if (currentStep > 1) {
       if (currentStep === 2) {
         setSelectedDate(null);
       } else if (currentStep === 3) {
         setSelectedTime(null);
-        setSelectedBayType(null);
         goToDetailsSubStep(DETAIL_SUB_STEPS[0]);
       }
       setCurrentStep(currentStep - 1);
@@ -218,6 +251,7 @@ export function useBookingFlow() {
     setSelectedClubSetId,
     setSelectedAddOns,
     handleDateSelect,
+    handleBayTypeSelect,
     handleTimeSelect,
     handleBack,
     handleHeaderBack,

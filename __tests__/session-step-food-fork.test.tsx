@@ -14,11 +14,15 @@
  *   - Clearing back to Bay only resets duration and party size as before.
  *   - The per-person lead figure follows the selected party size.
  *   - The bay-only anchor is generated per slot, so morning and evening differ.
+ *   - The bay arrives already chosen and is only REPORTED here, never asked
+ *     again — including the "All Bays" case, which names itself rather than
+ *     silently reading as Social.
  */
 import { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
+import type { BayType } from '@/lib/bayConfig';
 import { SessionStep } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/SessionStep';
 import { SetMenuCard } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/SetMenuCard';
 import { getPlayFoodPackages, type PlayFoodPackage } from '@/types/play-food-packages';
@@ -42,7 +46,16 @@ interface HarnessOverrides {
   onPeopleChange?: (value: number) => void;
   onPackageChange?: (value: PlayFoodPackage | null) => void;
   routerReplace?: (href: string, options?: { scroll?: boolean }) => void;
+  /** The bay chosen on step 2. `null` is "All Bays" — no preference. */
+  bayType?: BayType | null;
 }
+
+/** What `BookingDetails` resolves for each bay state, so the harness agrees with it. */
+const BAY_LABEL: Record<'social' | 'ai_lab' | 'any', string> = {
+  social: messages.bookings.detailsStep.socialBay,
+  ai_lab: messages.bookings.detailsStep.aiLab,
+  any: messages.bookings.detailsStep.anyBay,
+};
 
 /**
  * Stateful wrapper: the real parent owns duration / people / package state, so
@@ -59,6 +72,7 @@ function Harness({
   onPeopleChange,
   onPackageChange,
   routerReplace = () => {},
+  bayType = 'social',
 }: HarnessOverrides) {
   const [duration, setDuration] = useState(initialDuration);
   const [numberOfPeople, setNumberOfPeople] = useState(initialPeople);
@@ -68,7 +82,6 @@ function Harness({
     <NextIntlClientProvider locale="en" messages={messages}>
       <SessionStep
         maxDuration={maxDuration}
-        slotData={null}
         duration={duration}
         setDuration={(v) => {
           onDurationChange?.(v);
@@ -89,12 +102,10 @@ function Harness({
         router={{ replace: routerReplace }}
         durationError=""
         hasActivePackage={false}
-        currentAvailability={{ social: 2, ai: 1, total: 3, bays: [] }}
         selectedDate={WEEKDAY}
         selectedTime={selectedTime}
-        selectedBayType="social"
-        selectedBay="social"
-        setSelectedBay={() => {}}
+        selectedBayType={bayType}
+        bayLabel={BAY_LABEL[bayType ?? 'any']}
         setShowBayInfoModal={() => {}}
         formatDate={(d) => d.toDateString()}
         onBack={() => {}}
@@ -114,6 +125,60 @@ const durationLadderPresent = () =>
 const setCard = (name: string) => screen.getByRole('button', { name: new RegExp(name) });
 const setCardPresent = (name: string) =>
   screen.queryByRole('button', { name: new RegExp(name) }) !== null;
+
+/**
+ * The bay is chosen once, on step 2. This step used to ask a second time — a
+ * required `Bay Type *` toggle plus an availability line under the duration
+ * ladder feeding it — which is what made the customer answer twice.
+ */
+describe('the bay is reported, not asked again', () => {
+  const bayCard = () => screen.getByTestId('booking-bay-card');
+
+  test.each([
+    ['social' as const, BAY_LABEL.social],
+    ['ai_lab' as const, BAY_LABEL.ai_lab],
+    [null, BAY_LABEL.any],
+  ])('a %s choice is stated as "%s"', (bayType, label) => {
+    render(<Harness bayType={bayType} />);
+    expect(within(bayCard()).getByText(label)).toBeInTheDocument();
+  });
+
+  test('no Social / AI Lab toggle is offered, for any of the three choices', () => {
+    for (const bayType of ['social', 'ai_lab', null] as const) {
+      const { unmount } = render(<Harness bayType={bayType} />);
+      // The only control on the card is the info link that opens the modal.
+      const buttons = within(bayCard()).getAllByRole('button');
+      expect(buttons.map((b) => b.textContent)).toEqual([messages.bookings.detailsStep.info]);
+      unmount();
+    }
+  });
+
+  test('the bay is not marked required — "All Bays" is a complete answer', () => {
+    render(<Harness bayType={null} />);
+    expect(within(bayCard()).queryByText('*')).not.toBeInTheDocument();
+  });
+
+  test('no bay-availability line sits under the duration ladder', () => {
+    render(<Harness />);
+    // "Available for 1 hour: 3 Social Bays only" and its two siblings.
+    expect(screen.queryByText(/Available for/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Social Bays only/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/AI Bay only/)).not.toBeInTheDocument();
+  });
+
+  test('the AI Lab group-size warning still fires, and only for AI Lab', () => {
+    const { unmount } = render(<Harness bayType="ai_lab" initialPeople={3} />);
+    expect(
+      screen.getByText(messages.bookings.detailsStep.aiLabRecommendationTitle),
+    ).toBeInTheDocument();
+    unmount();
+
+    render(<Harness bayType={null} initialPeople={3} />);
+    expect(
+      screen.queryByText(messages.bookings.detailsStep.aiLabRecommendationTitle),
+    ).not.toBeInTheDocument();
+  });
+});
 
 describe('the fork opens on Bay only by default', () => {
   test('the duration ladder is shown and no set cards are rendered', () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 // Type-only namespace import: `handleSubmit` keeps its original
 // `React.FormEvent` annotation and this file has no JSX.
 import type * as React from 'react';
@@ -106,9 +106,15 @@ export interface BookingDetailsProps {
  * sub-step before scrolling — an element hidden by `display: none` is still
  * found by `getElementById` but cannot be scrolled to, so flagging a field on
  * another sub-step would otherwise fail silently.
+ *
+ * All three live on `contact`, which is not an accident waiting to be
+ * simplified away: the map is what lets a required field be added to any
+ * sub-step without the jump-to-error logic having to learn about it. The
+ * Session sub-step has no required field at all now that the bay arrives
+ * already chosen — its `bd-bay` entry pointed at a picker that no longer
+ * exists, so it is gone rather than left as an anchor to nothing.
  */
 const SUB_STEP_FOR_FIELD: Record<string, DetailSubStep> = {
-  'bd-bay': 'session',
   'bd-name': 'contact',
   'bd-phone': 'contact',
   'bd-email': 'contact',
@@ -145,7 +151,6 @@ export function useBookingDetailsForm({
   const PREMIUM_CLUB_PRICING = getPremiumClubPricing();
   const PREMIUM_PLUS_CLUB_PRICING = getPremiumPlusClubPricing();
   const [duration, setDuration] = useState<number>(1);
-  const [selectedBay, setSelectedBay] = useState<BayType | null>(selectedBayType || 'social');
   const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
@@ -343,17 +348,6 @@ export function useBookingDetailsForm({
     };
   }, [phoneNumber]);
 
-  // Helper function to get bay availability for a specific duration
-  const getBayAvailabilityForDuration = useCallback((dur: number) => {
-    if (!slotData?.bayAvailabilityByDuration) {
-      return { social: 0, ai: 0, total: 0, bays: [] };
-    }
-    return slotData.bayAvailabilityByDuration[dur.toString()] || { social: 0, ai: 0, total: 0, bays: [] };
-  }, [slotData]);
-
-  // Get current duration's bay availability
-  const currentAvailability = getBayAvailabilityForDuration(duration);
-
   // `/auth/signin` is not a page in this app — the login page is `/auth/login`,
   // and `/api/auth/signin` is NextAuth's API route — so pushing it 404'd the
   // customer straight out of the flow. signIn() resolves the configured login
@@ -549,36 +543,18 @@ export function useBookingDetailsForm({
     }
   }, [selectedPackage]);
 
-  // Auto-select bay when only one type is available (e.g., AI Lab is N/A, auto-select Social)
-  useEffect(() => {
-    if (!selectedBayType && slotData?.bayAvailabilityByDuration) {
-      const availability = getBayAvailabilityForDuration(duration);
-
-      if (!selectedBay) {
-        // Nothing selected yet - auto-select the only available bay type
-        if (availability.social > 0 && availability.ai === 0) {
-          setSelectedBay('social');
-        } else if (availability.ai > 0 && availability.social === 0) {
-          setSelectedBay('ai_lab');
-        }
-      } else {
-        // Bay is selected but became unavailable due to duration change - auto-switch
-        if (selectedBay === 'social' && availability.social === 0 && availability.ai > 0) {
-          setSelectedBay('ai_lab');
-          toast(t('durationSwitchedToAi'), {
-            icon: 'ℹ️',
-            duration: 4000,
-          });
-        } else if (selectedBay === 'ai_lab' && availability.ai === 0 && availability.social > 0) {
-          setSelectedBay('social');
-          toast(t('durationSwitchedToSocial'), {
-            icon: 'ℹ️',
-            duration: 4000,
-          });
-        }
-      }
-    }
-  }, [duration, selectedBay, selectedBayType, slotData, getBayAvailabilityForDuration, t]);
+  /* No bay auto-select / auto-switch effect any more.
+   *
+   * It existed solely for the step-3 picker: it pre-selected the only available
+   * type, and re-selected the other one with a toast when a duration change made
+   * the chosen one impossible. Both only ever ran when `selectedBayType` was
+   * unset — i.e. exactly the "All Bays" case that is now a deliberate answer
+   * meaning no preference, where there is nothing to auto-select toward.
+   *
+   * A customer who DID name a type and then stretches the duration past what
+   * that type can fit is not silently moved either, which is unchanged: the
+   * effect already skipped them. `/api/bookings/create` treats the type as a
+   * preference and falls back to any free bay, so the booking still succeeds. */
 
   // Local state for package selector to allow switching
   const [localSelectedPackage, setLocalSelectedPackage] = useState<PlayFoodPackage | null>(selectedPackage || null);
@@ -712,11 +688,9 @@ export function useBookingDetailsForm({
       isValid = false;
     }
 
-    // Validate bay type selection when coming from "All Bays"
-    if (!selectedBayType && !selectedBay) {
-      toast.error(tErrors('selectBayType'));
-      isValid = false;
-    }
+    // No bay-type check. The bay is settled on step 2 and "All Bays" (null) is
+    // a valid answer, so there is no state this form can be in where the bay is
+    // missing — a required-field error for it could only ever be a false alarm.
 
     setErrors(currentErrors);
 
@@ -860,7 +834,10 @@ export function useBookingDetailsForm({
           customer_notes: finalCustomerNotes,
           package_id: localSelectedPackage?.id || null,
           package_info: localSelectedPackage ? `${localSelectedPackage.name} - ${localSelectedPackage.displayName}` : null,
-          preferred_bay_type: selectedBayType || selectedBay,
+          // Same field, same accepted values, one source instead of two. `null`
+          // is "All Bays" / no preference, which the route already handles by
+          // assigning whichever bay is free — the shape LIFF has always sent.
+          preferred_bay_type: selectedBayType ?? null,
           club_set_id: selectedClubSetId || null,
           club_rental_type: selectedClubRental,
           add_ons: addOnsPayload.length > 0 ? addOnsPayload : null,
@@ -939,26 +916,18 @@ export function useBookingDetailsForm({
   // `IdentityCard` decides from the same function whether to replace those
   // inputs with a read-only card. Sharing it is what guarantees a flag can never
   // target a field the card has taken out of the DOM.
-  const firstInvalidField = (): string | null => {
-    const badContact = firstIncompleteContactField({ name, phoneNumber, email });
-    if (badContact) return badContact;
-    if (!selectedBayType && !selectedBay) return 'bd-bay';
-    return null;
-  };
+  const firstInvalidField = (): string | null =>
+    firstIncompleteContactField({ name, phoneNumber, email });
 
   // Same check, narrowed to the fields the customer can actually see on the
   // sub-step they are on, so Continue on Session does not complain about a
   // blank email two screens away.
   //
-  // Session and Extras have NO required fields today — duration defaults to 1,
-  // people to 1, bay to 'social' and club rental to 'standard' — so Continue
-  // never blocks on either of them. `bd-bay` is listed for completeness (it is
-  // the Session sub-step's only anchor) but is unreachable while `selectedBay`
-  // is seeded with a default.
+  // Session and Extras have NO required fields — duration defaults to 1, people
+  // to 1, club rental to 'standard', and the bay arrives already chosen from
+  // step 2 (with "All Bays" a legitimate answer) — so Continue never blocks on
+  // either of them and only `contact` has anything to check.
   const firstInvalidFieldForSubStep = (s: DetailSubStep): string | null => {
-    if (s === 'session') {
-      if (!selectedBayType && !selectedBay) return 'bd-bay';
-    }
     if (s === 'contact') {
       return firstIncompleteContactField({ name, phoneNumber, email });
     }
@@ -1045,8 +1014,6 @@ export function useBookingDetailsForm({
     // Form state
     duration,
     setDuration,
-    selectedBay,
-    setSelectedBay,
     phoneNumber,
     setPhoneNumber,
     email,
@@ -1090,7 +1057,6 @@ export function useBookingDetailsForm({
     showClubRentalModal,
     setShowClubRentalModal,
     // Derived
-    currentAvailability,
     /** Gates the 4 h and 5 h rungs of the duration ladder. Starts false and
         resolves from /api/user/active-packages, so the picker grows from 5 tiles
         to 7 for a package holder shortly after step 3 mounts. */

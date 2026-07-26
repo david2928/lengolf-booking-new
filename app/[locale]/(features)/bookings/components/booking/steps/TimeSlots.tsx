@@ -25,15 +25,19 @@ import {
 interface TimeSlotsProps {
   selectedDate: Date;
   onBack: () => void;
-  onTimeSelect: (time: string, maxHours: number, bayType?: BayType, slotData?: TimeSlot) => void;
+  /**
+   * The bay the customer wants, owned by `useBookingFlow`. `null` is "All
+   * Bays" — a real answer meaning no preference, not an unset field.
+   */
+  bayType: BayType | null;
+  /** Records the choice on the flow, which carries it through to the booking. */
+  onBayTypeChange: (bayType: BayType | null) => void;
+  onTimeSelect: (time: string, maxHours: number, slotData?: TimeSlot) => void;
 }
 
-type BayFilterType = 'all' | 'social' | 'ai_lab';
-
-export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
+export function TimeSlots({ selectedDate, bayType, onBayTypeChange, onTimeSelect }: TimeSlotsProps) {
   const t = useTranslations('bookings.timeStep');
   const { isLoadingSlots, availableSlots, fetchAvailability } = useAvailability();
-  const [bayFilter, setBayFilter] = useState<BayFilterType>('all');
   const [showBayInfoModal, setShowBayInfoModal] = useState(false);
 
   useEffect(() => {
@@ -41,16 +45,18 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]); // fetchAvailability excluded to prevent race conditions
 
-  // Filter slots based on bay type selection
-  const filterSlotsByBayType = (slots: TimeSlot[], filterType: BayFilterType): TimeSlot[] => {
-    if (filterType === 'all') return slots;
+  // Narrow the slot list to the chosen bay. Unchanged rule: `null` shows
+  // everything, and a named type keeps only the slots that actually have one of
+  // that type free. Same predicate the LIFF flow applies to the same choice.
+  const filterSlotsByBayType = (slots: TimeSlot[], choice: BayType | null): TimeSlot[] => {
+    if (!choice) return slots;
 
     return slots.filter(slot => {
       if (!slot.availableBays) return false;
 
-      if (filterType === 'social') {
+      if (choice === 'social') {
         return slot.socialBayCount && slot.socialBayCount > 0;
-      } else if (filterType === 'ai_lab') {
+      } else if (choice === 'ai_lab') {
         return slot.aiLabCount && slot.aiLabCount > 0;
       }
 
@@ -58,14 +64,14 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
     });
   };
 
-  const filteredSlots = filterSlotsByBayType(availableSlots, bayFilter);
+  const filteredSlots = filterSlotsByBayType(availableSlots, bayType);
 
   // The morning caption's start hour is the venue's opening hour, which is
   // date-dependent — see `lib/opening-hours.ts`.
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
 
   // Counts come off the FILTERED list, so the tabs never advertise a slot the
-  // current bay filter has already hidden.
+  // chosen bay type has already hidden.
   const slotsByPeriod = BOOKING_PERIODS.reduce(
     (acc, period) => {
       acc[period] = filteredSlots
@@ -93,32 +99,48 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
   }, [selectedDate]);
 
   /**
-   * Derived rather than stored: if the bay filter empties the tab the customer
-   * picked, they fall back to the default instead of being stranded on a blank
-   * panel. Flipping the filter back restores their choice.
+   * Derived rather than stored: if the chosen bay type empties the tab the
+   * customer picked, they fall back to the default instead of being stranded on
+   * a blank panel. Changing the bay back restores their choice.
    */
   const activePeriod =
     preferredPeriod && slotsByPeriod[preferredPeriod].length > 0 ? preferredPeriod : defaultPeriod;
 
-  // Get the appropriate bay type to pass to onTimeSelect
-  const getBayTypeForSelection = (): BayType | undefined => {
-    if (bayFilter === 'social') return 'social';
-    if (bayFilter === 'ai_lab') return 'ai_lab';
-
-    // For 'all' filter, let user choose in the booking details form
-    if (bayFilter === 'all') return undefined;
-
-    return undefined;
-  };
-
-  // Bay Filter Component
-  const BayTypeFilter = () => (
+  /**
+   * The bay choice. It still narrows the slot list below it, but that is now a
+   * side effect of the choice rather than its purpose: whatever is selected
+   * here is what the booking is made with, and step 3 does not ask again.
+   *
+   * Hence the label and the `aria-pressed` toggles — the same idiom the period
+   * strip below uses. Unlabelled buttons that merely reorder a list are a
+   * filter; a labelled group with a pressed state is an answer to a question.
+   *
+   * "All Bays" leads and is the default because no preference is the common
+   * case and the most permissive one — it is the only option that can never
+   * empty the list.
+   */
+  const bayTypeChoice = (
     <div className="mb-4">
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <span id="bay-type-label" className="text-sm font-medium text-gray-700">
+          {t('bayTypeLabel')}
+        </span>
         <button
-          onClick={() => setBayFilter('all')}
+          type="button"
+          onClick={() => setShowBayInfoModal(true)}
+          className="shrink-0 text-xs text-gray-500 underline transition-colors hover:text-gray-800"
+        >
+          {t('whatsTheDifference')}
+        </button>
+      </div>
+
+      <div role="group" aria-labelledby="bay-type-label" className="grid grid-cols-3 gap-2">
+        <button
+          type="button"
+          aria-pressed={bayType === null}
+          onClick={() => onBayTypeChange(null)}
           className={`px-3 py-2.5 rounded-lg font-medium transition-colors text-center text-sm ${
-            bayFilter === 'all'
+            bayType === null
               ? 'bg-gray-800 text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
@@ -126,9 +148,11 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
           {t('filterAllBays')}
         </button>
         <button
-          onClick={() => setBayFilter('social')}
+          type="button"
+          aria-pressed={bayType === 'social'}
+          onClick={() => onBayTypeChange('social')}
           className={`px-3 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5 text-sm ${
-            bayFilter === 'social'
+            bayType === 'social'
               ? 'bg-green-600 text-white'
               : 'bg-green-50 text-green-700 hover:bg-green-100'
           }`}
@@ -138,25 +162,17 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
           <span className="sm:hidden">{t('filterSocialShort')}</span>
         </button>
         <button
-          onClick={() => setBayFilter('ai_lab')}
+          type="button"
+          aria-pressed={bayType === 'ai_lab'}
+          onClick={() => onBayTypeChange('ai_lab')}
           className={`px-3 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5 text-sm ${
-            bayFilter === 'ai_lab'
+            bayType === 'ai_lab'
               ? 'bg-purple-600 text-white'
               : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
           }`}
         >
           <ComputerDesktopIcon className="h-4 w-4 flex-shrink-0" />
           <span>{t('filterAiLab')}</span>
-        </button>
-      </div>
-      
-      {/* Learn More Button */}
-      <div className="text-center">
-        <button
-          onClick={() => setShowBayInfoModal(true)}
-          className="text-sm text-gray-600 hover:text-gray-800 underline transition-colors"
-        >
-          ❓ {t('whatsTheDifference')}
         </button>
       </div>
     </div>
@@ -256,7 +272,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
 
   return (
     <div className="min-h-[calc(100vh-32rem)]">
-      <BayTypeFilter />
+      {bayTypeChoice}
 
       {isLoadingSlots ? (
         <div className="flex flex-col items-center justify-center h-full py-20">
@@ -317,7 +333,6 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                 <div className="divide-y">
                   {(() => {
                     const sorted = periodSlots; // already sorted by `slotsByPeriod`
-                    const bayType = getBayTypeForSelection();
 
                     // Group into pairs by hour: [12:00, 12:30], [13:00, 13:30], etc.
                     const pairs: [TimeSlot, TimeSlot | null][] = [];
@@ -340,7 +355,7 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                       const limited = slot.maxHours <= 2;
                       return (
                         <button
-                          onClick={() => onTimeSelect(slot.startTime, slot.maxHours, bayType, slot)}
+                          onClick={() => onTimeSelect(slot.startTime, slot.maxHours, slot)}
                           className={`flex flex-col items-center justify-center h-12 w-full rounded-lg border transition-colors ${
                             limited
                               ? 'border-amber-200 bg-amber-50/50 hover:border-amber-400 hover:bg-amber-50'
@@ -388,17 +403,17 @@ export function TimeSlots({ selectedDate, onTimeSelect }: TimeSlotsProps) {
                   {availableSlots.length === 0
                     ? t('noSlots')
                     : t('noSlotsForFilter', {
-                        filter: bayFilter === 'social'
+                        filter: bayType === 'social'
                           ? t('filterLabelSocial')
-                          : bayFilter === 'ai_lab'
+                          : bayType === 'ai_lab'
                           ? t('filterLabelAiLab')
                           : '',
                       })
                   }
                 </p>
-                {availableSlots.length > 0 && bayFilter !== 'all' && (
+                {availableSlots.length > 0 && bayType !== null && (
                   <button
-                    onClick={() => setBayFilter('all')}
+                    onClick={() => onBayTypeChange(null)}
                     className="mt-4 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
                   >
                     {t('showAllAvailable')}
