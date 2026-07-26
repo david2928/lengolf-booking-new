@@ -14,7 +14,13 @@ import { isValidLanguage } from '@/lib/liff/translations';
 import { isValidLocale } from '@/i18n/routing';
 import { sanitizeAttribution } from '@/lib/attribution/click-ids';
 import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
-import { b1g1CreditExpiry, grantB1G1NewCustomerCredit } from '@/lib/b1g1-credit';
+import {
+  b1g1CreditExpiry,
+  b1g1DisagreementLog,
+  grantB1G1NewCustomerCredit,
+  isB1G1GrantEligible,
+  type B1G1Eligibility,
+} from '@/lib/b1g1-credit';
 
 // Accept any LIFF Language (en/th/ja/zh) OR any main-site Locale (en/th/ko/ja/zh).
 // LIFF's isValidLanguage doesn't include 'ko', but the main flow can produce it.
@@ -897,6 +903,53 @@ export async function POST(request: NextRequest) {
     });
     logTiming('Data formatting', 'success');
     
+    // May this booking MINT a free-hour credit? Deliberately NOT `isNewCustomer`
+    // — see `isB1G1GrantEligible` for why that flag answers a different
+    // question and disagrees with the customer's quote in both directions.
+    //
+    // Computed OUTSIDE the `isNewCustomer` gate below on purpose. The expensive
+    // failure mode is the one where `isNewCustomer` is false and the quote
+    // promised the hour anyway: every `[B1G1]` line, including the failures,
+    // used to live inside that gate, so that case produced no staff note and no
+    // log at all and surfaced only when a customer asked for an hour nobody had
+    // recorded. Two extra reads per booking-create is what visibility costs.
+    //
+    // Nothing here can throw — `isB1G1GrantEligible` resolves on every path —
+    // but the call is wrapped anyway: this is a staff note and a promo ledger,
+    // and neither is a reason to fail somebody's booking.
+    let b1g1Eligibility: B1G1Eligibility = {
+      eligible: false,
+      phoneNew: null,
+      profileHasPriorBooking: null,
+      error: 'eligibility check did not run',
+    };
+    try {
+      b1g1Eligibility = await isB1G1GrantEligible(supabase, {
+        phoneNumber: phone_number,
+        customerId,
+        userId,
+        bookingId: booking.id as string,
+      });
+    } catch (eligibilityError) {
+      console.error(
+        `[B1G1] Eligibility check threw. bookingId=${booking.id} customerId=${customerId} userId=${userId}`,
+        eligibilityError,
+      );
+    }
+
+    // The only way direction B ever surfaces. When these two disagree, either a
+    // grant is about to be withheld from someone the quote promised one, or
+    // `isNewCustomer` was about to mint one for someone who was promised
+    // nothing. Both are worth a page in the logs.
+    const b1g1Disagreement = b1g1DisagreementLog({
+      eligibility: b1g1Eligibility,
+      isNewCustomer,
+      customerId,
+      userId,
+      bookingId: booking.id as string,
+    });
+    if (b1g1Disagreement) console.error(b1g1Disagreement);
+
     // Append the applied auto-apply promo label to notes for staff notification.
     //
     // Offers NEVER stack (owner rule, confirmed 2026-07-25) — the customer's
@@ -987,7 +1040,22 @@ export async function POST(request: NextRequest) {
               // staff note, and unlike the note a dropped grant is a broken
               // promise to a paying customer — so it logs at error level with
               // enough context to reconstruct it by hand.
-              if (expiry && customerId) {
+              //
+              // The GRANT is gated on `b1g1Eligibility`; the staff note above is
+              // not, and its wording and trigger are unchanged. They are allowed
+              // to diverge here precisely because the note is a note and the
+              // grant is money: a returning customer who typed an unseen phone
+              // reaches this branch with `isNewCustomer` true, and minting them a
+              // second free hour under a fresh customer id is the bug this gate
+              // exists to stop. The disagreement was already logged above.
+              if (!b1g1Eligibility.eligible) {
+                console.error(
+                  `[B1G1] SKIPPED grant: the staff note printed the free-hour promise but the customer is not eligible for a grant. ` +
+                    `customerId=${customerId} userId=${userId} bookingId=${booking.id} hours=${applied.free_hours} ` +
+                    `phoneNew=${b1g1Eligibility.phoneNew} profileHasPriorBooking=${b1g1Eligibility.profileHasPriorBooking} ` +
+                    `error=${b1g1Eligibility.error ?? 'none'}`,
+                );
+              } else if (expiry && customerId) {
                 try {
                   const grant = await grantB1G1NewCustomerCredit(supabase, {
                     customerId,
@@ -1010,15 +1078,16 @@ export async function POST(request: NextRequest) {
                     grantError,
                   );
                 }
-              } else if (!customerId) {
-                // Unreachable in practice — the route 500s earlier when
-                // customer identification fails, and `isNewCustomer` (which
-                // gates this whole block) only becomes true off a resolved
-                // customer record. Logged rather than dropped so that if it
-                // ever does happen we find out from the promise, not the
-                // customer.
+              } else {
+                // Both arms are unreachable in practice: `isB1G1GrantEligible`
+                // denies without a customer id, so eligible implies one, and
+                // `b1g1CreditExpiry` only returns null on a date Postgres could
+                // not have accepted into the booking row above. Logged rather
+                // than dropped so that if either ever does happen we find out
+                // from the log, not from the customer.
                 console.error(
-                  `[B1G1] Cannot record free-hour credit: no customer_id. bookingId=${booking.id} hours=${applied.free_hours}`,
+                  `[B1G1] Cannot record free-hour credit: ${!customerId ? 'no customer_id' : `unreadable booking date "${date}"`}. ` +
+                    `bookingId=${booking.id} hours=${applied.free_hours}`,
                 );
               }
             }
