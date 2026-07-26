@@ -178,6 +178,81 @@ export function buildSummaryBarSubline(parts: {
 }
 
 /**
+ * The one-line recap inside the SLOT CHIP at the top of the session sub-step:
+ * the date, the start time and the bay, with a "Change" that leaves step 3 for
+ * step 2.
+ *
+ * WHAT IT REPLACED. Three stacked cards, roughly 240px of a phone screen, each
+ * one an icon and a heading and a value: "Selected Date / Sun, 26 Jul 2026",
+ * "Start Time / 20:30", "Bay Type / Any Bay". Every fact on them was already in
+ * the step header's subline two rows above — the owner's second complaint about
+ * the same duplication — and none of them led anywhere, even though all three
+ * were decided on earlier steps that the customer could no longer see a way
+ * back to.
+ *
+ * WHY THE HEADER YIELDS RATHER THAN THIS. The subline and this chip carry the
+ * same three facts, so exactly one of them may be on screen at a time, and the
+ * chip is the one that keeps its place: between two identical lines the
+ * ACTIONABLE one wins. The subline is untouched everywhere it is the only
+ * carrier — steps 1 and 2, and the extras and contact sub-steps, where this chip
+ * is not rendered. See `stepHeaderSublineSuppressed` in `stepHeaderModel.ts`,
+ * which is where that rule lives and is enforced.
+ *
+ * SO THE SEPARATOR IS NOT THE HEADER'S. The subline joins with a locale-aware
+ * comma because it reads as a sentence fragment about one booking. This is a
+ * chip: a row of peer facts read at a glance, sharing a border and a fill with
+ * the collapsed sub-step summaries below it, which use the middle dot. It is
+ * drawn as one of those, so it is punctuated as one of those.
+ *
+ * The date goes through `formatShortDate` — the year-less form, the same
+ * function the subline it stands in for uses — rather than `formatFlowDate`.
+ * The cards printed "Sun, 26 Jul 2026"; a booking days away has no doubt in it
+ * that "2026" answers, and the row has three facts and two controls to fit.
+ */
+export function buildSlotChipValue(parts: {
+  /** Short localised date, e.g. "Sun 26 Jul". */
+  date: string;
+  /** Start time in venue-local 24h, e.g. "20:30". */
+  time: string;
+  /** Already-localised bay name, including the "Any Bay" case. */
+  bayLabel: string;
+}): string {
+  return [parts.date, parts.time, parts.bayLabel]
+    .filter((segment) => segment.trim().length > 0)
+    .join(' · ');
+}
+
+/**
+ * The slot chip's line exactly as the session sub-step builds it: format the
+ * date, then order the three segments.
+ *
+ * The whole wiring, so the suite can assert that the DATE reaches the date slot
+ * and reaches it first — `buildSlotChipValue` alone only proves that whatever is
+ * handed to `date` leads. Taking a `Date` rather than a string is the other half
+ * of that: the start time is a string, so the compiler rejects the swap.
+ *
+ * Ordering matches the header subline it replaces and the sticky bar's line,
+ * for the same reason both of those lead with the date: it is the segment a
+ * customer deep in the flow cannot recover from anything else on screen.
+ */
+export function slotChipValueFor(parts: {
+  /** The active locale, which picks the short-date tag. `useLocale()` at the call site. */
+  locale: string;
+  /** The booking's date, unformatted — this function owns the formatting. */
+  date: Date;
+  /** Start time in venue-local 24h, e.g. "20:30". */
+  time: string;
+  /** Already-localised bay name. */
+  bayLabel: string;
+}): string {
+  return buildSlotChipValue({
+    date: formatShortDate(parts.locale, parts.date),
+    time: parts.time,
+    bayLabel: parts.bayLabel,
+  });
+}
+
+/**
  * The one-line recap inside the COLLAPSED Session sub-step summary, the row
  * carrying the "Change" affordance back to that sub-step.
  *
@@ -204,6 +279,14 @@ export function buildSummaryBarSubline(parts: {
  * So: do not add the bay back, and do not add the date or the start time. If a
  * future header stops naming the bay, this is the function that has to gain it,
  * and the test that pins the pairing is what will say so.
+ *
+ * The slot chip above did NOT trigger that clause, and the reason is worth
+ * stating because it looks like it should have. The header now falls silent on
+ * the session sub-step, where the chip states all three facts instead — but this
+ * row is rendered only once the customer has LEFT the session sub-step, i.e.
+ * exactly where the chip is not on screen and the subline is back. The pairing
+ * holds unchanged: wherever this row appears, the header above it still names
+ * the date, the start time and the bay.
  *
  * The separator is the literal " · " the caller's other segments use, not a
  * margin: a margin-only gap matched visually but not textually, and screen

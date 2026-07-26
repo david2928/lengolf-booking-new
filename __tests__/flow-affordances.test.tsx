@@ -16,6 +16,7 @@ import {
   ChangeAnswerButton,
   RevealDetailsButton,
 } from '@/app/[locale]/(features)/bookings/components/booking/affordances';
+import { DetailsSubStepSummary } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/DetailsSubStepSummary';
 
 function classesOf(label: string): string {
   return screen.getByRole('button', { name: new RegExp(label) }).className;
@@ -97,5 +98,88 @@ describe('booking flow affordances', () => {
 
     screen.getByRole('button', { name: /View Details/ }).click();
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The row both affordances live on, and the two shapes it serves.
+ *
+ * `DetailsSubStepSummary` started as the collapsed sub-step summary —
+ * `label + value + Change`. The session sub-step's slot chip needed
+ * `value + Info + Change`: no sub-step to name, and one extra affordance. The
+ * two were generalised into this one component rather than forked, because they
+ * differ only in what they omit and they make the same promise — this row states
+ * a settled decision, and the control at its end re-opens it. A parallel
+ * component would have been free to drift on the border, the fill, the
+ * separator, or which kind of button ends the row.
+ *
+ * These pin the properties that made merging them safe.
+ */
+describe('the recap row that hosts them', () => {
+  const renderRow = (props: Partial<React.ComponentProps<typeof DetailsSubStepSummary>> = {}) =>
+    render(
+      <DetailsSubStepSummary
+        value="1 hr · 1 person"
+        changeLabel="Change"
+        onChange={() => {}}
+        {...props}
+      />,
+    );
+
+  it('names its sub-step when given a label, and says nothing extra without one', () => {
+    const { unmount } = renderRow({ label: 'Session' });
+    expect(screen.getByText('Session')).toBeInTheDocument();
+    // The separator is a literal " · " so it survives copy/paste and a screen
+    // reader, which is why it is asserted as text rather than as a margin.
+    expect(screen.getByText('Session').parentElement!.textContent).toBe('Session · 1 hr · 1 person');
+    unmount();
+
+    renderRow();
+    expect(screen.queryByText('Session')).toBeNull();
+    // ...and no orphaned separator where the label would have been.
+    expect(screen.getByText('1 hr · 1 person').textContent).toBe('1 hr · 1 person');
+  });
+
+  it('renders a secondary affordance between the value and the Change control', () => {
+    renderRow({
+      secondaryAction: <RevealDetailsButton onClick={() => {}}>Info</RevealDetailsButton>,
+    });
+
+    const [first, second] = screen.getAllByRole('button');
+    expect(first).toHaveAccessibleName('Info');
+    expect(second).toHaveAccessibleName('Change');
+  });
+
+  it('has exactly one control when no secondary affordance is passed', () => {
+    renderRow();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
+  /**
+   * The layout the slot chip needed. At 360px the chip's three facts plus two
+   * controls do not fit on one line, and the old `justify-between` + `truncate`
+   * dropped the trailing segment — which for the chip is the BAY, the fact the
+   * Info link beside it explains.
+   *
+   * So the row wraps and the pill is pushed by an auto margin rather than by
+   * `justify-between`, because auto margins resolve per flex line: the pill
+   * stays against the right edge whether it shares a line or has one to itself.
+   * Class assertions rather than measurements, since JSDOM does no layout.
+   */
+  it('wraps rather than truncating, and keeps the pill right on either line', () => {
+    const { container } = renderRow({
+      secondaryAction: <RevealDetailsButton onClick={() => {}}>Info</RevealDetailsButton>,
+    });
+
+    const row = container.firstElementChild!;
+    expect(row.className).toContain('flex-wrap');
+
+    const value = screen.getByText('1 hr · 1 person');
+    expect(value.className).not.toContain('truncate');
+    // Not `flex-1` either: a growing value would push the Info link away from
+    // the bay name it belongs to and over to the action cluster.
+    expect(value.className).not.toMatch(/\bflex-1\b/);
+
+    expect(screen.getByRole('button', { name: 'Change' }).className).toContain('ml-auto');
   });
 });

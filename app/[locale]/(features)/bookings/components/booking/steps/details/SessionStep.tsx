@@ -5,45 +5,18 @@ import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import {
   ArrowLeftIcon,
-  CalendarIcon,
   ClockIcon,
   UsersIcon,
-  ComputerDesktopIcon,
   InformationCircleIcon,
-  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 import { ChangeAnswerButton, RevealDetailsButton } from '../../affordances';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import type { BayType } from '@/lib/bayConfig';
 import { allowedDurations, formatDurationLabel } from '@/lib/booking-durations';
-import { bayChoiceLabelKey } from './bayChoice';
+import { DetailsSubStepSummary } from './DetailsSubStepSummary';
+import { slotChipValueFor } from './summarySubline';
 import { SegmentedOptions } from './SegmentedOptions';
 import { SetMenuCard } from './SetMenuCard';
-
-/**
- * How each bay answer looks on the recap card.
- *
- * Keyed by `bayChoiceLabelKey`'s three-way result rather than by a fresh
- * `=== 'ai_lab'` test, which is what this used to be — and a two-way test over
- * a three-way answer has to put one of the three somewhere it does not belong.
- * "All Bays" landed in the Social branch: the same green `UsersIcon` and the
- * same `text-green-700`, pixel-identical to a Social Bay card with only the
- * word differing. The meaning was carried entirely by the label, which is the
- * one part of a card a customer scanning it does not read first.
- *
- * So no preference gets a neutral grey and a grid glyph — the visual claim
- * "any of these" rather than the visual claim "the social ones". Grey also
- * reads as unaccented next to two accented options, which is what declining to
- * choose is.
- */
-const BAY_CARD_STYLE: Record<
-  ReturnType<typeof bayChoiceLabelKey>,
-  { iconWrap: string; icon: string; label: string }
-> = {
-  aiLab: { iconWrap: 'bg-purple-50', icon: 'text-purple-600', label: 'text-purple-700' },
-  socialBay: { iconWrap: 'bg-green-50', icon: 'text-green-600', label: 'text-green-700' },
-  anyBay: { iconWrap: 'bg-gray-100', icon: 'text-gray-500', label: 'text-gray-700' },
-};
 
 /**
  * What the customer is buying. Not an add-on: a Play & Food set replaces the
@@ -78,7 +51,12 @@ export interface SessionStepProps {
       resolves from `/api/user/active-packages`, so a package holder sees the
       5-tile ladder for a moment before it becomes 7. */
   hasActivePackage: boolean;
-  // --- Selected Info Cards + AI Lab warning (moved in from BookingDetails) ---
+  /* --- The slot chip + the AI Lab warning (moved in from BookingDetails) ---
+     The date and start time stay raw `Date`/`string` rather than a
+     pre-formatted line: the chip is not their only reader here. `selectedDate`
+     also anchors the Play & Food price split to this slot's rate, and
+     `selectedTime` picks morning or evening on the same cards, so formatting
+     them at the call site would leave this step asking for both shapes. */
   selectedDate: Date;
   selectedTime: string;
   /**
@@ -89,23 +67,44 @@ export interface SessionStepProps {
   selectedBayType?: BayType | null;
   /** Already-localised bay name, including the "Any Bay" case. */
   bayLabel: string;
+  /**
+   * The active locale, which picks the chip's short-date form.
+   *
+   * Passed in for the same reason `router` and `bayLabel` are, and it is the
+   * same reason twice: this component derives no context of its own. A
+   * `useLocale()` here would reach through next-intl into `useParams()`, which
+   * couples a presentational step to the router — and the locale is not
+   * inferable from the URL anyway, since English is unprefixed under
+   * `localePrefix: 'as-needed'`. `BookingDetails` already holds it.
+   */
+  locale: string;
   setShowBayInfoModal: (value: boolean) => void;
-  formatDate: (date: Date) => string;
-  /** Leaves step 3 entirely (the AI Lab warning's "go back to Social Bay"). */
+  /**
+   * Leaves step 3 for step 2 — the slot chip's "Change" and the AI Lab
+   * warning's "go back to Social Bay". Both mean the same thing and both go
+   * through the flow's own `handleBack`, so there is one door out of step 3
+   * rather than two that could come to disagree.
+   */
   onBack: () => void;
 }
 
 /**
- * Session section of booking step 3: the Selected Info Cards (date, start time,
- * bay type), the AI Lab group-size warning, the Play & Food package fork,
- * duration and number of people. Renders as a fragment so the parent `<form>`'s
+ * Session section of booking step 3: the slot chip (date, start time, bay), the
+ * AI Lab group-size warning, the Play & Food package fork, duration and number
+ * of people. Renders as a fragment so the parent `<form>`'s
  * `space-y-4 sm:space-y-6` keeps applying to these blocks as direct children.
  *
- * All three info cards are READ-ONLY recaps of choices made on earlier steps.
- * The bay card used to be the exception — a required Social / AI Lab picker
- * with an availability line under the duration ladder to feed it — which asked
- * the customer to decide a second time something the time step had already
- * settled. The choice now travels from step 2 and this step only reports it.
+ * The bay is not asked here. It used to be — a required Social / AI Lab picker
+ * with an availability line under the duration ladder to feed it — which made
+ * the customer decide a second time something the time step had already
+ * settled. The choice travels from step 2 and this step only reports it.
+ *
+ * Reporting it, the date and the start time cost three stacked cards and about
+ * 240px until the chip replaced them. They restated the step header's subline
+ * directly above them and they were dead ends: three facts settled on steps 1
+ * and 2, with nothing on them leading back to either step. The chip states the
+ * same three in one row and puts the way back on it, which is what the cards
+ * were missing rather than what they were spending the space on.
  */
 export function SessionStep({
   maxDuration,
@@ -124,8 +123,8 @@ export function SessionStep({
   selectedTime,
   selectedBayType,
   bayLabel,
+  locale,
   setShowBayInfoModal,
-  formatDate,
   onBack,
 }: SessionStepProps) {
   const t = useTranslations('bookings.detailsStep');
@@ -187,74 +186,49 @@ export function SessionStep({
   const seatCap = localSelectedPackage?.maxPeople ?? 5;
   const peopleOptions = Array.from({ length: seatCap }, (_, i) => i + 1);
 
-  /* The recap card's colours and glyph, resolved through the SAME three-way
-     mapping that produced `bayLabel` in `BookingDetails`. Sharing the key is
-     what stops the card's appearance and its wording from disagreeing about
-     which of the three answers this is. */
-  const bayChoice = bayChoiceLabelKey(selectedBayType);
-  const bayCardStyle = BAY_CARD_STYLE[bayChoice];
-  const BayIcon =
-    bayChoice === 'aiLab' ? ComputerDesktopIcon
-    : bayChoice === 'socialBay' ? UsersIcon
-    : Squares2X2Icon;
-
   return (
     <>
-      {/* Selected Info Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100">
-          <div className="flex items-center gap-3">
-            <div className="bg-green-50 p-2 sm:p-3 rounded-full">
-              <CalendarIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600">{t('selectedDate')}</h3>
-              <p className="text-lg sm:text-xl font-bold text-green-700">
-                {formatDate(selectedDate)}
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* The slot: what steps 1 and 2 settled, and the way back to them.
 
-        <div className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100">
-          <div className="flex items-center gap-3">
-            <div className="bg-green-50 p-2 sm:p-3 rounded-full">
-              <ClockIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600">{t('startTime')}</h3>
-              <p className="text-lg sm:text-xl font-bold text-green-700">
-                {selectedTime}
-              </p>
-            </div>
-          </div>
-        </div>
+          WHERE "CHANGE" GOES, AND WHY THE LABEL SAYS SO. Three facts, two
+          steps: the date is step 1's, the start time and the bay are both step
+          2's. One control cannot serve both steps, so it serves the step that
+          owns two of the three, and the label names exactly those two rather
+          than saying a bare "Change" over a row whose first segment it does not
+          reach. The date is one further level up — step 2's own back arrow —
+          which is a real route but not one this button should be read as
+          promising.
 
-        {/* The bay, as chosen on the time step. A recap in the same shape as the
-            date and start time beside it, because it is the same kind of thing:
-            something already decided. No asterisk — there is nothing to
-            require, "All Bays" included. */}
-        <div
-          data-testid="booking-bay-card"
-          className="bg-white rounded-xl shadow-sm p-3 sm:p-6 border border-green-100"
-        >
-          <div className="flex items-center gap-3">
-            <div className={`p-2 sm:p-3 rounded-full ${bayCardStyle.iconWrap}`}>
-              <BayIcon className={`h-6 w-6 sm:h-8 sm:w-8 ${bayCardStyle.icon}`} />
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600">{t('bayType')}</h3>
-              <div className="flex items-center gap-2">
-                <p className={`text-lg sm:text-xl font-bold ${bayCardStyle.label}`}>
-                  {bayLabel}
-                </p>
-                <RevealDetailsButton onClick={() => setShowBayInfoModal(true)}>
-                  {t('info')}
-                </RevealDetailsButton>
-              </div>
-            </div>
-          </div>
-        </div>
+          It goes through `onBack`, the same flow action the header's back arrow
+          performs from this sub-step and the same one the AI Lab callout below
+          uses. That is deliberate: this chip does not open a new way out of step
+          3, it puts the existing one where the customer is already looking. The
+          trip is destructive by construction — `handleBack` nulls the start time
+          because they are re-picking a slot — so the facts that outlive a slot
+          change now live on the flow rather than in this step's form state. See
+          the block comment on `duration` in `useBookingFlow`.
+
+          The bay INFO link survives here as `secondaryAction`. It is the only
+          route to the bay-type explainer on this sub-step, and it sits against
+          the bay name it explains rather than in the row's action cluster,
+          because it costs the customer nothing and the pill beside it costs them
+          their place. */}
+      <div data-testid="booking-slot-chip">
+        <DetailsSubStepSummary
+          value={slotChipValueFor({
+            locale,
+            date: selectedDate,
+            time: selectedTime,
+            bayLabel,
+          })}
+          secondaryAction={
+            <RevealDetailsButton onClick={() => setShowBayInfoModal(true)}>
+              {t('info')}
+            </RevealDetailsButton>
+          }
+          changeLabel={t('changeSlotAction')}
+          onChange={onBack}
+        />
       </div>
 
       {/* Party size, up here with the other session facts rather than at the

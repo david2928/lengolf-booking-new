@@ -86,6 +86,30 @@ export interface BookingDetailsProps {
   selectedTime: string;
   selectedBayType?: BayType | null;
   maxDuration: number;
+  /**
+   * The session length and the party size, owned by `useBookingFlow`.
+   *
+   * Controlled rather than local because step 3 UNMOUNTS on the way back to
+   * step 2 — `handleBack` nulls `selectedTime` and `page.tsx` gates step 3 on
+   * it — so a `useState` here is reset by the very navigation the session
+   * chip's "Change" now advertises. See the block comment on the state in
+   * `useBookingFlow` for why these two are safe to carry across a slot change
+   * and which one still needs the ladder clamp below.
+   *
+   * BOTH SETTERS MUST BE REFERENTIALLY STABLE. `useBookingFlow` returns
+   * `useState` setters and `page.tsx` passes them straight through, which
+   * satisfies this — but an inline lambda at the call site would break it in a
+   * way nothing else here would catch. Two effects below now list
+   * `onDurationChange` in their dependencies (they must; it is a prop, not a
+   * setter the linter can see is stable), and one of them is the package
+   * pre-fill. Re-running that on every render would rewrite the duration back to
+   * the set's length each time, silently overruling the customer's own choice
+   * on the ladder.
+   */
+  duration: number;
+  onDurationChange: (value: number) => void;
+  numberOfPeople: number;
+  onNumberOfPeopleChange: (value: number) => void;
   slotData?: TimeSlot | null;
   onBack: () => void;
   selectedPackage?: PlayFoodPackage | null;
@@ -126,6 +150,10 @@ export function useBookingDetailsForm({
   selectedTime,
   selectedBayType,
   maxDuration,
+  duration,
+  onDurationChange: setDuration,
+  numberOfPeople,
+  onNumberOfPeopleChange: setNumberOfPeople,
   slotData,
   onBack,
   selectedPackage,
@@ -151,13 +179,11 @@ export function useBookingDetailsForm({
   const PLAY_FOOD_PACKAGES = getPlayFoodPackages();
   const PREMIUM_CLUB_PRICING = getPremiumClubPricing();
   const PREMIUM_PLUS_CLUB_PRICING = getPremiumPlusClubPricing();
-  const [duration, setDuration] = useState<number>(1);
   const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [numberOfPeople, setNumberOfPeople] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
@@ -542,7 +568,7 @@ export function useBookingDetailsForm({
       setDuration(selectedPackage.duration);
       // Don't auto-set number of people - let user choose
     }
-  }, [selectedPackage]);
+  }, [selectedPackage, setDuration]);
 
   /* No bay auto-select / auto-switch effect any more.
    *
@@ -611,7 +637,7 @@ export function useBookingDetailsForm({
     const ladder = allowedDurations({ maxHours: maxBookableHours, hasActivePackage });
     if (ladder.includes(duration)) return;
     setDuration(ladder[ladder.length - 1]);
-  }, [duration, maxBookableHours, hasActivePackage, costDataLoading, localSelectedPackage]);
+  }, [duration, maxBookableHours, hasActivePackage, costDataLoading, localSelectedPackage, setDuration]);
 
   // Compute cost breakdown reactively (must be after localSelectedPackage declaration)
   const costBreakdown: CostBreakdown | null = (() => {

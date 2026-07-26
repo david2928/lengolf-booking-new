@@ -181,8 +181,6 @@
       "showAllAvailable": "显示所有可用时段"
     },
     "detailsStep": {
-      "selectedDate": "选择的日期",
-      "startTime": "开始时间",
       "bayType": "球位类型",
       "aiLab": "AI Lab",
       "socialBay": "Social Bay",
@@ -247,6 +245,7 @@
       "subStepExtrasQuestion": "需要添加什么吗？",
       "subStepContactQuestion": "核对并确认",
       "changeAction": "更改",
+      "changeSlotAction": "更改时间或球位",
       "ctaContinue": "继续",
       "bookingAsLabel": "预订人",
       "changeContact": "更改",

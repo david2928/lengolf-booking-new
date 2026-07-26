@@ -259,8 +259,8 @@ export function BookingDetails(props: BookingDetailsProps) {
               selectedTime={selectedTime}
               selectedBayType={selectedBayType}
               bayLabel={bayLabel}
+              locale={locale}
               setShowBayInfoModal={setShowBayInfoModal}
-              formatDate={formatDate}
               onBack={onBack}
             />
           </div>

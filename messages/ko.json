@@ -181,8 +181,6 @@
       "showAllAvailable": "모든 이용 가능 시간 보기"
     },
     "detailsStep": {
-      "selectedDate": "선택한 날짜",
-      "startTime": "시작 시간",
       "bayType": "베이 종류",
       "aiLab": "AI Lab",
       "socialBay": "Social Bay",
@@ -247,6 +245,7 @@
       "subStepExtrasQuestion": "추가할 항목이 있나요?",
       "subStepContactQuestion": "예약 내용을 확인해 주세요",
       "changeAction": "변경",
+      "changeSlotAction": "시간/베이 변경",
       "ctaContinue": "다음",
       "bookingAsLabel": "예약자",
       "changeContact": "변경",
