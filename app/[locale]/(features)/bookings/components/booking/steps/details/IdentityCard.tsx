@@ -116,10 +116,15 @@ export function IdentityCard({ name, phoneNumber, email, onChange }: IdentityCar
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-gray-900">{name}</p>
+          {/* Phone only. The email is still REQUIRED to render this card at all
+              (`isIdentityComplete`) and still goes with the booking; it is just
+              not shown. Name plus phone is enough to answer "is this me?", and
+              the address was the longest line, the one that truncated, and the
+              one a customer is least likely to be checking. Change reveals the
+              inputs, where the email is visible and editable as before. */}
           <p className="truncate text-xs text-gray-600">
             {formatPhoneForDisplay(phoneNumber!)}
           </p>
-          <p className="truncate text-xs text-gray-600">{email}</p>
         </div>
         <button
           type="button"
