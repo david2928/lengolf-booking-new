@@ -5,12 +5,11 @@ import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { BookingReviewPanel, type BookingReviewFacts } from './BookingReviewPanel';
 import type { CostBreakdown } from '@/lib/cost-calculator';
-import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import { IdentityCard, isIdentityComplete } from './IdentityCard';
 
 /**
- * Whether the customer is already on the marketing list, and so should be told
- * that rather than shown an unticked box claiming the opposite.
+ * Whether the customer is already on the marketing list, and so should be shown
+ * nothing at all rather than an unticked box claiming the opposite.
  *
  * Exported so the tri-state rule is pinned in one place and tested directly,
  * the same arrangement `IdentityCard` uses for its own visibility predicate.
@@ -57,8 +56,8 @@ export interface YourDetailsStepProps {
    * The customer's EXISTING marketing consent, from `/api/vip/profile`.
    * Display only; it never reaches the payload.
    *
-   * ONLY `true` counts as subscribed and replaces the checkbox with a
-   * confirmation line. `false` is a deliberate opt-out and `null` is
+   * ONLY `true` counts as subscribed and suppresses the block outright — no
+   * checkbox, and no line in its place. `false` is a deliberate opt-out and `null` is
    * not-yet-loaded / guest / no linked customer — both keep the checkbox,
    * because a customer must never lose the chance to opt in to a slow fetch.
    * See the tri-state note on `marketingPreference` in `useBookingDetailsForm`.
@@ -129,7 +128,10 @@ export function YourDetailsStep({
     errorField === 'bd-name' || errorField === 'bd-phone' || errorField === 'bd-email';
   const showIdentityCard =
     !isEditingContact && !contactFlagged && isIdentityComplete({ name, phoneNumber, email });
-  const alreadySubscribed = isMarketingSubscribed(marketingPreference);
+  /* One flag for both the checkbox and the consent note's marketing clause, so
+     the sentence can never point at an opt-in that is not on screen. */
+  const showMarketingOptIn =
+    email.trim().length > 0 && !isMarketingSubscribed(marketingPreference);
 
   return (
     <>
@@ -318,7 +320,16 @@ export function YourDetailsStep({
           called the very same `handleBack` as that arrow, so it was a duplicate
           rather than a second capability. */}
 
-      {/* Marketing opt-in: only meaningful once an email is entered.
+      {/* Marketing opt-in: only meaningful once an email is entered, and only
+          for someone who is not already on the list.
+
+          An already-subscribed customer gets NOTHING here, not a confirmation
+          line in place of the box — owner-confirmed. There is no decision to
+          make, so anything rendered is a block of copy between the customer and
+          the confirm button telling them a fact they did not ask about, in the
+          middle of a checkout. Unsubscribing lives in every email, which is
+          where a customer already looks for it.
+
           `alreadySubscribed` is a STRICT `=== true`, deliberately, not a truthy
           check. `marketingPreference` is tri-state and only `true` means
           subscribed: `false` is a deliberate opt-out and `null` is
@@ -326,50 +337,41 @@ export function YourDetailsStep({
           still get the checkbox. The failure this guards against is one-way and
           silent — a customer who would have opted in never sees the box because
           a profile fetch had not landed yet. */}
-      {email.trim().length > 0 &&
-        (alreadySubscribed ? (
-          /* Not a disabled checkbox. A ticked-but-greyed box invites a click
-             that does nothing; a sentence states the fact and moves on. No
-             `htmlFor`, no input, nothing focusable — there is no choice here to
-             present. Unsubscribing is a link in every email, which is where a
-             customer already looks for it, so this points there rather than
-             pretending the booking flow can do it. */
-          <div
-            className="mt-4 flex items-start gap-3 p-3 rounded-md"
-            style={{
-              backgroundColor: 'rgba(0, 90, 50, 0.08)',
-              border: '1px solid rgba(0, 90, 50, 0.4)',
-            }}
-          >
-            <CheckCircleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#005a32]" aria-hidden="true" />
-            <span className="text-sm text-gray-800">{t('marketingAlreadySubscribed')}</span>
-          </div>
-        ) : (
-          <label
-            htmlFor="booking-marketing-opt-in"
-            className="mt-4 flex items-start gap-3 p-3 rounded-md cursor-pointer"
-            style={{
-              backgroundColor: 'rgba(0, 90, 50, 0.08)',
-              border: '1px solid rgba(0, 90, 50, 0.4)',
-            }}
-          >
-            <input
-              id="booking-marketing-opt-in"
-              type="checkbox"
-              className="mt-1 h-4 w-4 accent-[#005a32]"
-              checked={marketingOptIn}
-              onChange={(e) => setMarketingOptIn(e.target.checked)}
-              disabled={isSubmitting}
-            />
-            <span className="text-sm text-gray-800">
-              <span className="font-medium block">{t('marketingOptInLabel')}</span>
-              <span className="text-gray-600">{t('marketingOptInDescription')}</span>
-            </span>
-          </label>
-        ))}
+      {showMarketingOptIn && (
+        <label
+          htmlFor="booking-marketing-opt-in"
+          className="mt-4 flex items-start gap-3 p-3 rounded-md cursor-pointer"
+          style={{
+            backgroundColor: 'rgba(0, 90, 50, 0.08)',
+            border: '1px solid rgba(0, 90, 50, 0.4)',
+          }}
+        >
+          <input
+            id="booking-marketing-opt-in"
+            type="checkbox"
+            className="mt-1 h-4 w-4 accent-[#005a32]"
+            checked={marketingOptIn}
+            onChange={(e) => setMarketingOptIn(e.target.checked)}
+            disabled={isSubmitting}
+          />
+          <span className="text-sm text-gray-800">
+            <span className="font-medium block">{t('marketingOptInLabel')}</span>
+            <span className="text-gray-600">{t('marketingOptInDescription')}</span>
+          </span>
+        </label>
+      )}
 
+      {/* The consent note is a compliance artifact and always renders, but its
+          marketing clause is a POINTER — "see the opt-in above" — and the thing
+          it points at is conditional. With the box suppressed for a subscribed
+          customer (and absent before an email is typed) the clause referred to
+          nothing on screen, so the note comes in two complete variants gated on
+          exactly the flag that renders the box. Two whole sentences rather than
+          a base string plus an appended clause: concatenating translated
+          fragments puts a stray space between sentences in ja/zh, where none
+          belongs. */}
       <p className="text-xs text-gray-400 text-center mt-3">
-        {t('consentNote')}
+        {showMarketingOptIn ? t('consentNoteWithOptIn') : t('consentNote')}
       </p>
     </>
   );
