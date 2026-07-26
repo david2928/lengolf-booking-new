@@ -159,6 +159,43 @@ describe('the bay is reported, not asked again', () => {
     expect(within(bayCard()).queryByText('*')).not.toBeInTheDocument();
   });
 
+  /**
+   * The card branched on `=== 'ai_lab'` only, so "All Bays" fell into the Social
+   * branch and rendered the same green `UsersIcon` and the same
+   * `text-green-700` — pixel-identical to a Social Bay card with only the word
+   * differing. The label is the part of a card a customer scanning it reads
+   * last, so the meaning was carried by the one thing they were least likely to
+   * look at.
+   *
+   * Asserting the three differ from each other rather than pinning specific
+   * Tailwind tokens: the requirement is that no two answers look alike, and a
+   * palette change should not have to update this test to keep meaning it.
+   */
+  test('the three choices are told apart without reading the label', () => {
+    const classesFor = (bayType: BayType | null) => {
+      const { unmount } = render(<Harness bayType={bayType} />);
+      const card = bayCard();
+      const label = within(card).getByText(
+        BAY_LABEL[bayType === null ? 'any' : bayType],
+      );
+      // The icon's own wrapper carries the tint; the label carries the ink.
+      const iconWrap = card.querySelector('svg')?.parentElement;
+      const signature = `${label.className}|${iconWrap?.className ?? ''}`;
+      unmount();
+      return signature;
+    };
+
+    const social = classesFor('social');
+    const aiLab = classesFor('ai_lab');
+    const any = classesFor(null);
+
+    expect(any).not.toBe(social);
+    expect(any).not.toBe(aiLab);
+    expect(social).not.toBe(aiLab);
+    // Specifically: no preference must not borrow Social Bay's green.
+    expect(any).not.toContain('green');
+  });
+
   test('no bay-availability line sits under the duration ladder', () => {
     render(<Harness />);
     // "Available for 1 hour: 3 Social Bays only" and its two siblings.

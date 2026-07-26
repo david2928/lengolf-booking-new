@@ -181,9 +181,16 @@ export function SetMenuCard({
               Still generated per slot by `lib/play-food-value.ts` — bay time is
               genuinely cheaper before 14:00 than in the evening, so a fixed
               claim would be wrong for half the day — and still omitted outright
-              when the premium is zero, negative or unpriceable. */}
+              when the premium is zero, negative or unpriceable.
+              `text-gray-500`, matching the Total it decomposes, NOT the lighter
+              `text-gray-400` this started as: #9ca3af on white is 2.54:1, under
+              the 4.5:1 AA threshold and under even the 3:1 large-text one. It
+              is subordinate to the total by size and position; making it
+              subordinate by contrast as well put a pricing figure below
+              legibility. #6b7280 is 4.83:1 and still reads as the quieter
+              line. */}
           {value.bayOnlyCost !== null && value.foodPremium !== null && (
-            <div className="mt-0.5 text-xs text-gray-400 tabular-nums">
+            <div className="mt-0.5 text-xs text-gray-500 tabular-nums">
               {t('setPriceSplit', {
                 bayPrice: value.bayOnlyCost,
                 premium: value.foodPremium,

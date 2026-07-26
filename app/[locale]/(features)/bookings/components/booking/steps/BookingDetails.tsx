@@ -28,7 +28,10 @@ export function BookingDetails(props: BookingDetailsProps) {
     selectedDate,
     selectedTime,
     selectedBayType,
-    maxDuration,
+    /* The slot's headroom already narrowed to what the chosen bay type can
+       serve — see `bayTypeHeadroom`. Everything below that offers a LENGTH
+       reads this, never the raw `maxDuration` prop. */
+    maxBookableHours,
     onBack,
     selectedClubRental,
     onClubRentalChange,
@@ -236,7 +239,7 @@ export function BookingDetails(props: BookingDetailsProps) {
           )}
           <div className={panelClass('session')}>
             <SessionStep
-              maxDuration={maxDuration}
+              maxDuration={maxBookableHours}
               duration={duration}
               setDuration={setDuration}
               numberOfPeople={numberOfPeople}
@@ -417,7 +420,7 @@ export function BookingDetails(props: BookingDetailsProps) {
         isOpen={showPackageModal}
         onClose={() => setShowPackageModal(false)}
         packages={PLAY_FOOD_PACKAGES}
-        maxDuration={maxDuration}
+        maxDuration={maxBookableHours}
         onSelectPackage={(pkg) => {
           setLocalSelectedPackage(pkg);
           setDuration(pkg.duration);

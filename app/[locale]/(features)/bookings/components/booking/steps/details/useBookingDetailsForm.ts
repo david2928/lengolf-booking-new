@@ -24,7 +24,7 @@ import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from '../../../../hooks/useAvailability';
 import { calculateCost, type ApplicablePromotion, type CostBreakdown } from '@/lib/cost-calculator';
 import { computePackageCoverage, type PackageCoverage } from '@/lib/package-coverage';
-import { allowedDurations } from '@/lib/booking-durations';
+import { allowedDurations, bayTypeHeadroom } from '@/lib/booking-durations';
 import type { CreditGrantBalance } from './CreditBalanceCard';
 import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
 import { firstIncompleteContactField } from './IdentityCard';
@@ -552,19 +552,44 @@ export function useBookingDetailsForm({
    * unset — i.e. exactly the "All Bays" case that is now a deliberate answer
    * meaning no preference, where there is nothing to auto-select toward.
    *
-   * A customer who DID name a type and then stretches the duration past what
-   * that type can fit is not silently moved either, which is unchanged: the
-   * effect already skipped them. `/api/bookings/create` treats the type as a
-   * preference and falls back to any free bay, so the booking still succeeds. */
+   * A customer who DID name a type cannot stretch the duration past what that
+   * type can fit in the first place — `maxBookableHours` below caps the ladder
+   * at the chosen type's own headroom — so there is nothing left for an
+   * auto-switch to rescue. That matters because the rescue was never silent
+   * enough to be safe: `/api/bookings/create` treats the type as a preference
+   * and falls back to any free bay, so a mismatch here does not fail the
+   * booking, it just quietly books a different bay from the one five surfaces
+   * of this step have been naming. */
 
   // Local state for package selector to allow switching
   const [localSelectedPackage, setLocalSelectedPackage] = useState<PlayFoodPackage | null>(selectedPackage || null);
 
+  /**
+   * The longest session THIS BOOKING can actually have: the slot's own headroom,
+   * narrowed to what the bay type chosen on step 2 can serve.
+   *
+   * `maxDuration` on its own is the headroom of whichever bay lasts longest, not
+   * of the one the customer picked — see `bayTypeHeadroom` for why the two come
+   * apart and what the flow used to promise as a result. This is the only value
+   * that governs a length from here on: the duration ladder, the Play & Food set
+   * cards and the sets modal all read it, so none of them can offer a length
+   * that ends with the server silently assigning a different bay.
+   *
+   * This is also what finally consumes `slotData`, which has been threaded from
+   * `useBookingFlow` through `BookingDetails` into this hook and read by nothing.
+   */
+  const maxBookableHours = bayTypeHeadroom({
+    bayAvailabilityByDuration: slotData?.bayAvailabilityByDuration,
+    bayType: selectedBayType,
+    maxHours: maxDuration,
+  });
+
   // Keep the selected duration on the allowed ladder. If the ladder no longer
   // contains it — the customer stepped back and picked a slot with less
-  // headroom — fall back to the longest rung that still fits, so the form can
-  // never hold a duration the server will reject. `allowedDurations` always
-  // returns at least [1], so the fallback index is always populated.
+  // headroom, or the chosen bay type cannot serve the length they were on —
+  // fall back to the longest rung that still fits, so the form can never hold a
+  // duration the server will reject. `allowedDurations` always returns at least
+  // [1], so the fallback index is always populated.
   //
   // This has to live below `localSelectedPackage` rather than beside the
   // `duration` state it guards, because of the second exemption:
@@ -583,10 +608,10 @@ export function useBookingDetailsForm({
   //    having its duration silently shortened out from under the package label.
   useEffect(() => {
     if (costDataLoading || localSelectedPackage) return;
-    const ladder = allowedDurations({ maxHours: maxDuration, hasActivePackage });
+    const ladder = allowedDurations({ maxHours: maxBookableHours, hasActivePackage });
     if (ladder.includes(duration)) return;
     setDuration(ladder[ladder.length - 1]);
-  }, [duration, maxDuration, hasActivePackage, costDataLoading, localSelectedPackage]);
+  }, [duration, maxBookableHours, hasActivePackage, costDataLoading, localSelectedPackage]);
 
   // Compute cost breakdown reactively (must be after localSelectedPackage declaration)
   const costBreakdown: CostBreakdown | null = (() => {
@@ -904,10 +929,11 @@ export function useBookingDetailsForm({
   const formatDate = (date: Date) => formatFlowDate(locale, date);
 
   /* The short date the sticky bar shows is NOT defined here. It lives in
-     `details/summarySubline.ts` as a free function taking `formatter`, so the
+     `details/summarySubline.ts` as a free function taking a `locale`, so the
      suite can call the real formatting instead of restating its option set in
-     a probe. `BookingDetails` composes it via `summaryBarSublineFor`, using the
-     `formatter` this hook already returns below. */
+     a probe. `BookingDetails` composes it via `summaryBarSublineFor`, passing
+     the `locale` this hook returns below — not next-intl's `formatter`, which
+     is bound to the app locale and so cannot compose English as `en-GB`. */
 
   const isLineUser = session?.user?.provider === 'line';
 
@@ -992,7 +1018,11 @@ export function useBookingDetailsForm({
     selectedDate,
     selectedTime,
     selectedBayType,
-    maxDuration,
+    /* Deliberately NOT the raw `maxDuration` prop. Every consumer must get the
+       bay-aware cap, and the only way to guarantee that is to stop handing out
+       the wider number at all — a second, longer-looking value in scope is
+       exactly how the ladder came to offer lengths the chosen bay cannot serve. */
+    maxBookableHours,
     slotData,
     onBack,
     selectedClubRental,
