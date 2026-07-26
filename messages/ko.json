@@ -109,10 +109,14 @@
       "signOutErrorToast": "로그아웃에 실패했습니다. 다시 시도해 주세요."
     },
     "page": {
-      "stepDateTitle": "날짜 선택",
-      "stepTimeTitle": "시간 선택",
-      "stepDetailsTitle": "세부정보 입력",
-      "stepDateSubtitle": "플레이하실 날짜를 선택해 주세요."
+      "stepLabelDate": "날짜",
+      "stepLabelTime": "시간",
+      "stepLabelDetails": "세부정보",
+      "stepPosition": "{total}단계 중 {current}단계",
+      "stepDateQuestion": "언제 플레이하시겠어요?",
+      "stepTimeQuestion": "몇 시에 시작할까요?",
+      "stepDetailsQuestion": "어떻게 플레이하시겠어요?",
+      "sublineFromTime": "{time} 시작"
     },
     "dateStep": {
       "todayCardTitle": "오늘",
@@ -247,7 +251,9 @@
       "subStepSession": "세션",
       "subStepExtras": "추가 옵션",
       "subStepContact": "고객 정보",
-      "subStepHeaderLine": "{label} · {current} / {total}",
+      "subStepSessionQuestion": "얼마나 이용하시겠어요?",
+      "subStepExtrasQuestion": "추가할 항목이 있나요?",
+      "subStepContactQuestion": "누구 이름으로 예약할까요?",
       "changeAction": "변경",
       "ctaContinue": "다음",
       "bookingAsLabel": "예약자",

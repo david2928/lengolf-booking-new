@@ -1,15 +1,18 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useTranslations, useFormatter } from 'next-intl';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { Layout } from './components/booking/Layout';
-import { DateSelection } from './components/booking/steps/DateSelection';
+import { BookingStepHeader } from './components/booking/BookingStepHeader';
 import {
-  DETAIL_SUB_STEPS,
-  SUB_STEP_LABEL_KEYS,
-} from './components/booking/steps/details/useDetailsSubStep';
+  BAY_BOOKING_STEP_COUNT,
+  SUB_STEP_QUESTION_KEYS,
+  stepHeaderSublineFor,
+  stepLabelKey,
+  stepQuestionKey,
+} from './components/booking/stepHeaderModel';
+import { DateSelection } from './components/booking/steps/DateSelection';
 import { useBookingFlow } from './hooks/useBookingFlow';
 
 const TimeSlots = dynamic(
@@ -25,10 +28,15 @@ const BookingDetails = dynamic(
 export default function BookingsPage() {
   const tCommon = useTranslations('bookings.common');
   const tPage = useTranslations('bookings.page');
-  /* The step-3 header names the current sub-step, whose strings live with the
-     rest of step 3 rather than under `bookings.page`. */
+  /* Step 3's header asks its current sub-step's question and names the bay, and
+     both of those strings live with the rest of step 3 rather than under
+     `bookings.page`. */
   const tDetails = useTranslations('bookings.detailsStep');
   const format = useFormatter();
+  /* Not derived from the URL prefix: English is unprefixed under
+     `localePrefix: 'as-needed'`, so a path read would report the wrong locale on
+     every English page. Only the header's subline separator needs it. */
+  const locale = useLocale();
 
   const { status } = useSession({
     required: false,
@@ -65,7 +73,7 @@ export default function BookingsPage() {
   // different page rather than a load.
   if (status === 'loading') {
     return (
-      <Layout hidePromotionBar compactHeader flushMain hideFooter>
+      <Layout hidePromotionBar compactHeader flushMain hideFooter hideNav>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -73,78 +81,78 @@ export default function BookingsPage() {
     );
   }
   
+  /**
+   * The bay, for the header's subline — and null unless it is genuinely a
+   * SETTLED choice, which is narrower than "we have a value".
+   *
+   * `selectedBayType` is set only when step 2's bay filter was on Social or AI
+   * Lab; on the default "All bays" filter `TimeSlots` passes `undefined` and the
+   * customer picks the bay inside step 3's Session sub-step instead. Exactly
+   * that distinction is what `SessionStep` branches on: a set `selectedBayType`
+   * renders read-only, an unset one renders the picker.
+   *
+   * So printing it only when it is set gives two things at once. The subline
+   * stays true to what it claims to be — choices carried in from EARLIER steps,
+   * not the one being made right now. And the header can never contradict the
+   * form, because the only case where the form could still change the bay is
+   * the case where the header says nothing about it.
+   */
+  const settledBayLabel =
+    currentStep === 3 && selectedBayType
+      ? selectedBayType === 'ai_lab'
+        ? tDetails('aiLab')
+        : tDetails('socialBay')
+      : null;
+
   const renderContent = () => (
     <div className="min-h-[36rem]">
-      {/* In-flow step header. Every row here is charged against the first
-          screen: the sticky site header already spends 56px above it, and on a
-          phone the two together used to eat the viewport before any content.
+      {/* In-flow step header. The layout lives in `BookingStepHeader`; what is
+          decided here is WHICH strings it gets, because every one of those
+          choices depends on flow state this component holds and that one does
+          not.
 
-          Three deliberate reductions:
+          Three of them are worth naming:
 
-          - `text-xl` below `sm:`. The heading is the only 24px type on the
-            page and it does not need to be, in a flow the customer has already
-            committed to by reaching it. Desktop keeps `text-2xl`.
-          - Step 3 has NO subtitle. `stepDetailsSubtitle` read "Complete your
-            booking details." under a heading reading "Provide Details" — a
-            restatement occupying a full row, so the key is gone. Steps 1 and 2
-            keep theirs, because they say something the title does not (step 2's
-            is the selected date).
-          - The sub-step indicator moved ONTO this row from its own row inside
-            `BookingDetails`, where it sat as `DETAILS · 1 OF 3` plus the
-            sub-step name — two rows saying related things. Its information is
-            unchanged, only its separateness is gone: the whole line, name and
-            position, is now `subStepHeaderLine` at the end of the title row.
-            `flex-wrap` is the fallback for a locale where both do not fit on
-            one line; it wraps rather than truncating the heading.
-
-          `lg:hidden` on the indicator matches the row it replaced — above `lg:`
-          all three sub-steps are on screen at once, so a counter would be
-          describing nothing. */}
-      <div className="mb-4 sm:mb-6 flex items-start gap-2">
-        {currentStep > 1 && (
-          /* `-ml-2` pulls the button's padding box off the content edge so the
-             arrow itself lines up with the heading's left edge. The 40px tap
-             target and the `aria-label` are unchanged. */
-          <button
-            onClick={handleHeaderBack}
-            className="-ml-2 shrink-0 p-2 rounded-lg hover:bg-gray-100"
-            aria-label={tCommon('goBack')}
-          >
-            <ArrowLeftIcon className="h-6 w-6 text-gray-600" />
-          </button>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-            <h2 className="text-xl sm:text-2xl font-bold leading-tight text-gray-900">
-              {currentStep === 1
-                ? tPage('stepDateTitle')
-                : currentStep === 2
-                ? tPage('stepTimeTitle')
-                : tPage('stepDetailsTitle')
-              }
-            </h2>
-            {currentStep === 3 && (
-              <p className="text-xs font-medium text-gray-500 tabular-nums lg:hidden">
-                {tDetails('subStepHeaderLine', {
-                  label: tDetails(SUB_STEP_LABEL_KEYS[detailsSubStep.subStep]),
-                  current: detailsSubStep.subStepIndex + 1,
-                  total: DETAIL_SUB_STEPS.length,
-                })}
-              </p>
-            )}
-          </div>
-          {currentStep !== 3 && (
-            /* Supporting text under the heading, a size below it so it does not
-               compete for the eye. */
-            <p className="mt-0.5 text-xs sm:text-sm text-gray-600">
-              {currentStep === 1
-                ? tPage('stepDateSubtitle')
-                : format.dateTime(selectedDate!, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-              }
-            </p>
-          )}
-        </div>
-      </div>
+          - The QUESTION at step 3 is the current SUB-step's, not the step's.
+            "Details" describes a screen; "How long?" asks for something, and a
+            customer who has reached step 3 needs the second. `questionWide`
+            covers the case the sub-step question cannot: above `lg:` all three
+            sub-steps render at once, so no single one of their questions is
+            true and the step-level question stands in.
+          - The SUBLINE accumulates. Step 1 passes nothing (nothing has been
+            chosen), step 2 passes the date, step 3 adds the start time and the
+            bay. `stepHeaderSublineFor` drops whatever is null, so this is one
+            expression rather than a branch per step.
+          - The BACK control is `handleHeaderBack`, not `handleBack`: inside
+            step 3 backward means the previous sub-step, and only from the first
+            sub-step does it mean the previous step. Passing `undefined` on step
+            1 is what removes the control, since there is nowhere to go. */}
+      <BookingStepHeader
+        currentStep={currentStep}
+        label={tPage(stepLabelKey(currentStep))}
+        position={tPage('stepPosition', {
+          current: currentStep,
+          total: BAY_BOOKING_STEP_COUNT,
+        })}
+        question={
+          currentStep === 3
+            ? tDetails(SUB_STEP_QUESTION_KEYS[detailsSubStep.subStep])
+            : tPage(stepQuestionKey(currentStep))
+        }
+        questionWide={currentStep === 3 ? tPage('stepDetailsQuestion') : undefined}
+        subline={stepHeaderSublineFor({
+          formatter: format,
+          locale,
+          date: currentStep >= 2 ? selectedDate : null,
+          fromTimeLabel:
+            currentStep === 3 && selectedTime
+              ? tPage('sublineFromTime', { time: selectedTime })
+              : null,
+          bayLabel: settledBayLabel,
+        })}
+        onBack={currentStep > 1 ? handleHeaderBack : undefined}
+        backLabel={tCommon('goBack')}
+      />
 
       <div className="relative">
         {currentStep === 1 && (
@@ -199,17 +207,24 @@ export default function BookingsPage() {
          owns its padding outright.
        - `hideFooter`        TAKEN. See the commit that added it: the long
          marketing footer belongs on a landing page, not under a checkout.
-       - `hideNav`           NOT TAKEN. It strips the desktop Bay Rates /
-         Promotions / Lessons / club-rental links. Unlike course rental, which
-         is a self-contained product flow, `/bookings` step 1 IS this app's
-         landing surface (the header badge even links back to it) and a
-         customer on it may legitimately be browsing rather than committed.
-         Making it step-conditional would trade that for a header that
-         restructures itself as the customer advances — the same chrome flicker
-         the loading-state props above exist to prevent. Mobile is unaffected
-         either way: those links live in the burger menu, which `hideNav`
-         does not touch. */
-    <Layout hidePromotionBar compactHeader flushMain hideFooter>
+       - `hideNav`           TAKEN. It strips the desktop Bay Rates /
+         Promotions / Lessons / Club Rental / Play & Food links, leaving the
+         wordmark and the badge — which is the header the mockup draws.
+
+         This was previously NOT taken, on the argument that `/bookings` step 1
+         doubles as this app's landing surface and a customer there may still
+         be browsing rather than committed. The mockup settles it the other
+         way, and the argument was weaker than it looked: nothing is removed,
+         only demoted. Every one of those links is still in the burger menu,
+         which `hideNav` does not touch and which is the ONLY place a phone
+         ever had them — so what the mockup asks for is what the majority of
+         customers were already being given.
+
+         Taken unconditionally rather than from step 2 onward, deliberately: a
+         step-conditional nav would restructure the header as the customer
+         advances, which is the same chrome flicker the loading-state props
+         above exist to prevent. */
+    <Layout hidePromotionBar compactHeader flushMain hideFooter hideNav>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {renderContent()}
       </div>
