@@ -240,7 +240,6 @@
       "confirmBooking": "Confirm Booking",
       "processing": "Processing...",
       "consentNote": "By booking, you agree to receive booking status updates and a post-visit review email.",
-      "consentNoteWithOptIn": "By booking, you agree to receive booking status updates and a post-visit review email. Marketing emails are separate and use the opt-in above.",
       "subStepSession": "Session",
       "subStepExtras": "Extras",
       "subStepContact": "Your details",

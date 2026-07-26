@@ -6,6 +6,7 @@ import 'react-phone-number-input/style.css';
 import { BookingReviewPanel, type BookingReviewFacts } from './BookingReviewPanel';
 import type { CostBreakdown } from '@/lib/cost-calculator';
 import { IdentityCard, isIdentityComplete } from './IdentityCard';
+import { ConsentNote } from './ConsentNote';
 
 /**
  * Whether the customer is already on the marketing list, and so should be shown
@@ -76,9 +77,10 @@ export interface YourDetailsStepProps {
 
 /**
  * Your-details section of booking step 3 — the last mobile sub-step: contact
- * information, customer notes, the projected cost breakdown and the marketing
- * opt-in with its consent note (a compliance artifact from PR #18; it must stay
- * on this sub-step, where the customer confirms).
+ * information, customer notes, the projected cost breakdown, the marketing
+ * opt-in, and last of all the mobile copy of the consent disclosure (a
+ * compliance artifact from PR #18). The disclosure must stay on this sub-step,
+ * which is where the customer confirms — see `ConsentNote`.
  * Renders as a fragment so the parent `<form>`'s `space-y-4 sm:space-y-6` keeps
  * applying to these blocks as direct children.
  *
@@ -128,8 +130,12 @@ export function YourDetailsStep({
     errorField === 'bd-name' || errorField === 'bd-phone' || errorField === 'bd-email';
   const showIdentityCard =
     !isEditingContact && !contactFlagged && isIdentityComplete({ name, phoneNumber, email });
-  /* One flag for both the checkbox and the consent note's marketing clause, so
-     the sentence can never point at an opt-in that is not on screen. */
+  /* Gates the marketing checkbox only. It used to gate a second variant of the
+     consent note as well — the note carried a "see the opt-in above" clause
+     that had to disappear whenever the box did. That clause is gone (it
+     explained the form rather than the booking, and the box's own description
+     already says unsubscribing lives in every email), so the note is now one
+     unconditional sentence and this flag has one job. */
   const showMarketingOptIn =
     email.trim().length > 0 && !isMarketingSubscribed(marketingPreference);
 
@@ -361,55 +367,22 @@ export function YourDetailsStep({
         </label>
       )}
 
-      {/* The consent note is a compliance artifact and always renders, but its
-          marketing clause is a POINTER — "see the opt-in above" — and the thing
-          it points at is conditional. With the box suppressed for a subscribed
-          customer (and absent before an email is typed) the clause referred to
-          nothing on screen, so the note comes in two complete variants gated on
-          exactly the flag that renders the box. Two whole sentences rather than
-          a base string plus an appended clause: concatenating translated
-          fragments puts a stray space between sentences in ja/zh, where none
-          belongs.
+      {/* The consent disclosure, and deliberately the LAST thing in this
+          component. It no longer sits at the bottom of a form section: it
+          opens "By booking, you agree", so it belongs against the control
+          that does the booking. This is the MOBILE half of that pair
+          (`lg:hidden`); the desktop half is under the `SummaryRail`'s Confirm
+          button, in an aside classed `hidden lg:block`. Exact complements of
+          one breakpoint, so exactly one renders at any width. Being last here
+          puts it immediately above the fixed `BookingSummaryBar`, which is as
+          close to "under" a fixed element as document flow gets.
 
-          ALWAYS, including for customers who have booked before. It was asked
-          whether returning customers need to see it again. They do:
-
-           1. It is a terms-acceptance disclosure attached to the ACT of
-              booking — it opens "By booking, you agree" — not a one-time
-              onboarding notice. It is making a claim about THIS booking, and a
-              consent record is weaker if the disclosure was only ever shown
-              once, months ago, on some earlier booking.
-           2. There is no honest signal to gate on. The nearest thing is
-              `isNewCustomer` in `useBookingDetailsForm`, which is not even
-              returned from the hook — and it starts `false`, meaning
-              "returning", and is only corrected by a debounced fetch that
-              needs eight digits of phone number to fire at all. Gating on it
-              would hide the disclosure by default for EVERYONE, including
-              genuine first-timers, and permanently for anyone whose phone
-              never validates. That failure is silent, one-way, and lands on
-              exactly the people the disclosure most needs to reach. It is the
-              same unknown-versus-zero trap `marketingPreference` documents
-              above.
-           3. It is a promotions-eligibility predicate. Suppressing a
-              compliance surface with it would mean a change to the B1G1 rule
-              silently changes what customers are told.
-
-          The complaint behind the question was real though: noise for someone
-          who has booked twenty times. Two things answer it without hiding
-          anything. The note already SHORTENS itself — a subscribed customer
-          gets the one-sentence variant, since the marketing clause only earns
-          its place when there is an opt-in on screen to point at. And the
-          prominence dial was already past its own floor: at `text-gray-400`
-          this sat at 2.5:1 against white, well under the 4.5:1 WCAG AA needs
-          for 12px text. A disclosure nobody can read is a weaker record than a
-          repetitive one, so the fix runs the other way. `text-gray-500` is
-          ~4.8:1 and clears AA while staying the quietest thing on the step:
-          still 12px, still centred, still last. Do not take it back to
-          gray-400 to make it calmer — that is the one direction that costs
-          something. */}
-      <p className="text-xs text-gray-500 text-center mt-3">
-        {showMarketingOptIn ? t('consentNoteWithOptIn') : t('consentNote')}
-      </p>
+          It stays inside THIS component precisely because this component only
+          renders on the `contact` sub-step, so the note inherits "last
+          sub-step only" and can never attach to the bar while its CTA still
+          reads "Continue". See `ConsentNote` for why no prop removes it, why
+          the marketing clause was dropped, and for the contrast floor. */}
+      <ConsentNote className="mt-3 lg:hidden" />
     </>
   );
 }

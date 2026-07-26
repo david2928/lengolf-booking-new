@@ -38,9 +38,8 @@ import messages from '@/messages/en.json';
 
 const OPT_IN_LABEL = messages.bookings.detailsStep.marketingOptInLabel;
 const OPT_IN_DESCRIPTION = messages.bookings.detailsStep.marketingOptInDescription;
-/** The consent note in its two forms. Only the second points at the opt-in. */
+/** The consent disclosure. One unconditional string now, not two variants. */
 const CONSENT_NOTE = messages.bookings.detailsStep.consentNote;
-const CONSENT_NOTE_WITH_OPT_IN = messages.bookings.detailsStep.consentNoteWithOptIn;
 
 /**
  * A returning customer with an email on file — the opt-in block is gated on a
@@ -151,46 +150,32 @@ describe('YourDetailsStep marketing opt-in', () => {
 });
 
 /**
- * The consent note's marketing clause is a pointer ("see the opt-in above"),
- * and the thing it points at is conditional. When the block is suppressed the
- * clause referred to nothing on screen, so the note has two complete variants
- * gated on exactly the flag that renders the checkbox.
+ * The disclosure used to come in two variants: `consentNote`, and
+ * `consentNoteWithOptIn`, which appended "Marketing emails are separate and use
+ * the opt-in above." That clause was meta-commentary about an adjacent control
+ * rather than a statement about the booking, and the checkbox 20px above it
+ * already tells the reader they can unsubscribe from any email. The clause and
+ * its key are gone from all five catalogs, leaving one unconditional sentence.
+ *
+ * Its PLACEMENT is now the point. It opens "By booking, you agree", so it
+ * belongs against the control that books, not at the foot of a form section. It
+ * must appear exactly once at every width, beside whichever confirm the
+ * customer will actually press. This component carries the MOBILE copy
+ * (`lg:hidden`, and last in the flow so it lands immediately above the fixed
+ * `BookingSummaryBar`); `SummaryRail` carries the desktop copy under its own
+ * Confirm button, inside an aside classed `hidden lg:block`. Those two classes
+ * are exact complements of one breakpoint, so no viewport shows both and none
+ * shows neither. `summary-rail.test.tsx` pins the other half of the pair.
  */
 describe('YourDetailsStep consent note', () => {
-  it('points at the opt-in only when the opt-in is on screen', () => {
-    renderStep({ marketingPreference: null });
-
-    expect(screen.getByText(CONSENT_NOTE_WITH_OPT_IN)).toBeInTheDocument();
-    expect(screen.queryByText(CONSENT_NOTE)).toBeNull();
-  });
-
-  it('drops the clause for an already-subscribed customer', () => {
-    renderStep({ marketingPreference: true });
-
-    expect(screen.getByText(CONSENT_NOTE)).toBeInTheDocument();
-    expect(screen.queryByText(CONSENT_NOTE_WITH_OPT_IN)).toBeNull();
-  });
-
-  it('drops the clause before an email is entered', () => {
-    renderStep({ marketingPreference: null, email: '   ' });
-
-    expect(screen.getByText(CONSENT_NOTE)).toBeInTheDocument();
-    expect(screen.queryByText(CONSENT_NOTE_WITH_OPT_IN)).toBeNull();
-  });
-
   /**
-   * The two variants share their opening sentence, so a substring matcher would
-   * report the clause-free note as present inside the clause-bearing one. These
-   * assertions rely on testing-library's default whole-string normalisation;
-   * this case fails loudly if either string is ever made a prefix-only match.
-   *
-   * `false` is in the list alongside `true` and `null` because this is the
-   * "always" assertion, not a two-case one: the note is a terms-acceptance
-   * disclosure attached to the act of booking, so no value of any prop may
-   * remove it. It was asked whether returning customers could be spared it;
-   * they cannot. See the note's comment in `YourDetailsStep` for why, including
-   * why the only available "has booked before" signal defaults to "returning"
-   * and would therefore have hidden it from first-timers too.
+   * `false` sits alongside `true` and `null` because this is the "always"
+   * assertion, not a two-case one: the note is a terms-acceptance disclosure
+   * attached to the act of booking, so no value of any prop may remove it. It
+   * was asked whether returning customers could be spared it; they cannot. See
+   * `ConsentNote` for why, including why the only available "has booked before"
+   * signal defaults to "returning" and would have hidden it from first-timers
+   * too.
    */
   it('states the booking-email consent whatever the stored preference', () => {
     for (const preference of [true, false, null] as const) {
@@ -202,6 +187,54 @@ describe('YourDetailsStep consent note', () => {
       expect(screen.getByText(/post-visit review email/)).toBeInTheDocument();
       unmount();
     }
+  });
+
+  /**
+   * The regression guard for collapsing the two variants into one. Every input
+   * that used to switch them — the stored preference, and whether an email has
+   * been typed at all — must now yield the SAME single sentence, exactly once.
+   * `getAllByText` rather than `getByText` so a reintroduced second variant
+   * fails as a count rather than passing on whichever copy it found first.
+   */
+  it('renders one unconditional note, whatever used to switch the variant', () => {
+    const cases: Array<Partial<YourDetailsStepProps>> = [
+      { marketingPreference: true },
+      { marketingPreference: false },
+      { marketingPreference: null },
+      { marketingPreference: null, email: '   ' },
+    ];
+
+    for (const overrides of cases) {
+      const { unmount } = render(
+        <NextIntlClientProvider locale="en" messages={messages as never}>
+          <YourDetailsStep {...baseProps} {...overrides} />
+        </NextIntlClientProvider>,
+      );
+      expect(screen.getAllByText(CONSENT_NOTE)).toHaveLength(1);
+      unmount();
+    }
+  });
+
+  /**
+   * The deleted clause, pinned at the source. A well-meaning restoration of the
+   * "see the opt-in above" pointer would put back exactly the meta-commentary
+   * that was removed, and the retired key must not reappear beside it.
+   */
+  it('says nothing about the marketing opt-in', () => {
+    expect(CONSENT_NOTE).not.toMatch(/marketing/i);
+    expect(CONSENT_NOTE).not.toMatch(/opt.?in/i);
+    expect(Object.keys(messages.bookings.detailsStep)).not.toContain('consentNoteWithOptIn');
+  });
+
+  /**
+   * The mobile half of the breakpoint pair. Without `lg:hidden` this copy and
+   * the rail's would BOTH render above 1024px, roughly 300px apart — the exact
+   * duplication the move was supposed to avoid is one missing class away.
+   */
+  it('carries the mobile half of the breakpoint pair', () => {
+    renderStep({ marketingPreference: true });
+
+    expect(screen.getByText(CONSENT_NOTE)).toHaveClass('lg:hidden');
   });
 
   /**

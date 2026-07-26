@@ -224,3 +224,58 @@ describe('SummaryRail has-summary-rail body class (refcounted)', () => {
     expect(document.body.classList.contains('has-summary-rail')).toBe(false);
   });
 });
+
+/**
+ * The consent disclosure, desktop half.
+ *
+ * It opens "By booking, you agree", so it belongs against the control that
+ * books. On desktop that control is the rail's own Confirm button — the rail
+ * always confirms, because desktop shows every sub-step at once and has nothing
+ * to advance through. The mobile half lives at the end of `YourDetailsStep`,
+ * classed `lg:hidden`, and `marketing-opt-in.test.tsx` pins it there.
+ *
+ * The pair is what makes "exactly once at every breakpoint" true: this rail is
+ * mounted inside an aside classed `hidden lg:block` in `BookingDetails`, the
+ * exact complement of `lg:hidden`. Below 1024px only the mobile copy renders;
+ * at or above it only this one does.
+ */
+describe('SummaryRail consent note', () => {
+  const CONSENT_NOTE = messages.bookings.detailsStep.consentNote;
+
+  test('renders the disclosure immediately after the confirm button', () => {
+    renderRail();
+
+    const note = screen.getByText(CONSENT_NOTE);
+    const confirm = screen.getByRole('button', { name: 'Confirm Booking' });
+
+    // Adjacency is the whole point of the move, so assert the DOM relationship
+    // rather than mere presence: a note that drifted above the total would pass
+    // a `toBeInTheDocument` check while sitting nowhere near the action.
+    expect(confirm.nextElementSibling).toBe(note);
+  });
+
+  /**
+   * The rail's copy must carry NO viewport gate of its own. The aside around it
+   * is already `hidden lg:block`; a second `lg:hidden` here would AND the two
+   * and the disclosure would render at no width at all — the failure mode that
+   * is invisible in jsdom, silent in a build, and only shows up as a missing
+   * legal notice in production.
+   */
+  test('carries no viewport gate of its own', () => {
+    renderRail();
+
+    const note = screen.getByText(CONSENT_NOTE);
+    expect(note.className).not.toMatch(/(^|\s)lg:hidden(\s|$)/);
+    expect(note.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+  });
+
+  /** Same contrast floor as the mobile copy; both render one `ConsentNote`. */
+  test('keeps the disclosure above the contrast floor', () => {
+    renderRail();
+
+    const note = screen.getByText(CONSENT_NOTE);
+    expect(note).not.toHaveClass('text-gray-400');
+    expect(note).not.toHaveClass('text-gray-300');
+    expect(note).toHaveClass('text-xs');
+  });
+});

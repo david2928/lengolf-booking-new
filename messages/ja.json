@@ -240,7 +240,6 @@
       "confirmBooking": "予約を確定",
       "processing": "処理中...",
       "consentNote": "ご予約により、予約ステータス更新および来店後のレビュー依頼メールの受信に同意されたものとみなします。",
-      "consentNoteWithOptIn": "ご予約により、予約ステータス更新および来店後のレビュー依頼メールの受信に同意されたものとみなします。マーケティングメールは別途、上記のオプションからお申し込みください。",
       "subStepSession": "セッション",
       "subStepExtras": "オプション",
       "subStepContact": "お客様情報",
