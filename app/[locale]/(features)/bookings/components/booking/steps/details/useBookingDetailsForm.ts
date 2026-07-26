@@ -924,24 +924,11 @@ export function useBookingDetailsForm({
     return formatter.dateTime(date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  /**
-   * Same date, trimmed for the sticky summary bar — which is ONE truncating
-   * line on a 360px screen that already carries the duration and start time.
-   *
-   * Drops the year that `formatDate` keeps. The bar exists to orient a
-   * customer deep in the flow (or one restored from sessionStorage after a
-   * language switch), and the booking is days away: "2026" is the one part of
-   * the string that can never be the thing they were unsure about, so it is
-   * the first thing to spend truncation budget on. The weekday earns its place
-   * for the opposite reason — "is that the Saturday?" is exactly the doubt
-   * this line answers.
-   *
-   * Goes through `formatter.dateTime`, not `toLocaleDateString`, so the five
-   * locales render their own month names and field order.
-   */
-  const formatDateShort = (date: Date) => {
-    return formatter.dateTime(date, { weekday: 'short', day: 'numeric', month: 'short' });
-  };
+  /* The short date the sticky bar shows is NOT defined here. It lives in
+     `details/summarySubline.ts` as a free function taking `formatter`, so the
+     suite can call the real formatting instead of restating its option set in
+     a probe. `BookingDetails` composes it via `summaryBarSublineFor`, using the
+     `formatter` this hook already returns below. */
 
   const isLineUser = session?.user?.provider === 'line';
 
@@ -1121,6 +1108,5 @@ export function useBookingDetailsForm({
     handleSubmit,
     handlePrimaryCta,
     formatDate,
-    formatDateShort,
   };
 }

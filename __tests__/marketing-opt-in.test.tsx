@@ -62,7 +62,7 @@ const baseProps: YourDetailsStepProps = {
     selectedDate: new Date('2026-07-15T12:00:00'),
     selectedTime: '12:00',
     durationLabel: '1 hr',
-    peopleLabel: '2 people',
+    numberOfPeople: 2,
     bayLabel: 'Social Bay',
     formatDate: (d: Date) => d.toDateString(),
   },

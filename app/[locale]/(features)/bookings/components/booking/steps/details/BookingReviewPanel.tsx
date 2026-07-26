@@ -10,11 +10,17 @@ type CostLanguage = 'en' | 'th' | 'ja' | 'ko' | 'zh';
 /**
  * The when/where/who facts of the booking, pre-formatted by the caller.
  *
- * Every value arrives as a finished string on purpose. `durationLabel` and
- * `peopleLabel` are the very strings `BookingDetails` already prints in the
- * collapsed sub-step summaries and the sticky bar's subline, and `formatDate`
- * is the form hook's own formatter — so this panel cannot render a booking
- * differently from the rest of the step by re-deriving any of it.
+ * The localised values arrive as finished strings on purpose. `durationLabel`
+ * is the very string `BookingDetails` already prints in the collapsed sub-step
+ * summaries and the sticky bar's subline, and `formatDate` is the form hook's
+ * own formatter — so this panel cannot render a booking differently from the
+ * rest of the step by re-deriving any of it.
+ *
+ * `numberOfPeople` is the exception and arrives as a number, because the row
+ * has a label. The flow's `peopleCountShort` string carries its own unit ("3
+ * people") for the collapsed summary, which has no label to supply one; under
+ * this panel's "People" label the same string read "People / 3 people". The
+ * rail states the count the same way, bare.
  */
 export interface BookingReviewFacts {
   selectedDate: Date;
@@ -22,8 +28,8 @@ export interface BookingReviewFacts {
   selectedTime: string;
   /** e.g. "1.5 hrs". Same string as the sticky bar's subline. */
   durationLabel: string;
-  /** e.g. "2 people". Same string as the collapsed Session summary. */
-  peopleLabel: string;
+  /** Party size, unformatted — the "People" label already names the unit. */
+  numberOfPeople: number;
   /** Already-translated bay name ("Social Bay" / "AI Lab"). */
   bayLabel: string;
   /** `formatDate` from the form hook, so panel and rail format dates identically. */
@@ -63,12 +69,17 @@ export interface BookingReviewPanelProps extends BookingReviewFacts {
  * discounts and `pickNotes` — the package shortfall warning, the Early Bird
  * split, the best-offer disclosure and the bogo hint. So the customer never
  * confirms a number without the sentence that explains it.
+ *
+ * It owns no empty state either, for the same reason it owns no total. On
+ * mobile the sticky `BookingSummaryBar` is always on screen roughly 100px
+ * below, and it already prints `summaryEmptyPrompt` whenever there is no total
+ * — a card here saying the same thing put the sentence on screen twice.
  */
 export function BookingReviewPanel({
   selectedDate,
   selectedTime,
   durationLabel,
-  peopleLabel,
+  numberOfPeople,
   bayLabel,
   formatDate,
   costBreakdown,
@@ -96,25 +107,30 @@ export function BookingReviewPanel({
           <Fact label={t('summaryRailDate')} value={formatDate(selectedDate)} />
           <Fact label={t('summaryRailTime')} value={selectedTime} />
           <Fact label={t('summaryRailDuration')} value={durationLabel} />
-          <Fact label={t('summaryRailPeople')} value={peopleLabel} />
+          {/* Bare count, like the rail. The label supplies the unit. */}
+          <Fact label={t('summaryRailPeople')} value={String(numberOfPeople)} />
           <Fact label={t('summaryRailBay')} value={bayLabel} />
         </dl>
       </div>
 
       {/* A ฿0 estimate is legitimate — a package or a free-hour credit can cover
-          the whole booking — so it renders as a real total. Only a breakdown
-          that does not exist yet falls through to the empty prompt, matching
-          both the rail and `BookingSummaryBar`. */}
-      {costBreakdown ? (
+          the whole booking — so it renders as a real total.
+
+          No breakdown at all renders NOTHING here, deliberately. The sticky
+          `BookingSummaryBar` is on screen throughout this sub-step and owns the
+          empty state: it prints `summaryEmptyPrompt` for exactly this case,
+          about 100px below, so a card here repeated the sentence rather than
+          adding anything. And it was the wrong sentence in this position — it
+          asks for a duration two rows under a Duration row that already states
+          one. `ProjectedCostBreakdown` owns the in-flight case itself via
+          `isLoading`, so there is no loading gap left for a placeholder to
+          fill. */}
+      {costBreakdown && (
         <ProjectedCostBreakdown
           breakdown={costBreakdown}
           isLoading={costDataLoading}
           language={costLanguage}
         />
-      ) : (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">{t('summaryEmptyPrompt')}</p>
-        </div>
       )}
     </section>
   );

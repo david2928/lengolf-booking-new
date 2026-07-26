@@ -77,7 +77,7 @@ const baseProps: React.ComponentProps<typeof BookingReviewPanel> = {
   selectedDate: new Date('2026-07-15T12:00:00'),
   selectedTime: '12:00',
   durationLabel: '2 hrs',
-  peopleLabel: '3 people',
+  numberOfPeople: 3,
   bayLabel: 'Social Bay',
   formatDate: () => 'Wednesday, 15 July 2026',
   costBreakdown: breakdown,
@@ -103,8 +103,25 @@ describe('BookingReviewPanel', () => {
     expect(facts.getByText('Wednesday, 15 July 2026')).toBeInTheDocument();
     expect(facts.getByText('12:00')).toBeInTheDocument();
     expect(facts.getByText('2 hrs')).toBeInTheDocument();
-    expect(facts.getByText('3 people')).toBeInTheDocument();
+    expect(facts.getByText('3')).toBeInTheDocument();
     expect(facts.getByText('Social Bay')).toBeInTheDocument();
+  });
+
+  /**
+   * The count is stated bare, because the row has a label. The flow's
+   * `peopleCountShort` carries its own unit for the collapsed Session summary,
+   * which has no label to supply one; rendering it here read "People / 3
+   * people" — and the same stutter in Thai. The rail states it bare too.
+   */
+  test('states the party size without repeating the unit its label already gives', () => {
+    renderPanel();
+
+    const panel = screen.getByRole('region', { name: 'Review your booking' });
+    const facts = within(panel);
+
+    expect(facts.getByText(messages.bookings.detailsStep.summaryRailPeople)).toBeInTheDocument();
+    expect(facts.getByText('3')).toBeInTheDocument();
+    expect(facts.queryByText(/3\s*people/i)).not.toBeInTheDocument();
   });
 
   test('names the club rental, the add-on and the discount from the breakdown', () => {
@@ -144,13 +161,48 @@ describe('BookingReviewPanel', () => {
     ).not.toBeInTheDocument();
   });
 
-  test('falls back to the empty prompt only when there is no breakdown at all', () => {
+  /**
+   * The bar, not the panel, owns the empty state. Both are on screen together
+   * on mobile, so a fallback card here printed `summaryEmptyPrompt` twice about
+   * 100px apart — and printed the wrong sentence in this position, since it
+   * asks for a duration two rows below a Duration row that already states one.
+   * The panel keeps the facts and shows no money at all.
+   */
+  test('shows no total and no empty prompt of its own when there is no breakdown', () => {
     renderPanel({ costBreakdown: null });
 
+    const panel = screen.getByRole('region', { name: 'Review your booking' });
+    // The facts survive — they do not depend on the cost fetch.
+    expect(within(panel).getByText('Social Bay')).toBeInTheDocument();
+
     expect(
-      screen.getByText(messages.bookings.detailsStep.summaryEmptyPrompt),
-    ).toBeInTheDocument();
+      screen.queryByText(messages.bookings.detailsStep.summaryEmptyPrompt),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Estimated Total')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The duplication this replaced: panel fallback card AND the bar's own
+   * `emptyPrompt`, the same sentence twice on one screen. Rendering both
+   * together pins that only one of them says it.
+   */
+  test('leaves the empty prompt to the sticky bar, said once', () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <BookingReviewPanel {...baseProps} costBreakdown={null} />
+        <BookingSummaryBar
+          total={null}
+          totalLabel={messages.bookings.detailsStep.summaryTotalLabel}
+          ctaLabel="Confirm Booking"
+          onCta={() => {}}
+          emptyPrompt={messages.bookings.detailsStep.summaryEmptyPrompt}
+        />
+      </NextIntlClientProvider>,
+    );
+
+    expect(
+      screen.getAllByText(messages.bookings.detailsStep.summaryEmptyPrompt),
+    ).toHaveLength(1);
   });
 
   test('still shows the facts while the breakdown is loading', () => {
