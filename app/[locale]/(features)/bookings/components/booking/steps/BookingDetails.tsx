@@ -13,6 +13,7 @@ import { CreditBalanceCard } from './details/CreditBalanceCard';
 import { YourDetailsStep } from './details/YourDetailsStep';
 import { DetailsSubStepSummary } from './details/DetailsSubStepSummary';
 import { SummaryRail } from './details/SummaryRail';
+import { buildSummaryBarSubline } from './details/summarySubline';
 import { DETAIL_SUB_STEPS, type DetailSubStep } from './details/useDetailsSubStep';
 import { useBookingDetailsForm, type BookingDetailsProps } from './details/useBookingDetailsForm';
 import useMediaQuery from '@/hooks/useMediaQuery';
@@ -91,6 +92,7 @@ export function BookingDetails(props: BookingDetailsProps) {
     handleSubmit,
     handlePrimaryCta,
     formatDate,
+    formatDateShort,
   } = useBookingDetailsForm(props);
 
   const { subStep, subStepIndex, goToSubStep, isLast } = subStepNav;
@@ -331,7 +333,13 @@ export function BookingDetails(props: BookingDetailsProps) {
           <BookingSummaryBar
             total={costBreakdown ? costBreakdown.estimatedTotal : null}
             totalLabel={t('summaryTotalLabel')}
-            subline={`${durationLabel} · ${selectedTime}`}
+            /* Date FIRST — see `buildSummaryBarSubline` for why the ordering
+               is load-bearing against the bar's `truncate`. */
+            subline={buildSummaryBarSubline({
+              date: formatDateShort(selectedDate),
+              duration: durationLabel,
+              time: selectedTime,
+            })}
             ctaLabel={
               !isLast
                 ? t('ctaContinue')
