@@ -19,14 +19,33 @@ export interface SetMenuCardProps {
   /** HH:mm, for the rate slot the anchor is prorated over. */
   startTime: string;
   /**
-   * Reserved image slot. There is no per-set photography yet, so every caller
-   * leaves this undefined and the card renders a placeholder at the same
-   * dimensions. When a shoot lands, pass the path here (or add it to the
-   * package data and forward it): the slot and the layout around it do not
-   * move, so it stays a content change rather than a redesign.
+   * Overrides the photo this card would pick for `pkg.id` from `SET_IMAGES`.
+   * Callers normally leave it undefined and let the id decide; it exists for a
+   * surface that needs to show a set against different photography (a campaign
+   * shot, a seasonal variant) without teaching this component about the reason.
+   * A set with neither an override nor an entry in the map falls back to the
+   * placeholder.
    */
   imageSrc?: string;
 }
+
+/**
+ * Per-set photography, keyed by package id.
+ *
+ * Cropped from `public/images/Play and food_2.jpg` to exactly the slot's
+ * `aspect-[16/9]` at 1280x720, keeping the brand green background, so the three
+ * cards sit as one strip rather than three unrelated crops.
+ *
+ * `Partial` is deliberate. A fourth set added to `PlayFoodPackage['id']` before
+ * its shoot lands must fall through to the placeholder, not fail to compile or
+ * render a broken `<img>` — the same reason the placeholder branch below is
+ * kept rather than deleted now that all three current sets have a photo.
+ */
+const SET_IMAGES: Partial<Record<PlayFoodPackage['id'], string>> = {
+  SET_A: '/images/play-food/set-a.jpg',
+  SET_B: '/images/play-food/set-b.jpg',
+  SET_C: '/images/play-food/set-c.jpg',
+};
 
 /**
  * One Play & Food set, presented at the moment of decision with the same
@@ -56,6 +75,8 @@ export function SetMenuCard({
   // never describe the same set differently.
   const tPkg = useTranslations('playAndFood.packages');
 
+  const resolvedImageSrc = imageSrc ?? SET_IMAGES[pkg.id];
+
   const value = setValueFigures({
     price: pkg.price,
     duration: pkg.duration,
@@ -81,11 +102,13 @@ export function SetMenuCard({
           : 'border-gray-200 bg-white hover:border-green-500'
       }`}
     >
-      {/* Reserved image slot — see `imageSrc` above. */}
+      {/* The image slot. `imageSrc` wins, then the set's own photo, then the
+          placeholder — so a set with no photography still renders a card of the
+          same height and nothing below it shifts. */}
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-gradient-to-br from-green-50 via-emerald-50 to-amber-50">
-        {imageSrc ? (
+        {resolvedImageSrc ? (
           <Image
-            src={imageSrc}
+            src={resolvedImageSrc}
             alt={pkg.name}
             fill
             className="object-cover"
