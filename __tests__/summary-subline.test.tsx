@@ -169,6 +169,79 @@ describe('formatFlowDate', () => {
 });
 
 /**
+ * A date that is not a date must not be able to take the flow down.
+ *
+ * `Intl.DateTimeFormat.prototype.format(new Date(NaN))` throws
+ * `RangeError: Invalid time value`. next-intl's `dateTime` wraps that and
+ * returns `String(value)`, so while the flow formatted through next-intl a
+ * corrupt date rendered the literal "Invalid Date" and everything kept going.
+ * These helpers call `Intl` directly, which reinstated the throw — and one of
+ * their callers is the step header in `page.tsx`, which renders ABOVE
+ * `BookingDetails`. A throw there takes down the whole booking flow rather than
+ * one card.
+ *
+ * It is reachable: `useBookingFlow` restores `new Date(s.selectedDateIso)` from
+ * a sessionStorage snapshot with no re-validation — the NaN guard is on the
+ * write side only — so a corrupt or cross-version snapshot arrives here.
+ */
+describe('a date that is not a date', () => {
+  const INVALID = new Date(NaN);
+
+  it('does not throw out of either helper, in any locale', () => {
+    for (const locale of ['en', 'th', 'ko', 'ja', 'zh', 'de']) {
+      expect(() => formatShortDate(locale, INVALID)).not.toThrow();
+      expect(() => formatFlowDate(locale, INVALID)).not.toThrow();
+    }
+  });
+
+  it('degrades to the same string next-intl produced, rather than a new one', () => {
+    // Not a translated placeholder: this is a corrupt-state fallback, it needs
+    // no key in five locales, and it stays recognisable in a bug report.
+    expect(formatShortDate('en', INVALID)).toBe('Invalid Date');
+    expect(formatFlowDate('en', INVALID)).toBe('Invalid Date');
+  });
+
+  it('does not throw out of the composed subline either', () => {
+    expect(() =>
+      summaryBarSublineFor({ locale: 'en', date: INVALID, durationLabel: '1 hr', time: '09:30' }),
+    ).not.toThrow();
+    // The segments that ARE valid still reach the bar, so the customer keeps
+    // the duration and start time instead of losing the whole line.
+    const subline = summaryBarSublineFor({
+      locale: 'en',
+      date: INVALID,
+      durationLabel: '1 hr',
+      time: '09:30',
+    });
+    expect(subline).toContain('1 hr');
+    expect(subline).toContain('09:30');
+  });
+
+  it('leaves valid dates completely unaffected', () => {
+    // The guard must be a guard, not a change of behaviour for the normal path.
+    expect(formatShortDate('en', BOOKING_DATE)).toBe('Sat 25 Jul');
+    expect(formatFlowDate('en', BOOKING_DATE)).toBe('Sat, 25 Jul 2026');
+  });
+});
+
+/**
+ * Formatters are built once and reused — `BookingDetails` re-renders on every
+ * keystroke in the contact form, and constructing an `Intl.DateTimeFormat` is
+ * ~50x the cost of formatting with one. Sharing an instance is only safe because
+ * `format()` is stateless, so pin that repeated calls agree.
+ */
+describe('formatter reuse', () => {
+  it('gives the same answer on repeated calls, and keeps the locales apart', () => {
+    expect(formatShortDate('en', BOOKING_DATE)).toBe(formatShortDate('en', BOOKING_DATE));
+    expect(formatFlowDate('ja', BOOKING_DATE)).toBe(formatFlowDate('ja', BOOKING_DATE));
+    // A cache keyed on the locale alone would hand English's formatter to Thai.
+    expect(formatShortDate('th', BOOKING_DATE)).not.toBe(formatShortDate('en', BOOKING_DATE));
+    // ...and one keyed on the locale but not the options would drop the year.
+    expect(formatFlowDate('en', BOOKING_DATE)).not.toBe(formatShortDate('en', BOOKING_DATE));
+  });
+});
+
+/**
  * The wiring booking step 3 actually calls. `buildSummaryBarSubline` proves the
  * date slot leads the line; these prove the date is what goes in it.
  */

@@ -28,6 +28,68 @@ export function shortDateLocale(locale: string): string {
   return isValidLocale(locale) ? SHORT_DATE_LOCALES[locale] : SHORT_DATE_LOCALES.en;
 }
 
+/** Weekday, day and month. The sticky bar's form. */
+const SHORT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+};
+
+/** The same, plus the year, for the surfaces with room for it. */
+const FLOW_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  ...SHORT_DATE_OPTIONS,
+  year: 'numeric',
+};
+
+/**
+ * Built formatters, keyed by tag plus options.
+ *
+ * `new Intl.DateTimeFormat(...)` costs roughly 85µs against ~1.7µs for a
+ * `format()` on a built one, and these are called from `BookingDetails`, which
+ * re-renders on every keystroke in the contact form. There are exactly two
+ * option sets and five locales, so the map is bounded at ten entries and lives
+ * for the life of the module. Formatters are stateless across `format()` calls,
+ * so sharing one is safe.
+ */
+const FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
+
+function dateFormatter(tag: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${tag}|${JSON.stringify(options)}`;
+  const cached = FORMATTER_CACHE.get(key);
+  if (cached) return cached;
+  const built = new Intl.DateTimeFormat(tag, options);
+  FORMATTER_CACHE.set(key, built);
+  return built;
+}
+
+/**
+ * Format, or degrade to the raw value on a date that is not a date.
+ *
+ * `Intl.DateTimeFormat.prototype.format(new Date(NaN))` THROWS
+ * `RangeError: Invalid time value`. next-intl's `dateTime` wraps that and
+ * returns `String(value)`, so before these helpers took the formatting over,
+ * a corrupt date rendered the literal "Invalid Date" and the flow kept going.
+ * Calling `Intl` directly reinstated the throw — and reinstated it in the step
+ * header in `page.tsx`, which sits ABOVE `BookingDetails`, so one bad value
+ * takes down the entire booking flow instead of one card.
+ *
+ * A NaN date is reachable: `useBookingFlow` restores `new Date(s.selectedDateIso)`
+ * from a sessionStorage snapshot without re-validating it (the NaN guard is on
+ * the write side only), so a corrupt or cross-version snapshot lands here.
+ *
+ * `String(date)` rather than a translated placeholder on purpose: this is a
+ * corrupt-state fallback, not copy. It is the exact string next-intl produced,
+ * it needs no key in five locales, and it stays recognisable in a bug report.
+ */
+function formatOrRaw(
+  locale: string,
+  options: Intl.DateTimeFormatOptions,
+  date: Date,
+): string {
+  if (Number.isNaN(date.getTime())) return String(date);
+  return dateFormatter(shortDateLocale(locale), options).format(date);
+}
+
 /**
  * The booking date, trimmed for the sticky summary bar — which is ONE
  * truncating line on a 360px screen that already carries the duration and start
@@ -59,11 +121,7 @@ export function shortDateLocale(locale: string): string {
  * here, which is the failure it exists to catch.
  */
 export function formatShortDate(locale: string, date: Date): string {
-  return new Intl.DateTimeFormat(shortDateLocale(locale), {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  }).format(date);
+  return formatOrRaw(locale, SHORT_DATE_OPTIONS, date);
 }
 
 /**
@@ -83,12 +141,7 @@ export function formatShortDate(locale: string, date: Date): string {
  * alone, for the same reason nothing here is hand-assembled.
  */
 export function formatFlowDate(locale: string, date: Date): string {
-  return new Intl.DateTimeFormat(shortDateLocale(locale), {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
+  return formatOrRaw(locale, FLOW_DATE_OPTIONS, date);
 }
 
 /**
