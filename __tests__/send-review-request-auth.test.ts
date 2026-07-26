@@ -100,4 +100,13 @@ describe('POST /api/notifications/send-review-request auth', () => {
     expect(res.status).toBe(401);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  // Without the !apiKey guard, an unset key interpolates to the literal
+  // string `Bearer undefined` — which an attacker can simply send.
+  it('rejects "Bearer undefined" when CRON_API_KEY is not configured', async () => {
+    delete process.env.CRON_API_KEY;
+    const res = await POST(makeRequest({ Authorization: 'Bearer undefined' }));
+    expect(res.status).toBe(401);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });
