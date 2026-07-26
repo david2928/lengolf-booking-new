@@ -245,7 +245,7 @@
       "subStepContact": "お客様情報",
       "subStepSessionQuestion": "何時間プレーしますか？",
       "subStepExtrasQuestion": "追加はありますか？",
-      "subStepContactQuestion": "どなたのご予約ですか？",
+      "subStepContactQuestion": "内容を確認して確定",
       "changeAction": "変更",
       "ctaContinue": "次へ",
       "bookingAsLabel": "ご予約者",

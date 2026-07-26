@@ -23,12 +23,14 @@ import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { BookingStepHeader } from '@/app/[locale]/(features)/bookings/components/booking/BookingStepHeader';
 import {
+  BAY_BOOKING_SCREEN_COUNT,
   BAY_BOOKING_STEP_COUNT,
   STEP_HEADER_SUBLINE_SEPARATORS,
   STEP_LABEL_KEYS,
   STEP_QUESTION_KEYS,
   SUB_STEP_QUESTION_KEYS,
   buildStepHeaderSubline,
+  narrowStepFor,
   stepBarStates,
   stepHeaderSublineFor,
   stepHeaderSublineSeparator,
@@ -117,18 +119,94 @@ describe('stepBarStates', () => {
 });
 
 /**
- * The header's step count and the funnel's are the same number today. They are
- * deliberately NOT the same constant — `BAY_BOOKING_STEPS` drives the GA4
- * events and must not be edited for a layout reason — so this is the assertion
- * that notices if one moves without the other.
+ * Progress is a DISPLAY model. The customer is shown the screens they walk;
+ * the funnel keeps reporting the three server-meaningful stages it always has,
+ * so the GA4 series stays comparable with its own history.
+ *
+ * Below `lg:` the two are deliberately different numbers, and that difference is
+ * the fix: step 3 splits into three sub-step screens on a phone, so a customer
+ * on the third of five used to be told "Step 3 of 3" under a full bar.
  */
 describe('step count', () => {
-  test('matches the funnel the telemetry reports against', () => {
+  test('the WIDE count matches the funnel, because there step 3 is one screen', () => {
     expect(BAY_BOOKING_STEP_COUNT).toBe(BAY_BOOKING_STEPS.length);
   });
 
-  test('the flow still has exactly the three steps the header draws', () => {
+  test('the flow still has exactly the three steps the wide header draws', () => {
     expect(BAY_BOOKING_STEPS).toEqual(['date', 'time', 'details']);
+  });
+
+  test('the NARROW count is one screen per sub-step, so five', () => {
+    expect(BAY_BOOKING_SCREEN_COUNT).toBe(5);
+  });
+
+  /**
+   * Derived from the array `useDetailsSubStep` navigates, not typed as 5. A
+   * literal would leave the bars disagreeing with the screens the next time a
+   * sub-step is added or removed.
+   */
+  test('the narrow count follows DETAIL_SUB_STEPS rather than being hardcoded', () => {
+    expect(BAY_BOOKING_SCREEN_COUNT).toBe(
+      BAY_BOOKING_STEP_COUNT - 1 + DETAIL_SUB_STEPS.length,
+    );
+  });
+
+  /**
+   * The guard the whole rework rests on. If someone ever "tidies" the narrow
+   * count into `BAY_BOOKING_STEPS.length`, the header goes back to lying on
+   * mobile; if they tidy the funnel the other way to match five, every GA4
+   * comparison against history silently breaks. This fails on either.
+   */
+  test('the narrow count is NOT the funnel length, deliberately', () => {
+    expect(BAY_BOOKING_SCREEN_COUNT).not.toBe(BAY_BOOKING_STEPS.length);
+  });
+});
+
+/**
+ * The narrow walk: date, time, then one screen per step-3 sub-step.
+ */
+describe('narrowStepFor', () => {
+  test('gives steps 1 and 2 their own number, whatever the sub-step says', () => {
+    expect(narrowStepFor(1, 0)).toBe(1);
+    expect(narrowStepFor(2, 0)).toBe(2);
+    // The sub-step hook keeps its state across a trip back to step 2, so a
+    // stale index must not shift the count on a step that has no sub-steps.
+    expect(narrowStepFor(1, 2)).toBe(1);
+    expect(narrowStepFor(2, 2)).toBe(2);
+  });
+
+  test('advances one screen per sub-step inside step 3', () => {
+    expect(narrowStepFor(3, 0)).toBe(3);
+    expect(narrowStepFor(3, 1)).toBe(4);
+    expect(narrowStepFor(3, 2)).toBe(5);
+  });
+
+  test('walks every sub-step exactly once, ending on the last screen', () => {
+    const walked = DETAIL_SUB_STEPS.map((_, index) => narrowStepFor(3, index));
+    expect(walked).toEqual([3, 4, 5]);
+    expect(new Set(walked).size).toBe(DETAIL_SUB_STEPS.length);
+    expect(Math.max(...walked)).toBe(BAY_BOOKING_SCREEN_COUNT);
+  });
+
+  test('clamps rather than printing a position past the end of the bar', () => {
+    expect(narrowStepFor(0, 0)).toBe(1);
+    expect(narrowStepFor(-3, 0)).toBe(1);
+    expect(narrowStepFor(9, 0)).toBe(3);
+    expect(narrowStepFor(3, 9)).toBe(BAY_BOOKING_SCREEN_COUNT);
+    expect(narrowStepFor(3, -2)).toBe(3);
+  });
+
+  test('never exceeds the total the bars are drawn against', () => {
+    for (const step of [-1, 0, 1, 2, 3, 4, 99]) {
+      for (const sub of [-1, 0, 1, 2, 3, 99]) {
+        const n = narrowStepFor(step, sub);
+        expect(n).toBeGreaterThanOrEqual(1);
+        expect(n).toBeLessThanOrEqual(BAY_BOOKING_SCREEN_COUNT);
+        expect(stepBarStates(n, BAY_BOOKING_SCREEN_COUNT)).toHaveLength(
+          BAY_BOOKING_SCREEN_COUNT,
+        );
+      }
+    }
   });
 });
 
@@ -212,6 +290,28 @@ describe('the header strings exist in all five locales', () => {
     // Not left in English for the four that are not: the pill is one of the
     // first strings on the page, so an untranslated one is conspicuous.
     if (locale !== 'en') expect(badge).not.toBe('Book a Bay');
+  });
+
+  /**
+   * The last sub-step's heading. It was invented as "Who is it for?", which
+   * asks about the party — but that screen holds the contact recap, the notes,
+   * the marketing opt-in, the review panel and Confirm. Owner: "actually it's
+   * just a booking review or not?" They are right, and the heading now names
+   * what the screen does. The other two invented headings were accepted and are
+   * pinned here so a future sweep does not quietly restyle them too.
+   */
+  test('the last sub-step is headed as a review, not as a question about who', () => {
+    const details = CATALOGS.en.bookings.detailsStep as Record<string, string>;
+    expect(details.subStepContactQuestion).toBe('Review and confirm');
+    expect(details.subStepSessionQuestion).toBe('How long?');
+    expect(details.subStepExtrasQuestion).toBe('Anything to add?');
+  });
+
+  test.each(LOCALES)('%s heads the last sub-step in its own language', (locale) => {
+    const heading = (CATALOGS[locale].bookings.detailsStep as Record<string, string>)
+      .subStepContactQuestion;
+    expect(heading.trim().length).toBeGreaterThan(0);
+    if (locale !== 'en') expect(heading).not.toBe('Review and confirm');
   });
 
   // House rule: no em dashes in user-facing copy.
@@ -501,6 +601,112 @@ describe('BookingStepHeader', () => {
 
     const heading = screen.getByRole('heading', { name: 'What time?' });
     expect(heading.querySelector('span')).toBeNull();
+  });
+
+  /**
+   * The five-screen fix. Below `lg:` step 3 is three separate screens, so the
+   * flow is five screens long; above `lg:` it renders whole and is three steps.
+   * Both models are in the DOM and gated by `hidden`/`lg:hidden`, for the same
+   * reason the two headings are: `display: none` drops an element from the
+   * accessibility tree, so exactly one count is ever announced.
+   */
+  describe('two progress models', () => {
+    const twoModel = {
+      currentStep: 4,
+      totalSteps: 5,
+      position: 'Step 4 of 5',
+      currentStepWide: 3,
+      totalStepsWide: 3,
+      positionWide: 'Step 3 of 3',
+    };
+
+    test('draws a five-bar row for narrow and a three-bar row for wide', () => {
+      const { container } = renderHeader(twoModel);
+
+      const rows = container.querySelectorAll('header > div:first-of-type > div');
+      expect(rows).toHaveLength(2);
+
+      const [narrow, wide] = Array.from(rows);
+      expect(narrow.querySelectorAll('span')).toHaveLength(5);
+      expect(wide.querySelectorAll('span')).toHaveLength(3);
+      expect(narrow).toHaveClass('lg:hidden');
+      expect(wide).toHaveClass('hidden');
+      expect(wide).toHaveClass('lg:flex');
+    });
+
+    test('fills each row against its own model, not against one shared number', () => {
+      const { container } = renderHeader(twoModel);
+      const [narrow, wide] = Array.from(
+        container.querySelectorAll('header > div:first-of-type > div'),
+      );
+
+      // Screen 4 of 5.
+      const narrowFilled = Array.from(narrow.querySelectorAll('span')).map((s) =>
+        s.classList.contains('bg-green-600'),
+      );
+      expect(narrowFilled).toEqual([true, true, true, true, false]);
+
+      // ...is step 3 of 3, which is the LAST bar. Showing this full row on a
+      // phone, to a customer who still had a screen to go, was the bug.
+      const wideFilled = Array.from(wide.querySelectorAll('span')).map((s) =>
+        s.classList.contains('bg-green-600'),
+      );
+      expect(wideFilled).toEqual([true, true, true]);
+
+      // The narrow row still has an unfilled bar at the same moment. That
+      // disagreement is the whole point of carrying two models.
+      expect(wideFilled.every(Boolean)).toBe(true);
+      expect(narrowFilled.every(Boolean)).toBe(false);
+    });
+
+    test('states both positions in words, each gated to its own layout', () => {
+      renderHeader(twoModel);
+
+      const narrow = screen.getByText('Step 4 of 5');
+      const wide = screen.getByText('Step 3 of 3');
+      expect(narrow).toHaveClass('lg:hidden');
+      expect(wide).toHaveClass('hidden');
+      expect(wide).toHaveClass('lg:inline');
+    });
+
+    /**
+     * The wide bars are allowed to be decorative only because a wide position
+     * row states the same fact in words. Supplying bars without that text would
+     * put a fact on screen no screen reader could reach, so the component gates
+     * both on the same prop.
+     */
+    test('draws one model only when no wide position is supplied', () => {
+      const { container } = renderHeader({
+        currentStep: 4,
+        totalSteps: 5,
+        position: 'Step 4 of 5',
+        positionWide: undefined,
+      });
+
+      const rows = container.querySelectorAll('header > div:first-of-type > div');
+      expect(rows).toHaveLength(1);
+      expect(rows[0].querySelectorAll('span')).toHaveLength(5);
+      expect(rows[0]).not.toHaveClass('lg:hidden');
+    });
+
+    test('keeps both models out of the accessibility tree under one wrapper', () => {
+      const { container } = renderHeader(twoModel);
+
+      // One wrapper, so the label/position row stays <header>'s second child
+      // however many models are drawn. Scoped to direct children of <header>:
+      // the back arrow's icon is `aria-hidden` too, and deeper.
+      const hidden = container.querySelectorAll('header > [aria-hidden="true"]');
+      expect(hidden).toHaveLength(1);
+      expect(hidden[0].querySelectorAll('span')).toHaveLength(8); // 5 + 3
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    test('leaves the label/position row as the second child of the header', () => {
+      const { container } = renderHeader(twoModel);
+      const row = container.querySelectorAll('header > div')[1];
+      expect(within(row as HTMLElement).getByText('Details')).toBeInTheDocument();
+      expect(within(row as HTMLElement).getByText('Step 4 of 5')).toBeInTheDocument();
+    });
   });
 
   /**

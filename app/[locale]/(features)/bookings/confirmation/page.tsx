@@ -55,26 +55,36 @@ export default async function ConfirmationPage({
   }
 
   return (
-    /* Same in-flow chrome as `/bookings`, minus the footer — and the asymmetry
-       is the decision, not an oversight.
+    /* The same in-flow chrome as `/bookings`, all four props, no asymmetry.
 
-       `compactHeader`, `hidePromotionBar` and `flushMain` are taken so the last
-       screen of the flow does not snap back to a tall header and a promo banner
-       the customer just spent three steps without. `hideFooter` is NOT taken:
-       mid-flow the long marketing footer is a distraction under a checkout, but
-       the moment after a booking is confirmed is exactly when someone wants the
-       address, the opening hours and directions, and the footer is where those
-       live. Suppressing it here would hide the one thing this page's reader is
-       most likely to go looking for next.
+       `hideFooter` used to be left off here on the argument that the moment
+       after a booking is confirmed is exactly when someone wants the address,
+       the opening hours and directions. Owner overruled it: "why it still shows
+       after the confirmation? the footer".
+
+       They are right, and the argument was weaker than it looked. Everything it
+       claimed the footer was needed for, except one item, is already on its way
+       to the customer by email — `emails.bookingConfirmation` carries the
+       address, a "How to find us" maps link, the phone number and the LINE
+       contact, and this very page tells them that email has just been sent. The
+       exception is the OPENING HOURS, which live only in `messages.footer` and
+       are rendered only by `SharedFooter`; they are now absent from this page
+       and from the mail. That is an acceptable loss here specifically, because
+       a customer reading this screen has just booked a slot inside those hours
+       and been told when to arrive. If a post-booking surface ever does need
+       them, add them to `ConfirmationContent` — do not bring the whole
+       marketing footer back to carry one line.
 
        `flushMain` drops Layout's own `container mx-auto px-4 … py-8`, so the
        padding has to be replaced or the cards sit flush against the viewport
        edge: `ConfirmationContent`'s outermost element is a bare
        `max-w-4xl mx-auto` with no padding of its own. Hence the wrapper below,
-       matching the one on `/bookings`. It carries no `max-w-*` — the content
-       already sets its own, narrower one. */
-    <Layout hidePromotionBar compactHeader flushMain>
-      <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+       which restores that exact string so this page's content column lines up
+       with the wordmark in `Header` — which applies the same `container
+       mx-auto px-4 sm:px-6 lg:px-8` — instead of running wider than it between
+       640px and 1280px. `max-w-4xl` on the content still wins inside it. */
+    <Layout hidePromotionBar compactHeader flushMain hideFooter>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <ConfirmationContent booking={booking} />
       </div>
     </Layout>
