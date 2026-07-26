@@ -22,6 +22,10 @@ const baseInput: CostCalculationInput = {
   applicablePromotions: [],
 };
 
+// Stands in for the new-customer B1G1 (54c08739), the one promotion that mints
+// a redeemable free-hour credit. `grants_credit` is what entitles its sub-2-hour
+// hint to say "Or redeem your free hour within 7 days"; see the dedicated
+// describe block at the bottom of this file for the row that may not.
 const bogoPromo: ApplicablePromotion = {
   id: 'promo-b1g1',
   promotion_type: 'bogo',
@@ -30,6 +34,7 @@ const bogoPromo: ApplicablePromotion = {
   conditions: {},
   title_en: 'Buy 1 Get 1 Free',
   title_th: 'ซื้อ 1 แถม 1',
+  grants_credit: true,
 };
 
 function bayItem(input: Partial<CostCalculationInput>) {
@@ -1010,6 +1015,7 @@ describe('the weekday off-peak B1G1', () => {
     title_en: 'Buy 1 Get 1 Free',
     title_th: 'ซื้อ 1 แถม 1',
     pos_discount_id: null,
+    grants_credit: true,
   };
 
   const WEEKDAY_B1G1: ApplicablePromotion = {
@@ -1021,6 +1027,10 @@ describe('the weekday off-peak B1G1', () => {
     title_en: 'Weekday Buy 1 Get 1 Free',
     title_th: 'ซื้อ 1 แถม 1 วันธรรมดา',
     pos_discount_id: '64a085d2-64a8-4a12-9c5f-0317203ed750',
+    // The whole reason `grants_credit` exists. This row is also `bogo` with
+    // `free_hours: 1` on `bay_rate` — indistinguishable from the new-customer
+    // B1G1 by type — and it mints nothing.
+    grants_credit: false,
   };
 
   const WEDNESDAY = '2026-07-15';
@@ -1155,16 +1165,37 @@ describe('the weekday off-peak B1G1', () => {
   });
 
   test('a typo in the conditions withholds the offer instead of widening it', () => {
-    // The whole point of the strict evaluator: a misspelled key must not
-    // become "no restriction". Saturday 19:00 is the worst case — peak time,
-    // when the offer is most expensive to give away.
+    // The whole point of the strict evaluator: a misspelled key must not become
+    // "no restriction".
+    //
+    // The booking has to be chosen so that the SURVIVING keys all pass, or the
+    // test proves nothing. An earlier version asserted on Saturday 19:00, where
+    // the correctly-spelled `start_time_before: '16:00'` denies a 19:00 start
+    // by itself — it would have passed with the unknown-key rule deleted.
+    //
+    // Saturday 10:00 is the case that isolates the rule: 10:00 clears the
+    // cutoff, so the ONLY thing standing between a Saturday booking and a free
+    // hour is the misspelled `days_of_weeks` being treated as a restriction we
+    // cannot read rather than as one that is not there.
     const typo: ApplicablePromotion = {
       ...WEEKDAY_B1G1,
       conditions: { days_of_weeks: ['mon', 'tue', 'wed', 'thu'], start_time_before: '16:00' },
     };
-    const breakdown = quote({
-      applicablePromotions: [typo], date: SATURDAY, startTime: '19:00',
-    });
+    const SATURDAY_MORNING = { date: SATURDAY, startTime: '10:00' };
+
+    // Sanity check that this booking really is one the surviving key admits:
+    // spelled correctly, the same row denies Saturday, and with `days_of_week`
+    // dropped entirely it would apply. So the assertion below is about the typo.
+    expect(
+      quote({ applicablePromotions: [{ ...typo, conditions: WEEKDAY_B1G1.conditions }], ...SATURDAY_MORNING })
+        .discounts,
+    ).toHaveLength(0);
+    expect(
+      quote({ applicablePromotions: [{ ...typo, conditions: { start_time_before: '16:00' } }], ...SATURDAY_MORNING })
+        .discounts,
+    ).toHaveLength(1);
+
+    const breakdown = quote({ applicablePromotions: [typo], ...SATURDAY_MORNING });
     expect(breakdown.discounts).toHaveLength(0);
     expect(breakdown.estimatedTotal).toBe(breakdown.subtotal);
   });
@@ -1172,5 +1203,83 @@ describe('the weekday off-peak B1G1', () => {
   test('a package booking still blocks the offer, unchanged', () => {
     const breakdown = quote({ hasActivePackage: true });
     expect(breakdown.discounts).toHaveLength(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // The sub-2-hour hint. One hour is the DEFAULT duration on the ladder, so
+  // this is the majority of what a returning customer sees from this offer.
+  // -------------------------------------------------------------------------
+  describe('the sub-2-hour hint promises only what the row can deliver', () => {
+    // The clause is a promise that a CREDIT exists. Only a promotion with
+    // `grants_credit` mints one (see /api/bookings/create), and the weekday row
+    // does not. A returning customer reading it would be owed an hour nothing
+    // ever creates — and could not find out, because the credit wallet is
+    // read-only to customers. They would discover it at the counter.
+    const REDEEM_CLAUSE = {
+      en: 'redeem your free hour within 7 days',
+      th: 'ใช้สิทธิ์ฟรีภายใน 7 วัน',
+      ja: '7日以内に無料時間をご利用ください',
+      ko: '7일 이내에 무료 시간을 사용하세요',
+      zh: '在7天内兑换您的免费时段',
+    };
+
+    const oneHour = (promo: ApplicablePromotion) =>
+      quote({ applicablePromotions: [promo], startTime: '10:00', duration: 1 });
+
+    test('the weekday offer never promises a credit, in any locale', () => {
+      const b = oneHour(WEEKDAY_B1G1);
+      expect(b.appliedPromotionId).toBe(WEEKDAY_B1G1.id);
+      expect(b.discounts).toHaveLength(0); // advice only: nothing was discounted
+      expect(b.notes.join(' ')).not.toContain(REDEEM_CLAUSE.en);
+      expect(b.notesTh.join(' ')).not.toContain(REDEEM_CLAUSE.th);
+      expect(b.notesJa.join(' ')).not.toContain(REDEEM_CLAUSE.ja);
+      expect(b.notesKo.join(' ')).not.toContain(REDEEM_CLAUSE.ko);
+      expect(b.notesZh.join(' ')).not.toContain(REDEEM_CLAUSE.zh);
+    });
+
+    test('...and still says the one useful, true thing, in all five locales', () => {
+      // Silence would be worse than the false promise: at 1 hour the customer
+      // CAN have the free hour, they just have to book 2. That part is true.
+      const b = oneHour(WEEKDAY_B1G1);
+      expect(b.notes).toContain('🎉 Weekday Buy 1 Get 1 Free: Book 2 hours and your second hour is free!');
+      expect(b.notesTh).toContain('🎉 ซื้อ 1 แถม 1 วันธรรมดา: จอง 2 ชม. รับชั่วโมงที่ 2 ฟรี!');
+      expect(b.notesJa).toContain('🎉 Weekday Buy 1 Get 1 Free：2時間ご予約いただくと、2時間目が無料になります！');
+      expect(b.notesKo).toContain('🎉 Weekday Buy 1 Get 1 Free: 2시간 예약하시면 두 번째 시간은 무료입니다!');
+      expect(b.notesZh).toContain('🎉 Weekday Buy 1 Get 1 Free：预订 2 小时，第 2 小时免费！');
+    });
+
+    test('the new-customer B1G1 still promises the credit, unchanged', () => {
+      const b = quote({
+        applicablePromotions: [NEW_CUSTOMER_B1G1],
+        isNewCustomer: true,
+        startTime: '10:00',
+        duration: 1,
+      });
+      expect(b.appliedPromotionId).toBe(NEW_CUSTOMER_B1G1.id);
+      expect(b.notes).toContain('🎉 Buy 1 Get 1 Free: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days');
+      expect(b.notesTh).toContain('🎉 ซื้อ 1 แถม 1: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน');
+      expect(b.notesJa).toContain('🎉 Buy 1 Get 1 Free：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください');
+      expect(b.notesKo).toContain('🎉 Buy 1 Get 1 Free: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요');
+      expect(b.notesZh).toContain('🎉 Buy 1 Get 1 Free：预订2小时即获1小时免费！或在7天内兑换您的免费时段');
+    });
+
+    test('an undeclared grants_credit reads as NO credit, not as the old default', () => {
+      // Every promotion row predating the column defaults to false in Postgres,
+      // and the field is optional on `ApplicablePromotion`. If absent ever meant
+      // "grant", adding a bogo row would silently promise credits again — the
+      // failure this column was introduced to end.
+      const undeclared: ApplicablePromotion = { ...WEEKDAY_B1G1 };
+      delete undeclared.grants_credit;
+      expect(oneHour(undeclared).notes.join(' ')).not.toContain(REDEEM_CLAUSE.en);
+    });
+
+    test('at 2 hours the free hour is taken here, so neither hint is printed', () => {
+      // The hint only exists to tell a short booking to grow. Once the discount
+      // is real, "book 2 hours" would be advice the customer already took.
+      const b = quote({ applicablePromotions: [WEEKDAY_B1G1], startTime: '10:00', duration: 2 });
+      expect(b.discounts).toHaveLength(1);
+      expect(b.notes.join(' ')).not.toContain('Book 2 hours');
+      expect(b.notes.join(' ')).not.toContain('second hour is free');
+    });
   });
 });

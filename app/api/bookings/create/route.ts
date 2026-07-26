@@ -14,7 +14,11 @@ import { isValidLanguage } from '@/lib/liff/translations';
 import { isValidLocale } from '@/i18n/routing';
 import { sanitizeAttribution } from '@/lib/attribution/click-ids';
 import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
-import { getPosDiscountTitle, withPosDiscountInstruction } from '@/lib/pos-discount';
+import {
+  getPosDiscountTitle,
+  withNoPosDiscountInstruction,
+  withPosDiscountInstruction,
+} from '@/lib/pos-discount';
 import {
   b1g1CreditExpiry,
   b1g1DisagreementLog,
@@ -972,9 +976,10 @@ export async function POST(request: NextRequest) {
     // applies to EVERY customer, so under that gate a returning customer would
     // see a discounted quote and staff would get a note that never mentioned it
     // — the quote-versus-POS mismatch this whole block exists to prevent, and
-    // the majority case for that offer. The gate now sits on the free-hour
-    // CREDIT branch below instead, where it always belonged: the set of
-    // bookings that mint a B1G1 grant is unchanged, byte for byte.
+    // the majority case for that offer. What the free-hour CREDIT branch below
+    // is gated on now is `promotions.grants_credit`, which is the fact that gate
+    // was standing in for: the set of bookings that mint a B1G1 grant is
+    // unchanged, byte for byte.
     //
     // Nothing else widens. `calculateCost` receives the same `isNewCustomer` and
     // still withholds every `new_customer_only` offer from a returning
@@ -984,9 +989,13 @@ export async function POST(request: NextRequest) {
     try {
       const { data: autoPromos } = await supabase
         .from('promotions')
-        // Same projection as /api/promotions/applicable — this has to be the
-        // exact row shape the customer's quote was computed from.
-        .select('id, promotion_type, discount_value, free_hours, applies_to, conditions, title_en, title_th, pos_discount_id')
+        // The customer's quote is computed from /api/promotions/applicable, so
+        // every column `calculateCost` reads has to be present in BOTH
+        // projections or the two decisions can differ. `pos_discount_id` is the
+        // one column this route reads and that one does not: nothing in the
+        // calculation touches it, no client renders it, and that endpoint is
+        // unauthenticated and edge-cached, so it stays server-side.
+        .select('id, promotion_type, discount_value, free_hours, applies_to, conditions, title_en, title_th, pos_discount_id, grants_credit')
         .eq('is_active', true)
         .eq('auto_apply', true)
         .not('promotion_type', 'is', null);
@@ -1001,6 +1010,7 @@ export async function POST(request: NextRequest) {
           title_en: p.title_en,
           title_th: p.title_th,
           pos_discount_id: (p.pos_discount_id as string | null) ?? null,
+          grants_credit: p.grants_credit === true,
         }));
 
         const breakdown = calculateCost({
@@ -1037,14 +1047,30 @@ export async function POST(request: NextRequest) {
           // read back off the breakdown rather than re-testing the duration.
           const discounted = breakdown.discounts.some((d) => d.promotionId === applied.id);
           let promoLabel = applied.title_en;
-          // `isNewCustomer` moved here from the wrapper this block used to sit
-          // inside — see the comment above. It is the SAME condition applied at
-          // the same effective point, so the free-hour expiry text and the B1G1
-          // grant fire on exactly the bookings they fired on before. Do not
-          // relax it: without it, a returning customer's sub-2-hour weekday bogo
-          // would print "redeem within 7 days" and attempt a `b1g1_new_customer`
-          // grant, which is a different offer entirely.
-          if (isNewCustomer && !discounted && applied.promotion_type === 'bogo' && applied.free_hours) {
+          // `grants_credit`, NOT `promotion_type === 'bogo'`.
+          //
+          // The type check was written when 'bogo' had exactly one row and so
+          // meant "the new-customer B1G1". It survives today only on a
+          // coincidence: the weekday off-peak row is also a bogo with
+          // `free_hours: 1` on `bay_rate`, worth exactly the same on every
+          // booking both can win, so the uuid tie-break keeps handing the win to
+          // the new-customer row. Deactivate that row at campaign end, or change
+          // either row's `free_hours`, and the coincidence ends and the weekday
+          // promotion starts minting `b1g1_new_customer` credits — no code
+          // change, no review. The column states the fact instead of inferring
+          // it, and `lib/cost-calculator.ts` gates the customer-facing "redeem
+          // within 7 days" copy on the same column, so the promise and the grant
+          // read one decision.
+          //
+          // `isNewCustomer` is deliberately no longer a term here. It was added
+          // when this block moved out of `if (isNewCustomer)`, and against the
+          // new-customer B1G1 it is redundant: that row carries
+          // `new_customer_only: true`, so `calculateCost` never makes it a
+          // candidate for a returning customer and it cannot be `applied`.
+          // Keeping it would have implied the grant is safe for any bogo a new
+          // customer wins, which is the assumption being removed. The grant's
+          // real gate, `b1g1Eligibility` below, is untouched.
+          if (!discounted && applied.grants_credit && applied.free_hours) {
             // Advice-only bogo: the free hour is NOT in this booking, it is
             // owed. `!discounted` is the same test the label has always used
             // and the only one that stays correct under slice 4's
@@ -1114,22 +1140,33 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Name the POS discount staff must select, when the winning
-          // promotion declares one. This is the whole point of
-          // `promotions.pos_discount_id`: the flow picks ONE offer, and without
-          // this the note leaves staff to remember which till discount matches
-          // it. Resolved off the winner only — never off "the other active
-          // promotion", which is the guess the column replaces.
+          // Tell staff what to do at the till — and that turns entirely on
+          // whether THIS booking was discounted, not on which offer won.
           //
-          // Its own await, outside the grant branch, so a promotion that
-          // declares a pairing gets the instruction whether it discounted this
-          // booking or only advised. `getPosDiscountTitle` never throws and
-          // returns null on every failure, so a POS read problem costs this one
-          // clause and leaves the promo label intact.
-          promoLabel = withPosDiscountInstruction(
-            promoLabel,
-            await getPosDiscountTitle(supabase, applied.pos_discount_id),
-          );
+          // `discounted` is the gate because the paired `pos.discounts` rows are
+          // percentage / 100.00 / item. On a booking of 2 hours or more the item
+          // is the second hour and zeroing it is exactly right. On a shorter
+          // booking the offer contributed advice and no discount, the item is
+          // the WHOLE booking, and the same instruction tells staff to zero a
+          // booking the customer was quoted in full. One hour is the default
+          // duration on the ladder, so that is the majority of an off-peak
+          // offer's bookings, not an edge case.
+          //
+          // The advice-only branch says so out loud rather than falling silent.
+          // The note still names the offer, because the customer saw it; a named
+          // offer with no instruction beside it invites a staff member to apply
+          // the discount from memory, which is the same failure by a slower
+          // route.
+          //
+          // `getPosDiscountTitle` never throws and returns null on every failure
+          // path, so a POS read problem costs this one clause and leaves the
+          // promo label intact.
+          promoLabel = discounted
+            ? withPosDiscountInstruction(
+                promoLabel,
+                await getPosDiscountTitle(supabase, applied.pos_discount_id),
+              )
+            : withNoPosDiscountInstruction(promoLabel);
 
           notificationNotes = notificationNotes
             ? `${notificationNotes}, ${promoLabel}`

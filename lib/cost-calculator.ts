@@ -32,6 +32,23 @@ export interface ApplicablePromotion {
    * computed from rather than re-deriving a mapping by convention.
    */
   pos_discount_id?: string | null;
+  /**
+   * Does winning this promotion mint a free-hour CREDIT the customer redeems on
+   * a later visit?
+   *
+   * True for the new-customer B1G1 and nothing else today. It is a property of
+   * the ROW, not of `promotion_type`: the weekday off-peak offer is also a
+   * `bogo` with `free_hours: 1` and grants nothing, so a type check cannot tell
+   * them apart. Read here to decide whether the sub-2-hour hint may promise
+   * "redeem your free hour within 7 days", and read again in
+   * `app/api/bookings/create/route.ts` to decide whether to actually grant it —
+   * one column, so the promise and the grant cannot drift.
+   *
+   * Absent reads as FALSE, matching the column default. A promotion that forgets
+   * to declare it behaves as an ordinary discount, which is visible and free to
+   * correct; the opposite default would promise credits nothing creates.
+   */
+  grants_credit?: boolean;
 }
 
 export interface CostCalculationInput {
@@ -761,11 +778,33 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         // same reason the sub-2-hour bogo below is: see the `value > 0` filter
         // on `alsoConsidered` — an offer worth ฿0 never competed for anything.
       } else {
-        candidateNotes.en.push(`🎉 ${promo.title_en}: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
-        candidateNotes.th.push(`🎉 ${promo.title_th}: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
-        candidateNotes.ja.push(`🎉 ${promo.title_en}：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください`);
-        candidateNotes.ko.push(`🎉 ${promo.title_en}: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요`);
-        candidateNotes.zh.push(`🎉 ${promo.title_en}：预订2小时即获1小时免费！或在7天内兑换您的免费时段`);
+        // Two hints, because there are two kinds of bogo.
+        //
+        // "Or redeem your free hour within 7 days" is a promise that a CREDIT
+        // exists — `app/api/bookings/create/route.ts` mints one, the customer
+        // spends it on a later visit. Only the new-customer B1G1 does that, and
+        // it says so via `grants_credit`. The clause was written when that was
+        // the only bogo row, and printing it for the weekday off-peak offer
+        // would promise a returning customer an hour nothing ever creates —
+        // undiscoverable, since the credit wallet is read-only to customers.
+        //
+        // Without a credit, the sub-2-hour case has exactly one true and useful
+        // thing to say: extend to 2 hours and the second hour is free HERE. Do
+        // not gate on `promotion_type` or on the row id; gate on the declared
+        // column, which is the same one the grant reads.
+        if (promo.grants_credit) {
+          candidateNotes.en.push(`🎉 ${promo.title_en}: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
+          candidateNotes.th.push(`🎉 ${promo.title_th}: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
+          candidateNotes.ja.push(`🎉 ${promo.title_en}：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください`);
+          candidateNotes.ko.push(`🎉 ${promo.title_en}: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요`);
+          candidateNotes.zh.push(`🎉 ${promo.title_en}：预订2小时即获1小时免费！或在7天内兑换您的免费时段`);
+        } else {
+          candidateNotes.en.push(`🎉 ${promo.title_en}: Book 2 hours and your second hour is free!`);
+          candidateNotes.th.push(`🎉 ${promo.title_th}: จอง 2 ชม. รับชั่วโมงที่ 2 ฟรี!`);
+          candidateNotes.ja.push(`🎉 ${promo.title_en}：2時間ご予約いただくと、2時間目が無料になります！`);
+          candidateNotes.ko.push(`🎉 ${promo.title_en}: 2시간 예약하시면 두 번째 시간은 무료입니다!`);
+          candidateNotes.zh.push(`🎉 ${promo.title_en}：预订 2 小时，第 2 小时免费！`);
+        }
 
         // The free hour waives the BAY charge only — a paid club set is
         // billed on total play time. Disclose it so the venue charge

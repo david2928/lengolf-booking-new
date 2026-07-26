@@ -36,7 +36,9 @@ comment on column public.promotions.pos_discount_id is
   'The pos.discounts row staff must apply at the till to honour this promotion. '
   'NULL means the pairing is unconfirmed, not that no POS discount is required. '
   'Named in the staff LINE note when this promotion wins the booking flow''s '
-  'single-offer selection.';
+  'single-offer selection. '
+  'No ON DELETE clause on purpose: deleting a pos.discounts row a promotion '
+  'still points at should fail loudly rather than silently un-pair a live offer.';
 
 -- DELIBERATELY NOT SET on the new-customer B1G1 (54c08739-bf14-4c95-9ced-6883d8a6ea7f).
 --

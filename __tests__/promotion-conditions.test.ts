@@ -211,6 +211,40 @@ describe('an unrecognised condition DENIES, it never silently passes', () => {
     expect(isPromotionEligible(['mon'] as unknown as Record<string, unknown>, MONDAY_0900)).toBe(false);
   });
 
+  // `conditions` is jsonb with no CHECK constraint, so `false`, `0` and `""` are
+  // all values a hand-edited row can hold. They are not objects and carry no
+  // readable restriction, so they must deny like every other unreadable value.
+  //
+  // They are singled out because they are FALSY, and the null/undefined
+  // shortcut at the top of `isPromotionEligible` used to be written `if
+  // (!conditions) return true;` and placed AHEAD of the type check — so each of
+  // these took the "no conditions at all" exit and came back universally
+  // eligible. The module's one job, reached by its shortest path.
+  test.each([
+    ['false', false],
+    ['0', 0],
+    ['an empty string', ''],
+    ['NaN', NaN],
+  ])('a falsy non-object conditions value (%s) denies, it is not "no conditions"', (_name, conditions) => {
+    expect(isPromotionEligible(conditions as unknown as Record<string, unknown>, MONDAY_0900)).toBe(false);
+  });
+
+  test.each([
+    ['true', true],
+    ['a number', 1],
+    ['a string', 'new_customer_only'],
+  ])('a truthy non-object conditions value (%s) denies too', (_name, conditions) => {
+    expect(isPromotionEligible(conditions as unknown as Record<string, unknown>, MONDAY_0900)).toBe(false);
+  });
+
+  test('only null and undefined mean "no conditions"', () => {
+    // The complete list, stated as one assertion so widening it is a deliberate
+    // edit rather than a side effect of touching the guard.
+    expect(isPromotionEligible(null, MONDAY_0900)).toBe(true);
+    expect(isPromotionEligible(undefined, MONDAY_0900)).toBe(true);
+    expect(isPromotionEligible({}, MONDAY_0900)).toBe(true);
+  });
+
   test('day tokens are accepted case- and whitespace-insensitively', () => {
     // Staff type these by hand; casing is not a typo worth denying over,
     // whereas an unknown WORD still is (covered above).

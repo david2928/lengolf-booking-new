@@ -93,4 +93,15 @@ insert into public.promotions (
   false,
   false,
   2
-);
+)
+-- The id is fixed, not generated, so a replay of this file against a database
+-- that already holds the row would abort the whole `supabase db push` on a
+-- primary-key violation — including every migration queued behind it. The row
+-- is a seed, not a schema change: it either exists with these values or it does
+-- not exist at all, so "already there" is success, not a conflict.
+--
+-- DO NOTHING rather than DO UPDATE deliberately. Production's copy of this row
+-- is the live definition of a customer-facing offer, and its `is_active` in
+-- particular is toggled by hand at campaign start and end. A DO UPDATE here
+-- would silently re-deactivate a running promotion on the next unrelated push.
+on conflict (id) do nothing;

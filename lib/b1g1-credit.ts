@@ -8,6 +8,13 @@
  * `b1g1_new_customer` row in `backoffice.credit_grants`, which is the ledger
  * staff redeem against from lengolf-forms.
  *
+ * Both of those strings, and the call into this module, are gated on
+ * `promotions.grants_credit` — NOT on `promotion_type = 'bogo'`. A second bogo
+ * row (the weekday off-peak B1G1) exists and grants nothing; its sub-2-hour
+ * hint says only "book 2 hours and your second hour is free" and no row is
+ * written here. If you add a third bogo, the column is the only thing that
+ * decides.
+ *
  * The 2-hour-or-longer path is NOT handled here. There the free hour is
  * consumed by the booking itself and priced out of the bay rate, so there is
  * nothing to carry forward.

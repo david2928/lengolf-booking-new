@@ -136,9 +136,17 @@ export function isPromotionEligible(
   conditions: Record<string, unknown> | null | undefined,
   context: PromotionConditionContext,
 ): boolean {
-  if (!conditions) return true;
-  // A non-object `conditions` (an array, a string) is not something we can read
-  // keys off meaningfully. Arrays are objects, so they are excluded explicitly.
+  // Absent is the ONLY falsy value that means "no conditions". This used to be
+  // `if (!conditions) return true;` placed ahead of the type check, which let
+  // jsonb `false`, `0` and `""` through as unconditionally eligible — the exact
+  // "unknown means yes" failure this module exists to prevent, reached by the
+  // shortest path in the file. Nothing but null/undefined may skip the type
+  // check below.
+  if (conditions === null || conditions === undefined) return true;
+
+  // A non-object `conditions` (an array, a string, a bare boolean or number) is
+  // not something we can read keys off meaningfully. Arrays are objects, so they
+  // are excluded explicitly.
   if (typeof conditions !== 'object' || Array.isArray(conditions)) return false;
 
   const keys = Object.keys(conditions);

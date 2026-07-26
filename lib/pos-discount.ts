@@ -15,6 +15,10 @@
  * The title is resolved live rather than copied into the promotions row so that
  * renaming a discount in the POS renames it in the note, instead of leaving
  * staff hunting for a row that no longer exists under that name.
+ *
+ * Which of the two instructions a booking gets is decided by whether the QUOTE
+ * discounted it, never by which promotion won. See
+ * `NO_POS_DISCOUNT_INSTRUCTION`.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -38,6 +42,28 @@ export function withPosDiscountInstruction(
   const trimmed = title?.trim();
   if (!trimmed) return promoLabel;
   return `${promoLabel} [${formatPosDiscountInstruction(trimmed)}]`;
+}
+
+/**
+ * The counterpart instruction for a booking the quote did NOT discount.
+ *
+ * An offer can win the flow's single-offer selection and still charge nothing:
+ * a bogo below 2 hours has no second hour to waive, so it contributes advice
+ * only. The staff note still names it, because the customer was shown it — and
+ * a named offer with no instruction beside it reads as "apply the usual
+ * discount", which is precisely the wrong action. The paired POS row is
+ * 100%-off-one-item, and on a 1-hour booking the item IS the whole booking, so
+ * a staff member acting on that reading zeroes a booking the customer was
+ * quoted in full.
+ *
+ * Stated as an imperative rather than left to silence. There is no wording that
+ * means "no instruction" except an instruction saying so.
+ */
+export const NO_POS_DISCOUNT_INSTRUCTION = 'do not apply a POS discount to this booking';
+
+/** Appends the "nothing to discount here" instruction to a promo label. */
+export function withNoPosDiscountInstruction(promoLabel: string): string {
+  return `${promoLabel} [${NO_POS_DISCOUNT_INSTRUCTION}]`;
 }
 
 /**
