@@ -112,8 +112,7 @@
       "stepDateTitle": "เลือกวันที่",
       "stepTimeTitle": "เลือกเวลา",
       "stepDetailsTitle": "กรอกรายละเอียด",
-      "stepDateSubtitle": "เลือกวันที่ต้องการเล่น",
-      "stepDetailsSubtitle": "กรอกรายละเอียดการจองให้ครบถ้วน"
+      "stepDateSubtitle": "เลือกวันที่ต้องการเล่น"
     },
     "dateStep": {
       "todayCardTitle": "วันนี้",
@@ -248,7 +247,7 @@
       "subStepSession": "การเล่น",
       "subStepExtras": "รายการเสริม",
       "subStepContact": "ข้อมูลของคุณ",
-      "subStepProgress": "รายละเอียด · {current} จาก {total}",
+      "subStepHeaderLine": "{label} · {current} จาก {total}",
       "changeAction": "แก้ไข",
       "ctaContinue": "ถัดไป",
       "bookingAsLabel": "จองในชื่อ",

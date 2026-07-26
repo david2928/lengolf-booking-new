@@ -112,8 +112,7 @@
       "stepDateTitle": "날짜 선택",
       "stepTimeTitle": "시간 선택",
       "stepDetailsTitle": "세부정보 입력",
-      "stepDateSubtitle": "플레이하실 날짜를 선택해 주세요.",
-      "stepDetailsSubtitle": "예약 세부정보를 입력해 주세요."
+      "stepDateSubtitle": "플레이하실 날짜를 선택해 주세요."
     },
     "dateStep": {
       "todayCardTitle": "오늘",
@@ -248,7 +247,7 @@
       "subStepSession": "세션",
       "subStepExtras": "추가 옵션",
       "subStepContact": "고객 정보",
-      "subStepProgress": "상세 정보 · {current} / {total}",
+      "subStepHeaderLine": "{label} · {current} / {total}",
       "changeAction": "변경",
       "ctaContinue": "다음",
       "bookingAsLabel": "예약자",

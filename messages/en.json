@@ -112,8 +112,7 @@
       "stepDateTitle": "Select Date",
       "stepTimeTitle": "Select Time",
       "stepDetailsTitle": "Provide Details",
-      "stepDateSubtitle": "Choose when you'd like to play.",
-      "stepDetailsSubtitle": "Complete your booking details."
+      "stepDateSubtitle": "Choose when you'd like to play."
     },
     "dateStep": {
       "todayCardTitle": "Today",
@@ -248,7 +247,7 @@
       "subStepSession": "Session",
       "subStepExtras": "Extras",
       "subStepContact": "Your details",
-      "subStepProgress": "Details · {current} of {total}",
+      "subStepHeaderLine": "{label} · {current} of {total}",
       "changeAction": "Change",
       "ctaContinue": "Continue",
       "bookingAsLabel": "Booking as",

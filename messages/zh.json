@@ -112,8 +112,7 @@
       "stepDateTitle": "选择日期",
       "stepTimeTitle": "选择时间",
       "stepDetailsTitle": "填写详情",
-      "stepDateSubtitle": "选择您想要的游玩日期。",
-      "stepDetailsSubtitle": "完成您的预约详情。"
+      "stepDateSubtitle": "选择您想要的游玩日期。"
     },
     "dateStep": {
       "todayCardTitle": "今天",
@@ -248,7 +247,7 @@
       "subStepSession": "场次",
       "subStepExtras": "附加项目",
       "subStepContact": "您的资料",
-      "subStepProgress": "详情 · {current} / {total}",
+      "subStepHeaderLine": "{label} · {current} / {total}",
       "changeAction": "更改",
       "ctaContinue": "继续",
       "bookingAsLabel": "预订人",

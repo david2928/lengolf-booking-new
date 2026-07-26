@@ -11,6 +11,23 @@ import { useCallback, useMemo, useState } from 'react';
 export const DETAIL_SUB_STEPS = ['session', 'extras', 'contact'] as const;
 export type DetailSubStep = (typeof DETAIL_SUB_STEPS)[number];
 
+/**
+ * The `bookings.detailsStep` message key naming each sub-step.
+ *
+ * Shared rather than mapped twice: `page.tsx` names the CURRENT sub-step in the
+ * step header, and `BookingDetails` names the COMPLETED ones in their collapsed
+ * summaries. Two local maps would be free to drift, which would show up as the
+ * header and the collapsed row calling the same sub-step different things.
+ *
+ * `as const` is load-bearing — next-intl types `t()` against the key union, so a
+ * plain `Record<DetailSubStep, string>` would not typecheck at the call site.
+ */
+export const SUB_STEP_LABEL_KEYS = {
+  session: 'subStepSession',
+  extras: 'subStepExtras',
+  contact: 'subStepContact',
+} as const satisfies Record<DetailSubStep, string>;
+
 export interface DetailsSubStepNav {
   /** The sub-step the customer is on. */
   subStep: DetailSubStep;
