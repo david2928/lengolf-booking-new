@@ -17,6 +17,7 @@ import { DetailsSubStepSummary } from './DetailsSubStepSummary';
 import { slotChipValueFor } from './summarySubline';
 import { SegmentedOptions } from './SegmentedOptions';
 import { SetMenuCard } from './SetMenuCard';
+import { everySetIncludesUnlimitedDrinks } from '@/lib/play-food-value';
 
 /**
  * What the customer is buying. Not an add-on: a Play & Food set replaces the
@@ -186,6 +187,16 @@ export function SessionStep({
   const seatCap = localSelectedPackage?.maxPeople ?? 5;
   const peopleOptions = Array.from({ length: seatCap }, (_, i) => i + 1);
 
+  // One quiet line on the Bay + Food tile, so the fork gives a reason to open
+  // it rather than only naming itself. Read off the sets rather than written
+  // into the tile: it is a claim about all three, so it may only be made while
+  // it holds for all three, and a fourth set without the allowance retires it
+  // automatically. See `everySetIncludesUnlimitedDrinks` for why this states an
+  // inclusion instead of the saving that was asked for — the à-la-carte prices
+  // it would need are in neither the pricing catalog nor the database, and the
+  // component worth the most is the one that cannot be priced at all.
+  const showDrinksHint = everySetIncludesUnlimitedDrinks(PLAY_FOOD_PACKAGES);
+
   return (
     <>
       {/* The slot: what steps 1 and 2 settled, and the way back to them.
@@ -320,7 +331,7 @@ export function SessionStep({
             type="button"
             onClick={selectBayOnly}
             aria-pressed={mode === 'bay'}
-            className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+            className={`flex flex-col min-h-[4rem] items-center justify-center rounded-lg border px-2 py-1.5 text-center text-xs ${
               mode === 'bay'
                 ? 'border-green-600 bg-green-50 text-green-600 font-medium'
                 : 'border-gray-300 text-gray-700 hover:border-green-600'
@@ -334,7 +345,7 @@ export function SessionStep({
             type="button"
             onClick={() => setMode('food')}
             aria-pressed={mode === 'food'}
-            className={`flex flex-col h-16 items-center justify-center rounded-lg border text-xs ${
+            className={`flex flex-col min-h-[4rem] items-center justify-center rounded-lg border px-2 py-1.5 text-center text-xs ${
               mode === 'food'
                 ? 'border-green-600 bg-green-50 text-green-600 font-medium'
                 : 'border-gray-300 text-gray-700 hover:border-green-600'
@@ -342,6 +353,17 @@ export function SessionStep({
           >
             <span className="font-semibold text-[11px] sm:text-xs">{t('bayPlusFood')}</span>
             <span className="text-[9px] sm:text-[10px] mt-0.5 opacity-75">{t('bayPlusFoodDescription')}</span>
+            {/* The hint. Same size and weight as the line above it — the only
+                thing marking it as an addition is the leading "+" the copy
+                carries, which is also why it needs no colour of its own. A
+                tinted pill here would outweigh the tile it is trying to make
+                worth opening, and would be the second status colour on a
+                control whose selected state is already green. */}
+            {showDrinksHint && (
+              <span className="text-[9px] sm:text-[10px] opacity-75">
+                {t('bayPlusFoodDrinksHint')}
+              </span>
+            )}
           </button>
         </div>
 

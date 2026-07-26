@@ -199,6 +199,7 @@
       "bookingModeLabel": "ご予約内容をお選びください",
       "bayPlusFood": "ベイ + お食事",
       "bayPlusFoodDescription": "セットメニュー付き",
+      "bayPlusFoodDrinksHint": "+ ソフトドリンク飲み放題",
       "setPickPrompt": "下のセットをお選びください。未選択のままではベイ利用のみの料金となります。",
       "setPerPersonSplit": "{count}名の場合お一人あたり฿{price, number}",
       "setPriceSplit": "ベイ ฿{bayPrice, number} + お食事とドリンク ฿{premium, number}",
