@@ -109,10 +109,14 @@
       "signOutErrorToast": "ログアウトに失敗しました。もう一度お試しください。"
     },
     "page": {
-      "stepDateTitle": "日付を選択",
-      "stepTimeTitle": "時間を選択",
-      "stepDetailsTitle": "詳細を入力",
-      "stepDateSubtitle": "ご利用希望日を選択してください。"
+      "stepLabelDate": "日付",
+      "stepLabelTime": "時間",
+      "stepLabelDetails": "詳細",
+      "stepPosition": "ステップ {current}/{total}",
+      "stepDateQuestion": "いつプレーしますか？",
+      "stepTimeQuestion": "何時から？",
+      "stepDetailsQuestion": "どのようにプレーしますか？",
+      "sublineFromTime": "{time} から"
     },
     "dateStep": {
       "todayCardTitle": "今日",
@@ -247,7 +251,9 @@
       "subStepSession": "セッション",
       "subStepExtras": "オプション",
       "subStepContact": "お客様情報",
-      "subStepHeaderLine": "{label} · {current} / {total}",
+      "subStepSessionQuestion": "何時間プレーしますか？",
+      "subStepExtrasQuestion": "追加はありますか？",
+      "subStepContactQuestion": "どなたのご予約ですか？",
       "changeAction": "変更",
       "ctaContinue": "次へ",
       "bookingAsLabel": "ご予約者",

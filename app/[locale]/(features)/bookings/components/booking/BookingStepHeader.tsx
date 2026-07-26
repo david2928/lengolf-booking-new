@@ -1,0 +1,158 @@
+'use client';
+
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { BAY_BOOKING_STEP_COUNT, stepBarStates } from './stepHeaderModel';
+
+export interface BookingStepHeaderProps {
+  /** 1-based step the customer is on. Drives which bars are filled. */
+  currentStep: number;
+  /** Small-caps step name on the left of the position row, e.g. "Details". */
+  label: string;
+  /** Position on the right of that row, e.g. "Step 3 of 3". */
+  position: string;
+  /** The large heading: the question being asked right now, e.g. "How long?". */
+  question: string;
+  /**
+   * The heading to show at `lg:` and up instead of `question`, when the wide
+   * layout puts more on screen than the narrow one asks about. Booking step 3
+   * is the only caller: below `lg:` it asks its current sub-step's question,
+   * above `lg:` all three sub-steps render at once and no single sub-step
+   * question would be true. Omitted everywhere else, and `question` then holds
+   * at every width.
+   */
+  questionWide?: string;
+  /**
+   * Accumulated context under the heading, e.g.
+   * "Wed 29 Jul, from 13:00, Social Bay". Empty on step 1, where nothing has
+   * been chosen; the row is then not rendered at all rather than reserved.
+   */
+  subline?: string;
+  /** Backward one level. Omitted on step 1, where there is nowhere to go. */
+  onBack?: () => void;
+  /** `aria-label` for the back control. Required whenever `onBack` is passed. */
+  backLabel: string;
+  /** Bars drawn. Defaults to the flow's three; a prop so the suite can vary it. */
+  totalSteps?: number;
+}
+
+/**
+ * The in-flow step header: a segmented progress indicator, a label/position row,
+ * the question the customer is being asked, and the booking so far.
+ *
+ * Four rows in a flow whose first screen is already tight, so each one earns its
+ * place by saying something none of the others do:
+ *
+ * - The BARS are the only at-a-glance read. Nobody parses "Step 2 of 3" while
+ *   scrolling; a two-thirds-filled row is understood without reading.
+ * - The LABEL/POSITION row is the precise read of the same fact, and the
+ *   accessible one (see the a11y note on the bars below).
+ * - The QUESTION is what the customer does next. It replaced a generic step name
+ *   ("Provide Details") which described the screen rather than asking for
+ *   anything, and which a customer already on that screen did not need.
+ * - The SUBLINE is what they have chosen so far. It replaced a subtitle that
+ *   restated the heading.
+ *
+ * Presentational on purpose: every string arrives already localised. The
+ * decisions about WHICH string — which sub-step's question, whether the bay is a
+ * settled choice yet — belong to the flow, and live at the call site in
+ * `page.tsx` beside the state they depend on.
+ */
+export function BookingStepHeader({
+  currentStep,
+  label,
+  position,
+  question,
+  questionWide,
+  subline,
+  onBack,
+  backLabel,
+  totalSteps = BAY_BOOKING_STEP_COUNT,
+}: BookingStepHeaderProps) {
+  const bars = stepBarStates(currentStep, totalSteps);
+
+  return (
+    <header className="mb-5 sm:mb-6">
+      {/* The bars carry NO accessible information of their own — `aria-hidden`
+          is deliberate, not an omission. The position row below is a real text
+          node saying "Step 3 of 3", so a `role="progressbar"` here would make a
+          screen reader announce the same fact twice, once in words and once as
+          a percentage. Announcing it once, in the words the sighted customer
+          also reads, is better than announcing it twice in two vocabularies.
+
+          `flex-1` over a fixed width so the row spans whatever the container
+          gives it, and `transition-colors` so advancing a step fills the next
+          bar rather than cutting to it. */}
+      <div aria-hidden="true" className="flex items-center gap-1.5">
+        {bars.map((filled, index) => (
+          <span
+            key={index}
+            className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
+              filled ? 'bg-green-600' : 'bg-gray-200'
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Label left, position right, spread to the edges.
+
+          The back control opens this row rather than sitting beside the
+          heading, where it used to indent the one line the mockup wants flush
+          left. Two things make it free: the negative margins let a 40px tap
+          target sit inside a 20px text row without growing it, and `-ml-2.5`
+          hangs the button's padding off the content edge so the ARROW itself
+          lines up with the heading and subline below.
+
+          `min-w-0 truncate` on the label against `shrink-0` on the position is
+          the whole wrapping story at 360px: the position — the accessible
+          equivalent of the bars — is the segment that must survive, so the
+          label is the one that gives way. Thai is the longest of the five here
+          and still fits both on one line; the truncation is the guarantee, not
+          the expectation.
+
+          Modest `tracking-wide` rather than the wide tracking a Latin small-caps
+          label would take: letter-spacing is applied to Thai and CJK too, where
+          generous tracking reads as broken word spacing rather than as
+          refinement. `uppercase` is simply inert outside Latin. */}
+      <div className="mt-3 flex items-center gap-1.5">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label={backLabel}
+            className="-my-2.5 -ml-2.5 shrink-0 rounded-full p-2.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2"
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+          </button>
+        )}
+        <p className="min-w-0 flex-1 truncate text-xs font-semibold uppercase leading-5 tracking-wide text-gray-500">
+          {label}
+        </p>
+        <p className="shrink-0 text-xs font-semibold uppercase leading-5 tracking-wide text-gray-400 tabular-nums">
+          {position}
+        </p>
+      </div>
+
+      {/* `leading-snug`, not `leading-tight`: Thai stacks tone marks above and
+          vowel signs below the baseline, and a 1.25 line box clips them on a
+          two-line heading.
+
+          Both headings are in the DOM when `questionWide` is set, gated with
+          `hidden`/`lg:hidden` — `display: none` drops an element from the
+          accessibility tree as well as from the page, so a screen reader is
+          never offered two headings, only the one that matches the layout it is
+          describing. */}
+      <h2 className="mt-1.5 text-xl font-bold leading-snug text-gray-900 sm:text-2xl">
+        {questionWide ? (
+          <>
+            <span className="lg:hidden">{question}</span>
+            <span className="hidden lg:inline">{questionWide}</span>
+          </>
+        ) : (
+          question
+        )}
+      </h2>
+
+      {subline && <p className="mt-1 text-xs leading-5 text-gray-600 sm:text-sm">{subline}</p>}
+    </header>
+  );
+}

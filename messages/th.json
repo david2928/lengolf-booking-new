@@ -109,10 +109,14 @@
       "signOutErrorToast": "ไม่สามารถออกจากระบบได้ กรุณาลองใหม่อีกครั้ง"
     },
     "page": {
-      "stepDateTitle": "เลือกวันที่",
-      "stepTimeTitle": "เลือกเวลา",
-      "stepDetailsTitle": "กรอกรายละเอียด",
-      "stepDateSubtitle": "เลือกวันที่ต้องการเล่น"
+      "stepLabelDate": "วันที่",
+      "stepLabelTime": "เวลา",
+      "stepLabelDetails": "รายละเอียด",
+      "stepPosition": "ขั้นตอนที่ {current} จาก {total}",
+      "stepDateQuestion": "ต้องการเล่นวันไหน?",
+      "stepTimeQuestion": "เริ่มกี่โมง?",
+      "stepDetailsQuestion": "ต้องการเล่นแบบไหน?",
+      "sublineFromTime": "เริ่ม {time} น."
     },
     "dateStep": {
       "todayCardTitle": "วันนี้",
@@ -247,7 +251,9 @@
       "subStepSession": "การเล่น",
       "subStepExtras": "รายการเสริม",
       "subStepContact": "ข้อมูลของคุณ",
-      "subStepHeaderLine": "{label} · {current} จาก {total}",
+      "subStepSessionQuestion": "เล่นนานแค่ไหน?",
+      "subStepExtrasQuestion": "ต้องการเพิ่มอะไรไหม?",
+      "subStepContactQuestion": "จองในชื่อใคร?",
       "changeAction": "แก้ไข",
       "ctaContinue": "ถัดไป",
       "bookingAsLabel": "จองในชื่อ",

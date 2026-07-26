@@ -109,10 +109,14 @@
       "signOutErrorToast": "退出登录失败。请重试。"
     },
     "page": {
-      "stepDateTitle": "选择日期",
-      "stepTimeTitle": "选择时间",
-      "stepDetailsTitle": "填写详情",
-      "stepDateSubtitle": "选择您想要的游玩日期。"
+      "stepLabelDate": "日期",
+      "stepLabelTime": "时间",
+      "stepLabelDetails": "详情",
+      "stepPosition": "第 {current} 步，共 {total} 步",
+      "stepDateQuestion": "您想哪天来打球？",
+      "stepTimeQuestion": "几点开始？",
+      "stepDetailsQuestion": "您想怎么打？",
+      "sublineFromTime": "{time} 开始"
     },
     "dateStep": {
       "todayCardTitle": "今天",
@@ -247,7 +251,9 @@
       "subStepSession": "场次",
       "subStepExtras": "附加项目",
       "subStepContact": "您的资料",
-      "subStepHeaderLine": "{label} · {current} / {total}",
+      "subStepSessionQuestion": "打多久？",
+      "subStepExtrasQuestion": "需要添加什么吗？",
+      "subStepContactQuestion": "预订人是谁？",
       "changeAction": "更改",
       "ctaContinue": "继续",
       "bookingAsLabel": "预订人",

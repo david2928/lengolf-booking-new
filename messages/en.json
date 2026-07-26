@@ -109,10 +109,14 @@
       "signOutErrorToast": "Failed to sign out. Please try again."
     },
     "page": {
-      "stepDateTitle": "Select Date",
-      "stepTimeTitle": "Select Time",
-      "stepDetailsTitle": "Provide Details",
-      "stepDateSubtitle": "Choose when you'd like to play."
+      "stepLabelDate": "Date",
+      "stepLabelTime": "Time",
+      "stepLabelDetails": "Details",
+      "stepPosition": "Step {current} of {total}",
+      "stepDateQuestion": "When would you like to play?",
+      "stepTimeQuestion": "What time?",
+      "stepDetailsQuestion": "How would you like to play?",
+      "sublineFromTime": "from {time}"
     },
     "dateStep": {
       "todayCardTitle": "Today",
@@ -247,7 +251,9 @@
       "subStepSession": "Session",
       "subStepExtras": "Extras",
       "subStepContact": "Your details",
-      "subStepHeaderLine": "{label} · {current} of {total}",
+      "subStepSessionQuestion": "How long?",
+      "subStepExtrasQuestion": "Anything to add?",
+      "subStepContactQuestion": "Who is it for?",
       "changeAction": "Change",
       "ctaContinue": "Continue",
       "bookingAsLabel": "Booking as",

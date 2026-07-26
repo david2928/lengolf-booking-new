@@ -204,13 +204,20 @@ export function BookingDetails(props: BookingDetailsProps) {
   return (
     /* `lg:pb-0` drops the bar's spacer above `lg:`, where no bar mounts. */
     <div className={`space-y-4 sm:space-y-6 ${BOOKING_SUMMARY_BAR_SPACER} lg:pb-0`}>
-      {/* No sub-step progress row here any more. It printed "DETAILS · 1 OF 3"
-          beside the sub-step name, directly under a step header that already
-          read "Provide Details" over a subtitle restating it — four rows of
-          chrome before the first control on a phone. The whole line now sits on
-          the header's own title row in `page.tsx` (`subStepHeaderLine`), so the
-          information survives and the row does not. `subStepLabels` stays: the
-          collapsed summaries below still name their sub-step. */}
+      {/* No sub-step progress row here. It printed "DETAILS · 1 OF 3" beside
+          the sub-step name, in its own row, under a step header that was
+          already naming the step — so the same fact was on screen twice before
+          the first control.
+
+          The step header in `page.tsx` now carries the whole of it: the current
+          sub-step is named by being ASKED ("How long?" as the heading), and the
+          position row above that counts top-level steps. What is deliberately
+          gone is the sub-step COUNTER — "1 of 3" within step 3. The collapsed
+          summaries below already show which sub-steps are behind the customer,
+          which is the part of that counter they were reading.
+
+          `subStepLabels` stays: those collapsed summaries still name their
+          sub-step. */}
 
       {/* One column below `lg:`, form + sticky summary rail above it. */}
       <div className="grid gap-6 items-start lg:grid-cols-[1fr_296px]">
