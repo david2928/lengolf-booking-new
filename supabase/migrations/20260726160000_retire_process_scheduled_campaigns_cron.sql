@@ -94,6 +94,11 @@ $migration$;
 --     $cron$
 --   );
 --
+-- Before scheduling, confirm the Vault entry exists
+-- (SELECT 1 FROM vault.secrets WHERE name = 'cron_secret') — a missing secret
+-- makes the subselect NULL, the Authorization header null, and every tick 401
+-- forever: the same zombie pattern this migration removes.
+--
 -- `cron_secret` (forms) — NOT `cron_api_key` (booking) — because the route
 -- lives in lengolf-forms and validates against that app's CRON_SECRET. The
 -- retired job had this exactly inverted (booking host + booking secret for a
