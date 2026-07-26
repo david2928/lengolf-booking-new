@@ -31,7 +31,18 @@ interface ReviewRequestBody {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Check email configuration
+    // 1. Check API key for cron job authentication
+    const authHeader = request.headers.get('Authorization');
+    const apiKey = process.env.CRON_API_KEY;
+
+    if (!apiKey || !authHeader || authHeader !== `Bearer ${apiKey}`) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // 2. Check email configuration
     if (!EMAIL_USER || !EMAIL_PASS) {
       console.error('Email configuration missing');
       return NextResponse.json(
@@ -40,11 +51,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Parse request body
+    // 3. Parse request body
     const body: ReviewRequestBody = await request.json();
     const { email, userName, reviewUrl, voucherImageUrl, language } = body;
 
-    // 3. Validate required fields
+    // 4. Validate required fields
     if (!email || !userName || !reviewUrl) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -78,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`Using email voucher image URL: ${safeVoucherImageUrl}`);
 
-    // 4. Create email transporter with same config as emailService.ts
+    // 5. Create email transporter with same config as emailService.ts
     const transporter = nodemailer.createTransport({
       host: EMAIL_HOST,
       port: EMAIL_PORT,
@@ -92,7 +103,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 5. Create email content
+    // 6. Create email content
     const mailOptions = {
       from: `"LENGOLF" <${EMAIL_FROM}>`,
       to: email,
@@ -153,11 +164,11 @@ export async function POST(request: NextRequest) {
       `,
     };
 
-    // 6. Send email
+    // 7. Send email
     try {
       const info = await transporter.sendMail(mailOptions);
 
-      // 7. Return success response
+      // 8. Return success response
       return NextResponse.json({
         success: true,
         email,

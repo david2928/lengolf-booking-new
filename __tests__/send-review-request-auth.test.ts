@@ -19,7 +19,10 @@ import { POST } from '@/app/api/notifications/send-review-request/route';
 const ROUTE_URL = 'http://localhost:3000/api/notifications/send-review-request';
 const CRON_KEY = 'test-cron-api-key-0123456789abcdef';
 
-function makeRequest(headers: Record<string, string>): NextRequest {
+function makeRequest(
+  headers: Record<string, string>,
+  bodyOverrides: Record<string, unknown> = {}
+): NextRequest {
   return new NextRequest(ROUTE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
@@ -28,6 +31,7 @@ function makeRequest(headers: Record<string, string>): NextRequest {
       userId: 'user-1',
       provider: 'email',
       contactInfo: 'test@example.com',
+      ...bodyOverrides,
     }),
   });
 }
@@ -108,5 +112,34 @@ describe('POST /api/notifications/send-review-request auth', () => {
     const res = await POST(makeRequest({ Authorization: 'Bearer undefined' }));
     expect(res.status).toBe(401);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  // The downstream email/line review-request routes require the same bearer,
+  // so this route must forward it or every review request breaks with a 401.
+  it('forwards the cron bearer to the downstream email notification route', async () => {
+    const res = await POST(makeRequest({ Authorization: `Bearer ${CRON_KEY}` }));
+    expect(res.status).toBe(200);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/notifications/email/review-request'),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: `Bearer ${CRON_KEY}` }),
+      })
+    );
+  });
+
+  it('forwards the cron bearer to the downstream LINE notification route', async () => {
+    const res = await POST(
+      makeRequest(
+        { Authorization: `Bearer ${CRON_KEY}` },
+        { provider: 'line', contactInfo: 'U-test-line-user' }
+      )
+    );
+    expect(res.status).toBe(200);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/notifications/line/review-request'),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: `Bearer ${CRON_KEY}` }),
+      })
+    );
   });
 });

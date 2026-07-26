@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       // Send LINE notification
       await fetch(`${baseUrl}/api/notifications/line/review-request`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
           userId: contactInfo,
           bookingName: bookingName,
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       // Send email notification
       await fetch(`${baseUrl}/api/notifications/email/review-request`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
           email: contactInfo,
           userName: bookingName,

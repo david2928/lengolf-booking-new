@@ -14,7 +14,18 @@ interface ReviewRequestBody {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Check LINE API configuration
+    // 1. Check API key for cron job authentication
+    const authHeader = request.headers.get('Authorization');
+    const apiKey = process.env.CRON_API_KEY;
+
+    if (!apiKey || !authHeader || authHeader !== `Bearer ${apiKey}`) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // 2. Check LINE API configuration
     if (!LINE_CHANNEL_ACCESS_TOKEN) {
       console.error('LINE_CHANNEL_ACCESS_TOKEN is missing');
       return NextResponse.json(
@@ -23,11 +34,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Parse request body
+    // 3. Parse request body
     const body: ReviewRequestBody = await request.json();
     const { userId, bookingName, customerName, reviewUrl, voucherImageUrl } = body;
 
-    // 3. Validate required fields
+    // 4. Validate required fields
     if (!userId || !bookingName || !reviewUrl) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -38,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Use customer name if provided, otherwise use booking name or a generic greeting
     const greeting = customerName ? `Hello ${customerName}! ` : '';
     
-    // 4. Build LINE message
+    // 5. Build LINE message
     // Validate image URL - must be HTTPS for LINE API
     let safeVoucherImageUrl = voucherImageUrl;
     if (safeVoucherImageUrl && !safeVoucherImageUrl.startsWith('https://')) {
@@ -98,7 +109,7 @@ export async function POST(request: NextRequest) {
     
     console.log('LINE message payload:', JSON.stringify(message, null, 2));
 
-    // 5. Send LINE message
+    // 6. Send LINE message
     try {
       const response = await fetch(LINE_MESSAGING_API, {
         method: 'POST',
@@ -128,7 +139,7 @@ export async function POST(request: NextRequest) {
 
       const responseData = await response.json();
 
-      // 6. Return success response
+      // 7. Return success response
       return NextResponse.json({
         success: true,
         userId,

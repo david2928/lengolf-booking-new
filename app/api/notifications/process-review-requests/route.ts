@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
             
             const lineResponse = await fetch(lineEndpoint, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
               body: JSON.stringify({
                 userId: request.contact_info, // This is actually the LINE provider_id
                 bookingName: bookingData.name,
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
             
             const emailResponse = await fetch(emailEndpoint, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
               body: JSON.stringify({
                 email: request.contact_info,
                 userName: customerName, // Use actual customer name
