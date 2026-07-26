@@ -13,6 +13,7 @@ import { CreditBalanceCard } from './details/CreditBalanceCard';
 import { YourDetailsStep } from './details/YourDetailsStep';
 import { DetailsSubStepSummary } from './details/DetailsSubStepSummary';
 import { SummaryRail } from './details/SummaryRail';
+import { summaryBarSublineFor } from './details/summarySubline';
 import { DETAIL_SUB_STEPS, type DetailSubStep } from './details/useDetailsSubStep';
 import { useBookingDetailsForm, type BookingDetailsProps } from './details/useBookingDetailsForm';
 import useMediaQuery from '@/hooks/useMediaQuery';
@@ -56,6 +57,7 @@ export function BookingDetails(props: BookingDetailsProps) {
     setCustomerNotes,
     marketingOptIn,
     setMarketingOptIn,
+    marketingPreference,
     isEditingContact,
     setIsEditingContact,
     alsoUpdateAccount,
@@ -162,6 +164,36 @@ export function BookingDetails(props: BookingDetailsProps) {
      `hidden lg:block`), so the rail's own `summaryRailHours` never shows
      alongside this. */
   const durationLabel = t('durationHoursShort', { hours: duration });
+  const peopleLabel = t('peopleCountShort', { count: numberOfPeople });
+
+  /* The facts the mobile review panel shows above the confirm action. Built
+     here, from the SAME strings the collapsed sub-step summaries and the sticky
+     bar's subline already print, so the panel cannot describe the booking
+     differently from the rest of step 3.
+
+     Desktop ignores this: `SummaryRail` carries the same five facts in its own
+     column — but note "the same facts", not the same strings. Date, time, bay
+     and the party size render identically; DURATION deliberately does not. The
+     rail prints `summaryRailHours` ("2 hr") and the panel prints
+     `durationHoursShort` ("2 hrs", ICU plural), because the panel's neighbour
+     is not the rail. The rail and the panel are mutually exclusive by viewport
+     and never share a screen; the panel and the sticky bar DO, about 100px
+     apart, and the bar prints `durationHoursShort`. Matching the rail here
+     would buy agreement with a component the customer cannot see at the cost of
+     disagreement with one they can.
+
+     `numberOfPeople` goes in as a bare number, matching the rail: `peopleLabel`
+     carries its own unit for the collapsed summary, where there is no label to
+     supply one, and under the panel's "People" label it read "People / 3
+     people". */
+  const reviewFacts = {
+    selectedDate,
+    selectedTime,
+    durationLabel,
+    numberOfPeople,
+    bayLabel,
+    formatDate,
+  };
 
   return (
     /* `lg:pb-0` drops the bar's spacer above `lg:`, where no bar mounts. */
@@ -184,7 +216,7 @@ export function BookingDetails(props: BookingDetailsProps) {
                 label={subStepLabels.session}
                 /* The people count needs a unit: "· Social Bay · 1" said
                    nothing about what the 1 counted. */
-                value={`${durationLabel} · ${bayLabel} · ${t('peopleCountShort', { count: numberOfPeople })}`}
+                value={`${durationLabel} · ${bayLabel} · ${peopleLabel}`}
                 changeLabel={t('changeAction')}
                 onChange={() => goToSubStep('session')}
               />
@@ -287,8 +319,10 @@ export function BookingDetails(props: BookingDetailsProps) {
               costBreakdown={costBreakdown}
               costDataLoading={costDataLoading}
               costLanguage={costLanguage}
+              review={reviewFacts}
               isSubmitting={isSubmitting}
               marketingOptIn={marketingOptIn}
+              marketingPreference={marketingPreference}
               setMarketingOptIn={setMarketingOptIn}
               isEditingContact={isEditingContact}
               onEditContact={() => setIsEditingContact(true)}
@@ -331,7 +365,16 @@ export function BookingDetails(props: BookingDetailsProps) {
           <BookingSummaryBar
             total={costBreakdown ? costBreakdown.estimatedTotal : null}
             totalLabel={t('summaryTotalLabel')}
-            subline={`${durationLabel} · ${selectedTime}`}
+            /* Date FIRST — see `buildSummaryBarSubline` for why the ordering
+               is load-bearing against the bar's `truncate`. The composer both
+               formats the date and orders the segments, so the wiring is one
+               tested unit and a `Date` cannot land in the start-time slot. */
+            subline={summaryBarSublineFor({
+              formatter,
+              date: selectedDate,
+              durationLabel,
+              time: selectedTime,
+            })}
             ctaLabel={
               !isLast
                 ? t('ctaContinue')

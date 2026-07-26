@@ -3,9 +3,27 @@
 import { useTranslations } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
-import { ProjectedCostBreakdown } from '@/components/booking/ProjectedCostBreakdown';
+import { BookingReviewPanel, type BookingReviewFacts } from './BookingReviewPanel';
 import type { CostBreakdown } from '@/lib/cost-calculator';
+import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import { IdentityCard, isIdentityComplete } from './IdentityCard';
+
+/**
+ * Whether the customer is already on the marketing list, and so should be told
+ * that rather than shown an unticked box claiming the opposite.
+ *
+ * Exported so the tri-state rule is pinned in one place and tested directly,
+ * the same arrangement `IdentityCard` uses for its own visibility predicate.
+ *
+ * The `=== true` is the entire function and must stay strict. `false` is a
+ * deliberate opt-out and `null` is unknown — not loaded yet, a guest, or no
+ * linked customer record — and BOTH have to keep the checkbox. Only `true` is
+ * evidence of consent; anything softer would let a slow `/api/vip/profile`
+ * fetch quietly cost a willing customer their chance to opt in.
+ */
+export function isMarketingSubscribed(preference: boolean | null): boolean {
+  return preference === true;
+}
 
 export interface YourDetailsStepProps {
   name: string;
@@ -27,9 +45,25 @@ export interface YourDetailsStepProps {
   costBreakdown: CostBreakdown | null;
   costDataLoading: boolean;
   costLanguage: 'en' | 'th' | 'ja' | 'ko' | 'zh';
+  /**
+   * The when/where/who facts the mobile review panel shows above the confirm
+   * action, all pre-formatted by the caller so this step never re-derives them.
+   */
+  review: BookingReviewFacts;
   isSubmitting: boolean;
   marketingOptIn: boolean;
   setMarketingOptIn: (value: boolean) => void;
+  /**
+   * The customer's EXISTING marketing consent, from `/api/vip/profile`.
+   * Display only; it never reaches the payload.
+   *
+   * ONLY `true` counts as subscribed and replaces the checkbox with a
+   * confirmation line. `false` is a deliberate opt-out and `null` is
+   * not-yet-loaded / guest / no linked customer — both keep the checkbox,
+   * because a customer must never lose the chance to opt in to a slow fetch.
+   * See the tri-state note on `marketingPreference` in `useBookingDetailsForm`.
+   */
+  marketingPreference: boolean | null;
   /** True once the customer tapped Change on the identity card. Reveals the
       three inputs and the "also update my account" opt-in. */
   isEditingContact: boolean;
@@ -79,9 +113,11 @@ export function YourDetailsStep({
   costBreakdown,
   costDataLoading,
   costLanguage,
+  review,
   isSubmitting,
   marketingOptIn,
   setMarketingOptIn,
+  marketingPreference,
   isEditingContact,
   onEditContact,
   alsoUpdateAccount,
@@ -93,6 +129,7 @@ export function YourDetailsStep({
     errorField === 'bd-name' || errorField === 'bd-phone' || errorField === 'bd-email';
   const showIdentityCard =
     !isEditingContact && !contactFlagged && isIdentityComplete({ name, phoneNumber, email });
+  const alreadySubscribed = isMarketingSubscribed(marketingPreference);
 
   return (
     <>
@@ -257,20 +294,23 @@ export function YourDetailsStep({
         </p>
       </div>
 
-      {/* Projected Cost Breakdown. Mobile only: without `lg:hidden` desktop
-          renders the full breakdown TWICE, this copy and the sticky SummaryRail's
-          (which additionally splits the bay-rate portions out) about 300px to the
-          right. Two copies of one total on one screen is worse than either alone
-          — the same reason the sticky bar does not mount on desktop. */}
-      {costBreakdown && (
-        <div className="mt-4 lg:hidden">
-          <ProjectedCostBreakdown
-            breakdown={costBreakdown}
-            isLoading={costDataLoading}
-            language={costLanguage}
-          />
-        </div>
-      )}
+      {/* Review panel: the booking's facts followed by the projected cost
+          breakdown, immediately before the confirm action. Mobile only, and it
+          owns the `lg:hidden` itself — without that, desktop renders the full
+          breakdown TWICE, this copy and the sticky SummaryRail's (which
+          additionally splits the bay-rate portions out) about 300px to the
+          right. Two copies of one total on one screen is worse than either
+          alone, the same reason the sticky bar does not mount on desktop.
+
+          This is the SAME breakdown that used to render bare here, now with the
+          date, start time, duration, bay and party size above it — so the panel
+          adds the facts without adding a second total. */}
+      <BookingReviewPanel
+        {...review}
+        costBreakdown={costBreakdown}
+        costDataLoading={costDataLoading}
+        costLanguage={costLanguage}
+      />
 
       {/* No Back button here. Backward navigation is the header arrow only (see
           `handleHeaderBack` in `useBookingFlow`): it steps back a sub-step, or
@@ -278,30 +318,55 @@ export function YourDetailsStep({
           called the very same `handleBack` as that arrow, so it was a duplicate
           rather than a second capability. */}
 
-      {/* Marketing opt-in: only meaningful once an email is entered. */}
-      {email.trim().length > 0 && (
-        <label
-          htmlFor="booking-marketing-opt-in"
-          className="mt-4 flex items-start gap-3 p-3 rounded-md cursor-pointer"
-          style={{
-            backgroundColor: 'rgba(0, 90, 50, 0.08)',
-            border: '1px solid rgba(0, 90, 50, 0.4)',
-          }}
-        >
-          <input
-            id="booking-marketing-opt-in"
-            type="checkbox"
-            className="mt-1 h-4 w-4 accent-[#005a32]"
-            checked={marketingOptIn}
-            onChange={(e) => setMarketingOptIn(e.target.checked)}
-            disabled={isSubmitting}
-          />
-          <span className="text-sm text-gray-800">
-            <span className="font-medium block">{t('marketingOptInLabel')}</span>
-            <span className="text-gray-600">{t('marketingOptInDescription')}</span>
-          </span>
-        </label>
-      )}
+      {/* Marketing opt-in: only meaningful once an email is entered.
+          `alreadySubscribed` is a STRICT `=== true`, deliberately, not a truthy
+          check. `marketingPreference` is tri-state and only `true` means
+          subscribed: `false` is a deliberate opt-out and `null` is
+          not-yet-loaded / guest / no linked customer, and both of those must
+          still get the checkbox. The failure this guards against is one-way and
+          silent — a customer who would have opted in never sees the box because
+          a profile fetch had not landed yet. */}
+      {email.trim().length > 0 &&
+        (alreadySubscribed ? (
+          /* Not a disabled checkbox. A ticked-but-greyed box invites a click
+             that does nothing; a sentence states the fact and moves on. No
+             `htmlFor`, no input, nothing focusable — there is no choice here to
+             present. Unsubscribing is a link in every email, which is where a
+             customer already looks for it, so this points there rather than
+             pretending the booking flow can do it. */
+          <div
+            className="mt-4 flex items-start gap-3 p-3 rounded-md"
+            style={{
+              backgroundColor: 'rgba(0, 90, 50, 0.08)',
+              border: '1px solid rgba(0, 90, 50, 0.4)',
+            }}
+          >
+            <CheckCircleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#005a32]" aria-hidden="true" />
+            <span className="text-sm text-gray-800">{t('marketingAlreadySubscribed')}</span>
+          </div>
+        ) : (
+          <label
+            htmlFor="booking-marketing-opt-in"
+            className="mt-4 flex items-start gap-3 p-3 rounded-md cursor-pointer"
+            style={{
+              backgroundColor: 'rgba(0, 90, 50, 0.08)',
+              border: '1px solid rgba(0, 90, 50, 0.4)',
+            }}
+          >
+            <input
+              id="booking-marketing-opt-in"
+              type="checkbox"
+              className="mt-1 h-4 w-4 accent-[#005a32]"
+              checked={marketingOptIn}
+              onChange={(e) => setMarketingOptIn(e.target.checked)}
+              disabled={isSubmitting}
+            />
+            <span className="text-sm text-gray-800">
+              <span className="font-medium block">{t('marketingOptInLabel')}</span>
+              <span className="text-gray-600">{t('marketingOptInDescription')}</span>
+            </span>
+          </label>
+        ))}
 
       <p className="text-xs text-gray-400 text-center mt-3">
         {t('consentNote')}
