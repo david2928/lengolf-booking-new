@@ -73,7 +73,7 @@ export default function BookingsPage() {
   // different page rather than a load.
   if (status === 'loading') {
     return (
-      <Layout hidePromotionBar compactHeader flushMain hideFooter>
+      <Layout hidePromotionBar compactHeader flushMain hideFooter hideNav>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -207,17 +207,24 @@ export default function BookingsPage() {
          owns its padding outright.
        - `hideFooter`        TAKEN. See the commit that added it: the long
          marketing footer belongs on a landing page, not under a checkout.
-       - `hideNav`           NOT TAKEN. It strips the desktop Bay Rates /
-         Promotions / Lessons / club-rental links. Unlike course rental, which
-         is a self-contained product flow, `/bookings` step 1 IS this app's
-         landing surface (the header badge even links back to it) and a
-         customer on it may legitimately be browsing rather than committed.
-         Making it step-conditional would trade that for a header that
-         restructures itself as the customer advances — the same chrome flicker
-         the loading-state props above exist to prevent. Mobile is unaffected
-         either way: those links live in the burger menu, which `hideNav`
-         does not touch. */
-    <Layout hidePromotionBar compactHeader flushMain hideFooter>
+       - `hideNav`           TAKEN. It strips the desktop Bay Rates /
+         Promotions / Lessons / Club Rental / Play & Food links, leaving the
+         wordmark and the badge — which is the header the mockup draws.
+
+         This was previously NOT taken, on the argument that `/bookings` step 1
+         doubles as this app's landing surface and a customer there may still
+         be browsing rather than committed. The mockup settles it the other
+         way, and the argument was weaker than it looked: nothing is removed,
+         only demoted. Every one of those links is still in the burger menu,
+         which `hideNav` does not touch and which is the ONLY place a phone
+         ever had them — so what the mockup asks for is what the majority of
+         customers were already being given.
+
+         Taken unconditionally rather than from step 2 onward, deliberately: a
+         step-conditional nav would restructure the header as the customer
+         advances, which is the same chrome flicker the loading-state props
+         above exist to prevent. */
+    <Layout hidePromotionBar compactHeader flushMain hideFooter hideNav>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {renderContent()}
       </div>
