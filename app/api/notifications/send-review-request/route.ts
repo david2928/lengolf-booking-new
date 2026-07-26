@@ -12,19 +12,16 @@ interface SendReviewRequestBody {
 
 /**
  * This endpoint handles sending a single review request.
- * It's designed to be called by Upstash QStash after the scheduled delay.
+ * Requires `Authorization: Bearer ${CRON_API_KEY}` — same contract as the
+ * process-review-requests cron route.
  */
 export async function POST(request: NextRequest) {
   try {
     // 1. Authentication
     const authHeader = request.headers.get('Authorization');
-    const apiKey = process.env.QSTASH_API_KEY || process.env.CRON_API_KEY;
-    
-    // Verify either QStash signature or API key
-    const qStashSignature = request.headers.get('Upstash-Signature');
-    const isFromQStash = !!qStashSignature; // In a real implementation, verify this signature
-    
-    if (!isFromQStash && (!apiKey || !authHeader || authHeader !== `Bearer ${apiKey}`)) {
+    const apiKey = process.env.CRON_API_KEY;
+
+    if (!apiKey || !authHeader || authHeader !== `Bearer ${apiKey}`) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
