@@ -691,3 +691,54 @@ describe('the two pickers share one idiom', () => {
     expect(rail.className).toContain('grid-cols-3');
   });
 });
+
+/**
+ * Party size sits near the top of the sub-step, with the date/time/bay facts,
+ * rather than at the very bottom where it started. Owner asked for it to move
+ * up and the ordering turns out to be load-bearing rather than cosmetic, so it
+ * is pinned here.
+ *
+ * The binding reason is the per-head price. Every set card renders "฿X each for
+ * N people" off `numberOfPeople`, so with the picker last the customer read a
+ * per-head figure derived from a party size they had not chosen yet and only
+ * met the control after scrolling past the numbers it explained. The AI Lab
+ * callout has the same shape of problem: it fires on `numberOfPeople >= 3` and
+ * used to sit a screen above its own cause.
+ */
+describe('party size comes before what it prices', () => {
+  /** True when `first` precedes `second` in document order. */
+  const precedes = (first: Element, second: Element) =>
+    Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  const peopleLabel = () => screen.getByText(messages.bookings.detailsStep.numberOfPeople);
+
+  test('is asked before the booking-mode fork and the duration ladder', () => {
+    render(<Harness maxDuration={3} />);
+
+    expect(
+      precedes(peopleLabel(), screen.getByText(messages.bookings.detailsStep.bookingModeLabel)),
+    ).toBe(true);
+    expect(
+      precedes(peopleLabel(), screen.getByText(messages.bookings.detailsStep.durationLabel)),
+    ).toBe(true);
+  });
+
+  test('is asked before the set cards that price per head', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(forkButton('Bay + Food'));
+
+    expect(precedes(peopleLabel(), setCard('SET A'))).toBe(true);
+  });
+
+  /**
+   * Cause above effect: the callout must appear beneath the control that
+   * triggers it, not above it.
+   */
+  test('is asked before the AI Lab group-size warning it triggers', () => {
+    render(<Harness bayType="ai_lab" initialPeople={3} />);
+
+    const warning = screen.getByText(messages.bookings.detailsStep.aiLabRecommendationTitle);
+    expect(precedes(peopleLabel(), warning)).toBe(true);
+  });
+});

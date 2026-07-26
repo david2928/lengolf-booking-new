@@ -183,9 +183,17 @@ describe('YourDetailsStep consent note', () => {
    * report the clause-free note as present inside the clause-bearing one. These
    * assertions rely on testing-library's default whole-string normalisation;
    * this case fails loudly if either string is ever made a prefix-only match.
+   *
+   * `false` is in the list alongside `true` and `null` because this is the
+   * "always" assertion, not a two-case one: the note is a terms-acceptance
+   * disclosure attached to the act of booking, so no value of any prop may
+   * remove it. It was asked whether returning customers could be spared it;
+   * they cannot. See the note's comment in `YourDetailsStep` for why, including
+   * why the only available "has booked before" signal defaults to "returning"
+   * and would therefore have hidden it from first-timers too.
    */
-  it('states the booking-email consent in both states', () => {
-    for (const preference of [true, null] as const) {
+  it('states the booking-email consent whatever the stored preference', () => {
+    for (const preference of [true, false, null] as const) {
       const { unmount } = render(
         <NextIntlClientProvider locale="en" messages={messages as never}>
           <YourDetailsStep {...baseProps} marketingPreference={preference} />
@@ -194,5 +202,25 @@ describe('YourDetailsStep consent note', () => {
       expect(screen.getByText(/post-visit review email/)).toBeInTheDocument();
       unmount();
     }
+  });
+
+  /**
+   * The disclosure is legally load-bearing, so it has to be legible. It sat at
+   * `text-gray-400` — 2.5:1 against white, against the 4.5:1 WCAG AA wants for
+   * 12px text. The instinct when copy feels repetitive is to fade it further;
+   * that is the one change that costs something, so the floor is pinned.
+   */
+  it('keeps the disclosure above the contrast floor', () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages as never}>
+        <YourDetailsStep {...baseProps} marketingPreference={true} />
+      </NextIntlClientProvider>,
+    );
+
+    const note = screen.getByText(CONSENT_NOTE);
+    expect(note).not.toHaveClass('text-gray-400');
+    expect(note).not.toHaveClass('text-gray-300');
+    // Still the quietest thing on the step, just a readable version of quiet.
+    expect(note).toHaveClass('text-xs');
   });
 });

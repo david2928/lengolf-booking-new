@@ -369,8 +369,45 @@ export function YourDetailsStep({
           exactly the flag that renders the box. Two whole sentences rather than
           a base string plus an appended clause: concatenating translated
           fragments puts a stray space between sentences in ja/zh, where none
-          belongs. */}
-      <p className="text-xs text-gray-400 text-center mt-3">
+          belongs.
+
+          ALWAYS, including for customers who have booked before. It was asked
+          whether returning customers need to see it again. They do:
+
+           1. It is a terms-acceptance disclosure attached to the ACT of
+              booking — it opens "By booking, you agree" — not a one-time
+              onboarding notice. It is making a claim about THIS booking, and a
+              consent record is weaker if the disclosure was only ever shown
+              once, months ago, on some earlier booking.
+           2. There is no honest signal to gate on. The nearest thing is
+              `isNewCustomer` in `useBookingDetailsForm`, which is not even
+              returned from the hook — and it starts `false`, meaning
+              "returning", and is only corrected by a debounced fetch that
+              needs eight digits of phone number to fire at all. Gating on it
+              would hide the disclosure by default for EVERYONE, including
+              genuine first-timers, and permanently for anyone whose phone
+              never validates. That failure is silent, one-way, and lands on
+              exactly the people the disclosure most needs to reach. It is the
+              same unknown-versus-zero trap `marketingPreference` documents
+              above.
+           3. It is a promotions-eligibility predicate. Suppressing a
+              compliance surface with it would mean a change to the B1G1 rule
+              silently changes what customers are told.
+
+          The complaint behind the question was real though: noise for someone
+          who has booked twenty times. Two things answer it without hiding
+          anything. The note already SHORTENS itself — a subscribed customer
+          gets the one-sentence variant, since the marketing clause only earns
+          its place when there is an opt-in on screen to point at. And the
+          prominence dial was already past its own floor: at `text-gray-400`
+          this sat at 2.5:1 against white, well under the 4.5:1 WCAG AA needs
+          for 12px text. A disclosure nobody can read is a weaker record than a
+          repetitive one, so the fix runs the other way. `text-gray-500` is
+          ~4.8:1 and clears AA while staying the quietest thing on the step:
+          still 12px, still centred, still last. Do not take it back to
+          gray-400 to make it calmer — that is the one direction that costs
+          something. */}
+      <p className="text-xs text-gray-500 text-center mt-3">
         {showMarketingOptIn ? t('consentNoteWithOptIn') : t('consentNote')}
       </p>
     </>

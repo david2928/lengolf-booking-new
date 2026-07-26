@@ -14,6 +14,7 @@ import {
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import { BayInfoModal } from '../../BayInfoModal';
+import { RevealDetailsButton } from '../affordances';
 
 interface DateSelectionProps {
   onDateSelect: (date: Date) => void;
@@ -133,12 +134,9 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                 <div className="ml-3">
                   <p className="font-medium text-gray-900 mb-1">{t('bayInformation')}</p>
                   <p className="text-sm text-gray-600">{t('bayInformationValue')}</p>
-                  <button
-                    onClick={() => setShowBayInfo(true)}
-                    className="text-xs text-green-600 hover:text-green-700 underline mt-1"
-                  >
+                  <RevealDetailsButton onClick={() => setShowBayInfo(true)} className="mt-1">
                     {t('learnAboutBays')}
-                  </button>
+                  </RevealDetailsButton>
                 </div>
               </div>
             </div>
@@ -216,12 +214,9 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                 <div className="ml-3 text-gray-600 leading-normal">
                   <p><span className="font-medium">{t('bayInformationLabel')}</span> {t('bayInformationValue')}</p>
                   <p className="text-sm text-gray-500">{t('bayInformationGroups')}</p>
-                  <button
-                    onClick={() => setShowBayInfo(true)}
-                    className="text-sm text-green-600 hover:text-green-700 underline"
-                  >
+                  <RevealDetailsButton onClick={() => setShowBayInfo(true)}>
                     {t('learnAboutBays')}
-                  </button>
+                  </RevealDetailsButton>
                 </div>
               </div>
             </div>
