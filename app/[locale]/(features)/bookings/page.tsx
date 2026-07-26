@@ -252,7 +252,21 @@ export default function BookingsPage() {
          advances, which is the same chrome flicker the loading-state props
          above exist to prevent. */
     <Layout hidePromotionBar compactHeader flushMain hideFooter hideNav>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      {/* `container mx-auto px-4 sm:px-6 lg:px-8`, and it must stay that exact
+          string: it is what Layout's own <main> applied before `flushMain`
+          moved padding ownership here, and it is what `Header` and the sticky
+          `BookingSummaryBar` still apply to THEIR inner wrappers.
+
+          This was `max-w-7xl mx-auto`, which is not the same thing and made the
+          content column disagree with the chrome above and below it. Tailwind's
+          `container` steps its max-width down to the breakpoint (640/768/1024/
+          1280/1300/1536); `max-w-7xl` is a flat 1280 cap, so between 640px and
+          1280px it does not constrain at all. Measured at an 854px content box:
+          the header's wordmark sat 67px in and the step header 24px in, a 43px
+          stagger, with the form card wider than the bar of chrome it hung
+          under. At 1280 and below 640 the two were already identical, which is
+          why it survived a desktop and a phone check. */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {renderContent()}
       </div>
     </Layout>

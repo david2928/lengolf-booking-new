@@ -86,11 +86,39 @@
   }
 }
 
-/* Reserve the scrollbar gutter so content-height changes (e.g. expanding the
-   course-rental pricing guide) don't toggle the vertical scrollbar and shift
-   centered layouts horizontally. No-op on mobile overlay scrollbars. */
+/*
+ * Reserve the scrollbar gutter so content-height changes (e.g. expanding the
+ * course-rental pricing guide) don't toggle the vertical scrollbar and shift
+ * centered layouts horizontally. No-op where scrollbars are overlays, which is
+ * every phone.
+ *
+ * `both-edges` IS THE LOAD-BEARING WORD. Plain `stable` reserves the gutter on
+ * the inline-end edge only, so it stops the layout SHIFTING at the cost of
+ * leaving it permanently off-centre: every `mx-auto` box centres inside the
+ * narrowed content box and therefore sits half a scrollbar left of centre in
+ * the window. That is not a subtle effect and the owner reported it from a QA
+ * build as "the screen is not fully centred".
+ *
+ * Measured on the bay booking flow (real component DOM, headless Chrome via
+ * CDP, one viewport per row):
+ *
+ *   viewport   scrollbars   window   <html>   gap L / gap R
+ *   390 CSS    overlay       390      390       16 / 16   (gutter is a no-op)
+ *   412 CSS    overlay       412      412       16 / 16   (gutter is a no-op)
+ *   869 CSS    classic       869      854       24 / 39   <- 15px off-centre
+ *
+ * With `both-edges` the 869 row becomes 39 / 39. The cost is the other 15px:
+ * the gutter is now reserved on both sides, so a classic-scrollbar viewport
+ * gives up 30px of width in total rather than 15. That is the correct trade —
+ * symmetric layout is worth more than 15px, and it is what the first paragraph
+ * of this comment always claimed the rule was doing.
+ *
+ * Note this is NOT a mobile-only bug despite how it was reported. Overlay
+ * scrollbars make it invisible on phones; it was on every desktop viewport the
+ * whole time. Do not "simplify" this back to plain `stable`.
+ */
 html {
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
 }
 
 body {

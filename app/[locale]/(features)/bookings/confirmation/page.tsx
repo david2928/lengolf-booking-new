@@ -79,9 +79,12 @@ export default async function ConfirmationPage({
        padding has to be replaced or the cards sit flush against the viewport
        edge: `ConfirmationContent`'s outermost element is a bare
        `max-w-4xl mx-auto` with no padding of its own. Hence the wrapper below,
-       matching the one on `/bookings`. */
+       which restores that exact string so this page's content column lines up
+       with the wordmark in `Header` — which applies the same `container
+       mx-auto px-4 sm:px-6 lg:px-8` — instead of running wider than it between
+       640px and 1280px. `max-w-4xl` on the content still wins inside it. */
     <Layout hidePromotionBar compactHeader flushMain hideFooter>
-      <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <ConfirmationContent booking={booking} />
       </div>
     </Layout>
