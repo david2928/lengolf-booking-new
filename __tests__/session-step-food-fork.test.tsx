@@ -13,7 +13,8 @@
  *     selected, not on Bay only with a package quietly selected underneath.
  *   - Clearing back to Bay only resets duration and party size as before.
  *   - The per-person lead figure follows the selected party size.
- *   - The bay-only anchor is generated per slot, so morning and evening differ.
+ *   - The bay/food price split is generated per slot, so morning and evening
+ *     differ, and it sums to the total it sits under.
  *   - The bay arrives already chosen and is only REPORTED here, never asked
  *     again — including the "All Bays" case, which names itself rather than
  *     silently reading as Social.
@@ -316,25 +317,54 @@ describe('the card figures come from the live booking, not the static data', () 
     expect(within(setCard('SET C')).getByText('3 hours')).toBeInTheDocument();
   });
 
-  test('the bay-only anchor differs between a morning and an evening slot', async () => {
+  test('the price split differs between a morning and an evening slot', async () => {
     const user = userEvent.setup();
 
     const { unmount } = render(<Harness selectedTime="10:00" />);
     await user.click(forkButton('Bay + Food'));
     // 2h weekday morning bay = 2 × ฿550 = ฿1,100, so SET B's food adds ฿1,000.
     expect(
-      within(setCard('SET B')).getByText(/2 hours of bay time alone is ฿1,100/),
+      within(setCard('SET B')).getByText('฿1,100 bay time + ฿1,000 food and drinks'),
     ).toBeInTheDocument();
-    expect(within(setCard('SET B')).getByText(/food and drinks for ฿1,000/)).toBeInTheDocument();
     unmount();
 
     render(<Harness selectedTime="19:00" />);
     await user.click(forkButton('Bay + Food'));
     // 2h weekday evening bay = 2 × ฿750 = ฿1,500, so the premium is ฿600.
     expect(
-      within(setCard('SET B')).getByText(/2 hours of bay time alone is ฿1,500/),
+      within(setCard('SET B')).getByText('฿1,500 bay time + ฿600 food and drinks'),
     ).toBeInTheDocument();
-    expect(within(setCard('SET B')).getByText(/food and drinks for ฿600/)).toBeInTheDocument();
+  });
+
+  /**
+   * The split replaced an amber panel that argued for the set below the includes
+   * list. As a subordinate line under the total it has to actually add up to
+   * that total, which is what makes it a decomposition rather than a fourth
+   * claim — and is the reason it can sit there quietly at all.
+   */
+  test('the split adds up to the total printed directly above it', async () => {
+    const user = userEvent.setup();
+    render(<Harness selectedTime="10:00" />);
+    await user.click(forkButton('Bay + Food'));
+
+    const card = within(setCard('SET B'));
+    expect(card.getByText(`Total ฿${SET_B.price.toLocaleString()} NET`)).toBeInTheDocument();
+    // ฿1,100 + ฿1,000 = SET B's ฿2,100 total.
+    expect(1100 + 1000).toBe(SET_B.price);
+    expect(card.getByText('฿1,100 bay time + ฿1,000 food and drinks')).toBeInTheDocument();
+  });
+
+  test('the split is a quiet line, not the amber callout it replaced', async () => {
+    const user = userEvent.setup();
+    render(<Harness selectedTime="10:00" />);
+    await user.click(forkButton('Bay + Food'));
+
+    const split = within(setCard('SET B')).getByText('฿1,100 bay time + ฿1,000 food and drinks');
+    // No boxed panel and no accent colour competing with the price above it.
+    expect(split.className).not.toMatch(/amber/);
+    expect(split.className).not.toMatch(/rounded/);
+    expect(split.className).toContain('text-xs');
+    expect(setCard('SET B').querySelector('.bg-amber-50')).toBeNull();
   });
 
   test('every set itemises its food and drinks with the unlimited distinction kept', async () => {

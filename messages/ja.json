@@ -205,7 +205,7 @@
       "setPerPersonEach": "{count}名の場合お一人あたり",
       "setValueCurve": "{count}名の場合お一人あたり฿{price, number}",
       "setTotalLabel": "合計",
-      "setBayAnchor": "ベイ利用のみ{hours}時間で฿{bayPrice, number}。このセットはお食事とドリンクを＋฿{premium, number}で追加できます",
+      "setPriceSplit": "ベイ ฿{bayPrice, number} + お食事とドリンク ฿{premium, number}",
       "setPhotoComingSoon": "写真は準備中",
       "setSelectedBadge": "選択中",
       "durationLabel": "利用時間（時間単位）",

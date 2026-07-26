@@ -205,7 +205,7 @@
       "setPerPersonEach": "each at {count, plural, =1 {# person} other {# people}}",
       "setValueCurve": "฿{price, number} each at {count, plural, =1 {# person} other {# people}}",
       "setTotalLabel": "Total",
-      "setBayAnchor": "{hours, plural, =1 {# hour} other {# hours}} of bay time alone is ฿{bayPrice, number}. This set adds food and drinks for ฿{premium, number}",
+      "setPriceSplit": "฿{bayPrice, number} bay time + ฿{premium, number} food and drinks",
       "setPhotoComingSoon": "Photo coming soon",
       "setSelectedBadge": "Selected",
       "durationLabel": "Duration (in hours)",

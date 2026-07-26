@@ -205,7 +205,7 @@
       "setPerPersonEach": "{count}人时每人",
       "setValueCurve": "{count}人时每人฿{price, number}",
       "setTotalLabel": "合计",
-      "setBayAnchor": "仅租球位{hours}小时需฿{bayPrice, number}，此套餐加฿{premium, number}即含餐饮",
+      "setPriceSplit": "球位 ฿{bayPrice, number} + 餐饮 ฿{premium, number}",
       "setPhotoComingSoon": "照片即将上线",
       "setSelectedBadge": "已选择",
       "durationLabel": "时长（小时）",

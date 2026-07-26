@@ -205,7 +205,7 @@
       "setPerPersonEach": "ต่อคน เมื่อมี {count} คน",
       "setValueCurve": "฿{price, number} ต่อคน เมื่อมี {count} คน",
       "setTotalLabel": "รวม",
-      "setBayAnchor": "เช่าเบย์เพียงอย่างเดียว {hours} ชม. ราคา ฿{bayPrice, number} เซ็ตนี้เพิ่มอาหารและเครื่องดื่มในราคา ฿{premium, number}",
+      "setPriceSplit": "฿{bayPrice, number} ค่าเบย์ + ฿{premium, number} อาหารและเครื่องดื่ม",
       "setPhotoComingSoon": "ภาพเร็วๆ นี้",
       "setSelectedBadge": "เลือกแล้ว",
       "durationLabel": "ระยะเวลา (ชั่วโมง)",

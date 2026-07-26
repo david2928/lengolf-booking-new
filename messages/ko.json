@@ -205,7 +205,7 @@
       "setPerPersonEach": "{count}명 기준 1인당",
       "setValueCurve": "{count}명 기준 1인당 ฿{price, number}",
       "setTotalLabel": "총액",
-      "setBayAnchor": "베이만 {hours}시간 이용하면 ฿{bayPrice, number}. 이 세트는 ฿{premium, number}으로 식사와 음료가 추가됩니다",
+      "setPriceSplit": "베이 ฿{bayPrice, number} + 식사와 음료 ฿{premium, number}",
       "setPhotoComingSoon": "사진 준비 중",
       "setSelectedBadge": "선택됨",
       "durationLabel": "이용 시간 (시간 단위)",
