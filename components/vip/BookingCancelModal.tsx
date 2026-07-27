@@ -97,6 +97,11 @@ const BookingCancelModal: React.FC<BookingCancelModalProps> = ({
   // the locale's conventional short time (12h in en, 24h in ja/ko, etc.).
   const formatTime = (timeStr: string) => {
     try {
+      // The UTC-truncated date below looks like the day-shift bug, and isn't:
+      // the day is only an arbitrary anchor for `timeStyle: 'short'`, and
+      // Bangkok has no DST, so any date produces identical output. Leave it —
+      // but if you ever add `dateStyle` here, it becomes a real bug and the
+      // date has to come from `getBangkokDateString()` (see utils/date.ts).
       const today = new Date().toISOString().slice(0, 10);
       const date = new Date(`${today}T${timeStr}:00+07:00`);
       return formatter.dateTime(date, {

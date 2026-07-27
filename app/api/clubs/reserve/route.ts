@@ -231,6 +231,10 @@ export async function POST(request: NextRequest) {
     // so the only role of end_date here is the date range for the availability check.
     let end_date = body.end_date || start_date;
     if (rental_type === 'course' && duration_days && !body.end_date) {
+      // Also looks like the UTC day-shift bug, and also isn't: `new Date(date)`
+      // parses a bare yyyy-MM-dd at UTC midnight, and the local-field
+      // setDate/getDate roundtrip shifts by the runtime offset and back, so it
+      // cancels out for any fixed-offset zone. Nothing here reads "now".
       const start = new Date(start_date);
       start.setDate(start.getDate() + duration_days);
       end_date = start.toISOString().split('T')[0];

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@/utils/supabase/server';
+import { getBangkokDateString, parseBangkokDate } from '@/utils/date';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,11 +51,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Calculate date range
-    const fromDate = fromDateParam || new Date().toISOString().split('T')[0];
-    const toDateObj = new Date(fromDate);
-    toDateObj.setDate(toDateObj.getDate() + days - 1);
-    const toDate = toDateObj.toISOString().split('T')[0];
+    // Calculate date range. This runs on Vercel's UTC runtime, so the date must
+    // be read in Asia/Bangkok — `toISOString()` truncation would return
+    // yesterday for the ~7 hours between 00:00 and 07:00 Bangkok.
+    const fromDate = fromDateParam || getBangkokDateString();
+    const toDateObj = parseBangkokDate(fromDate);
+    // UTC fields, not local ones: whole-day steps off a fixed anchor, so the
+    // arithmetic can't drift with the runtime zone.
+    toDateObj.setUTCDate(toDateObj.getUTCDate() + days - 1);
+    const toDate = getBangkokDateString(toDateObj);
 
     // Initialize Supabase client
     const supabase = createServerClient();
@@ -91,7 +96,8 @@ export async function GET(request: NextRequest) {
       }>;
     }>();
 
-    const today = new Date().toISOString().split('T')[0];
+    // `availability_date` is a Bangkok calendar date, so "today" must be too.
+    const today = getBangkokDateString();
 
     if (availabilityData && Array.isArray(availabilityData)) {
       for (const row of availabilityData) {

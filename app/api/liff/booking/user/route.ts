@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { appCache } from '@/lib/cache';
+import { getBangkokDateString } from '@/utils/date';
 
 interface PackageFromRPC {
   package_id: string;
@@ -122,7 +123,9 @@ export async function GET(request: NextRequest) {
     // Find the first active, non-expired simulator package (not coaching)
     let activePackage = null;
     if (packagesData && packagesData.length > 0) {
-      const today = new Date().toISOString().split('T')[0];
+      // `expiration_date` is a Bangkok calendar date. Deriving `today` in UTC
+      // ran this comparison a day loose for the ~7 hours after Bangkok midnight.
+      const today = getBangkokDateString();
       const simulatorPackage = packagesData.find(
         (pkg: PackageFromRPC) =>
           pkg.package_category?.toLowerCase() !== 'coaching' &&

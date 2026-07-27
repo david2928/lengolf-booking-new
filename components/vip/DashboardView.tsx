@@ -9,6 +9,7 @@ import { Calendar, Award, ExternalLink, Edit, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
  // Assuming LinkAccountPrompt is in the same directory
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { parseBangkokDate } from '@/utils/date';
 import { CalendarDays, Package as PackageLucideIcon, UserCircle } from "lucide-react";
 
 // Temporary local Booking type
@@ -48,11 +49,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   const t = useTranslations('vip.dashboard');
   const format = useFormatter();
 
-  // Helper function to format date and time
+  // Helper function to format date and time.
+  // dateStr (YYYY-MM-DD) and timeStr (HH:mm) are Asia/Bangkok wall-clock values
+  // (see bookings/create/route.ts). `new Date(`${dateStr}T${timeStr}`)` would
+  // parse them in the *viewer's* zone, so the session read hours early — and
+  // could slip a day — for anyone east of +07. Anchor at +07:00 and format back
+  // in Bangkok, same as BookingsList.
   const formatBookingDateTime = (dateStr: string, timeStr: string) => {
-    const dateObj = new Date(`${dateStr}T${timeStr}`);
-    const datePart = format.dateTime(dateObj, { weekday: 'long', month: 'short', day: 'numeric' });
-    const timePart = format.dateTime(dateObj, { hour: 'numeric', minute: '2-digit', hour12: true });
+    const dateObj = parseBangkokDate(dateStr, timeStr);
+    const datePart = format.dateTime(dateObj, { timeZone: 'Asia/Bangkok', weekday: 'long', month: 'short', day: 'numeric' });
+    const timePart = format.dateTime(dateObj, { timeZone: 'Asia/Bangkok', hour: 'numeric', minute: '2-digit', hour12: true });
     return (
       <span>
         <span className="text-green-700 font-semibold">{datePart}</span>

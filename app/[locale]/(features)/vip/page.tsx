@@ -8,6 +8,9 @@ import { getVipProfile, getVipBookings, getVipPackages } from '@/lib/vipService'
 import { VipProfileResponse, VipBooking, VipBookingsResponse, VipPackagesResponse, VipApiError } from '@/types/vip'; // Adjusted path
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+// Package expiry is a Bangkok calendar date — anchoring it at +07:00 keeps it
+// from rendering a day early for viewers east of +07.
+import { parseBangkokDate } from '@/utils/date';
 
 // Define the local Booking type for DashboardView prop matching
 interface DashboardBooking {
@@ -98,7 +101,7 @@ const VipDashboardPage = () => {
           name: firstActivePackage.package_display_name || firstActivePackage.packageName,
           hoursRemaining: hrsRemaining,
           expires: firstActivePackage.expiryDate
-            ? format.dateTime(new Date(firstActivePackage.expiryDate + 'T00:00:00'), { year: 'numeric', month: 'short', day: 'numeric' })
+            ? format.dateTime(parseBangkokDate(firstActivePackage.expiryDate), { timeZone: 'Asia/Bangkok', year: 'numeric', month: 'short', day: 'numeric' })
             : undefined,
           tier: firstActivePackage.package_type_name?.includes('(') ?
                 firstActivePackage.package_type_name.substring(firstActivePackage.package_type_name.indexOf('(') + 1, firstActivePackage.package_type_name.indexOf(')')) :
@@ -203,7 +206,7 @@ const VipDashboardPage = () => {
               name: firstActivePackage.package_display_name || firstActivePackage.packageName,
               hoursRemaining: hrsRemaining,
               expires: firstActivePackage.expiryDate
-                ? format.dateTime(new Date(firstActivePackage.expiryDate + 'T00:00:00'), { year: 'numeric', month: 'short', day: 'numeric' })
+                ? format.dateTime(parseBangkokDate(firstActivePackage.expiryDate), { timeZone: 'Asia/Bangkok', year: 'numeric', month: 'short', day: 'numeric' })
                 : undefined,
               tier: firstActivePackage.package_type_name?.includes('(') ? 
                     firstActivePackage.package_type_name.substring(firstActivePackage.package_type_name.indexOf('(') + 1, firstActivePackage.package_type_name.indexOf(')')) : 
