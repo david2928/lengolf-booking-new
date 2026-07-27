@@ -88,22 +88,29 @@ export function DetailsSubStepSummary({
        heavier than the session pill it was meant to echo.
 
        Both controls were shortened at the call site instead (icon-only Info, a
-       bare "Change" with the long name moved to `aria-label`), which buys back
-       99px — measured, not estimated, with `canvas.measureText` in the real
-       Poppins face against the deployed build:
+       bare "Change" with the long name moved to `aria-label`). Measured on a
+       real 412px phone viewport against the deployed build, reading the live
+       DOM rather than estimating:
 
-         value "Tue 28 Jul · 09:00 · Any Bay"  184px
-         + two 12px gaps + 16px Info glyph      + 40px
-         + "Change" pill                        + 89px
-         =                                       313px
+         value "Tue 28 Jul · 15:00 · Any Bay"   180px
+         + gap 12 + Info glyph 16 + gap 12       + 40px
+         + "Change" pill                         + 89px
+         =                                        309px
 
-       against 280px of usable width at 360px, 295px at 375px and 310px at
-       390px. So the row STILL WRAPS on every common phone — 313 clears even a
-       390px iPhone by 3px. Shortening the controls made the chip lighter, not
-       single-line, and anyone reading this should not assume otherwise: the
-       remaining overflow is in the VALUE, and only dropping a segment from it
-       can close the gap (losing the weekday takes it to 284px, which fits 375px
-       and up; losing the date entirely takes it to 234px, which fits 360px).
+       The row's usable width is the viewport less 82px (the page's `px-4`, the
+       form's `p-3` and this row's `px-3`) — 330px at 412px, confirmed against
+       `clientWidth`. So the chip needs a viewport of at least 391px:
+
+         360, 375, 390  wraps    (390 misses by ONE pixel)
+         393, 412, 430  one row
+
+       Which is worth knowing before "simplifying" any of it. The old shape was
+       412px and wrapped on everything; this fits a Pixel and an iPhone 15 and
+       takes the row from 76px to 48px there, while an iPhone 12/13/14 at 390px
+       still wraps. If the wrap has to go everywhere, the remaining overflow is
+       all in the VALUE: dropping the weekday costs ~29px and buys 375px and up,
+       dropping the date entirely buys 360px. Both change what the customer is
+       told, so neither is a layout decision to take quietly.
 
        This is why `flex-wrap` is load-bearing rather than vestigial, and why it
        must not be swapped back for truncation — the segment truncation dropped
