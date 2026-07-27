@@ -307,94 +307,77 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
               </button>
             </div>
 
+            {/*
+              react-day-picker v9 class names. The v8 names this used to target
+              (`.rdp`, `.rdp-day_today`, `.rdp-day_selected`, `.rdp-day_disabled`,
+              `--rdp-cell-size`) no longer exist in v9, so every rule was dead:
+              past days were correctly disabled but rendered with no grey-out, so
+              they looked bookable and silently swallowed clicks. Scoped to
+              `.rdp-bay-booking` so these overrides can't leak onto the
+              course-rental calendar, which carries its own theme.
+            */}
             <style jsx global>{`
-              .rdp {
-                --rdp-cell-size: 40px;
-                --rdp-accent-color: rgb(22 163 74) !important;
-                --rdp-background-color: rgb(220 252 231) !important;
-                --rdp-accent-color-dark: rgb(21 128 61) !important;
-                --rdp-background-color-dark: rgb(220 252 231) !important;
-                --rdp-outline: 2px solid var(--rdp-accent-color) !important;
-                --rdp-outline-selected: 2px solid rgb(22 163 74) !important;
+              .rdp-bay-booking .rdp-root {
+                --rdp-accent-color: rgb(22 163 74);
+                --rdp-accent-background-color: rgb(220 252 231);
+                --rdp-today-color: rgb(22 163 74);
+                --rdp-day-width: 40px;
+                --rdp-day-height: 40px;
                 margin: 0;
               }
 
-              .rdp-button:focus-visible:not([disabled]) {
+              .rdp-bay-booking .rdp-day_button:focus-visible {
                 outline: none;
               }
 
-              .rdp-day_today {
-                background: none !important;
-                color: rgb(22 163 74) !important;
-                font-weight: bold !important;
-                border: 2px solid rgb(22 163 74) !important;
+              .rdp-bay-booking .rdp-today:not(.rdp-selected) .rdp-day_button {
+                background: none;
+                color: rgb(22 163 74);
+                font-weight: 700;
+                border: 2px solid rgb(22 163 74);
               }
 
-              .rdp-day_selected:not([disabled]),
-              .rdp-day_selected:focus:not([disabled]),
-              .rdp-day_selected:active:not([disabled]),
-              .rdp-day_selected:hover:not([disabled]) {
-                color: white !important;
-                background-color: rgb(22 163 74) !important;
-                border-color: rgb(22 163 74) !important;
+              .rdp-bay-booking .rdp-selected .rdp-day_button {
+                color: white;
+                background-color: rgb(22 163 74);
+                border-color: rgb(22 163 74);
               }
 
-              .rdp-day:hover:not([disabled]):not(.rdp-day_selected) {
-                color: rgb(22 163 74) !important;
-                background-color: rgb(220 252 231) !important;
+              .rdp-bay-booking .rdp-day:not(.rdp-disabled):not(.rdp-selected) .rdp-day_button:hover {
+                color: rgb(22 163 74);
+                background-color: rgb(220 252 231);
               }
 
-              .rdp-nav_button {
-                color: rgb(22 163 74) !important;
-              }
-              .rdp-nav_button:hover,
-              .rdp-nav_button:focus-visible {
-                color: rgb(22 163 74) !important;
-                background-color: rgb(220 252 231) !important;
-              }
-
-              .rdp-nav button svg {
-                fill: rgb(22 163 74) !important;
-              }
-
-              .rdp-button_reset {
-                color: inherit !important;
-              }
-
-              .rdp-day {
-                color: inherit !important;
-              }
-
-              .rdp-day_today.rdp-day_selected {
-                color: white !important;
-              }
-
-              .rdp-day_disabled,
-              .rdp-day_disabled:hover {
-                color: rgb(156 163 175) !important;
-                cursor: not-allowed !important;
-                background-color: rgb(243 244 246) !important;
+              .rdp-bay-booking .rdp-disabled .rdp-day_button,
+              .rdp-bay-booking .rdp-disabled .rdp-day_button:hover {
+                color: rgb(156 163 175);
+                cursor: not-allowed;
+                background-color: rgb(243 244 246);
                 opacity: 0.5;
               }
 
-              .rdp-day_disabled.rdp-day_today {
-                border-color: rgb(156 163 175) !important;
+              .rdp-bay-booking .rdp-disabled.rdp-today .rdp-day_button {
+                border-color: rgb(156 163 175);
+              }
+
+              .rdp-bay-booking .rdp-chevron {
+                fill: rgb(22 163 74);
               }
             `}</style>
 
-            <DayPicker
-              mode="single"
-              onSelect={(date) => {
-                if (date) {
-                  onDateSelect(date);
-                  setShowCalendar(false);
-                }
-              }}
-              fromDate={today}
-              disabled={[{ before: today }]}
-              modifiers={{ today: new Date() }}
-              className="mx-auto"
-            />
+            <div className="rdp-bay-booking flex justify-center">
+              <DayPicker
+                mode="single"
+                onSelect={(date) => {
+                  if (date) {
+                    onDateSelect(date);
+                    setShowCalendar(false);
+                  }
+                }}
+                startMonth={today}
+                disabled={[{ before: today }]}
+              />
+            </div>
           </div>
         </div>
       )}

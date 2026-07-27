@@ -193,10 +193,14 @@ export default function CourseRentalPage() {
     return Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000));
   })();
 
-  // Today's date for min
+  // Today's date for min. Built from LOCAL date parts on purpose:
+  // `toISOString()` converts to UTC first, so between 00:00 and 07:00 Bangkok
+  // (+07) it returns YESTERDAY — which let customers pick a past pickup date.
   const todayStr = (() => {
     const d = new Date();
-    return d.toISOString().split('T')[0];
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${month}-${day}`;
   })();
 
   // Fetch available sets filtered by selected dates
