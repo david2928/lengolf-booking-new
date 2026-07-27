@@ -20,6 +20,13 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
+// Lets us invoke the real request config as a plain function. `getRequestConfig`
+// is an identity wrapper on the server build, but Jest's jsdom environment
+// resolves next-intl's react-client build, where it throws "not supported".
+jest.mock('next-intl/server', () => ({
+  getRequestConfig: (fn: unknown) => fn,
+}));
+
 const REPO_ROOT = join(__dirname, '..');
 const read = (rel: string) => readFileSync(join(REPO_ROOT, rel), 'utf8');
 
@@ -28,11 +35,22 @@ const bangkokDate = (d: Date) =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(d);
 
 describe('next-intl timezone configuration', () => {
-  it('declares an explicit Asia/Bangkok timeZone', () => {
+  it('resolves an explicit Asia/Bangkok timeZone', async () => {
+    // Asserted against the module's actual return value, not its source text:
+    // a grep would still pass if the line were commented out or stranded in a
+    // branch that never runs.
+    //
     // Without this, next-intl inherits the server runtime's zone (UTC on
     // Vercel) and ships it to the client. LENGOLF is a single-venue Bangkok
     // business, so the display zone is fixed rather than per-user.
-    expect(read('i18n/request.ts')).toMatch(/timeZone:\s*['"]Asia\/Bangkok['"]/);
+    const requestConfig = (await import('@/i18n/request')).default as unknown as (
+      params: { requestLocale: Promise<string | undefined> },
+    ) => Promise<{ locale: string; timeZone?: string }>;
+
+    const config = await requestConfig({ requestLocale: Promise.resolve('en') });
+
+    expect(config.timeZone).toBe('Asia/Bangkok');
+    expect(config.locale).toBe('en');
   });
 });
 
@@ -84,10 +102,12 @@ describe('deriving a yyyy-mm-dd date string', () => {
     // *yesterday* between 00:00 and 07:00 Bangkok, letting customers book a
     // pickup in the past.
     const source = read('app/[locale]/course-rental/page.tsx');
-    const todayStrBlock = source.slice(
-      source.indexOf('const todayStr'),
-      source.indexOf('const todayStr') + 500,
-    );
+    const start = source.indexOf('const todayStr');
+
+    // Fail loudly on a rename rather than silently scanning an empty window.
+    expect(start).toBeGreaterThan(-1);
+
+    const todayStrBlock = source.slice(start, start + 500);
 
     expect(todayStrBlock).not.toContain('toISOString');
     expect(todayStrBlock).toContain('getFullYear');

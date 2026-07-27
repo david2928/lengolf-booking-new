@@ -348,12 +348,16 @@ export function DateSelection({ onDateSelect }: DateSelectionProps) {
                 background-color: rgb(220 252 231);
               }
 
+              /*
+                No opacity here: v9's base stylesheet already fades the cell via
+                --rdp-disabled-opacity (0.5). Setting it on the nested button too
+                multiplies to 0.25, which leaves the day number barely legible.
+              */
               .rdp-bay-booking .rdp-disabled .rdp-day_button,
               .rdp-bay-booking .rdp-disabled .rdp-day_button:hover {
                 color: rgb(156 163 175);
                 cursor: not-allowed;
                 background-color: rgb(243 244 246);
-                opacity: 0.5;
               }
 
               .rdp-bay-booking .rdp-disabled.rdp-today .rdp-day_button {
