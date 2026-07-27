@@ -10,9 +10,14 @@
  * Bangkok that named yesterday, so the real today never matched, the buffer
  * never applied, and the page advertised slots a couple of hours out.
  *
- * The assertions below are zone-independent: `toISOString()` truncates in UTC
- * no matter where the browser is, so the broken code fails this suite on a
- * Bangkok laptop as well as on CI.
+ * These assertions are correct in every zone, but they are NOT a CI safety net
+ * for the buffer defect. The double conversion's error is the runtime offset
+ * itself, so it self-cancels at UTC: run the old code under TZ=UTC and it
+ * returns the right date. The broken version fails this suite on a Bangkok
+ * laptop and passes it on a UTC runner. The zone-independent guard for that
+ * regression is the source check in `i18n-timezone.test.ts`; what this suite
+ * pins is the resulting behaviour — which slots the buffer drops, and that the
+ * day labels come out in Bangkok.
  */
 import { render, screen } from '@testing-library/react';
 import AvailabilityPreview from '@/components/liff/coaching/AvailabilityPreview';
@@ -42,6 +47,18 @@ const availability = [
         slots: ['06:00'],
         isToday: false,
         scheduleStart: '06:00',
+        scheduleEnd: '18:00',
+      },
+      {
+        // Sunday. The weekday label is built by remapping date-fns' ISO
+        // weekday (1..7, Mon..Sun) onto a Sunday-first array with `% 7`, and
+        // Sunday is the only day where that wraps — every other day would
+        // render correctly even with the remap dropped.
+        date: '2026-08-02',
+        dayOfWeek: 0,
+        slots: ['07:00'],
+        isToday: false,
+        scheduleStart: '07:00',
         scheduleEnd: '18:00',
       },
     ],
@@ -76,9 +93,19 @@ describe('AvailabilityPreview 5-hour buffer', () => {
     render(<AvailabilityPreview language="en" availability={availability} />);
 
     // `new Date('2026-07-31')` is UTC midnight, and the label was built from
-    // that Date's *local* getters — so this reads 30/07 for any viewer west of
-    // UTC. Run this file under `TZ=America/New_York` to see it fail; under
-    // TZ=UTC the two forms coincide and only the buffer tests above bite.
+    // that Date's *local* getters — so this reads 30/07 for any viewer at a
+    // negative UTC offset. Run this file under `TZ=America/New_York` to see it
+    // fail; at a non-negative offset the two forms coincide.
     expect(screen.queryByText(/31\/07/)).not.toBeNull();
+  });
+
+  it('names the weekday, wrapping ISO Sunday back to index 0', () => {
+    render(<AvailabilityPreview language="en" availability={availability} />);
+
+    // Guards both halves of the remap: `Sun` proves the `% 7` wrap is applied
+    // (without it the lookup is `dayNames[7]` → undefined), and `Fri` proves
+    // the token is the ISO weekday rather than a locale-dependent one.
+    expect(screen.queryByText(/Sun 02\/08/)).not.toBeNull();
+    expect(screen.queryByText(/Fri 31\/07/)).not.toBeNull();
   });
 });

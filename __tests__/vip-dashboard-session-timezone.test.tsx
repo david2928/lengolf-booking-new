@@ -19,9 +19,12 @@ import { NextIntlClientProvider } from 'next-intl';
 import DashboardView from '@/components/vip/DashboardView';
 import messages from '@/messages/en.json';
 
-function renderDashboard(booking: { date: string; time: string; duration?: number }) {
+function renderDashboard(
+  booking: { date: string; time: string; duration?: number },
+  providerTimeZone = 'Asia/Bangkok',
+) {
   return render(
-    <NextIntlClientProvider locale="en" messages={messages} timeZone="Asia/Bangkok">
+    <NextIntlClientProvider locale="en" messages={messages} timeZone={providerTimeZone}>
       <DashboardView isMatched userName="Test Customer" nextBooking={{ id: 'BK-1', ...booking }} />
     </NextIntlClientProvider>,
   );
@@ -38,6 +41,17 @@ describe('VIP dashboard upcoming session', () => {
   it('renders the booked Bangkok date', () => {
     renderDashboard({ date: '2026-07-30', time: '10:00' });
 
+    expect(screen.queryByText(/Thursday, Jul 30/)).not.toBeNull();
+  });
+
+  it('renders in Bangkok even if the provider zone is wrong', () => {
+    // The component passes an explicit `timeZone` per call rather than relying
+    // on the provider. That defence-in-depth is invisible while the provider
+    // agrees — and a missing provider zone is exactly what shipped the
+    // three-month prod bug in #113, so it is worth pinning independently.
+    renderDashboard({ date: '2026-07-30', time: '10:00' }, 'UTC');
+
+    expect(screen.queryByText(/10:00\s*AM/i)).not.toBeNull();
     expect(screen.queryByText(/Thursday, Jul 30/)).not.toBeNull();
   });
 

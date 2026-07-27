@@ -84,6 +84,37 @@ describe('parseBangkokDate', () => {
     );
   });
 
+  it('recognises the shorter offset spellings ISO 8601 allows', () => {
+    // A hour-only offset or a lowercase designator is still an absolute
+    // instant. Missing that, the string would fall through to the date-only
+    // path and silently lose both its time and its offset.
+    expect(parseBangkokDate('2026-07-30T10:00+09').toISOString()).toBe(
+      '2026-07-30T01:00:00.000Z',
+    );
+    expect(parseBangkokDate('2026-07-30T10:00+0900').toISOString()).toBe(
+      '2026-07-30T01:00:00.000Z',
+    );
+    expect(parseBangkokDate('2026-07-30T00:00:00z').toISOString()).toBe(
+      '2026-07-30T00:00:00.000Z',
+    );
+  });
+
+  it('does not mistake the day in a bare yyyy-MM-dd for an offset', () => {
+    // The trap in widening the offset pattern: `-30` at the end of
+    // `2026-07-30` looks exactly like a two-digit negative offset. Reading it
+    // as one sends the value down the pass-through path, which resolves to UTC
+    // midnight — reintroducing the very day-shift this helper exists to stop.
+    expect(parseBangkokDate('2026-07-30').toISOString()).toBe('2026-07-29T17:00:00.000Z');
+    expect(parseBangkokDate('2026-12-31').toISOString()).toBe('2026-12-30T17:00:00.000Z');
+  });
+
+  it('treats a missing time as midnight rather than failing', () => {
+    // The old call sites produced an Invalid Date here and threw inside the
+    // formatter. Midnight is the friendlier failure, but it is a *plausible*
+    // wrong answer rather than a loud one — pinned so the trade stays deliberate.
+    expect(parseBangkokDate('2026-07-30', '').toISOString()).toBe('2026-07-29T17:00:00.000Z');
+  });
+
   it('renders as the picked day in Bangkok', () => {
     const label = new Intl.DateTimeFormat('en', {
       weekday: 'short',

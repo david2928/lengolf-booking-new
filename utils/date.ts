@@ -5,6 +5,16 @@ export const TIMEZONE = 'Asia/Bangkok';
 /**
  * Gets the current time in Bangkok timezone
  * @returns ISO string of current time in Bangkok timezone
+ *
+ * ⚠️ This returns a *shifted* Date: its **local** getters read Bangkok wall
+ * time, but the instant it points at is wrong by the runtime's offset. Only
+ * `getHours()`/`getDate()`-style reads are meaningful.
+ *
+ * **Never call `.toISOString()` (or `JSON.stringify`) on the result** — that
+ * subtracts the runtime offset a second time. It happens to cancel out at +07
+ * and is wrong everywhere else, which is precisely why this class of bug keeps
+ * surviving review on a Bangkok dev machine. For a date string use
+ * {@link getBangkokDateString}; for a real instant keep the original `Date`.
  */
 export function getCurrentBangkokTime(): Date {
   return utcToZonedTime(new Date(), TIMEZONE);
@@ -44,8 +54,16 @@ export function getBangkokDateString(date: Date = new Date()): string {
   return formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd');
 }
 
-/** An ISO string is already an absolute instant if it carries `Z` or `±HH:MM`. */
-const HAS_EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/;
+/**
+ * An ISO string is already an absolute instant if its time component carries a
+ * `Z` or a `±HH[:MM]` offset.
+ *
+ * The leading `T[\d:.]+` is load-bearing, not decoration: without it the
+ * offset alternative matches the `-30` ending a bare `2026-07-30`, which sends
+ * a plain calendar date down the pass-through path and resolves it at UTC
+ * midnight — reintroducing the exact day-shift this module exists to prevent.
+ */
+const HAS_EXPLICIT_OFFSET = /T[\d:.]+(?:[Zz]|[+-]\d{2}(?::?\d{2})?)$/;
 
 /**
  * Builds a real instant from Asia/Bangkok wall-clock parts.
@@ -60,11 +78,17 @@ const HAS_EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/;
  *   part is used, since DB reads occasionally hand back full timestamps. An
  *   input that already carries an explicit offset or `Z` is returned as-is:
  *   it is absolute already, and re-anchoring it would move it.
- * @param time `HH:mm` or `HH:mm:ss` Bangkok wall-clock. Defaults to midnight.
+ * @param time `HH:mm` or `HH:mm:ss` Bangkok wall-clock. Defaults to midnight —
+ *   note that an empty or absent time yields midnight rather than an Invalid
+ *   Date, so a missing value renders as a plausible `12:00 AM` instead of
+ *   throwing. That is deliberate, but it fails quietly; validate upstream if
+ *   the distinction matters.
  */
 export function parseBangkokDate(dateISO: string, time = '00:00'): Date {
   if (HAS_EXPLICIT_OFFSET.test(dateISO)) {
-    return new Date(dateISO);
+    // `Z`, `±HH:MM` and `±HHMM` all parse natively; the hour-only `±HH` that
+    // ISO 8601 also permits does not, and would come back an Invalid Date.
+    return new Date(dateISO.replace(/([+-]\d{2})$/, '$1:00'));
   }
 
   const datePart = dateISO.slice(0, 10);

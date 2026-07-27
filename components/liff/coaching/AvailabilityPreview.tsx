@@ -88,8 +88,9 @@ export default function AvailabilityPreview({ language, availability }: Availabi
 
   const formatDate = (dateString: string, isToday: boolean) => {
     // `dateString` is a Bangkok calendar date, so every part has to be read
-    // back out in Bangkok too: local getters on the parsed instant are a day
-    // early for any viewer west of +07.
+    // back out in Bangkok too. The previous form parsed it with `new Date()`,
+    // which resolves a bare yyyy-MM-dd at UTC midnight, and then read *local*
+    // getters off it — a day early for any viewer at a negative UTC offset.
     const date = parseBangkokDate(dateString);
     const dayNames = [
       t.sunday,
