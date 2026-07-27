@@ -7,43 +7,19 @@ export interface DetailsSubStepSummaryProps {
   /**
    * Sub-step name, e.g. "Session".
    *
-   * Optional because the row serves two shapes of recap. A COLLAPSED SUB-STEP
-   * needs its name: several of them stack up as the customer advances, and
-   * without a label "1 hr · 1 person" and "Standard Set" are two anonymous
-   * fragments. The SLOT CHIP on the session sub-step does not: it is the only
-   * row on screen, it recaps earlier STEPS rather than a completed sub-step, and
-   * there is no sub-step to name. Labelling it anyway would have meant inventing
-   * a heading for facts the customer can already read.
+   * Required, now that every caller is a collapsed sub-step. Several of these
+   * stack up as the customer advances, and without a label "1 hr · 1 person" and
+   * "Standard Set" are two anonymous fragments. It was optional while the slot
+   * chip shared this component — that chip recapped earlier STEPS rather than a
+   * completed sub-step and had no sub-step to name — and it is the label that
+   * now tells these rows apart from the header line, which deliberately has
+   * none.
    */
-  label?: string;
+  label: string;
   /** One-line recap of what the customer chose, e.g. "1 hr · 1 person". */
   value: ReactNode;
-  /**
-   * A quiet, NON-navigating affordance that belongs to the value — today only
-   * the slot chip's bay "Info" link, which opens the bay-type explainer.
-   *
-   * A slot rather than something folded into `value` because `value` is prose
-   * inside a `<p>`: a control nested in there would be swept along by the
-   * paragraph's wrapping and, before the layout below, by its truncation.
-   * Rendered immediately after the value and before the "Change" pill, so it
-   * hugs the fact it explains rather than joining the row's action cluster —
-   * which is also the visual difference between "this only tells you something"
-   * and "this changes your booking". See `affordances.tsx` for that rule.
-   */
-  secondaryAction?: ReactNode;
   /** Translated "Change" — the word the customer reads on the pill. */
   changeLabel: string;
-  /**
-   * A longer accessible name for the pill, where the visible "Change" is not
-   * self-describing.
-   *
-   * Every caller renders the same word, and on the mobile sub-step layout two
-   * or three of these rows can be on screen at once. The collapsed summaries
-   * are disambiguated by their own `label` ("Session", "Extras"), which is part
-   * of the row and read out with it; the slot chip has no label by design, so
-   * it names the pill instead. See `changeSlotAction` at its call site.
-   */
-  changeAriaLabel?: string;
   /** Re-opens the decision this row stands in for. */
   onChange: () => void;
 }
@@ -52,13 +28,20 @@ export interface DetailsSubStepSummaryProps {
  * One compact recap row: what was decided, and the single affordance that
  * re-opens it.
  *
- * Two callers, and generalising to serve both was cheaper than a parallel
- * component because they differ only in what they omit. A collapsed sub-step
- * summary is `label + value + Change`; the session sub-step's slot chip is
- * `value + Info + Change`. Same border, same fill, same one-row rhythm, same
- * `ChangeAnswerButton` — and, more to the point, the same PROMISE: this row
- * states a settled decision and the control at its end is how you re-open it. A
- * second component would have been free to drift on any of that.
+ * Renders on mobile only — `BookingDetails` wraps every call in `lg:hidden`,
+ * because above `lg:` step 3 renders whole and nothing is collapsed. That is
+ * load-bearing for the layout choices below, which are free to assume a phone.
+ *
+ * Two callers once, now three collapsed sub-steps and no slot chip: the chip
+ * that used to restate the date, start time and bay was deleted when those facts
+ * moved to the step header's subline, which carries its own Change pill. This
+ * row and that line are deliberately the SAME SHAPE — facts, then one green
+ * control that reopens them — because they make the same promise, and on the
+ * extras and contact sub-steps they sit an inch apart.
+ *
+ * They are not the same THING, and the difference is scope: this row reopens a
+ * sub-step in place, the header line leaves step 3 for step 2. Same promise,
+ * different distance.
  *
  * The affordance is `ChangeAnswerButton` rather than the green underlined text
  * it used to be: this navigates, and a few rows away sat a "View Details" link
@@ -70,64 +53,31 @@ export interface DetailsSubStepSummaryProps {
 export function DetailsSubStepSummary({
   label,
   value,
-  secondaryAction,
   changeLabel,
-  changeAriaLabel,
   onChange,
 }: DetailsSubStepSummaryProps) {
   return (
-    /* `flex-wrap` + `ml-auto`, which replaced `justify-between` + a truncating
-       value: when a row does not fit, wrapping is the better failure than
-       clipping, for a row whose whole job is to state a fact.
+    /* NO BORDER AND NO FILL. This used to be a grey rounded card, and it was the
+       odd one out in both directions.
 
-       Measured at 360px: the page's `px-4`, the form's `p-3` and this row's
-       `px-3` leave about 280px. The slot chip's value is roughly 190px for
-       "Sun 26 Jul · 20:30 · Any Bay", and it originally spent the rest on an
-       "ⓘ Info" text link plus a "Change time or bay" pill — well past 280px, so
-       it always wrapped, and the owner rightly read the two-row result as
-       heavier than the session pill it was meant to echo.
+       Against the HEADER: the step header's subline states what earlier steps
+       settled and carries its own Change pill, so on the extras and contact
+       sub-steps two rows an inch apart said "here are some facts, here is a
+       Change" in two different visual languages — one boxed, one not. The owner
+       asked what justified two designs. Nothing did.
 
-       Both controls were shortened at the call site instead (icon-only Info, a
-       bare "Change" with the long name moved to `aria-label`). Measured on a
-       real 412px phone viewport against the deployed build, reading the live
-       DOM rather than estimating:
+       Against its OWN EXPANDED STATE: `panelClass` in `BookingDetails` is
+       `space-y-4 sm:space-y-6` and nothing else. An expanded sub-step is not a
+       card — the whole form is one white card and the sub-steps are stacked
+       content inside it. So collapsing a section used to ADD a box that
+       expanding it took away, which is backwards: collapsing should remove
+       weight, not add it.
 
-         value "Tue 28 Jul · 15:00 · Any Bay"   180px
-         + gap 12 + Info glyph 16 + gap 12       + 40px
-         + "Change" pill                         + 89px
-         =                                        309px
-
-       The row's usable width is the viewport less 82px (the page's `px-4`, the
-       form's `p-3` and this row's `px-3`) — 330px at 412px, confirmed against
-       `clientWidth`. So the chip needs a viewport of at least 391px:
-
-         360, 375, 390  wraps    (390 misses by ONE pixel)
-         393, 412, 430  one row
-
-       Which is worth knowing before "simplifying" any of it. The old shape was
-       412px and wrapped on everything; this fits a Pixel and an iPhone 15 and
-       takes the row from 76px to 48px there, while an iPhone 12/13/14 at 390px
-       still wraps. If the wrap has to go everywhere, the remaining overflow is
-       all in the VALUE: dropping the weekday costs ~29px and buys 375px and up,
-       dropping the date entirely buys 360px. Both change what the customer is
-       told, so neither is a layout decision to take quietly.
-
-       This is why `flex-wrap` is load-bearing rather than vestigial, and why it
-       must not be swapped back for truncation — the segment truncation dropped
-       was the LAST one, the bay, which is both the fact the Info glyph beside
-       it explains and the one the customer is least able to recover from
-       anything else on that screen.
-
-       The pill drops to a second line and `ml-auto` keeps it against the right
-       edge on whichever line it lands, because auto margins resolve per flex
-       line. The collapsed summaries are short enough that they never reach the
-       wrap and are visually unchanged.
-
-       The value deliberately does NOT grow (`min-w-0` only, no `flex-1`): if it
-       absorbed the free space it would push `secondaryAction` across to the
-       action cluster at the right, and the Info link has to stay against the
-       bay name it belongs to. `ml-auto` is what opens the gap instead. */
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+       What separates these rows from the live inputs below is now what
+       separates them everywhere else in the flow — a semibold label, a settled
+       value in prose, and the one green control that reopens them. That is the
+       same shape the header line uses, which is the point. */
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-0.5">
       <p className="min-w-0 text-sm text-gray-700">
         {label && (
           <>
@@ -141,8 +91,7 @@ export function DetailsSubStepSummary({
         )}
         {value}
       </p>
-      {secondaryAction}
-      <ChangeAnswerButton onClick={onChange} className="ml-auto" ariaLabel={changeAriaLabel}>
+      <ChangeAnswerButton onClick={onChange} className="ml-auto">
         {changeLabel}
       </ChangeAnswerButton>
     </div>
