@@ -421,6 +421,22 @@ cookie-driven root redirect, cookie-driven `/auth/login` redirect,
 
 ### Non-negotiable gotchas (real bugs we already hit)
 
+- **`i18n/request.ts` MUST set `timeZone: 'Asia/Bangkok'`.** Omit it and
+  next-intl resolves the zone from the *server runtime* — **UTC on Vercel** —
+  then auto-forwards that zone to the client provider, so the browser formats
+  in UTC too. A calendar pick is a local-midnight `Date`, and Bangkok midnight
+  is 17:00 the previous day in UTC, so every `format.dateTime` rendered one day
+  early: picking Jul 30 displayed "Wed, Jul 29, 2026" in production for three
+  months (2026-04-18 → 2026-07-27, PR #113). **This cannot reproduce on a
+  Bangkok dev machine** — server and browser agree locally, so typecheck, lint
+  and build all passed while prod was broken. To verify anything date-related,
+  run `TZ=UTC npm run dev -- -p 3100` to emulate Vercel. A missing zone also
+  fires an `ENVIRONMENT_FALLBACK` IntlError on every render — if you see that,
+  it's this. Note standalone `createFormatter({ locale })` (email code) does
+  NOT read this config and stays correct only by passing `timeZone` per call.
+  Related: never derive `yyyy-mm-dd` from a local `Date` via
+  `toISOString().split('T')[0]` — in +07 that returns **yesterday** for any
+  time before 07:00. Guarded by `__tests__/i18n-timezone.test.ts`.
 - **Root `app/layout.tsx` MUST own `<html>` and `<body>`.** Not a
   passthrough. Next.js App Router tolerates `return children` in dev and
   explodes in production with a hydration cascade: React error #418 →
