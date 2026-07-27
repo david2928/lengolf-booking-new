@@ -257,25 +257,39 @@ export function BookingStepHeader({
       {/* The subline and, where the flow supplies one, the way back to the step
           it describes.
 
-          `flex-wrap` + `ml-auto` rather than `justify-between`, the same pattern
-          and the same reason as `DetailsSubStepSummary`: if the line ever
-          outgrows the row the pill drops below it instead of the FACTS being
-          truncated, and `ml-auto` resolves per flex line so it stays against the
-          right edge either way. It has ~48px more room than that component does
-          — the header sits outside the form's padding, not inside it — so the
-          longest shipped line plus the pill measures 326px against 328px usable
-          at 360px, and the wrap is the guarantee rather than the expectation.
+          `ml-auto lg:ml-0` — right-aligned on a phone, hugging the line on a
+          desktop, and the breakpoint is not arbitrary. It is exactly where the
+          collapsed sub-step summaries appear and disappear.
+
+          BELOW `lg:` this row sits above `DetailsSubStepSummary` rows carrying
+          the same "facts, then a Change pill" shape, so it matches them: pill
+          against the right edge. Two rows an inch apart with the pill in
+          different places would look like an accident, which is the objection
+          that produced this line.
+
+          AT `lg:` AND UP those summaries are `lg:hidden` — step 3 renders whole,
+          so nothing is collapsed and there is no second row to match. What there
+          IS instead is a content column about 1,200px wide, and `ml-auto` in it
+          strands the pill most of a screen away from the sentence it acts on,
+          with nothing between them to suggest the two are related. So above the
+          breakpoint the pill simply follows the facts.
+
+          `flex-wrap` covers the other end: the longest shipped line plus the
+          pill measures 326px against 328px usable at 360px, so the fit is real
+          but has no margin in it, and a longer localised bay name should drop
+          the pill to a second line rather than squeeze the line the customer is
+          there to read.
 
           Rendered as a sibling of the text, never inside the `<p>`: a control
           nested in a paragraph gets swept along by its wrapping, and this one
-          has to stay a fixed-size target at the end of the row. */}
+          has to stay a fixed-size target. */}
       {subline && (
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <p className="min-w-0 text-xs leading-5 text-gray-600 sm:text-sm">{subline}</p>
           {onChangeSlot && changeSlotLabel && (
             <ChangeAnswerButton
               onClick={onChangeSlot}
-              className="ml-auto"
+              className="ml-auto lg:ml-0"
               ariaLabel={changeSlotAriaLabel}
             >
               {changeSlotLabel}
