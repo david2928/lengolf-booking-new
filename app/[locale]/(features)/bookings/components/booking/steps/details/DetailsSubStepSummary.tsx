@@ -89,12 +89,27 @@ export function DetailsSubStepSummary({
 
        Both controls were shortened at the call site instead (icon-only Info, a
        bare "Change" with the long name moved to `aria-label`), which buys back
-       roughly 90px and fits the row on a 375px phone. It can still wrap on a
-       360px one, and that is the point of keeping `flex-wrap`: the fallback is
-       load-bearing, not vestigial. Do not swap it back for truncation — the
-       segment truncation dropped was the LAST one, the bay, which is both the
-       fact the Info glyph beside it explains and the one the customer is least
-       able to recover from anything else on that screen.
+       99px — measured, not estimated, with `canvas.measureText` in the real
+       Poppins face against the deployed build:
+
+         value "Tue 28 Jul · 09:00 · Any Bay"  184px
+         + two 12px gaps + 16px Info glyph      + 40px
+         + "Change" pill                        + 89px
+         =                                       313px
+
+       against 280px of usable width at 360px, 295px at 375px and 310px at
+       390px. So the row STILL WRAPS on every common phone — 313 clears even a
+       390px iPhone by 3px. Shortening the controls made the chip lighter, not
+       single-line, and anyone reading this should not assume otherwise: the
+       remaining overflow is in the VALUE, and only dropping a segment from it
+       can close the gap (losing the weekday takes it to 284px, which fits 375px
+       and up; losing the date entirely takes it to 234px, which fits 360px).
+
+       This is why `flex-wrap` is load-bearing rather than vestigial, and why it
+       must not be swapped back for truncation — the segment truncation dropped
+       was the LAST one, the bay, which is both the fact the Info glyph beside
+       it explains and the one the customer is least able to recover from
+       anything else on that screen.
 
        The pill drops to a second line and `ml-auto` keeps it against the right
        edge on whichever line it lands, because auto margins resolve per flex
