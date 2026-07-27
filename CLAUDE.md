@@ -437,6 +437,30 @@ cookie-driven root redirect, cookie-driven `/auth/login` redirect,
   Related: never derive `yyyy-mm-dd` from a local `Date` via
   `toISOString().split('T')[0]` — in +07 that returns **yesterday** for any
   time before 07:00. Guarded by `__tests__/i18n-timezone.test.ts`.
+- **Dates go through `utils/date.ts`, not `new Date()` (PR #115).** Pinning
+  next-intl's zone fixed how an instant is *rendered*; it does nothing about
+  which instant you *built*. Two helpers are now the canonical forms:
+  - `getBangkokDateString(date?)` → `yyyy-MM-dd` in Bangkok. Replaces
+    `new Date().toISOString().split('T')[0]`, which truncates in **UTC** and
+    so returns yesterday for the ~7 hours after Bangkok midnight *on Vercel*.
+    This hit `/api/coaching/availability` (wrong `from_date` **and** a
+    misplaced "Today" label) and the LIFF package-expiry check.
+  - `parseBangkokDate(iso, time?)` → anchors at `+07:00`. Replaces
+    `new Date(iso + 'T00:00:00')` and ``new Date(`${date}T${time}`)``, which
+    resolve in the **viewer's** zone and so read a day / several hours early
+    for anyone east of +07 (Singapore, Seoul, Tokyo, Sydney).
+
+  Three idioms used to coexist and only the `+07:00` one is unconditionally
+  correct. Beware two traps: widening the offset regex to allow a bare `±HH`
+  makes it match the `-30` in `2026-07-30`; and `getCurrentBangkokTime()`
+  returns a *shifted* Date whose `.toISOString()` double-converts — it is
+  self-cancelling at +07, which is why it keeps passing review here.
+
+  Note a UTC CI runner cannot catch every case: where the defect depends on
+  the *viewer's* zone, a render test passes against the broken code, so the
+  guard has to be source-level. Run the suite under several `TZ` values
+  (`$env:TZ='UTC'` in PowerShell — the bash `TZ=x cmd` prefix does **not**
+  propagate on this setup).
 - **Root `app/layout.tsx` MUST own `<html>` and `<body>`.** Not a
   passthrough. Next.js App Router tolerates `return children` in dev and
   explodes in production with a hydration cascade: React error #418 →

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import useMediaQuery from '../../hooks/useMediaQuery'; // Import the new hook
+import { parseBangkokDate } from '@/utils/date';
 import { X, Maximize2 } from 'lucide-react';
 
 // Full screen image modal component
@@ -215,8 +216,11 @@ const PackagesList: React.FC = () => {
   const formatDate = (dateString: string | null | undefined): string => {
     if (!dateString) return t('notAvailableShort');
     try {
-        const date = new Date(dateString + (dateString.includes('T') ? '' : 'T00:00:00'));
-        return formatter.dateTime(date, { year: 'numeric', month: 'short', day: 'numeric' });
+        // Package dates are Asia/Bangkok calendar dates. Appending a bare
+        // 'T00:00:00' parsed them in the viewer's zone, so they rendered a day
+        // early for anyone east of +07; anchor at +07:00 and format in Bangkok.
+        const date = parseBangkokDate(dateString);
+        return formatter.dateTime(date, { timeZone: 'Asia/Bangkok', year: 'numeric', month: 'short', day: 'numeric' });
     } catch {
         console.error('Failed to parse date');
         return dateString; // Return original if parsing fails

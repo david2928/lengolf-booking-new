@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { coaches } from '@/lib/liff/coaching-data';
 import { Language, coachingTranslations } from '@/lib/liff/translations';
+import { formatBangkokTime, getBangkokDateString, parseBangkokDate } from '@/utils/date';
 
 interface CoachAvailability {
   id: string;
@@ -55,9 +56,13 @@ export default function AvailabilityPreview({ language, availability }: Availabi
     if (!avail) return null;
 
     const now = new Date();
-    const bangkokTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-    const currentHour = bangkokTime.getHours();
-    const today = bangkokTime.toISOString().split('T')[0];
+    // Read both parts straight out of Asia/Bangkok. The previous form built a
+    // Date whose *local* fields held Bangkok wall time and then called
+    // toISOString() on it, which subtracts the browser's offset a second time —
+    // so for Thai customers between 00:00 and 07:00 this named yesterday, no
+    // row matched, and the buffer below silently stopped applying.
+    const today = getBangkokDateString(now);
+    const currentHour = Number(formatBangkokTime(now, 'H'));
     const minHour = currentHour + 5; // 5 hour buffer
 
     return {
@@ -82,7 +87,11 @@ export default function AvailabilityPreview({ language, availability }: Availabi
   const filteredAvailability = filterAvailabilitySlots(activeAvailability);
 
   const formatDate = (dateString: string, isToday: boolean) => {
-    const date = new Date(dateString);
+    // `dateString` is a Bangkok calendar date, so every part has to be read
+    // back out in Bangkok too. The previous form parsed it with `new Date()`,
+    // which resolves a bare yyyy-MM-dd at UTC midnight, and then read *local*
+    // getters off it — a day early for any viewer at a negative UTC offset.
+    const date = parseBangkokDate(dateString);
     const dayNames = [
       t.sunday,
       t.monday,
@@ -93,14 +102,16 @@ export default function AvailabilityPreview({ language, availability }: Availabi
       t.saturday,
     ];
 
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = formatBangkokTime(date, 'dd');
+    const month = formatBangkokTime(date, 'MM');
+    // date-fns `i` is the ISO weekday, 1..7 for Mon..Sun; dayNames is Sun-first.
+    const weekday = dayNames[Number(formatBangkokTime(date, 'i')) % 7];
 
     if (isToday) {
-      return `${t.today} (${dayNames[date.getDay()]})`;
+      return `${t.today} (${weekday})`;
     }
 
-    return `${dayNames[date.getDay()]} ${day}/${month}`;
+    return `${weekday} ${day}/${month}`;
   };
 
   return (
