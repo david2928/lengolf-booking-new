@@ -31,8 +31,19 @@ export interface DetailsSubStepSummaryProps {
    * and "this changes your booking". See `affordances.tsx` for that rule.
    */
   secondaryAction?: ReactNode;
-  /** Translated "Change", or a longer label naming what Change actually reaches. */
+  /** Translated "Change" — the word the customer reads on the pill. */
   changeLabel: string;
+  /**
+   * A longer accessible name for the pill, where the visible "Change" is not
+   * self-describing.
+   *
+   * Every caller renders the same word, and on the mobile sub-step layout two
+   * or three of these rows can be on screen at once. The collapsed summaries
+   * are disambiguated by their own `label` ("Session", "Extras"), which is part
+   * of the row and read out with it; the slot chip has no label by design, so
+   * it names the pill instead. See `changeSlotAction` at its call site.
+   */
+  changeAriaLabel?: string;
   /** Re-opens the decision this row stands in for. */
   onChange: () => void;
 }
@@ -61,27 +72,34 @@ export function DetailsSubStepSummary({
   value,
   secondaryAction,
   changeLabel,
+  changeAriaLabel,
   onChange,
 }: DetailsSubStepSummaryProps) {
   return (
     /* `flex-wrap` + `ml-auto`, which replaced `justify-between` + a truncating
-       value, because the slot chip does not fit on one 360px line and the
-       collapsed summaries do.
+       value: when a row does not fit, wrapping is the better failure than
+       clipping, for a row whose whole job is to state a fact.
 
        Measured at 360px: the page's `px-4`, the form's `p-3` and this row's
-       `px-3` leave about 280px, against roughly 190px for
-       "Sun 26 Jul · 20:30 · Any Bay" plus an Info link plus a Change pill. Under
-       the old rules the value truncated — and the segment it dropped was the
-       LAST one, the bay, which is both the fact the Info link beside it
-       explains and the one the customer is least able to recover from anything
-       else on that screen.
+       `px-3` leave about 280px. The slot chip's value is roughly 190px for
+       "Sun 26 Jul · 20:30 · Any Bay", and it originally spent the rest on an
+       "ⓘ Info" text link plus a "Change time or bay" pill — well past 280px, so
+       it always wrapped, and the owner rightly read the two-row result as
+       heavier than the session pill it was meant to echo.
 
-       So the row wraps instead: the pill drops to a second line and `ml-auto`
-       keeps it against the right edge on whichever line it lands, because auto
-       margins resolve per flex line. The collapsed summaries are short enough
-       that they never reach the wrap and are visually unchanged; what they gain
-       is that a long localised value now wraps rather than being clipped, which
-       for a row whose whole job is to state a fact is the better failure.
+       Both controls were shortened at the call site instead (icon-only Info, a
+       bare "Change" with the long name moved to `aria-label`), which buys back
+       roughly 90px and fits the row on a 375px phone. It can still wrap on a
+       360px one, and that is the point of keeping `flex-wrap`: the fallback is
+       load-bearing, not vestigial. Do not swap it back for truncation — the
+       segment truncation dropped was the LAST one, the bay, which is both the
+       fact the Info glyph beside it explains and the one the customer is least
+       able to recover from anything else on that screen.
+
+       The pill drops to a second line and `ml-auto` keeps it against the right
+       edge on whichever line it lands, because auto margins resolve per flex
+       line. The collapsed summaries are short enough that they never reach the
+       wrap and are visually unchanged.
 
        The value deliberately does NOT grow (`min-w-0` only, no `flex-1`): if it
        absorbed the free space it would push `secondaryAction` across to the
@@ -102,7 +120,7 @@ export function DetailsSubStepSummary({
         {value}
       </p>
       {secondaryAction}
-      <ChangeAnswerButton onClick={onChange} className="ml-auto">
+      <ChangeAnswerButton onClick={onChange} className="ml-auto" ariaLabel={changeAriaLabel}>
         {changeLabel}
       </ChangeAnswerButton>
     </div>

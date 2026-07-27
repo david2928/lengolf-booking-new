@@ -224,6 +224,19 @@ export function SessionStep({
           the bay name it explains rather than in the row's action cluster,
           because it costs the customer nothing and the pill beside it costs them
           their place. */}
+      {/* Both controls are deliberately narrower than the words they stand for.
+          The owner asked for this row to read like the collapsed Session pill,
+          and it did not: three facts, an "ⓘ Info" text link and a "Change time
+          or bay" pill overflowed 360px and wrapped to two rows, which made the
+          chip TALLER than the pill it was echoing rather than lighter.
+
+          Neither label is lost, only its pixels. `iconOnly` moves "Info" to
+          `sr-only`, and the pill shows the same bare "Change" as every other
+          summary row while `changeSlotAction` becomes its `aria-label`. So the
+          accessible names are exactly what they were before, and the reason the
+          long label existed — one control reaching two steps' worth of facts,
+          and NOT the date — still reaches anyone who cannot see the row it sits
+          on. What changes is only what the sighted customer has to read. */}
       <div data-testid="booking-slot-chip">
         <DetailsSubStepSummary
           value={slotChipValueFor({
@@ -233,11 +246,12 @@ export function SessionStep({
             bayLabel,
           })}
           secondaryAction={
-            <RevealDetailsButton onClick={() => setShowBayInfoModal(true)}>
+            <RevealDetailsButton iconOnly onClick={() => setShowBayInfoModal(true)}>
               {t('info')}
             </RevealDetailsButton>
           }
-          changeLabel={t('changeSlotAction')}
+          changeLabel={t('changeAction')}
+          changeAriaLabel={t('changeSlotAction')}
           onChange={onBack}
         />
       </div>

@@ -82,7 +82,7 @@ export default function BookingsPage() {
   // different page rather than a load.
   if (status === 'loading') {
     return (
-      <Layout hidePromotionBar compactHeader flushMain hideFooter hideNav>
+      <Layout hidePromotionBar compactHeader flushMain hideFooter={currentStep > 1} hideNav>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -254,8 +254,30 @@ export default function BookingsPage() {
          `container mx-auto px-4 sm:px-6 lg:px-8 py-8` around the wrapper
          below, so horizontal padding was being applied twice. The page now
          owns its padding outright.
-       - `hideFooter`        TAKEN. See the commit that added it: the long
-         marketing footer belongs on a landing page, not under a checkout.
+       - `hideFooter`        TAKEN FROM STEP 2 ONWARD, not on step 1.
+
+         It was taken unconditionally on the argument that the long marketing
+         footer belongs on a landing page and not under a checkout. Half of that
+         is right, and the half it got wrong is the half this page is: step 1 IS
+         the landing surface — it is what `/` serves and what every ad and every
+         link into this app arrives on. Suppressing the footer there took the
+         address, the opening hours and the social links off the one screen
+         whose reader may still be deciding whether to come at all. Owner: "the
+         footer should still be there on the main landing page".
+
+         So the rule is now the one the original argument actually described:
+         landing gets the footer, checkout does not. Step 1 is landing; from
+         step 2 the customer has committed to a date and everything below the
+         fold is a distraction under a form.
+
+         This is the ONE step-conditional prop here, and the exception is
+         deliberate — see `hideNav` directly below for why the others are not.
+         The footer sits at the very bottom, past the sticky total bar: it
+         changes what is under the fold, never the chrome the customer is
+         looking at. `hideNav` would restructure the header in place, which is
+         the flicker the loading branch above exists to prevent. The loading
+         branch takes this same expression rather than a bare `hideFooter`, so
+         the two cannot disagree the moment the session resolves.
        - `hideNav`           TAKEN. It strips the desktop Bay Rates /
          Promotions / Lessons / Club Rental / Play & Food links, leaving the
          wordmark and the badge — which is the header the mockup draws.
@@ -273,7 +295,7 @@ export default function BookingsPage() {
          step-conditional nav would restructure the header as the customer
          advances, which is the same chrome flicker the loading-state props
          above exist to prevent. */
-    <Layout hidePromotionBar compactHeader flushMain hideFooter hideNav>
+    <Layout hidePromotionBar compactHeader flushMain hideFooter={currentStep > 1} hideNav>
       {/* `container mx-auto px-4 sm:px-6 lg:px-8`, and it must stay that exact
           string: it is what Layout's own <main> applied before `flushMain`
           moved padding ownership here, and it is what `Header` and the sticky

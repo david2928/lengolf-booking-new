@@ -170,9 +170,11 @@ describe('the bay is reported, not asked again', () => {
       // The chip's only controls are the info link and the way back to step 2.
       // Neither of them sets a bay; both are covered in their own block below.
       const buttons = within(slotChip()).getAllByRole('button');
+      // `textContent`, not the accessible name: "Info" is present but `sr-only`,
+      // and Change carries a longer `aria-label` than the word it prints.
       expect(buttons.map((b) => b.textContent)).toEqual([
         messages.bookings.detailsStep.info,
-        messages.bookings.detailsStep.changeSlotAction,
+        messages.bookings.detailsStep.changeAction,
       ]);
       unmount();
     }
@@ -294,23 +296,53 @@ describe('the slot chip', () => {
   });
 
   /**
-   * One control, two steps' worth of facts — so the label names only what it
+   * One control, two steps' worth of facts — so the NAME states only what it
    * reaches. A bare "Change" over a row whose first segment is the date would
    * promise a step this button does not go to.
+   *
+   * That name is now the `aria-label` rather than the printed word: the visible
+   * pill reads "Change" so the row fits beside the three facts and the Info
+   * glyph, which is what the owner asked for when they asked it to look like the
+   * collapsed Session pill. The precision was moved, not spent — so this asserts
+   * both halves, because either one drifting alone is a regression. Losing the
+   * long name strands screen readers on an unqualified "Change"; letting it back
+   * onto the pill face re-breaks the layout.
    */
-  test('the label names the time and the bay, and does not claim the date', () => {
+  test('the accessible name states the time and the bay, and does not claim the date', () => {
     render(<Harness />);
 
-    const label = within(slotChip()).getByRole('button', {
+    const change = within(slotChip()).getByRole('button', {
       name: messages.bookings.detailsStep.changeSlotAction,
-    }).textContent!;
+    });
+    const name = change.getAttribute('aria-label')!;
 
-    expect(label).toMatch(/time/i);
-    expect(label).toMatch(/bay/i);
-    expect(label).not.toMatch(/date/i);
-    // ...and it is NOT the collapsed sub-step summaries' bare "Change", which
-    // reaches everything the row it sits on states.
-    expect(label).not.toBe(messages.bookings.detailsStep.changeAction);
+    expect(name).toMatch(/time/i);
+    expect(name).toMatch(/bay/i);
+    expect(name).not.toMatch(/date/i);
+
+    // The pill FACE is the same bare "Change" every other summary row prints.
+    expect(change.textContent).toBe(messages.bookings.detailsStep.changeAction);
+    // WCAG 2.5.3: the accessible name must contain the visible label, or a voice
+    // control user saying the word they can see cannot activate the button.
+    expect(name).toContain(messages.bookings.detailsStep.changeAction);
+  });
+
+  /**
+   * The Info label is hidden, not deleted. `sr-only` keeps it in the accessible
+   * name — which is also why every query above can still find the button by
+   * "Info" — while costing the row no width. A bare glyph with the text removed
+   * outright would have been an unnamed button.
+   */
+  test('Info is a glyph on screen and a full label to assistive tech', () => {
+    render(<Harness />);
+
+    const info = within(slotChip()).getByRole('button', {
+      name: messages.bookings.detailsStep.info,
+    });
+
+    const srOnly = info.querySelector('.sr-only');
+    expect(srOnly).not.toBeNull();
+    expect(srOnly!.textContent).toBe(messages.bookings.detailsStep.info);
   });
 
   /**

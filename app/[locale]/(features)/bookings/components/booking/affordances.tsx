@@ -53,6 +53,23 @@ interface AffordanceProps {
   className?: string;
 }
 
+export interface RevealDetailsButtonProps extends AffordanceProps {
+  /**
+   * Draw the glyph alone and keep the label for assistive tech only.
+   *
+   * For rows where horizontal space is the binding constraint — today only the
+   * slot chip, which carries three facts and two controls on one line. The
+   * label is NOT dropped, it moves to `sr-only`: the accessible name is
+   * unchanged, so screen readers, voice control and every `getByRole` query
+   * still see "Info". Deleting the text outright would have traded 30px for an
+   * unnamed button.
+   *
+   * `sr-only` is `position:absolute`, so it is not a flex item for layout and
+   * the row's `gap-1` does not open a gap beside a glyph with nothing after it.
+   */
+  iconOnly?: boolean;
+}
+
 /**
  * Opens a read-only overlay. Costs the customer nothing, so it is drawn as the
  * quietest interactive thing on the row.
@@ -61,7 +78,12 @@ interface AffordanceProps {
  * the booking `<form>`, where a button with no explicit type defaults to
  * `submit` and would fire the booking.
  */
-export function RevealDetailsButton({ onClick, children, className = '' }: AffordanceProps) {
+export function RevealDetailsButton({
+  onClick,
+  children,
+  className = '',
+  iconOnly = false,
+}: RevealDetailsButtonProps) {
   return (
     <button
       type="button"
@@ -69,7 +91,7 @@ export function RevealDetailsButton({ onClick, children, className = '' }: Affor
       className={`inline-flex shrink-0 items-center gap-1 rounded text-xs font-medium text-gray-500 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1 ${className}`}
     >
       <InformationCircleIcon className="h-4 w-4" aria-hidden="true" />
-      {children}
+      {iconOnly ? <span className="sr-only">{children}</span> : children}
     </button>
   );
 }
@@ -83,6 +105,17 @@ export interface ChangeAnswerButtonProps extends AffordanceProps {
   tone?: 'default' | 'warning';
   /** Defaults to a pencil. Pass an arrow where the action is literally "back". */
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
+  /**
+   * A longer accessible name for a pill whose visible label had to be short.
+   *
+   * Only for the case where several "Change" pills coexist and the visible word
+   * alone would not say which decision each re-opens — the slot chip, which
+   * sits above the collapsed sub-step summaries and their own bare "Change".
+   *
+   * Must CONTAIN the visible label (WCAG 2.5.3 Label in Name), so that a voice
+   * control user saying the word they can see still activates the button.
+   */
+  ariaLabel?: string;
 }
 
 /**
@@ -96,6 +129,7 @@ export function ChangeAnswerButton({
   className = '',
   tone = 'default',
   icon: Icon = PencilSquareIcon,
+  ariaLabel,
 }: ChangeAnswerButtonProps) {
   const palette =
     tone === 'warning'
@@ -106,6 +140,7 @@ export function ChangeAnswerButton({
     <button
       type="button"
       onClick={onClick}
+      aria-label={ariaLabel}
       className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${palette} ${className}`}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
