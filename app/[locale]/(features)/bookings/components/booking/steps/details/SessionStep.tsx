@@ -13,8 +13,6 @@ import { ChangeAnswerButton, RevealDetailsButton } from '../../affordances';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import type { BayType } from '@/lib/bayConfig';
 import { allowedDurations, formatDurationLabel } from '@/lib/booking-durations';
-import { DetailsSubStepSummary } from './DetailsSubStepSummary';
-import { slotChipValueFor } from './summarySubline';
 import { SegmentedOptions } from './SegmentedOptions';
 import { SetMenuCard } from './SetMenuCard';
 import { everySetIncludesUnlimitedDrinks } from '@/lib/play-food-value';
@@ -66,25 +64,18 @@ export interface SessionStepProps {
    * asks again and never blocks on it.
    */
   selectedBayType?: BayType | null;
-  /** Already-localised bay name, including the "Any Bay" case. */
-  bayLabel: string;
   /**
-   * The active locale, which picks the chip's short-date form.
+   * Leaves step 3 for step 2 — the AI Lab warning's "go back to Social Bay".
+   * Goes through the flow's own `handleBack`, the same action the header's
+   * "Change" performs, so there is one door out of step 3 rather than two that
+   * could come to disagree.
    *
-   * Passed in for the same reason `router` and `bayLabel` are, and it is the
-   * same reason twice: this component derives no context of its own. A
-   * `useLocale()` here would reach through next-intl into `useParams()`, which
-   * couples a presentational step to the router — and the locale is not
-   * inferable from the URL anyway, since English is unprefixed under
-   * `localePrefix: 'as-needed'`. `BookingDetails` already holds it.
-   */
-  locale: string;
-  setShowBayInfoModal: (value: boolean) => void;
-  /**
-   * Leaves step 3 for step 2 — the slot chip's "Change" and the AI Lab
-   * warning's "go back to Social Bay". Both mean the same thing and both go
-   * through the flow's own `handleBack`, so there is one door out of step 3
-   * rather than two that could come to disagree.
+   * `bayLabel`, `locale` and `setShowBayInfoModal` were props here until the
+   * slot chip was removed. The bay NAME and the bay EXPLAINER both now live
+   * where the bay is chosen — the header subline states it, and the time step
+   * and date step each carry their own `BayInfoModal`. This step no longer
+   * recaps the bay at all, so it needs neither the string nor the modal, and
+   * with the chip's date gone it needs no locale to format one.
    */
   onBack: () => void;
 }
@@ -123,9 +114,6 @@ export function SessionStep({
   selectedDate,
   selectedTime,
   selectedBayType,
-  bayLabel,
-  locale,
-  setShowBayInfoModal,
   onBack,
 }: SessionStepProps) {
   const t = useTranslations('bookings.detailsStep');
@@ -199,62 +187,27 @@ export function SessionStep({
 
   return (
     <>
-      {/* The slot: what steps 1 and 2 settled, and the way back to them.
+      {/* THE SLOT IS NOT STATED HERE. It is the step header's subline, on this
+          sub-step and on the two after it, and the header carries the "Change"
+          that returns to step 2 — see `onChangeSlot` in `BookingStepHeader`.
 
-          WHERE "CHANGE" GOES, AND WHY THE LABEL SAYS SO. Three facts, two
-          steps: the date is step 1's, the start time and the bay are both step
-          2's. One control cannot serve both steps, so it serves the step that
-          owns two of the three, and the label names exactly those two rather
-          than saying a bare "Change" over a row whose first segment it does not
-          reach. The date is one further level up — step 2's own back arrow —
-          which is a real route but not one this button should be read as
-          promising.
+          This panel opened with three stacked recap cards (date, start time,
+          bay), then with a single "slot chip" that replaced them. Both restated
+          the subline two rows above, so the subline had to be suppressed on this
+          one screen to stop the customer reading the same booking twice; and
+          because the chip rendered here and nowhere else, the same three facts
+          then looked like a tappable chip on "How long?" and like inert grey
+          text on "Anything to add?". The owner asked why the two differed.
 
-          It goes through `onBack`, the same flow action the header's back arrow
-          performs from this sub-step and the same one the AI Lab callout below
-          uses. That is deliberate: this chip does not open a new way out of step
-          3, it puts the existing one where the customer is already looking. The
-          trip is destructive by construction — `handleBack` nulls the start time
-          because they are re-picking a slot — so the facts that outlive a slot
-          change now live on the flow rather than in this step's form state. See
-          the block comment on `duration` in `useBookingFlow`.
+          They differed because the facts had two homes and a rule picking
+          between them. They now have one. Do not reintroduce a recap of the
+          date, the start time or the bay in this component — if a screen needs
+          them, the header is already saying them.
 
-          The bay INFO link survives here as `secondaryAction`. It is the only
-          route to the bay-type explainer on this sub-step, and it sits against
-          the bay name it explains rather than in the row's action cluster,
-          because it costs the customer nothing and the pill beside it costs them
-          their place. */}
-      {/* Both controls are deliberately narrower than the words they stand for.
-          The owner asked for this row to read like the collapsed Session pill,
-          and it did not: three facts, an "ⓘ Info" text link and a "Change time
-          or bay" pill overflowed 360px and wrapped to two rows, which made the
-          chip TALLER than the pill it was echoing rather than lighter.
-
-          Neither label is lost, only its pixels. `iconOnly` moves "Info" to
-          `sr-only`, and the pill shows the same bare "Change" as every other
-          summary row while `changeSlotAction` becomes its `aria-label`. So the
-          accessible names are exactly what they were before, and the reason the
-          long label existed — one control reaching two steps' worth of facts,
-          and NOT the date — still reaches anyone who cannot see the row it sits
-          on. What changes is only what the sighted customer has to read. */}
-      <div data-testid="booking-slot-chip">
-        <DetailsSubStepSummary
-          value={slotChipValueFor({
-            locale,
-            date: selectedDate,
-            time: selectedTime,
-            bayLabel,
-          })}
-          secondaryAction={
-            <RevealDetailsButton iconOnly onClick={() => setShowBayInfoModal(true)}>
-              {t('info')}
-            </RevealDetailsButton>
-          }
-          changeLabel={t('changeAction')}
-          changeAriaLabel={t('changeSlotAction')}
-          onChange={onBack}
-        />
-      </div>
+          What this sub-step DOES own is below: the party size, the booking-mode
+          fork and the duration. Those are its own decisions, and the collapsed
+          Session summary that appears once the customer leaves recaps exactly
+          those and nothing else. */}
 
       {/* Party size, up here with the other session facts rather than at the
           very bottom of the sub-step where it used to sit. Owner asked for it

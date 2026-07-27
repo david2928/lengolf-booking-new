@@ -11,7 +11,6 @@ import {
   SUB_STEP_QUESTION_KEYS,
   narrowStepFor,
   stepHeaderSublineFor,
-  stepHeaderSublineSuppressed,
   stepLabelKey,
   stepQuestionKey,
 } from './components/booking/stepHeaderModel';
@@ -143,16 +142,29 @@ export default function BookingsPage() {
           - The SUBLINE accumulates. Step 1 passes nothing (nothing has been
             chosen), step 2 passes the date, step 3 adds the start time and the
             bay. `stepHeaderSublineFor` drops whatever is null, so this is one
-            expression rather than a branch per step. It then falls silent on
-            one screen: step 3's session sub-step states the same three facts on
-            its own slot chip, with a "Change" that leads back to the step they
-            were decided on, and saying them twice at the top of one screen is
-            what the owner has objected to twice. See
-            `stepHeaderSublineSuppressed`, which owns that rule.
+            expression rather than a branch per step. It is now unconditional:
+            it used to fall silent on the session sub-step, where a slot chip
+            restated the same three facts, and that chip is gone. The subline is
+            the only place the flow states them, on every screen that has one.
+          - CHANGE SLOT is passed on step 3 only, and it calls `handleBack` —
+            the STEP-level back, which lands on step 2 where the start time and
+            the bay were chosen. This is what the deleted chip's "Change" did,
+            moved onto the line that already states the facts. Steps 1 and 2 do
+            not get it: their own back arrow already reaches the step their
+            subline describes, so a second control would be a second way to do
+            the same thing. On step 3 it is not the same thing, which is the
+            whole point — see the next bullet.
           - The BACK control is `handleHeaderBack`, not `handleBack`: inside
             step 3 backward means the previous sub-step, and only from the first
             sub-step does it mean the previous step. Passing `undefined` on step
-            1 is what removes the control, since there is nowhere to go. */}
+            1 is what removes the control, since there is nowhere to go.
+
+            That difference is exactly why Change earns its place: from the
+            extras and contact sub-steps the arrow walks backwards one sub-step
+            at a time, so the slot the subline is describing takes two or three
+            presses and a guess to reach. Change is one press from all three,
+            and it always means the same thing, while the arrow's destination
+            changes underneath the customer as they advance. */}
       <BookingStepHeader
         currentStep={narrowStep}
         totalSteps={BAY_BOOKING_SCREEN_COUNT}
@@ -173,19 +185,18 @@ export default function BookingsPage() {
             : tPage(stepQuestionKey(currentStep))
         }
         questionWide={currentStep === 3 ? tPage('stepDetailsQuestion') : undefined}
-        subline={
-          stepHeaderSublineSuppressed(currentStep, detailsSubStep.subStep)
-            ? undefined
-            : stepHeaderSublineFor({
-                locale,
-                date: currentStep >= 2 ? selectedDate : null,
-                fromTimeLabel:
-                  currentStep === 3 && selectedTime
-                    ? tPage('sublineFromTime', { time: selectedTime })
-                    : null,
-                bayLabel: bayChoiceLabel,
-              })
-        }
+        subline={stepHeaderSublineFor({
+          locale,
+          date: currentStep >= 2 ? selectedDate : null,
+          fromTimeLabel:
+            currentStep === 3 && selectedTime
+              ? tPage('sublineFromTime', { time: selectedTime })
+              : null,
+          bayLabel: bayChoiceLabel,
+        })}
+        onChangeSlot={currentStep === BAY_BOOKING_STEP_COUNT ? handleBack : undefined}
+        changeSlotLabel={tDetails('changeAction')}
+        changeSlotAriaLabel={tDetails('changeSlotAction')}
         onBack={currentStep > 1 ? handleHeaderBack : undefined}
         backLabel={tCommon('goBack')}
       />

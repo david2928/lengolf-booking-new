@@ -34,12 +34,10 @@ import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import {
   buildSessionSummaryValue,
-  buildSlotChipValue,
   buildSummaryBarSubline,
   formatFlowDate,
   formatShortDate,
   shortDateLocale,
-  slotChipValueFor,
   summaryBarSublineFor,
 } from '@/app/[locale]/(features)/bookings/components/booking/steps/details/summarySubline';
 /* The step header's own composer, so the "stated once" partition can be
@@ -377,137 +375,6 @@ describe('buildSessionSummaryValue', () => {
     expect(
       buildSessionSummaryValue({ durationLabel: '1 ชม.', peopleLabel: '2 คน' }),
     ).toBe('1 ชม. · 2 คน');
-  });
-});
-
-/**
- * The slot chip at the top of the session sub-step, which replaced three
- * read-only cards worth roughly 240px.
- *
- * It carries the same three facts the step header's subline does, so the two
- * cannot both be on screen: the header yields on this sub-step
- * (`stepHeaderSublineSuppressed`) and the chip states them instead, with a
- * "Change" back to the step that decided them. The tests below are the other
- * half of that trade — they check the chip genuinely says all three, because a
- * silent header plus a chip missing a segment loses the segment outright.
- */
-describe('buildSlotChipValue', () => {
-  it('states the date, the start time and the bay, in that order', () => {
-    expect(
-      buildSlotChipValue({ date: 'Sun 26 Jul', time: '20:30', bayLabel: 'Any Bay' }),
-    ).toBe('Sun 26 Jul · 20:30 · Any Bay');
-  });
-
-  /**
-   * The middle dot, not the header's locale-aware comma. The chip shares a
-   * border, a fill and a row shape with the collapsed sub-step summaries below
-   * it, so it is punctuated as one of those rather than as the sentence
-   * fragment the subline is.
-   */
-  it('joins with the middle dot the other chips use', () => {
-    const chip = buildSlotChipValue({ date: 'Sun 26 Jul', time: '20:30', bayLabel: 'Any Bay' });
-    expect(chip).toContain(' · ');
-    expect(chip).not.toContain(', ');
-  });
-
-  it('drops an unresolved segment rather than leaving a dangling separator', () => {
-    expect(buildSlotChipValue({ date: 'Sun 26 Jul', time: '', bayLabel: 'Any Bay' })).toBe(
-      'Sun 26 Jul · Any Bay',
-    );
-    expect(buildSlotChipValue({ date: '  ', time: '20:30', bayLabel: '  ' })).toBe('20:30');
-  });
-
-  it('passes localised strings through untouched', () => {
-    expect(
-      buildSlotChipValue({ date: '26 ก.ค.', time: '20:30', bayLabel: 'เบย์ใดก็ได้' }),
-    ).toBe('26 ก.ค. · 20:30 · เบย์ใดก็ได้');
-  });
-});
-
-describe('slotChipValueFor', () => {
-  it('formats the date and leads the line with it', () => {
-    const chip = slotChipValueFor({
-      locale: 'en',
-      date: BOOKING_DATE,
-      time: '09:30',
-      bayLabel: 'Social Bay',
-    });
-
-    expect(chip).toBe('Sat 25 Jul · 09:30 · Social Bay');
-    expect(chip.startsWith(formatShortDate('en', BOOKING_DATE))).toBe(true);
-  });
-
-  /**
-   * The cards printed "Sat, 25 Jul 2026" via `formatFlowDate`. The chip uses the
-   * short form — the SAME function as the header subline it stands in for, so
-   * one booking's date cannot be printed in two shapes on the surfaces that
-   * replace each other, and so the row has room for two controls beside it.
-   */
-  it("uses the header's year-less short date, not the cards' full one", () => {
-    const chip = slotChipValueFor({
-      locale: 'en',
-      date: BOOKING_DATE,
-      time: '09:30',
-      bayLabel: 'Social Bay',
-    });
-
-    expect(chip).not.toContain('2026');
-    expect(formatFlowDate('en', BOOKING_DATE)).toContain('2026');
-  });
-
-  it('localises the date, so it cannot have been built with a fixed locale', () => {
-    const th = slotChipValueFor({
-      locale: 'th',
-      date: BOOKING_DATE,
-      time: '09:30',
-      bayLabel: 'เบย์ใดก็ได้',
-    });
-
-    expect(th).not.toContain('Jul');
-    expect(th).not.toContain('Sat');
-    expect(th.endsWith('เบย์ใดก็ได้')).toBe(true);
-  });
-
-  /**
-   * The chip is now the only voice for these three on this sub-step, so a
-   * corrupt restored date must degrade the way the rest of the flow does rather
-   * than throw — `Intl.DateTimeFormat.format(new Date(NaN))` raises
-   * `RangeError`, and this row sits inside the booking form.
-   */
-  it('degrades on a date that is not a date instead of throwing', () => {
-    expect(() =>
-      slotChipValueFor({
-        locale: 'en',
-        date: new Date('nonsense'),
-        time: '09:30',
-        bayLabel: 'Any Bay',
-      }),
-    ).not.toThrow();
-  });
-
-  /**
-   * Every fact the suppressed header would have printed is on the chip. Asserted
-   * segment by segment against the header's own composer rather than by eye: the
-   * two are edited independently and only this pairing notices if one loses a
-   * segment the other stopped saying.
-   */
-  it('carries every segment the suppressed header subline would have', () => {
-    const header = stepHeaderSublineFor({
-      locale: 'en',
-      date: BOOKING_DATE,
-      fromTimeLabel: '09:30',
-      bayLabel: 'Social Bay',
-    });
-    const chip = slotChipValueFor({
-      locale: 'en',
-      date: BOOKING_DATE,
-      time: '09:30',
-      bayLabel: 'Social Bay',
-    });
-
-    for (const segment of header.split(', ')) {
-      expect(chip).toContain(segment.trim());
-    }
   });
 });
 

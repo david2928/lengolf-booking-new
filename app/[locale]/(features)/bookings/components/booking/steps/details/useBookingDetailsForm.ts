@@ -232,7 +232,6 @@ export function useBookingDetailsForm({
   // scroll + highlight. Mirrors the course-rental pattern.
   const [errorField, setErrorField] = useState<string | null>(null);
   const [showNoAvailabilityModal, setShowNoAvailabilityModal] = useState(false);
-  const [showBayInfoModal, setShowBayInfoModal] = useState(false);
   const loadingSteps = [
     t('loadingStepCheckingAvailability'),
     t('loadingStepCreatingBooking'),
@@ -1110,8 +1109,6 @@ export function useBookingDetailsForm({
     // Modals
     showNoAvailabilityModal,
     setShowNoAvailabilityModal,
-    showBayInfoModal,
-    setShowBayInfoModal,
     showPackageModal,
     setShowPackageModal,
     showClubRentalModal,

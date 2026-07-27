@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { ChangeAnswerButton } from './affordances';
 import { BAY_BOOKING_STEP_COUNT, stepBarStates } from './stepHeaderModel';
 
 export interface BookingStepHeaderProps {
@@ -50,6 +51,37 @@ export interface BookingStepHeaderProps {
    * been chosen; the row is then not rendered at all rather than reserved.
    */
   subline?: string;
+  /**
+   * Re-opens the step the SUBLINE's facts were decided on. Renders a "Change"
+   * pill at the end of the subline row; omit it and the subline is a plain line
+   * of text, as it is on steps 1 and 2.
+   *
+   * WHY THE SUBLINE CARRIES THIS AND NOT A ROW BELOW IT. The subline is already
+   * the flow's single home for "what earlier steps settled", on every screen
+   * that has one. A recap placed anywhere else necessarily repeats it — which is
+   * exactly what the slot chip did, and why a rule existed to silence the
+   * subline on the one screen the chip appeared. Putting the affordance ON the
+   * line that already states the facts means there is one home, so there is
+   * nothing to keep in sync and no duplication to suppress.
+   *
+   * WHEN TO PASS IT. When the header's own back arrow does NOT reach the step
+   * those facts belong to. That is step 3: from its second and third sub-steps
+   * `onBack` walks to the previous SUB-step, so the slot is otherwise a dead end
+   * needing two guesses to reach. On the first sub-step the two do coincide —
+   * accepted, because the back arrow's destination shifts as the customer moves
+   * through the sub-steps while this one never does, and a labelled control that
+   * always means the same thing is worth more than avoiding an overlap on one
+   * screen out of three.
+   */
+  onChangeSlot?: () => void;
+  /** Visible text on that pill, e.g. "Change". Required whenever `onChangeSlot` is passed. */
+  changeSlotLabel?: string;
+  /**
+   * Its accessible name, e.g. "Change time or bay" — longer than the face,
+   * because several "Change" controls can share a screen. Must CONTAIN
+   * `changeSlotLabel` (WCAG 2.5.3 Label in Name).
+   */
+  changeSlotAriaLabel?: string;
   /** Backward one level. Omitted on step 1, where there is nowhere to go. */
   onBack?: () => void;
   /** `aria-label` for the back control. Required whenever `onBack` is passed. */
@@ -106,6 +138,9 @@ export function BookingStepHeader({
   question,
   questionWide,
   subline,
+  onChangeSlot,
+  changeSlotLabel,
+  changeSlotAriaLabel,
   onBack,
   backLabel,
   totalSteps = BAY_BOOKING_STEP_COUNT,
@@ -219,7 +254,35 @@ export function BookingStepHeader({
         )}
       </h2>
 
-      {subline && <p className="mt-1 text-xs leading-5 text-gray-600 sm:text-sm">{subline}</p>}
+      {/* The subline and, where the flow supplies one, the way back to the step
+          it describes.
+
+          `flex-wrap` + `ml-auto` rather than `justify-between`, the same pattern
+          and the same reason as `DetailsSubStepSummary`: if the line ever
+          outgrows the row the pill drops below it instead of the FACTS being
+          truncated, and `ml-auto` resolves per flex line so it stays against the
+          right edge either way. It has ~48px more room than that component does
+          — the header sits outside the form's padding, not inside it — so the
+          longest shipped line plus the pill measures 326px against 328px usable
+          at 360px, and the wrap is the guarantee rather than the expectation.
+
+          Rendered as a sibling of the text, never inside the `<p>`: a control
+          nested in a paragraph gets swept along by its wrapping, and this one
+          has to stay a fixed-size target at the end of the row. */}
+      {subline && (
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <p className="min-w-0 text-xs leading-5 text-gray-600 sm:text-sm">{subline}</p>
+          {onChangeSlot && changeSlotLabel && (
+            <ChangeAnswerButton
+              onClick={onChangeSlot}
+              className="ml-auto"
+              ariaLabel={changeSlotAriaLabel}
+            >
+              {changeSlotLabel}
+            </ChangeAnswerButton>
+          )}
+        </div>
+      )}
     </header>
   );
 }

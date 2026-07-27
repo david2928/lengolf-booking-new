@@ -87,47 +87,27 @@ export const SUB_STEP_QUESTION_KEYS = {
 } as const satisfies Record<DetailSubStep, string>;
 
 /**
- * The step-3 sub-step that states the date, the start time and the bay itself,
- * on the slot chip at the top of its panel.
+ * THERE IS NO SUPPRESSION RULE, AND THAT IS THE DESIGN.
+ * ---------------------------------------------------------------------------
+ * `stepHeaderSublineSuppressed` and `SUB_STEP_WITH_SLOT_CHIP` used to live here.
+ * The session sub-step opened with a "slot chip" restating the date, the start
+ * time and the bay, so the subline had to fall silent on that one screen or the
+ * customer read the same booking twice.
  *
- * Named here rather than inlined at the one call site so the coupling is
- * findable from both ends: whoever moves the chip has to come here, and whoever
- * changes this can see what depends on it.
+ * That rule was a symptom. Two surfaces held the same three facts, so one of
+ * them had to be silenced by a condition, and the two then LOOKED different on
+ * adjacent screens: a bordered, tappable chip on "How long?", inert grey text on
+ * "Anything to add?". The owner asked why.
+ *
+ * The subline is now the only home for those facts on every screen, and it
+ * carries the affordance itself — see `onChangeSlot` in `BookingStepHeader`.
+ * One home cannot duplicate itself, so no rule is needed to stop it, and the
+ * three sub-steps present the slot identically because they are all showing the
+ * same element.
+ *
+ * If a future screen needs to restate the slot, do not add a second surface and
+ * a condition to hide one of them. Ask why the header cannot say it.
  */
-export const SUB_STEP_WITH_SLOT_CHIP: DetailSubStep = 'session';
-
-/**
- * Whether the header must stay silent about what the customer has chosen so far.
- *
- * THE RULE. The subline and the session sub-step's slot chip carry the SAME
- * three facts — the date, the start time and the bay — so exactly one of them
- * may be on screen at a time. The chip is the one that keeps its place, because
- * between two identical lines the ACTIONABLE one wins: the chip's "Change"
- * returns the customer to the step those facts were decided on, and the subline
- * is a line of text with nothing on it to press.
- *
- * WHY THE SUBLINE IS NOT SIMPLY DROPPED. It came from the owner's own mockup
- * and they liked it, and it is still the only thing carrying these facts on four
- * of the flow's five screens: step 2 (the date), and step 3's extras and contact
- * sub-steps, where the chip is not rendered and the collapsed Session summary
- * carries the duration and party size only. So it yields on exactly one screen —
- * the one where it was being said twice, which is the duplication the owner
- * flagged twice — and holds everywhere it is the only voice.
- *
- * The alternative was to shorten one of the two, which is worse than either:
- * splitting three facts across two rows at the top of the same screen is what
- * the previous arrangement already did (header: date, time, bay; recap cards:
- * date, time, bay) and is how a customer ends up reading the same booking twice
- * to work out whether the two rows agree.
- *
- * Takes the sub-step unconditionally rather than an optional one, so a caller on
- * step 1 or 2 cannot forget it and get a `false` that happens to be right: the
- * step check is what makes those steps safe, and it is checked here rather than
- * assumed.
- */
-export function stepHeaderSublineSuppressed(step: number, subStep: DetailSubStep): boolean {
-  return clampStep(step) === BAY_BOOKING_STEP_COUNT && subStep === SUB_STEP_WITH_SLOT_CHIP;
-}
 
 /**
  * What separates the subline's segments: "Wed 29 Jul, from 13:00, Social Bay".

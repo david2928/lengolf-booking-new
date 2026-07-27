@@ -1,6 +1,5 @@
 'use client';
 
-import { BayInfoModal } from '../../BayInfoModal';
 import { BookingSummaryBar, BOOKING_SUMMARY_BAR_SPACER } from '@/components/shared/BookingSummaryBar';
 import { NoAvailabilityModal } from './details/modals/NoAvailabilityModal';
 import { SubmitOverlay } from './details/modals/SubmitOverlay';
@@ -81,8 +80,6 @@ export function BookingDetails(props: BookingDetailsProps) {
     setErrorField,
     showNoAvailabilityModal,
     setShowNoAvailabilityModal,
-    showBayInfoModal,
-    setShowBayInfoModal,
     showPackageModal,
     setShowPackageModal,
     showClubRentalModal,
@@ -258,9 +255,6 @@ export function BookingDetails(props: BookingDetailsProps) {
               selectedDate={selectedDate}
               selectedTime={selectedTime}
               selectedBayType={selectedBayType}
-              bayLabel={bayLabel}
-              locale={locale}
-              setShowBayInfoModal={setShowBayInfoModal}
               onBack={onBack}
             />
           </div>
@@ -449,11 +443,12 @@ export function BookingDetails(props: BookingDetailsProps) {
         premiumPlusPricing={PREMIUM_PLUS_CLUB_PRICING}
       />
 
-      {/* Bay Information Modal */}
-      <BayInfoModal
-        isOpen={showBayInfoModal}
-        onClose={() => setShowBayInfoModal(false)}
-      />
+      {/* No BayInfoModal here. The bay-type explainer belongs where the bay is
+          CHOSEN — `DateSelection` and `TimeSlots` each open their own — and step
+          3 stopped recapping the bay when the slot chip was removed. A modal on
+          a step that no longer names the thing it explains is a modal with no
+          door. */
+      }
     </div>
   );
 }

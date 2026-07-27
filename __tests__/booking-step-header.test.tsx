@@ -30,13 +30,11 @@ import {
   STEP_LABEL_KEYS,
   STEP_QUESTION_KEYS,
   SUB_STEP_QUESTION_KEYS,
-  SUB_STEP_WITH_SLOT_CHIP,
   buildStepHeaderSubline,
   narrowStepFor,
   stepBarStates,
   stepHeaderSublineFor,
   stepHeaderSublineSeparator,
-  stepHeaderSublineSuppressed,
   stepLabelKey,
   stepQuestionKey,
 } from '@/app/[locale]/(features)/bookings/components/booking/stepHeaderModel';
@@ -525,70 +523,6 @@ describe('stepHeaderSublineFor', () => {
   });
 });
 
-/**
- * The subline and step 3's session sub-step both state the date, the start time
- * and the bay. That was the arrangement the owner objected to twice — the facts
- * said twice at the top of one screen — and it is settled in one direction: the
- * chip keeps them because its "Change" leads back to the step that decided them,
- * and the header yields on that screen only.
- *
- * The rule is a function rather than a condition inlined in `page.tsx` because
- * it is a PAIRING: it is only safe for the header to go quiet where something
- * else is speaking. Anyone moving the chip has to come here first.
- */
-describe('stepHeaderSublineSuppressed', () => {
-  test('is silent on the sub-step that carries the slot chip', () => {
-    expect(stepHeaderSublineSuppressed(3, SUB_STEP_WITH_SLOT_CHIP)).toBe(true);
-  });
-
-  test('speaks on every other step-3 sub-step, where the chip is not rendered', () => {
-    for (const subStep of DETAIL_SUB_STEPS) {
-      if (subStep === SUB_STEP_WITH_SLOT_CHIP) continue;
-      expect(stepHeaderSublineSuppressed(3, subStep)).toBe(false);
-    }
-    // ...and there really are others, so the loop above is not vacuous.
-    expect(DETAIL_SUB_STEPS.length).toBeGreaterThan(1);
-  });
-
-  /**
-   * The sub-step hook keeps its state across a trip back to step 2, so a stale
-   * `'session'` is the NORMAL reading on steps 1 and 2 rather than an edge case
-   * — which is exactly how a header could go silent on a step that has no chip
-   * to replace it. The step check is what rules that out.
-   */
-  test('never silences steps 1 and 2, whatever the sub-step still says', () => {
-    for (const step of [1, 2]) {
-      for (const subStep of DETAIL_SUB_STEPS) {
-        expect(stepHeaderSublineSuppressed(step, subStep)).toBe(false);
-      }
-    }
-  });
-
-  test('clamps an out-of-range step rather than reading it literally', () => {
-    expect(stepHeaderSublineSuppressed(0, SUB_STEP_WITH_SLOT_CHIP)).toBe(false);
-    expect(stepHeaderSublineSuppressed(99, SUB_STEP_WITH_SLOT_CHIP)).toBe(true);
-  });
-
-  /**
-   * The chip lives on a real sub-step. If `DETAIL_SUB_STEPS` is ever
-   * reordered or renamed, this fails here rather than as a subline that has
-   * quietly started printing on the screen it was meant to leave alone.
-   */
-  test('names a sub-step the flow actually navigates', () => {
-    expect(DETAIL_SUB_STEPS).toContain(SUB_STEP_WITH_SLOT_CHIP);
-  });
-
-  /**
-   * The header takes `subline` as optional and omits the row entirely when it
-   * is absent, which is what suppression relies on: there is no reserved empty
-   * row left behind for the chip to sit under.
-   */
-  test('an absent subline leaves no row behind', () => {
-    const { container } = renderHeader({ subline: undefined });
-    expect(container.querySelector('header')!.querySelectorAll('p')).toHaveLength(2);
-  });
-});
-
 describe('BookingStepHeader', () => {
   test('shows the step name, the position, the question and the booking so far', () => {
     renderHeader();
@@ -634,6 +568,79 @@ describe('BookingStepHeader', () => {
     const back = screen.getByRole('button', { name: 'Go back' });
     await user.click(back);
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * THE SLOT LIVES HERE NOW, AND SO DOES THE WAY BACK TO IT.
+   *
+   * Step 3 used to open with a "slot chip" restating the date, the start time
+   * and the bay, which forced the subline to be suppressed on that one screen so
+   * the customer did not read the same booking twice — and made the same facts
+   * a tappable chip on one sub-step and inert text on the next. The facts have
+   * one home again, and it is this line, so the affordance is on this line too.
+   *
+   * These assert the pair that replaced it. A regression in either direction is
+   * a real bug: without the pill the slot is unreachable from the extras and
+   * contact sub-steps except by guessing at a back arrow that walks sub-steps,
+   * and putting the facts anywhere else brings back the duplication.
+   */
+  test('offers no way to change the slot unless the flow supplies one', () => {
+    renderHeader();
+    expect(screen.queryByRole('button', { name: /change/i })).not.toBeInTheDocument();
+  });
+
+  test('renders the Change pill beside the subline and calls back on click', async () => {
+    const user = userEvent.setup();
+    const onChangeSlot = jest.fn();
+    renderHeader({
+      onChangeSlot,
+      changeSlotLabel: 'Change',
+      changeSlotAriaLabel: 'Change time or bay',
+    });
+
+    const change = screen.getByRole('button', { name: 'Change time or bay' });
+    await user.click(change);
+
+    expect(onChangeSlot).toHaveBeenCalledTimes(1);
+    // Distinct from the back arrow, which walks one level rather than reaching
+    // the step the subline describes.
+    expect(change).not.toBe(screen.getByRole('button', { name: 'Go back' }));
+  });
+
+  /**
+   * The face is short so the row fits a phone; the accessible name is long
+   * because several "Change" controls share the mobile sub-step layout. WCAG
+   * 2.5.3 requires the name to contain the visible label, or a voice-control
+   * user saying the word they can see cannot activate it.
+   */
+  test('prints a short label and exposes the longer name', () => {
+    renderHeader({
+      onChangeSlot: jest.fn(),
+      changeSlotLabel: 'Change',
+      changeSlotAriaLabel: 'Change time or bay',
+    });
+
+    const change = screen.getByRole('button', { name: 'Change time or bay' });
+    expect(change.textContent).toBe('Change');
+    expect(change.getAttribute('aria-label')).toContain('Change');
+  });
+
+  /**
+   * The facts and the control share one row, and the FACTS are what must
+   * survive a narrow screen — the row wraps rather than truncating the line the
+   * customer is there to read. Same rule, and the same reason, as
+   * `DetailsSubStepSummary`.
+   */
+  test('keeps the pill out of the paragraph, so the line cannot truncate it away', () => {
+    renderHeader({
+      onChangeSlot: jest.fn(),
+      changeSlotLabel: 'Change',
+      changeSlotAriaLabel: 'Change time or bay',
+    });
+
+    const change = screen.getByRole('button', { name: 'Change time or bay' });
+    expect(change.closest('p')).toBeNull();
+    expect(change.parentElement?.className).toMatch(/flex-wrap/);
   });
 
   test('has no back control on step 1, where there is nowhere to go back to', () => {
