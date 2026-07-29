@@ -172,36 +172,7 @@ export function BookingDetails(props: BookingDetailsProps) {
   const durationLabel = t('durationHoursShort', { hours: duration });
   const peopleLabel = t('peopleCountShort', { count: numberOfPeople });
 
-  /* The facts the mobile review panel shows above the confirm action. Built
-     here, from the SAME strings the collapsed sub-step summaries and the sticky
-     bar's subline already print, so the panel cannot describe the booking
-     differently from the rest of step 3.
-
-     Desktop ignores this: `SummaryRail` carries the same five facts in its own
-     column — but note "the same facts", not the same strings. Date, time, bay
-     and the party size render identically; DURATION deliberately does not. The
-     rail prints `summaryRailHours` ("2 hr") and the panel prints
-     `durationHoursShort` ("2 hrs", ICU plural), because the panel's neighbour
-     is not the rail. The rail and the panel are mutually exclusive by viewport
-     and never share a screen; the panel and the sticky bar DO, about 100px
-     apart, and the bar prints `durationHoursShort`. Matching the rail here
-     would buy agreement with a component the customer cannot see at the cost of
-     disagreement with one they can.
-
-     `numberOfPeople` goes in as a bare number, matching the rail: `peopleLabel`
-     carries its own unit for the collapsed summary, where there is no label to
-     supply one, and under the panel's "People" label it read "People / 3
-     people". */
-  const reviewFacts = {
-    selectedDate,
-    selectedTime,
-    durationLabel,
-    numberOfPeople,
-    bayLabel,
-    formatDate,
-  };
-
-  return (
+    return (
     /* `lg:pb-0` drops the bar's spacer above `lg:`, where no bar mounts. */
     <div className={`space-y-4 sm:space-y-6 ${BOOKING_SUMMARY_BAR_SPACER} lg:pb-0`}>
       {/* No sub-step progress row here. It printed "DETAILS · 1 OF 3" beside
@@ -329,7 +300,6 @@ export function BookingDetails(props: BookingDetailsProps) {
               costBreakdown={costBreakdown}
               costDataLoading={costDataLoading}
               costLanguage={costLanguage}
-              review={reviewFacts}
               isSubmitting={isSubmitting}
               marketingOptIn={marketingOptIn}
               marketingPreference={marketingPreference}
