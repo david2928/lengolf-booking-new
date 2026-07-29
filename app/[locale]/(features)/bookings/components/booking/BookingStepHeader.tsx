@@ -283,16 +283,23 @@ export function BookingStepHeader({
           Rendered as a sibling of the text, never inside the `<p>`: a control
           nested in a paragraph gets swept along by its wrapping, and this one
           has to stay a fixed-size target. */}
-      {/* `pr-3 lg:pr-0` and the Session-row text classes, both deliberate: below
-          `lg:` this row sits an inch above the collapsed sub-step summaries,
-          which live INSIDE the form card's `p-3`. Without the matching right
-          inset the two Change pills sat 12px apart at the right edge — the
-          card is white-on-white, so that read as misalignment, not structure —
-          and the subline was a size down (12px grey-600) from the summary
-          values (14px grey-700), which between adjacent peer rows read as an
-          accident. Same text, same edge, same separator: one recap language. */}
+      {/* NO right inset, and the Session-row text classes. Both are about the
+          collapsed sub-step summaries this row sits directly above below `lg:`.
+
+          It briefly carried `pr-3 lg:pr-0`, because those summaries rendered
+          inside the form card's `p-3` and their pills therefore sat 12px short
+          of this one. That patched the symptom from the wrong side: the rows
+          are now hoisted OUT of the card (see `BookingDetails`), so all of them
+          share the page padding and the inset became the thing knocking the
+          pills 12px apart — in the other direction.
+
+          The text classes stay deliberate. The subline used to be a size down
+          (12px grey-600) from the summary values (14px grey-700), which reads
+          as hierarchy between a caption and a heading and as an accident
+          between two adjacent peer rows. Same text, same edges, same
+          separator: one recap language. */}
       {subline && (
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 pr-3 lg:pr-0">
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <p className="min-w-0 text-sm text-gray-700">{subline}</p>
           {onChangeSlot && changeSlotLabel && (
             <ChangeAnswerButton
