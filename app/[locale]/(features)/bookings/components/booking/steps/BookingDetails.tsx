@@ -190,25 +190,61 @@ export function BookingDetails(props: BookingDetailsProps) {
           `subStepLabels` stays: those collapsed summaries still name their
           sub-step. */}
 
+      {/* The settled sub-steps, OUTSIDE the form card.
+
+          These used to render inside it, and being one container deeper is the
+          whole reason they never lined up with the step header's subline
+          directly above them. Measured at 412px: the header sits at the page's
+          16px padding, the card adds its own 12px, so the subline started at
+          x=16 and these rows at x=28 — and the card's top padding made the gap
+          between the subline and the first row 32px against the 16px between
+          the rows themselves. Two containers cannot share an edge.
+
+          Hoisted here they are siblings of the card rather than children, so
+          they inherit the page padding the header already uses: one left edge,
+          one right edge, one rhythm, from the heading down to the last recap.
+
+          The consequence is deliberate: these rows now sit on the page ground
+          rather than on the white card. That is the honest grouping — what is
+          SETTLED reads with the header, and the card holds only what the
+          customer is still filling in.
+
+          Order is preserved without ordering logic: `isCollapsed` is true only
+          for sub-steps BEHIND the current one, so the collapsed rows are always
+          the ones that would have rendered above the active panel anyway.
+
+          Still `lg:hidden`. Above `lg:` nothing collapses — every panel renders
+          at once and `SummaryRail` carries the recap. */}
+      {(isCollapsed('session') || isCollapsed('extras')) && (
+        <div className="space-y-4 lg:hidden">
+          {isCollapsed('session') && (
+            <DetailsSubStepSummary
+              label={subStepLabels.session}
+              /* Duration and party size only. The BAY is deliberately absent:
+                 the step header's subline directly above already names it, and
+                 it is chosen on the time step, not here — see
+                 `buildSessionSummaryValue` for the full rule and for why this
+                 row is the wrong place to state a value its own "Change"
+                 cannot reach. */
+              value={buildSessionSummaryValue({ durationLabel, peopleLabel })}
+              changeLabel={t('changeAction')}
+              onChange={() => goToSubStep('session')}
+            />
+          )}
+          {isCollapsed('extras') && (
+            <DetailsSubStepSummary
+              label={subStepLabels.extras}
+              value={addOnCount > 0 ? `${clubRentalLabel} · +${addOnCount}` : clubRentalLabel}
+              changeLabel={t('changeAction')}
+              onChange={() => goToSubStep('extras')}
+            />
+          )}
+        </div>
+      )}
+
       {/* One column below `lg:`, form + sticky summary rail above it. */}
       <div className="grid gap-6 items-start lg:grid-cols-[1fr_296px]">
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 bg-white rounded-xl shadow-sm p-3 sm:p-6">
-          {isCollapsed('session') && (
-            <div className="lg:hidden">
-              <DetailsSubStepSummary
-                label={subStepLabels.session}
-                /* Duration and party size only. The BAY is deliberately absent:
-                   the step header's subline three rows above already names it,
-                   and it is chosen on the time step, not here — see
-                   `buildSessionSummaryValue` for the full rule and for why this
-                   row is the wrong place to state a value its own "Change"
-                   cannot reach. */
-                value={buildSessionSummaryValue({ durationLabel, peopleLabel })}
-                changeLabel={t('changeAction')}
-                onChange={() => goToSubStep('session')}
-              />
-            </div>
-          )}
           <div className={panelClass('session')}>
             <SessionStep
               maxDuration={maxBookableHours}
@@ -230,16 +266,6 @@ export function BookingDetails(props: BookingDetailsProps) {
             />
           </div>
   
-          {isCollapsed('extras') && (
-            <div className="lg:hidden">
-              <DetailsSubStepSummary
-                label={subStepLabels.extras}
-                value={addOnCount > 0 ? `${clubRentalLabel} · +${addOnCount}` : clubRentalLabel}
-                changeLabel={t('changeAction')}
-                onChange={() => goToSubStep('extras')}
-              />
-            </div>
-          )}
           <div className={panelClass('extras')}>
             {/* Remaining package hours, plus the partial-coverage warning when
                 the balance will not stretch across the booking. Rendered as a
