@@ -215,8 +215,15 @@ export function BookingDetails(props: BookingDetailsProps) {
 
           Still `lg:hidden`. Above `lg:` nothing collapses — every panel renders
           at once and `SummaryRail` carries the recap. */}
+      {/* `space-y-5 sm:space-y-6` is not the flow's usual `space-y-4`: it is the
+          step header's own bottom margin (`mb-5 sm:mb-6` in `BookingStepHeader`),
+          so the gap from the subline to the first recap row and the gap between
+          the recap rows are the SAME number at both breakpoints. With
+          `space-y-4` the lead-in measured 20px against 16px between the rows —
+          a 4px stagger, invisible in isolation and obvious once the rows share
+          an edge, which is the entire point of hoisting them here. */}
       {(isCollapsed('session') || isCollapsed('extras')) && (
-        <div className="space-y-4 lg:hidden">
+        <div className="space-y-5 sm:space-y-6 lg:hidden">
           {isCollapsed('session') && (
             <DetailsSubStepSummary
               label={subStepLabels.session}
