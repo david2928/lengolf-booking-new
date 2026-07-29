@@ -115,8 +115,7 @@
       "stepPosition": "第 {current} 步，共 {total} 步",
       "stepDateQuestion": "您想哪天来打球？",
       "stepTimeQuestion": "几点开始？",
-      "stepDetailsQuestion": "您想怎么打？",
-      "sublineFromTime": "{time} 开始"
+      "stepDetailsQuestion": "您想怎么打？"
     },
     "dateStep": {
       "todayCardTitle": "今天",

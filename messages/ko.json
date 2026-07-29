@@ -115,8 +115,7 @@
       "stepPosition": "{total}단계 중 {current}단계",
       "stepDateQuestion": "언제 플레이하시겠어요?",
       "stepTimeQuestion": "몇 시에 시작할까요?",
-      "stepDetailsQuestion": "어떻게 플레이하시겠어요?",
-      "sublineFromTime": "{time} 시작"
+      "stepDetailsQuestion": "어떻게 플레이하시겠어요?"
     },
     "dateStep": {
       "todayCardTitle": "오늘",

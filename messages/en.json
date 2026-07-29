@@ -115,8 +115,7 @@
       "stepPosition": "Step {current} of {total}",
       "stepDateQuestion": "When would you like to play?",
       "stepTimeQuestion": "What time?",
-      "stepDetailsQuestion": "How would you like to play?",
-      "sublineFromTime": "from {time}"
+      "stepDetailsQuestion": "How would you like to play?"
     },
     "dateStep": {
       "todayCardTitle": "Today",

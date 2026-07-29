@@ -115,8 +115,7 @@
       "stepPosition": "ステップ {current}/{total}",
       "stepDateQuestion": "いつプレーしますか？",
       "stepTimeQuestion": "何時から？",
-      "stepDetailsQuestion": "どのようにプレーしますか？",
-      "sublineFromTime": "{time} から"
+      "stepDetailsQuestion": "どのようにプレーしますか？"
     },
     "dateStep": {
       "todayCardTitle": "今日",

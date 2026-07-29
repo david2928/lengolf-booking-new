@@ -115,8 +115,7 @@
       "stepPosition": "ขั้นตอนที่ {current} จาก {total}",
       "stepDateQuestion": "ต้องการเล่นวันไหน?",
       "stepTimeQuestion": "เริ่มกี่โมง?",
-      "stepDetailsQuestion": "ต้องการเล่นแบบไหน?",
-      "sublineFromTime": "เริ่ม {time} น."
+      "stepDetailsQuestion": "ต้องการเล่นแบบไหน?"
     },
     "dateStep": {
       "todayCardTitle": "วันนี้",

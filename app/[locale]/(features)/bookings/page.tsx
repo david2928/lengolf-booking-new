@@ -188,10 +188,7 @@ export default function BookingsPage() {
         subline={stepHeaderSublineFor({
           locale,
           date: currentStep >= 2 ? selectedDate : null,
-          fromTimeLabel:
-            currentStep === 3 && selectedTime
-              ? tPage('sublineFromTime', { time: selectedTime })
-              : null,
+          time: currentStep === 3 ? selectedTime : null,
           bayLabel: bayChoiceLabel,
         })}
         onChangeSlot={currentStep === BAY_BOOKING_STEP_COUNT ? handleBack : undefined}

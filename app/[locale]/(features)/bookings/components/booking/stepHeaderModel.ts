@@ -1,4 +1,3 @@
-import { isValidLocale, type Locale } from '@/i18n/routing';
 import { formatShortDate } from './steps/details/summarySubline';
 import { DETAIL_SUB_STEPS, type DetailSubStep } from './steps/details/useDetailsSubStep';
 
@@ -110,41 +109,25 @@ export const SUB_STEP_QUESTION_KEYS = {
  */
 
 /**
- * What separates the subline's segments: "Wed 29 Jul, from 13:00, Social Bay".
+ * What separates the subline's segments: "Wed 29 Jul · 13:00 · Social Bay".
  *
- * A comma rather than the sticky bar's middle dot. The bar's line is a row of
- * peer facts read at a glance; this one is a sentence fragment describing a
- * single booking, and the two sit about a screen apart, so telling them apart
- * is worth more than matching them.
+ * The middle dot, matching every other recap line in the flow — the sticky
+ * bar's subline and the collapsed sub-step summaries all join with the same
+ * literal " · ", for every locale.
  *
- * Per locale, because a comma is not one character. Japanese sets it as the
- * ideographic `、` and Chinese as the fullwidth `，`; an ASCII comma in a CJK
- * line reads as a Latin intrusion, the same class of detail as the per-locale
- * font stacks in `globals.css`. Korean and Thai both take the Latin comma.
+ * It used to be a locale-aware comma plus a translated "from {time}", on the
+ * argument that this line was a sentence fragment under a heading while those
+ * were rows of peer facts. That argument died when the line stopped being a
+ * caption: it now ends in a Change pill and sits directly above the collapsed
+ * summaries, and the owner read the two punctuation schemes an inch apart as
+ * exactly what they were — two designs for one job. The comma map (with its
+ * ideographic `、`/`，` variants) and the `sublineFromTime` message key are
+ * gone with it; the dot needs neither, and the sticky bar had already shipped
+ * it across all five locales without complaint.
  *
- * A code map and not a message key: the value is a punctuation mark whose
- * significant part is a trailing space that is invisible in a JSON diff, so it
- * is exactly the kind of string a translation pass silently eats.
- *
- * The composed line is still not safely splittable on this separator, and
- * nothing may parse it. `en` used to render its short date as "Wed, Jul 29",
- * putting a comma inside the date segment; `formatShortDate` now composes that
- * one as `en-GB` ("Wed 29 Jul"), so no shipped locale does today. That is a
- * property of the current date format, not a guarantee about future segments.
- * The line is read, never re-read by code. Do not add a caller that splits it.
+ * The line is read, never re-read by code — nothing may split or parse it.
  */
-export const STEP_HEADER_SUBLINE_SEPARATORS: Record<Locale, string> = {
-  en: ', ',
-  th: ', ',
-  ko: ', ',
-  ja: '、',
-  zh: '，',
-};
-
-/** The separator for a locale, falling back to the Latin comma. */
-export function stepHeaderSublineSeparator(locale: string): string {
-  return isValidLocale(locale) ? STEP_HEADER_SUBLINE_SEPARATORS[locale] : ', ';
-}
+export const STEP_HEADER_SUBLINE_SEPARATOR = ' · ';
 
 /**
  * Which of the three progress bars are filled at a given step.
@@ -217,12 +200,11 @@ export function stepQuestionKey(step: number): (typeof STEP_QUESTION_KEYS)[numbe
  */
 export function buildStepHeaderSubline(
   segments: ReadonlyArray<string | null | undefined>,
-  separator: string = STEP_HEADER_SUBLINE_SEPARATORS.en,
 ): string {
   return segments
     .filter((segment): segment is string => typeof segment === 'string' && segment.trim().length > 0)
     .map((segment) => segment.trim())
-    .join(separator);
+    .join(STEP_HEADER_SUBLINE_SEPARATOR);
 }
 
 /**
@@ -240,27 +222,26 @@ export function buildStepHeaderSubline(
  * two different shapes.
  */
 export function stepHeaderSublineFor(parts: {
-  /**
-   * The active locale, which picks both the separator and the short-date tag.
-   * `useLocale()` at the call site.
-   */
+  /** The active locale, which picks the short-date tag. `useLocale()` at the call site. */
   locale: string;
   /** The booking's date, unformatted — this function owns the formatting. */
   date: Date | null;
-  /** Already-localised start time, e.g. "from 13:00". Null before step 3. */
-  fromTimeLabel?: string | null;
+  /**
+   * Start time in venue-local 24h, e.g. "13:00". Null before step 3. Bare, not
+   * a translated "from {time}": every other recap line in the flow prints the
+   * time bare between dots, and the deleted slot chip already shipped that
+   * shape without confusion.
+   */
+  time?: string | null;
   /**
    * Already-localised bay name, e.g. "Social Bay". Null whenever the bay is not
    * yet a settled choice — see the call site in `page.tsx`.
    */
   bayLabel?: string | null;
 }): string {
-  return buildStepHeaderSubline(
-    [
-      parts.date ? formatShortDate(parts.locale, parts.date) : null,
-      parts.fromTimeLabel,
-      parts.bayLabel,
-    ],
-    stepHeaderSublineSeparator(parts.locale),
-  );
+  return buildStepHeaderSubline([
+    parts.date ? formatShortDate(parts.locale, parts.date) : null,
+    parts.time,
+    parts.bayLabel,
+  ]);
 }

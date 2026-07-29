@@ -26,7 +26,7 @@ import { BookingStepHeader } from '@/app/[locale]/(features)/bookings/components
 import {
   BAY_BOOKING_SCREEN_COUNT,
   BAY_BOOKING_STEP_COUNT,
-  STEP_HEADER_SUBLINE_SEPARATORS,
+  STEP_HEADER_SUBLINE_SEPARATOR,
   STEP_LABEL_KEYS,
   STEP_QUESTION_KEYS,
   SUB_STEP_QUESTION_KEYS,
@@ -34,7 +34,6 @@ import {
   narrowStepFor,
   stepBarStates,
   stepHeaderSublineFor,
-  stepHeaderSublineSeparator,
   stepLabelKey,
   stepQuestionKey,
 } from '@/app/[locale]/(features)/bookings/components/booking/stepHeaderModel';
@@ -81,7 +80,7 @@ function renderHeader(
         label="Details"
         position="Step 3 of 3"
         question="How long?"
-        subline="Wed 29 Jul, from 13:00, Social Bay"
+        subline="Wed 29 Jul · 13:00 · Social Bay"
         onBack={onBack}
         backLabel="Go back"
         {...props}
@@ -244,7 +243,7 @@ describe('SUB_STEP_QUESTION_KEYS', () => {
  * would ship a header reading "stepDateQuestion" and nothing would have failed.
  */
 describe('the header strings exist in all five locales', () => {
-  const pageKeys = [...STEP_LABEL_KEYS, ...STEP_QUESTION_KEYS, 'stepPosition', 'sublineFromTime'];
+  const pageKeys = [...STEP_LABEL_KEYS, ...STEP_QUESTION_KEYS, 'stepPosition'];
   const detailKeys = Object.values(SUB_STEP_QUESTION_KEYS);
 
   test.each(LOCALES)('%s', (locale) => {
@@ -265,11 +264,6 @@ describe('the header strings exist in all five locales', () => {
     const position = (CATALOGS[locale].bookings.page as Record<string, string>).stepPosition;
     expect(position).toContain('{current}');
     expect(position).toContain('{total}');
-  });
-
-  test.each(LOCALES)('%s keeps the time placeholder in the subline fragment', (locale) => {
-    const fragment = (CATALOGS[locale].bookings.page as Record<string, string>).sublineFromTime;
-    expect(fragment).toContain('{time}');
   });
 
   /**
@@ -363,15 +357,22 @@ describe('bayChoiceLabelKey', () => {
 
 describe('buildStepHeaderSubline', () => {
   test('joins the segments in the order the customer chose them', () => {
-    expect(buildStepHeaderSubline(['Wed 29 Jul', 'from 13:00', 'Social Bay'])).toBe(
-      'Wed 29 Jul, from 13:00, Social Bay',
+    expect(buildStepHeaderSubline(['Wed 29 Jul', '13:00', 'Social Bay'])).toBe(
+      'Wed 29 Jul · 13:00 · Social Bay',
     );
   });
 
-  test('joins with whatever separator the locale takes', () => {
-    expect(buildStepHeaderSubline(['7月29日(水)', '13:00 から'], '、')).toBe(
-      '7月29日(水)、13:00 から',
-    );
+  /**
+   * The middle dot, for every locale — the same literal the sticky bar and the
+   * collapsed sub-step summaries join with. This line sits stacked with those
+   * rows as a peer, and two punctuation schemes an inch apart was the owner's
+   * "2 different designs" complaint. The locale-aware comma map this replaced
+   * is gone; do not bring per-locale separators back without bringing them to
+   * ALL the recap rows at once.
+   */
+  test('joins with the recap dot, not a locale comma', () => {
+    expect(STEP_HEADER_SUBLINE_SEPARATOR).toBe(' · ');
+    expect(buildStepHeaderSubline(['7月29日(水)', '13:00'])).toBe('7月29日(水) · 13:00');
   });
 
   // The subline accumulates: step 1 has nothing, step 2 has the date, step 3
@@ -379,17 +380,15 @@ describe('buildStepHeaderSubline', () => {
   test('grows a segment at a time as the flow settles them', () => {
     expect(buildStepHeaderSubline([null, null, null])).toBe('');
     expect(buildStepHeaderSubline(['Wed 29 Jul', null, null])).toBe('Wed 29 Jul');
-    expect(buildStepHeaderSubline(['Wed 29 Jul', 'from 13:00', null])).toBe(
-      'Wed 29 Jul, from 13:00',
-    );
+    expect(buildStepHeaderSubline(['Wed 29 Jul', '13:00', null])).toBe('Wed 29 Jul · 13:00');
   });
 
   test('drops an unknown middle segment rather than emitting a dangling separator', () => {
     expect(buildStepHeaderSubline(['Wed 29 Jul', undefined, 'Social Bay'])).toBe(
-      'Wed 29 Jul, Social Bay',
+      'Wed 29 Jul · Social Bay',
     );
     expect(buildStepHeaderSubline(['Wed 29 Jul', '   ', 'Social Bay'])).toBe(
-      'Wed 29 Jul, Social Bay',
+      'Wed 29 Jul · Social Bay',
     );
   });
 });
@@ -404,10 +403,10 @@ describe('stepHeaderSublineFor', () => {
     const actual = stepHeaderSublineFor({
       locale: 'en',
       date: BOOKING_DATE,
-      fromTimeLabel: 'from 13:00',
+      time: '13:00',
       bayLabel: 'Social Bay',
     });
-    expect(actual).toBe(`${formatShortDate('en', BOOKING_DATE)}, from 13:00, Social Bay`);
+    expect(actual).toBe(`${formatShortDate('en', BOOKING_DATE)} · 13:00 · Social Bay`);
   });
 
   /**
@@ -421,17 +420,17 @@ describe('stepHeaderSublineFor', () => {
       stepHeaderSublineFor({
         locale: 'en',
         date: BOOKING_DATE,
-        fromTimeLabel: 'from 13:00',
+        time: '13:00',
         bayLabel: 'Social Bay',
       }),
-    ).toBe('Wed 29 Jul, from 13:00, Social Bay');
+    ).toBe('Wed 29 Jul · 13:00 · Social Bay');
   });
 
   test('leads with the DATE, not the start time', () => {
     const subline = stepHeaderSublineFor({
       locale: 'en',
       date: BOOKING_DATE,
-      fromTimeLabel: 'from 13:00',
+      time: '13:00',
       bayLabel: 'Social Bay',
     });
 
@@ -458,11 +457,11 @@ describe('stepHeaderSublineFor', () => {
       const subline = stepHeaderSublineFor({
         locale: 'en',
         date: BOOKING_DATE,
-        fromTimeLabel: 'from 13:00',
+        time: '13:00',
         bayLabel,
       });
-      expect(subline).toBe(`Wed 29 Jul, from 13:00, ${bayLabel}`);
-      expect(subline.endsWith(', ')).toBe(false);
+      expect(subline).toBe(`Wed 29 Jul · 13:00 · ${bayLabel}`);
+      expect(subline.endsWith(STEP_HEADER_SUBLINE_SEPARATOR)).toBe(false);
     }
   });
 
@@ -470,56 +469,33 @@ describe('stepHeaderSublineFor', () => {
     const th = stepHeaderSublineFor({
       locale: 'th',
       date: BOOKING_DATE,
-      fromTimeLabel: 'เริ่ม 13:00 น.',
+      time: '13:00',
       bayLabel: 'Social Bay',
     });
     expect(th).not.toContain('Jul');
     expect(th).not.toContain('Wed');
     // The two segments the caller passes through untouched still arrive.
-    expect(th).toContain('เริ่ม 13:00 น.');
+    expect(th).toContain('13:00');
     expect(th.endsWith('Social Bay')).toBe(true);
   });
 
   /**
-   * A comma is not one character. An ASCII comma inside a Japanese or Chinese
-   * line reads as a Latin intrusion, the same class of detail as the per-locale
-   * CJK font stacks in `globals.css`.
+   * One separator for every locale — the dot the sticky bar already ships in
+   * all five. The line must never pick up a locale comma again without every
+   * other recap row moving with it.
    */
-  test('sets the separator the way each locale sets it', () => {
-    const ja = stepHeaderSublineFor({
-      locale: 'ja',
-      date: BOOKING_DATE,
-      fromTimeLabel: '13:00 から',
-    });
-    expect(ja).toContain('、');
-    expect(ja).not.toContain(', ');
-
-    const zh = stepHeaderSublineFor({
-      locale: 'zh',
-      date: BOOKING_DATE,
-      fromTimeLabel: '13:00 开始',
-    });
-    expect(zh).toContain('，');
-    expect(zh).not.toContain(', ');
-  });
-
-  test('falls back to the Latin comma for a locale it does not know', () => {
-    expect(stepHeaderSublineSeparator('en')).toBe(', ');
-    expect(stepHeaderSublineSeparator('ja')).toBe('、');
-    expect(stepHeaderSublineSeparator('de')).toBe(', ');
-    expect(stepHeaderSublineSeparator('')).toBe(', ');
-  });
-
-  /**
-   * Every locale the site ships needs a separator. A `Record<Locale, string>`
-   * makes that a typecheck error rather than a runtime fallback, but only while
-   * someone keeps using the type. This notices if the map is ever widened.
-   */
-  test('has a separator for every locale the site ships', () => {
+  test('joins with the same dot in every locale', () => {
     for (const locale of LOCALES) {
-      expect(STEP_HEADER_SUBLINE_SEPARATORS[locale].length).toBeGreaterThan(0);
+      const line = stepHeaderSublineFor({
+        locale,
+        date: BOOKING_DATE,
+        time: '13:00',
+        bayLabel: 'Social Bay',
+      });
+      expect(line).toContain(' · 13:00 · ');
+      expect(line).not.toContain('、');
+      expect(line).not.toContain('，');
     }
-    expect(Object.keys(STEP_HEADER_SUBLINE_SEPARATORS).sort()).toEqual([...LOCALES].sort());
   });
 });
 
@@ -530,7 +506,7 @@ describe('BookingStepHeader', () => {
     expect(screen.getByText('Details')).toBeInTheDocument();
     expect(screen.getByText('Step 3 of 3')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'How long?' })).toBeInTheDocument();
-    expect(screen.getByText('Wed 29 Jul, from 13:00, Social Bay')).toBeInTheDocument();
+    expect(screen.getByText('Wed 29 Jul · 13:00 · Social Bay')).toBeInTheDocument();
   });
 
   test('draws one bar per step, filled to the current one', () => {

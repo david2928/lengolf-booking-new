@@ -344,7 +344,7 @@ describe('buildSessionSummaryValue', () => {
     const header = stepHeaderSublineFor({
       locale: 'en',
       date: new Date(2026, 6, 26, 20, 30),
-      fromTimeLabel: 'from 20:30',
+      time: '20:30',
       bayLabel: 'Any Bay',
     });
     const row = buildSessionSummaryValue({
@@ -352,10 +352,10 @@ describe('buildSessionSummaryValue', () => {
       peopleLabel: '1 person',
     });
 
-    expect(header).toBe('Sun 26 Jul, from 20:30, Any Bay');
+    expect(header).toBe('Sun 26 Jul · 20:30 · Any Bay');
     expect(row).toBe('1 hr · 1 person');
 
-    const headerSegments = header.split(', ').map((s) => s.trim());
+    const headerSegments = header.split(' · ').map((s) => s.trim());
     const rowSegments = row.split(' · ').map((s) => s.trim());
     expect(headerSegments.filter((s) => rowSegments.includes(s))).toEqual([]);
 
