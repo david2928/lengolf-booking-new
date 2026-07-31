@@ -18,8 +18,9 @@
  *   - The bay arrives already chosen and is only REPORTED here, never asked
  *     again — including the "All Bays" case, which names itself rather than
  *     silently reading as Social.
- *   - The date, start time and bay are one compact chip with a way back to the
- *     step that owns them, not three read-only cards that restate the header.
+ *   - The bay is neither asked for NOR restated here. The step header's subline
+ *     is the one place the flow states the slot, and it carries the way back to
+ *     the step that owns it; this component must stay silent about it.
  */
 import { useState } from 'react';
 import { render, screen, within } from '@testing-library/react';
@@ -56,8 +57,6 @@ interface HarnessOverrides {
   hasActivePackage?: boolean;
   /** The flow's `handleBack`: out of step 3, to the step that owns the slot. */
   onBack?: () => void;
-  /** Opens the bay-type explainer modal. */
-  onShowBayInfo?: (value: boolean) => void;
   /** The sets on offer. Overridden only to simulate a future set list, e.g.
       one whose drinks allowance differs from the three we ship today. */
   packages?: PlayFoodPackage[];
@@ -88,7 +87,6 @@ function Harness({
   bayType = 'social',
   hasActivePackage = false,
   onBack = () => {},
-  onShowBayInfo = () => {},
   packages = PACKAGES,
 }: HarnessOverrides) {
   const [duration, setDuration] = useState(initialDuration);
@@ -122,9 +120,6 @@ function Harness({
         selectedDate={WEEKDAY}
         selectedTime={selectedTime}
         selectedBayType={bayType}
-        bayLabel={BAY_LABEL[bayType ?? 'any']}
-        locale="en"
-        setShowBayInfoModal={onShowBayInfo}
         onBack={onBack}
       />
     </NextIntlClientProvider>
@@ -143,67 +138,56 @@ const setCard = (name: string) => screen.getByRole('button', { name: new RegExp(
 const setCardPresent = (name: string) =>
   screen.queryByRole('button', { name: new RegExp(name) }) !== null;
 
-const slotChip = () => screen.getByTestId('booking-slot-chip');
-
-/** The chip's line for a given bay answer, as the flow composes it. */
-const chipLine = (bayType: BayType | null, time = '19:00') =>
-  `${formatShortDate('en', WEEKDAY)} · ${time} · ${BAY_LABEL[bayType ?? 'any']}`;
-
 /**
- * The bay is chosen once, on step 2. This step used to ask a second time — a
- * required `Bay Type *` toggle plus an availability line under the duration
- * ladder feeding it — which is what made the customer answer twice.
+ * The bay is chosen once, on step 2, and this step neither asks for it again nor
+ * repeats it.
+ *
+ * It used to do both, in turn. First a required `Bay Type *` toggle plus an
+ * availability line under the duration ladder, which made the customer answer
+ * twice. Then, after those went, a "slot chip" that RECAPPED the bay along with
+ * the date and the start time — which read as a second answer to a question this
+ * screen was no longer asking, and duplicated the step header two rows above it.
+ *
+ * Both are gone. The header's subline is the single place the flow states the
+ * slot, on every screen, and it carries the "Change" that returns to step 2 —
+ * see `BookingStepHeader`, where that pairing is tested. What is asserted here
+ * is the negative: this component says nothing about the bay at all, so it
+ * cannot drift back into disagreeing with the line above it.
  */
-describe('the bay is reported, not asked again', () => {
+describe('the bay is neither asked for nor restated here', () => {
   test.each([
     ['social' as const, BAY_LABEL.social],
     ['ai_lab' as const, BAY_LABEL.ai_lab],
     [null, BAY_LABEL.any],
-  ])('a %s choice is stated as "%s"', (bayType, label) => {
+  ])('a %s choice is not printed on this step (the header owns it)', (bayType, label) => {
     render(<Harness bayType={bayType} />);
-    expect(within(slotChip()).getByText(new RegExp(label))).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(label))).not.toBeInTheDocument();
   });
 
   test('no Social / AI Lab toggle is offered, for any of the three choices', () => {
     for (const bayType of ['social', 'ai_lab', null] as const) {
       const { unmount } = render(<Harness bayType={bayType} />);
-      // The chip's only controls are the info link and the way back to step 2.
-      // Neither of them sets a bay; both are covered in their own block below.
-      const buttons = within(slotChip()).getAllByRole('button');
-      expect(buttons.map((b) => b.textContent)).toEqual([
-        messages.bookings.detailsStep.info,
-        messages.bookings.detailsStep.changeSlotAction,
-      ]);
+      // Nothing on this step sets, names or explains a bay. The AI Lab warning
+      // is the one exception and fires on party size, not on the bay control it
+      // no longer has — it has its own block below.
+      for (const label of Object.values(BAY_LABEL)) {
+        expect(screen.queryByRole('button', { name: new RegExp(label) })).not.toBeInTheDocument();
+      }
       unmount();
     }
   });
 
-  test('the bay is not marked required — "All Bays" is a complete answer', () => {
-    render(<Harness bayType={null} />);
-    expect(within(slotChip()).queryByText('*')).not.toBeInTheDocument();
-  });
-
   /**
-   * The three answers used to be told apart by a coloured icon on a card, which
-   * had to be pinned because the card branched two ways over a three-way answer
-   * and "All Bays" came out pixel-identical to "Social Bay". The chip carries no
-   * icon and no accent, so the only thing that can distinguish them is the word
-   * — which is fine for a line of text, and is exactly why it has to be a
-   * DIFFERENT word each time. This is the same requirement as the old test's,
-   * checked against what now carries it.
+   * The bay explainer moved out with the chip. It is not orphaned — the date
+   * step and the time step each open their own `BayInfoModal`, which is where
+   * the bay is actually chosen. A stray "Info" here would be a door to a modal
+   * this component no longer renders.
    */
-  test('the three choices produce three different lines', () => {
-    const lines = (['social', 'ai_lab', null] as const).map((bayType) => {
-      const { unmount } = render(<Harness bayType={bayType} />);
-      const line = within(slotChip()).getByText(new RegExp(BAY_LABEL[bayType ?? 'any'])).textContent;
-      unmount();
-      return line;
-    });
-
-    expect(new Set(lines).size).toBe(3);
-    // Specifically: no preference must not read as, or silently become, Social.
-    expect(lines[2]).not.toBe(lines[0]);
-    expect(lines[2]).toContain(BAY_LABEL.any);
+  test('offers no bay-type explainer, which now lives where the bay is chosen', () => {
+    render(<Harness />);
+    expect(
+      screen.queryByRole('button', { name: messages.bookings.detailsStep.info }),
+    ).not.toBeInTheDocument();
   });
 
   test('no bay-availability line sits under the duration ladder', () => {
@@ -225,151 +209,6 @@ describe('the bay is reported, not asked again', () => {
     expect(
       screen.queryByText(messages.bookings.detailsStep.aiLabRecommendationTitle),
     ).not.toBeInTheDocument();
-  });
-});
-
-/**
- * The slot chip: the date, the start time and the bay in one row, plus the way
- * back to the step that decided them.
- *
- * It replaced three stacked cards worth roughly 240px, each an icon and a
- * heading and a value. Two things were wrong with them and the chip has to fix
- * both, so both are pinned here:
- *
- *   1. They restated the step header's subline directly above them. The header
- *      now falls silent on this sub-step instead — that half of the rule lives
- *      in `stepHeaderSublineSuppressed` and is tested in
- *      `booking-step-header.test.tsx`. What is checked here is that the chip
- *      genuinely carries all three, so the header can afford to yield.
- *   2. They were dead ends. Every fact on them was settled on step 1 or step 2
- *      and nothing on them led back to either.
- */
-describe('the slot chip', () => {
-  test('states the date, the start time and the bay on one row', () => {
-    render(<Harness bayType={null} selectedTime="20:30" />);
-
-    expect(within(slotChip()).getByText(chipLine(null, '20:30'))).toBeInTheDocument();
-  });
-
-  /**
-   * The cards printed "Sun, 26 Jul 2026". The chip uses the year-less short
-   * date — the same `formatShortDate` the header subline it stands in for uses,
-   * so the two cannot print one booking's date in two shapes, and so the row
-   * has room for three facts and two controls.
-   */
-  test('drops the year, matching the header line it stands in for', () => {
-    render(<Harness />);
-
-    expect(within(slotChip()).queryByText(/2026/)).toBeNull();
-    expect(within(slotChip()).getByText(chipLine('social'))).toBeInTheDocument();
-  });
-
-  test('the three cards and their headings are gone', () => {
-    render(<Harness />);
-
-    // The `bayType` heading survives in the catalog because the confirmation
-    // page still renders it; these two were deleted outright.
-    for (const heading of ['Selected Date', 'Start Time', 'Bay Type']) {
-      expect(screen.queryByText(heading)).toBeNull();
-    }
-  });
-
-  /**
-   * The whole point of the owner's "a chip like session, that brings you back".
-   * `onBack` is the flow's `handleBack`, which lands on step 2 — where the start
-   * time and the bay are chosen, and one further arrow from the date.
-   */
-  test("Change leaves step 3 through the flow's own back action", async () => {
-    const user = userEvent.setup();
-    const onBack = jest.fn();
-    render(<Harness onBack={onBack} />);
-
-    await user.click(
-      within(slotChip()).getByRole('button', {
-        name: messages.bookings.detailsStep.changeSlotAction,
-      }),
-    );
-
-    expect(onBack).toHaveBeenCalledTimes(1);
-  });
-
-  /**
-   * One control, two steps' worth of facts — so the label names only what it
-   * reaches. A bare "Change" over a row whose first segment is the date would
-   * promise a step this button does not go to.
-   */
-  test('the label names the time and the bay, and does not claim the date', () => {
-    render(<Harness />);
-
-    const label = within(slotChip()).getByRole('button', {
-      name: messages.bookings.detailsStep.changeSlotAction,
-    }).textContent!;
-
-    expect(label).toMatch(/time/i);
-    expect(label).toMatch(/bay/i);
-    expect(label).not.toMatch(/date/i);
-    // ...and it is NOT the collapsed sub-step summaries' bare "Change", which
-    // reaches everything the row it sits on states.
-    expect(label).not.toBe(messages.bookings.detailsStep.changeAction);
-  });
-
-  /**
-   * The bay explainer had exactly one entrance on this sub-step and the cards
-   * were it. It survives on the chip rather than being dropped with them.
-   */
-  test('the bay Info link survives and still opens the explainer', async () => {
-    const user = userEvent.setup();
-    const onShowBayInfo = jest.fn();
-    render(<Harness onShowBayInfo={onShowBayInfo} />);
-
-    await user.click(
-      within(slotChip()).getByRole('button', { name: messages.bookings.detailsStep.info }),
-    );
-
-    expect(onShowBayInfo).toHaveBeenCalledWith(true);
-  });
-
-  /**
-   * Two controls on one row with opposite consequences: Info costs the customer
-   * nothing, Change costs them their place in a half-filled form. The flow
-   * spends green on exactly the second kind — see `affordances.tsx` — and this
-   * is the one row in the flow where both appear together, so it is where a
-   * regression would show first.
-   */
-  test('Info stays the quiet affordance and Change the green one', () => {
-    render(<Harness />);
-
-    const chip = within(slotChip());
-    const info = chip.getByRole('button', { name: messages.bookings.detailsStep.info });
-    const change = chip.getByRole('button', {
-      name: messages.bookings.detailsStep.changeSlotAction,
-    });
-
-    expect(change.className).toMatch(/green/);
-    expect(info.className).not.toMatch(/green/);
-    // Both render inside the booking <form>, where a missing type fires it.
-    expect(info).toHaveAttribute('type', 'button');
-    expect(change).toHaveAttribute('type', 'button');
-  });
-
-  /**
-   * Document order, because the Info glyph explains the bay and the Change pill
-   * acts on the row: the quiet one belongs against the fact, the loud one at the
-   * end. The layout depends on this too — see the `ml-auto` note in
-   * `DetailsSubStepSummary`.
-   */
-  test('Info sits with the bay it explains, before the Change pill', () => {
-    render(<Harness />);
-
-    const chip = within(slotChip());
-    const info = chip.getByRole('button', { name: messages.bookings.detailsStep.info });
-    const change = chip.getByRole('button', {
-      name: messages.bookings.detailsStep.changeSlotAction,
-    });
-
-    expect(
-      Boolean(info.compareDocumentPosition(change) & Node.DOCUMENT_POSITION_FOLLOWING),
-    ).toBe(true);
   });
 });
 

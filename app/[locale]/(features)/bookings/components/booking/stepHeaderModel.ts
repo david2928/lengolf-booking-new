@@ -1,4 +1,3 @@
-import { isValidLocale, type Locale } from '@/i18n/routing';
 import { formatShortDate } from './steps/details/summarySubline';
 import { DETAIL_SUB_STEPS, type DetailSubStep } from './steps/details/useDetailsSubStep';
 
@@ -87,84 +86,48 @@ export const SUB_STEP_QUESTION_KEYS = {
 } as const satisfies Record<DetailSubStep, string>;
 
 /**
- * The step-3 sub-step that states the date, the start time and the bay itself,
- * on the slot chip at the top of its panel.
+ * THERE IS NO SUPPRESSION RULE, AND THAT IS THE DESIGN.
+ * ---------------------------------------------------------------------------
+ * `stepHeaderSublineSuppressed` and `SUB_STEP_WITH_SLOT_CHIP` used to live here.
+ * The session sub-step opened with a "slot chip" restating the date, the start
+ * time and the bay, so the subline had to fall silent on that one screen or the
+ * customer read the same booking twice.
  *
- * Named here rather than inlined at the one call site so the coupling is
- * findable from both ends: whoever moves the chip has to come here, and whoever
- * changes this can see what depends on it.
+ * That rule was a symptom. Two surfaces held the same three facts, so one of
+ * them had to be silenced by a condition, and the two then LOOKED different on
+ * adjacent screens: a bordered, tappable chip on "How long?", inert grey text on
+ * "Anything to add?". The owner asked why.
+ *
+ * The subline is now the only home for those facts on every screen, and it
+ * carries the affordance itself — see `onChangeSlot` in `BookingStepHeader`.
+ * One home cannot duplicate itself, so no rule is needed to stop it, and the
+ * three sub-steps present the slot identically because they are all showing the
+ * same element.
+ *
+ * If a future screen needs to restate the slot, do not add a second surface and
+ * a condition to hide one of them. Ask why the header cannot say it.
  */
-export const SUB_STEP_WITH_SLOT_CHIP: DetailSubStep = 'session';
 
 /**
- * Whether the header must stay silent about what the customer has chosen so far.
+ * What separates the subline's segments: "Wed 29 Jul · 13:00 · Social Bay".
  *
- * THE RULE. The subline and the session sub-step's slot chip carry the SAME
- * three facts — the date, the start time and the bay — so exactly one of them
- * may be on screen at a time. The chip is the one that keeps its place, because
- * between two identical lines the ACTIONABLE one wins: the chip's "Change"
- * returns the customer to the step those facts were decided on, and the subline
- * is a line of text with nothing on it to press.
+ * The middle dot, matching every other recap line in the flow — the sticky
+ * bar's subline and the collapsed sub-step summaries all join with the same
+ * literal " · ", for every locale.
  *
- * WHY THE SUBLINE IS NOT SIMPLY DROPPED. It came from the owner's own mockup
- * and they liked it, and it is still the only thing carrying these facts on four
- * of the flow's five screens: step 2 (the date), and step 3's extras and contact
- * sub-steps, where the chip is not rendered and the collapsed Session summary
- * carries the duration and party size only. So it yields on exactly one screen —
- * the one where it was being said twice, which is the duplication the owner
- * flagged twice — and holds everywhere it is the only voice.
+ * It used to be a locale-aware comma plus a translated "from {time}", on the
+ * argument that this line was a sentence fragment under a heading while those
+ * were rows of peer facts. That argument died when the line stopped being a
+ * caption: it now ends in a Change pill and sits directly above the collapsed
+ * summaries, and the owner read the two punctuation schemes an inch apart as
+ * exactly what they were — two designs for one job. The comma map (with its
+ * ideographic `、`/`，` variants) and the `sublineFromTime` message key are
+ * gone with it; the dot needs neither, and the sticky bar had already shipped
+ * it across all five locales without complaint.
  *
- * The alternative was to shorten one of the two, which is worse than either:
- * splitting three facts across two rows at the top of the same screen is what
- * the previous arrangement already did (header: date, time, bay; recap cards:
- * date, time, bay) and is how a customer ends up reading the same booking twice
- * to work out whether the two rows agree.
- *
- * Takes the sub-step unconditionally rather than an optional one, so a caller on
- * step 1 or 2 cannot forget it and get a `false` that happens to be right: the
- * step check is what makes those steps safe, and it is checked here rather than
- * assumed.
+ * The line is read, never re-read by code — nothing may split or parse it.
  */
-export function stepHeaderSublineSuppressed(step: number, subStep: DetailSubStep): boolean {
-  return clampStep(step) === BAY_BOOKING_STEP_COUNT && subStep === SUB_STEP_WITH_SLOT_CHIP;
-}
-
-/**
- * What separates the subline's segments: "Wed 29 Jul, from 13:00, Social Bay".
- *
- * A comma rather than the sticky bar's middle dot. The bar's line is a row of
- * peer facts read at a glance; this one is a sentence fragment describing a
- * single booking, and the two sit about a screen apart, so telling them apart
- * is worth more than matching them.
- *
- * Per locale, because a comma is not one character. Japanese sets it as the
- * ideographic `、` and Chinese as the fullwidth `，`; an ASCII comma in a CJK
- * line reads as a Latin intrusion, the same class of detail as the per-locale
- * font stacks in `globals.css`. Korean and Thai both take the Latin comma.
- *
- * A code map and not a message key: the value is a punctuation mark whose
- * significant part is a trailing space that is invisible in a JSON diff, so it
- * is exactly the kind of string a translation pass silently eats.
- *
- * The composed line is still not safely splittable on this separator, and
- * nothing may parse it. `en` used to render its short date as "Wed, Jul 29",
- * putting a comma inside the date segment; `formatShortDate` now composes that
- * one as `en-GB` ("Wed 29 Jul"), so no shipped locale does today. That is a
- * property of the current date format, not a guarantee about future segments.
- * The line is read, never re-read by code. Do not add a caller that splits it.
- */
-export const STEP_HEADER_SUBLINE_SEPARATORS: Record<Locale, string> = {
-  en: ', ',
-  th: ', ',
-  ko: ', ',
-  ja: '、',
-  zh: '，',
-};
-
-/** The separator for a locale, falling back to the Latin comma. */
-export function stepHeaderSublineSeparator(locale: string): string {
-  return isValidLocale(locale) ? STEP_HEADER_SUBLINE_SEPARATORS[locale] : ', ';
-}
+export const STEP_HEADER_SUBLINE_SEPARATOR = ' · ';
 
 /**
  * Which of the three progress bars are filled at a given step.
@@ -237,12 +200,11 @@ export function stepQuestionKey(step: number): (typeof STEP_QUESTION_KEYS)[numbe
  */
 export function buildStepHeaderSubline(
   segments: ReadonlyArray<string | null | undefined>,
-  separator: string = STEP_HEADER_SUBLINE_SEPARATORS.en,
 ): string {
   return segments
     .filter((segment): segment is string => typeof segment === 'string' && segment.trim().length > 0)
     .map((segment) => segment.trim())
-    .join(separator);
+    .join(STEP_HEADER_SUBLINE_SEPARATOR);
 }
 
 /**
@@ -260,27 +222,26 @@ export function buildStepHeaderSubline(
  * two different shapes.
  */
 export function stepHeaderSublineFor(parts: {
-  /**
-   * The active locale, which picks both the separator and the short-date tag.
-   * `useLocale()` at the call site.
-   */
+  /** The active locale, which picks the short-date tag. `useLocale()` at the call site. */
   locale: string;
   /** The booking's date, unformatted — this function owns the formatting. */
   date: Date | null;
-  /** Already-localised start time, e.g. "from 13:00". Null before step 3. */
-  fromTimeLabel?: string | null;
+  /**
+   * Start time in venue-local 24h, e.g. "13:00". Null before step 3. Bare, not
+   * a translated "from {time}": every other recap line in the flow prints the
+   * time bare between dots, and the deleted slot chip already shipped that
+   * shape without confusion.
+   */
+  time?: string | null;
   /**
    * Already-localised bay name, e.g. "Social Bay". Null whenever the bay is not
    * yet a settled choice — see the call site in `page.tsx`.
    */
   bayLabel?: string | null;
 }): string {
-  return buildStepHeaderSubline(
-    [
-      parts.date ? formatShortDate(parts.locale, parts.date) : null,
-      parts.fromTimeLabel,
-      parts.bayLabel,
-    ],
-    stepHeaderSublineSeparator(parts.locale),
-  );
+  return buildStepHeaderSubline([
+    parts.date ? formatShortDate(parts.locale, parts.date) : null,
+    parts.time,
+    parts.bayLabel,
+  ]);
 }

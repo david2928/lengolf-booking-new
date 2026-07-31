@@ -115,8 +115,7 @@
       "stepPosition": "{total}단계 중 {current}단계",
       "stepDateQuestion": "언제 플레이하시겠어요?",
       "stepTimeQuestion": "몇 시에 시작할까요?",
-      "stepDetailsQuestion": "어떻게 플레이하시겠어요?",
-      "sublineFromTime": "{time} 시작"
+      "stepDetailsQuestion": "어떻게 플레이하시겠어요?"
     },
     "dateStep": {
       "todayCardTitle": "오늘",
@@ -341,8 +340,6 @@
       "summaryRailDuration": "이용 시간",
       "summaryRailPeople": "인원",
       "summaryRailBay": "베이",
-      "reviewPanelTitle": "예약 내용 확인",
-      "reviewPanelIntro": "확정하기 전에 아래 내용을 확인해 주세요.",
       "summaryRailHours": "{hours}시간",
       "errorNeedName": "예약을 위해 이름을 입력해 주세요.",
       "errorNeedPhone": "올바른 전화번호를 입력해 주세요.",

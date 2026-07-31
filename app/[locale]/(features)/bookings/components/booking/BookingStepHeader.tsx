@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { ChangeAnswerButton } from './affordances';
 import { BAY_BOOKING_STEP_COUNT, stepBarStates } from './stepHeaderModel';
 
 export interface BookingStepHeaderProps {
@@ -50,6 +51,37 @@ export interface BookingStepHeaderProps {
    * been chosen; the row is then not rendered at all rather than reserved.
    */
   subline?: string;
+  /**
+   * Re-opens the step the SUBLINE's facts were decided on. Renders a "Change"
+   * pill at the end of the subline row; omit it and the subline is a plain line
+   * of text, as it is on steps 1 and 2.
+   *
+   * WHY THE SUBLINE CARRIES THIS AND NOT A ROW BELOW IT. The subline is already
+   * the flow's single home for "what earlier steps settled", on every screen
+   * that has one. A recap placed anywhere else necessarily repeats it — which is
+   * exactly what the slot chip did, and why a rule existed to silence the
+   * subline on the one screen the chip appeared. Putting the affordance ON the
+   * line that already states the facts means there is one home, so there is
+   * nothing to keep in sync and no duplication to suppress.
+   *
+   * WHEN TO PASS IT. When the header's own back arrow does NOT reach the step
+   * those facts belong to. That is step 3: from its second and third sub-steps
+   * `onBack` walks to the previous SUB-step, so the slot is otherwise a dead end
+   * needing two guesses to reach. On the first sub-step the two do coincide —
+   * accepted, because the back arrow's destination shifts as the customer moves
+   * through the sub-steps while this one never does, and a labelled control that
+   * always means the same thing is worth more than avoiding an overlap on one
+   * screen out of three.
+   */
+  onChangeSlot?: () => void;
+  /** Visible text on that pill, e.g. "Change". Required whenever `onChangeSlot` is passed. */
+  changeSlotLabel?: string;
+  /**
+   * Its accessible name, e.g. "Change time or bay" — longer than the face,
+   * because several "Change" controls can share a screen. Must CONTAIN
+   * `changeSlotLabel` (WCAG 2.5.3 Label in Name).
+   */
+  changeSlotAriaLabel?: string;
   /** Backward one level. Omitted on step 1, where there is nowhere to go. */
   onBack?: () => void;
   /** `aria-label` for the back control. Required whenever `onBack` is passed. */
@@ -106,6 +138,9 @@ export function BookingStepHeader({
   question,
   questionWide,
   subline,
+  onChangeSlot,
+  changeSlotLabel,
+  changeSlotAriaLabel,
   onBack,
   backLabel,
   totalSteps = BAY_BOOKING_STEP_COUNT,
@@ -219,7 +254,64 @@ export function BookingStepHeader({
         )}
       </h2>
 
-      {subline && <p className="mt-1 text-xs leading-5 text-gray-600 sm:text-sm">{subline}</p>}
+      {/* The subline and, where the flow supplies one, the way back to the step
+          it describes.
+
+          `ml-auto lg:ml-0` — right-aligned on a phone, hugging the line on a
+          desktop, and the breakpoint is not arbitrary. It is exactly where the
+          collapsed sub-step summaries appear and disappear.
+
+          BELOW `lg:` this row sits above `DetailsSubStepSummary` rows carrying
+          the same "facts, then a Change pill" shape, so it matches them: pill
+          against the right edge. Two rows an inch apart with the pill in
+          different places would look like an accident, which is the objection
+          that produced this line.
+
+          AT `lg:` AND UP those summaries are `lg:hidden` — step 3 renders whole,
+          so nothing is collapsed and there is no second row to match. What there
+          IS instead is a content column about 1,200px wide, and `ml-auto` in it
+          strands the pill most of a screen away from the sentence it acts on,
+          with nothing between them to suggest the two are related. So above the
+          breakpoint the pill simply follows the facts.
+
+          `flex-wrap` covers the other end: the longest shipped line plus the
+          pill measures 326px against 328px usable at 360px, so the fit is real
+          but has no margin in it, and a longer localised bay name should drop
+          the pill to a second line rather than squeeze the line the customer is
+          there to read.
+
+          Rendered as a sibling of the text, never inside the `<p>`: a control
+          nested in a paragraph gets swept along by its wrapping, and this one
+          has to stay a fixed-size target. */}
+      {/* NO right inset, and the Session-row text classes. Both are about the
+          collapsed sub-step summaries this row sits directly above below `lg:`.
+
+          It briefly carried `pr-3 lg:pr-0`, because those summaries rendered
+          inside the form card's `p-3` and their pills therefore sat 12px short
+          of this one. That patched the symptom from the wrong side: the rows
+          are now hoisted OUT of the card (see `BookingDetails`), so all of them
+          share the page padding and the inset became the thing knocking the
+          pills 12px apart — in the other direction.
+
+          The text classes stay deliberate. The subline used to be a size down
+          (12px grey-600) from the summary values (14px grey-700), which reads
+          as hierarchy between a caption and a heading and as an accident
+          between two adjacent peer rows. Same text, same edges, same
+          separator: one recap language. */}
+      {subline && (
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <p className="min-w-0 text-sm text-gray-700">{subline}</p>
+          {onChangeSlot && changeSlotLabel && (
+            <ChangeAnswerButton
+              onClick={onChangeSlot}
+              className="ml-auto lg:ml-0"
+              ariaLabel={changeSlotAriaLabel}
+            >
+              {changeSlotLabel}
+            </ChangeAnswerButton>
+          )}
+        </div>
+      )}
     </header>
   );
 }

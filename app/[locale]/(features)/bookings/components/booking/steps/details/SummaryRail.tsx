@@ -85,7 +85,7 @@ export function splitProratedDetail(
  * exclusive by viewport, so this is one row definition serving both, not a
  * duplicated one.
  */
-export function Fact({ label, value }: { label: string; value: string }) {
+function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
       <dt className="text-xs text-gray-500">{label}</dt>

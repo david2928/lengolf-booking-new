@@ -1,6 +1,5 @@
 'use client';
 
-import { BayInfoModal } from '../../BayInfoModal';
 import { BookingSummaryBar, BOOKING_SUMMARY_BAR_SPACER } from '@/components/shared/BookingSummaryBar';
 import { NoAvailabilityModal } from './details/modals/NoAvailabilityModal';
 import { SubmitOverlay } from './details/modals/SubmitOverlay';
@@ -81,8 +80,6 @@ export function BookingDetails(props: BookingDetailsProps) {
     setErrorField,
     showNoAvailabilityModal,
     setShowNoAvailabilityModal,
-    showBayInfoModal,
-    setShowBayInfoModal,
     showPackageModal,
     setShowPackageModal,
     showClubRentalModal,
@@ -175,36 +172,7 @@ export function BookingDetails(props: BookingDetailsProps) {
   const durationLabel = t('durationHoursShort', { hours: duration });
   const peopleLabel = t('peopleCountShort', { count: numberOfPeople });
 
-  /* The facts the mobile review panel shows above the confirm action. Built
-     here, from the SAME strings the collapsed sub-step summaries and the sticky
-     bar's subline already print, so the panel cannot describe the booking
-     differently from the rest of step 3.
-
-     Desktop ignores this: `SummaryRail` carries the same five facts in its own
-     column — but note "the same facts", not the same strings. Date, time, bay
-     and the party size render identically; DURATION deliberately does not. The
-     rail prints `summaryRailHours` ("2 hr") and the panel prints
-     `durationHoursShort` ("2 hrs", ICU plural), because the panel's neighbour
-     is not the rail. The rail and the panel are mutually exclusive by viewport
-     and never share a screen; the panel and the sticky bar DO, about 100px
-     apart, and the bar prints `durationHoursShort`. Matching the rail here
-     would buy agreement with a component the customer cannot see at the cost of
-     disagreement with one they can.
-
-     `numberOfPeople` goes in as a bare number, matching the rail: `peopleLabel`
-     carries its own unit for the collapsed summary, where there is no label to
-     supply one, and under the panel's "People" label it read "People / 3
-     people". */
-  const reviewFacts = {
-    selectedDate,
-    selectedTime,
-    durationLabel,
-    numberOfPeople,
-    bayLabel,
-    formatDate,
-  };
-
-  return (
+    return (
     /* `lg:pb-0` drops the bar's spacer above `lg:`, where no bar mounts. */
     <div className={`space-y-4 sm:space-y-6 ${BOOKING_SUMMARY_BAR_SPACER} lg:pb-0`}>
       {/* No sub-step progress row here. It printed "DETAILS · 1 OF 3" beside
@@ -222,25 +190,68 @@ export function BookingDetails(props: BookingDetailsProps) {
           `subStepLabels` stays: those collapsed summaries still name their
           sub-step. */}
 
+      {/* The settled sub-steps, OUTSIDE the form card.
+
+          These used to render inside it, and being one container deeper is the
+          whole reason they never lined up with the step header's subline
+          directly above them. Measured at 412px: the header sits at the page's
+          16px padding, the card adds its own 12px, so the subline started at
+          x=16 and these rows at x=28 — and the card's top padding made the gap
+          between the subline and the first row 32px against the 16px between
+          the rows themselves. Two containers cannot share an edge.
+
+          Hoisted here they are siblings of the card rather than children, so
+          they inherit the page padding the header already uses: one left edge,
+          one right edge, one rhythm, from the heading down to the last recap.
+
+          The consequence is deliberate: these rows now sit on the page ground
+          rather than on the white card. That is the honest grouping — what is
+          SETTLED reads with the header, and the card holds only what the
+          customer is still filling in.
+
+          Order is preserved without ordering logic: `isCollapsed` is true only
+          for sub-steps BEHIND the current one, so the collapsed rows are always
+          the ones that would have rendered above the active panel anyway.
+
+          Still `lg:hidden`. Above `lg:` nothing collapses — every panel renders
+          at once and `SummaryRail` carries the recap. */}
+      {/* `space-y-5 sm:space-y-6` is not the flow's usual `space-y-4`: it is the
+          step header's own bottom margin (`mb-5 sm:mb-6` in `BookingStepHeader`),
+          so the gap from the subline to the first recap row and the gap between
+          the recap rows are the SAME number at both breakpoints. With
+          `space-y-4` the lead-in measured 20px against 16px between the rows —
+          a 4px stagger, invisible in isolation and obvious once the rows share
+          an edge, which is the entire point of hoisting them here. */}
+      {(isCollapsed('session') || isCollapsed('extras')) && (
+        <div className="space-y-5 sm:space-y-6 lg:hidden">
+          {isCollapsed('session') && (
+            <DetailsSubStepSummary
+              label={subStepLabels.session}
+              /* Duration and party size only. The BAY is deliberately absent:
+                 the step header's subline directly above already names it, and
+                 it is chosen on the time step, not here — see
+                 `buildSessionSummaryValue` for the full rule and for why this
+                 row is the wrong place to state a value its own "Change"
+                 cannot reach. */
+              value={buildSessionSummaryValue({ durationLabel, peopleLabel })}
+              changeLabel={t('changeAction')}
+              onChange={() => goToSubStep('session')}
+            />
+          )}
+          {isCollapsed('extras') && (
+            <DetailsSubStepSummary
+              label={subStepLabels.extras}
+              value={addOnCount > 0 ? `${clubRentalLabel} · +${addOnCount}` : clubRentalLabel}
+              changeLabel={t('changeAction')}
+              onChange={() => goToSubStep('extras')}
+            />
+          )}
+        </div>
+      )}
+
       {/* One column below `lg:`, form + sticky summary rail above it. */}
       <div className="grid gap-6 items-start lg:grid-cols-[1fr_296px]">
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 bg-white rounded-xl shadow-sm p-3 sm:p-6">
-          {isCollapsed('session') && (
-            <div className="lg:hidden">
-              <DetailsSubStepSummary
-                label={subStepLabels.session}
-                /* Duration and party size only. The BAY is deliberately absent:
-                   the step header's subline three rows above already names it,
-                   and it is chosen on the time step, not here — see
-                   `buildSessionSummaryValue` for the full rule and for why this
-                   row is the wrong place to state a value its own "Change"
-                   cannot reach. */
-                value={buildSessionSummaryValue({ durationLabel, peopleLabel })}
-                changeLabel={t('changeAction')}
-                onChange={() => goToSubStep('session')}
-              />
-            </div>
-          )}
           <div className={panelClass('session')}>
             <SessionStep
               maxDuration={maxBookableHours}
@@ -258,23 +269,10 @@ export function BookingDetails(props: BookingDetailsProps) {
               selectedDate={selectedDate}
               selectedTime={selectedTime}
               selectedBayType={selectedBayType}
-              bayLabel={bayLabel}
-              locale={locale}
-              setShowBayInfoModal={setShowBayInfoModal}
               onBack={onBack}
             />
           </div>
   
-          {isCollapsed('extras') && (
-            <div className="lg:hidden">
-              <DetailsSubStepSummary
-                label={subStepLabels.extras}
-                value={addOnCount > 0 ? `${clubRentalLabel} · +${addOnCount}` : clubRentalLabel}
-                changeLabel={t('changeAction')}
-                onChange={() => goToSubStep('extras')}
-              />
-            </div>
-          )}
           <div className={panelClass('extras')}>
             {/* Remaining package hours, plus the partial-coverage warning when
                 the balance will not stretch across the booking. Rendered as a
@@ -335,7 +333,6 @@ export function BookingDetails(props: BookingDetailsProps) {
               costBreakdown={costBreakdown}
               costDataLoading={costDataLoading}
               costLanguage={costLanguage}
-              review={reviewFacts}
               isSubmitting={isSubmitting}
               marketingOptIn={marketingOptIn}
               marketingPreference={marketingPreference}
@@ -449,11 +446,12 @@ export function BookingDetails(props: BookingDetailsProps) {
         premiumPlusPricing={PREMIUM_PLUS_CLUB_PRICING}
       />
 
-      {/* Bay Information Modal */}
-      <BayInfoModal
-        isOpen={showBayInfoModal}
-        onClose={() => setShowBayInfoModal(false)}
-      />
+      {/* No BayInfoModal here. The bay-type explainer belongs where the bay is
+          CHOSEN — `DateSelection` and `TimeSlots` each open their own — and step
+          3 stopped recapping the bay when the slot chip was removed. A modal on
+          a step that no longer names the thing it explains is a modal with no
+          door. */
+      }
     </div>
   );
 }

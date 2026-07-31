@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
-import { BookingReviewPanel, type BookingReviewFacts } from './BookingReviewPanel';
+import { BookingReviewPanel } from './BookingReviewPanel';
 import type { CostBreakdown } from '@/lib/cost-calculator';
 import { IdentityCard, isIdentityComplete } from './IdentityCard';
 import { ConsentNote } from './ConsentNote';
@@ -45,11 +45,6 @@ export interface YourDetailsStepProps {
   costBreakdown: CostBreakdown | null;
   costDataLoading: boolean;
   costLanguage: 'en' | 'th' | 'ja' | 'ko' | 'zh';
-  /**
-   * The when/where/who facts the mobile review panel shows above the confirm
-   * action, all pre-formatted by the caller so this step never re-derives them.
-   */
-  review: BookingReviewFacts;
   isSubmitting: boolean;
   marketingOptIn: boolean;
   setMarketingOptIn: (value: boolean) => void;
@@ -114,7 +109,6 @@ export function YourDetailsStep({
   costBreakdown,
   costDataLoading,
   costLanguage,
-  review,
   isSubmitting,
   marketingOptIn,
   setMarketingOptIn,
@@ -314,7 +308,6 @@ export function YourDetailsStep({
           date, start time, duration, bay and party size above it — so the panel
           adds the facts without adding a second total. */}
       <BookingReviewPanel
-        {...review}
         costBreakdown={costBreakdown}
         costDataLoading={costDataLoading}
         costLanguage={costLanguage}

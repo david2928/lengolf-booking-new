@@ -74,12 +74,6 @@ const zeroBreakdown: CostBreakdown = {
 };
 
 const baseProps: React.ComponentProps<typeof BookingReviewPanel> = {
-  selectedDate: new Date('2026-07-15T12:00:00'),
-  selectedTime: '12:00',
-  durationLabel: '2 hrs',
-  numberOfPeople: 3,
-  bayLabel: 'Social Bay',
-  formatDate: () => 'Wednesday, 15 July 2026',
   costBreakdown: breakdown,
   costDataLoading: false,
   costLanguage: 'en',
@@ -94,34 +88,42 @@ function renderPanel(props: Partial<React.ComponentProps<typeof BookingReviewPan
 }
 
 describe('BookingReviewPanel', () => {
-  test('shows the five facts that were not otherwise next to the confirm action', () => {
+  /**
+   * THE FACTS ARE NOT HERE, AND THAT IS THE POINT.
+   *
+   * This opened with a "Review your booking" card listing Date, Time, Duration,
+   * People and Bay. All five are already on the screen: the step header's
+   * subline states the date, the start time and the bay, and the collapsed
+   * Session and Extras rows state the duration, the party size and the add-ons
+   * — each with a Change that reopens the decision, which a read-only card
+   * never offered. The card also printed the date in a second format
+   * ("Thu, 30 Jul 2026" against the rows' "Thu 30 Jul") a few rows away.
+   *
+   * What is left is the money, which appears nowhere else on the screen.
+   */
+  test('restates none of the facts the rows above already carry', () => {
     renderPanel();
 
-    const panel = screen.getByRole('region', { name: 'Review your booking' });
-    const facts = within(panel);
-
-    expect(facts.getByText('Wednesday, 15 July 2026')).toBeInTheDocument();
-    expect(facts.getByText('12:00')).toBeInTheDocument();
-    expect(facts.getByText('2 hrs')).toBeInTheDocument();
-    expect(facts.getByText('3')).toBeInTheDocument();
-    expect(facts.getByText('Social Bay')).toBeInTheDocument();
+    for (const label of [
+      messages.bookings.detailsStep.summaryRailDate,
+      messages.bookings.detailsStep.summaryRailTime,
+      messages.bookings.detailsStep.summaryRailDuration,
+      messages.bookings.detailsStep.summaryRailPeople,
+      messages.bookings.detailsStep.summaryRailBay,
+    ]) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    }
   });
 
-  /**
-   * The count is stated bare, because the row has a label. The flow's
-   * `peopleCountShort` carries its own unit for the collapsed Session summary,
-   * which has no label to supply one; rendering it here read "People / 3
-   * people" — and the same stutter in Thai. The rail states it bare too.
-   */
-  test('states the party size without repeating the unit its label already gives', () => {
+  test('keeps no heading of its own, so the breakdown labels the region once', () => {
     renderPanel();
 
-    const panel = screen.getByRole('region', { name: 'Review your booking' });
-    const facts = within(panel);
-
-    expect(facts.getByText(messages.bookings.detailsStep.summaryRailPeople)).toBeInTheDocument();
-    expect(facts.getByText('3')).toBeInTheDocument();
-    expect(facts.queryByText(/3\s*people/i)).not.toBeInTheDocument();
+    // `reviewPanelTitle` / `reviewPanelIntro` were deleted from all five
+    // catalogs with the card, so this asserts the words rather than a key.
+    expect(screen.queryByText(/review your booking/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/please check these details/i)).not.toBeInTheDocument();
+    // The breakdown's own "Estimated Cost" heading is the only one left.
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(/estimated cost/i);
   });
 
   test('names the club rental, the add-on and the discount from the breakdown', () => {
@@ -165,16 +167,13 @@ describe('BookingReviewPanel', () => {
    * The bar, not the panel, owns the empty state. Both are on screen together
    * on mobile, so a fallback card here printed `summaryEmptyPrompt` twice about
    * 100px apart — and printed the wrong sentence in this position, since it
-   * asks for a duration two rows below a Duration row that already states one.
-   * The panel keeps the facts and shows no money at all.
+   * asks for a duration two rows below a Duration row that already stated one.
+   * With no breakdown to render, the panel is empty.
    */
-  test('shows no total and no empty prompt of its own when there is no breakdown', () => {
+  test('renders nothing at all when there is no breakdown', () => {
     renderPanel({ costBreakdown: null });
 
-    const panel = screen.getByRole('region', { name: 'Review your booking' });
-    // The facts survive — they do not depend on the cost fetch.
-    expect(within(panel).getByText('Social Bay')).toBeInTheDocument();
-
+    expect(screen.getByTestId('booking-review-panel')).toBeEmptyDOMElement();
     expect(
       screen.queryByText(messages.bookings.detailsStep.summaryEmptyPrompt),
     ).not.toBeInTheDocument();
@@ -205,12 +204,12 @@ describe('BookingReviewPanel', () => {
     ).toHaveLength(1);
   });
 
-  test('still shows the facts while the breakdown is loading', () => {
+  test('defers to the breakdown\'s own skeleton while it loads', () => {
     renderPanel({ costDataLoading: true });
 
-    const panel = screen.getByRole('region', { name: 'Review your booking' });
-    expect(within(panel).getByText('Social Bay')).toBeInTheDocument();
-    // The breakdown swaps itself for its own skeleton while loading.
+    // The breakdown swaps itself for its own skeleton; the panel adds no
+    // placeholder of its own, so there is no second loading state to disagree.
+    expect(screen.getByTestId('booking-review-panel')).not.toBeEmptyDOMElement();
     expect(screen.queryByText('Estimated Total')).not.toBeInTheDocument();
   });
 
@@ -231,17 +230,18 @@ describe('BookingReviewPanel', () => {
   test('says nothing about the money outside the breakdown it renders', () => {
     renderPanel({ costBreakdown: null });
 
-    const panel = screen.getByRole('region', { name: 'Review your booking' });
-    // With the breakdown gone the panel is facts only — no payment note, no
-    // total, no currency of any kind left behind in its own copy.
+    // Every figure on this surface comes from the breakdown. With it gone there
+    // is no payment note, no total and no currency left behind in a copy of
+    // the panel's own.
+    const panel = screen.getByTestId('booking-review-panel');
     expect(within(panel).queryByText('Payment at venue')).toBeNull();
     expect(within(panel).queryByText(/฿/)).toBeNull();
   });
 
-  test('stays out of the desktop layout, where SummaryRail owns these facts', () => {
+  test('stays out of the desktop layout, where SummaryRail owns the money', () => {
     renderPanel();
 
-    expect(screen.getByRole('region', { name: 'Review your booking' })).toHaveClass('lg:hidden');
+    expect(screen.getByTestId('booking-review-panel')).toHaveClass('lg:hidden');
   });
 });
 

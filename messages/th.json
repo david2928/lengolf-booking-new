@@ -115,8 +115,7 @@
       "stepPosition": "ขั้นตอนที่ {current} จาก {total}",
       "stepDateQuestion": "ต้องการเล่นวันไหน?",
       "stepTimeQuestion": "เริ่มกี่โมง?",
-      "stepDetailsQuestion": "ต้องการเล่นแบบไหน?",
-      "sublineFromTime": "เริ่ม {time} น."
+      "stepDetailsQuestion": "ต้องการเล่นแบบไหน?"
     },
     "dateStep": {
       "todayCardTitle": "วันนี้",
@@ -246,7 +245,7 @@
       "subStepExtrasQuestion": "ต้องการเพิ่มอะไรไหม?",
       "subStepContactQuestion": "ตรวจสอบและยืนยัน",
       "changeAction": "แก้ไข",
-      "changeSlotAction": "เปลี่ยนเวลาหรือเบย์",
+      "changeSlotAction": "แก้ไขเวลาหรือเบย์",
       "ctaContinue": "ถัดไป",
       "bookingAsLabel": "จองในชื่อ",
       "changeContact": "แก้ไข",
@@ -341,8 +340,6 @@
       "summaryRailDuration": "ระยะเวลา",
       "summaryRailPeople": "จำนวนคน",
       "summaryRailBay": "เบย์",
-      "reviewPanelTitle": "ตรวจสอบการจองของคุณ",
-      "reviewPanelIntro": "กรุณาตรวจสอบรายละเอียดก่อนยืนยัน",
       "summaryRailHours": "{hours} ชม.",
       "errorNeedName": "กรุณากรอกชื่อเพื่อยืนยันการจอง",
       "errorNeedPhone": "กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง",

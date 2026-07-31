@@ -83,6 +83,17 @@ export interface ChangeAnswerButtonProps extends AffordanceProps {
   tone?: 'default' | 'warning';
   /** Defaults to a pencil. Pass an arrow where the action is literally "back". */
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
+  /**
+   * A longer accessible name for a pill whose visible label had to be short.
+   *
+   * Only for the case where several "Change" pills coexist and the visible word
+   * alone would not say which decision each re-opens — the slot chip, which
+   * sits above the collapsed sub-step summaries and their own bare "Change".
+   *
+   * Must CONTAIN the visible label (WCAG 2.5.3 Label in Name), so that a voice
+   * control user saying the word they can see still activates the button.
+   */
+  ariaLabel?: string;
 }
 
 /**
@@ -96,6 +107,7 @@ export function ChangeAnswerButton({
   className = '',
   tone = 'default',
   icon: Icon = PencilSquareIcon,
+  ariaLabel,
 }: ChangeAnswerButtonProps) {
   const palette =
     tone === 'warning'
@@ -106,6 +118,7 @@ export function ChangeAnswerButton({
     <button
       type="button"
       onClick={onClick}
+      aria-label={ariaLabel}
       className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${palette} ${className}`}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />

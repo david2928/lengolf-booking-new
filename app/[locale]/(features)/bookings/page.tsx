@@ -11,7 +11,6 @@ import {
   SUB_STEP_QUESTION_KEYS,
   narrowStepFor,
   stepHeaderSublineFor,
-  stepHeaderSublineSuppressed,
   stepLabelKey,
   stepQuestionKey,
 } from './components/booking/stepHeaderModel';
@@ -58,6 +57,10 @@ export default function BookingsPage() {
     setDuration,
     numberOfPeople,
     setNumberOfPeople,
+    customerNotes,
+    setCustomerNotes,
+    marketingOptIn,
+    setMarketingOptIn,
     selectedPackage,
     selectedClubRental,
     selectedClubSetId,
@@ -82,7 +85,7 @@ export default function BookingsPage() {
   // different page rather than a load.
   if (status === 'loading') {
     return (
-      <Layout hidePromotionBar compactHeader flushMain hideFooter hideNav>
+      <Layout hidePromotionBar compactHeader flushMain hideFooter={currentStep > 1} hideNav={currentStep > 1}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -143,16 +146,29 @@ export default function BookingsPage() {
           - The SUBLINE accumulates. Step 1 passes nothing (nothing has been
             chosen), step 2 passes the date, step 3 adds the start time and the
             bay. `stepHeaderSublineFor` drops whatever is null, so this is one
-            expression rather than a branch per step. It then falls silent on
-            one screen: step 3's session sub-step states the same three facts on
-            its own slot chip, with a "Change" that leads back to the step they
-            were decided on, and saying them twice at the top of one screen is
-            what the owner has objected to twice. See
-            `stepHeaderSublineSuppressed`, which owns that rule.
+            expression rather than a branch per step. It is now unconditional:
+            it used to fall silent on the session sub-step, where a slot chip
+            restated the same three facts, and that chip is gone. The subline is
+            the only place the flow states them, on every screen that has one.
+          - CHANGE SLOT is passed on step 3 only, and it calls `handleBack` —
+            the STEP-level back, which lands on step 2 where the start time and
+            the bay were chosen. This is what the deleted chip's "Change" did,
+            moved onto the line that already states the facts. Steps 1 and 2 do
+            not get it: their own back arrow already reaches the step their
+            subline describes, so a second control would be a second way to do
+            the same thing. On step 3 it is not the same thing, which is the
+            whole point — see the next bullet.
           - The BACK control is `handleHeaderBack`, not `handleBack`: inside
             step 3 backward means the previous sub-step, and only from the first
             sub-step does it mean the previous step. Passing `undefined` on step
-            1 is what removes the control, since there is nowhere to go. */}
+            1 is what removes the control, since there is nowhere to go.
+
+            That difference is exactly why Change earns its place: from the
+            extras and contact sub-steps the arrow walks backwards one sub-step
+            at a time, so the slot the subline is describing takes two or three
+            presses and a guess to reach. Change is one press from all three,
+            and it always means the same thing, while the arrow's destination
+            changes underneath the customer as they advance. */}
       <BookingStepHeader
         currentStep={narrowStep}
         totalSteps={BAY_BOOKING_SCREEN_COUNT}
@@ -173,19 +189,15 @@ export default function BookingsPage() {
             : tPage(stepQuestionKey(currentStep))
         }
         questionWide={currentStep === 3 ? tPage('stepDetailsQuestion') : undefined}
-        subline={
-          stepHeaderSublineSuppressed(currentStep, detailsSubStep.subStep)
-            ? undefined
-            : stepHeaderSublineFor({
-                locale,
-                date: currentStep >= 2 ? selectedDate : null,
-                fromTimeLabel:
-                  currentStep === 3 && selectedTime
-                    ? tPage('sublineFromTime', { time: selectedTime })
-                    : null,
-                bayLabel: bayChoiceLabel,
-              })
-        }
+        subline={stepHeaderSublineFor({
+          locale,
+          date: currentStep >= 2 ? selectedDate : null,
+          time: currentStep === 3 ? selectedTime : null,
+          bayLabel: bayChoiceLabel,
+        })}
+        onChangeSlot={currentStep === BAY_BOOKING_STEP_COUNT ? handleBack : undefined}
+        changeSlotLabel={tDetails('changeAction')}
+        changeSlotAriaLabel={tDetails('changeSlotAction')}
         onBack={currentStep > 1 ? handleHeaderBack : undefined}
         backLabel={tCommon('goBack')}
       />
@@ -222,6 +234,10 @@ export default function BookingsPage() {
             onDurationChange={setDuration}
             numberOfPeople={numberOfPeople}
             onNumberOfPeopleChange={setNumberOfPeople}
+            customerNotes={customerNotes}
+            onCustomerNotesChange={setCustomerNotes}
+            marketingOptIn={marketingOptIn}
+            onMarketingOptInChange={setMarketingOptIn}
             slotData={selectedSlotData}
             onBack={handleBack}
             selectedPackage={selectedPackage}
@@ -254,26 +270,60 @@ export default function BookingsPage() {
          `container mx-auto px-4 sm:px-6 lg:px-8 py-8` around the wrapper
          below, so horizontal padding was being applied twice. The page now
          owns its padding outright.
-       - `hideFooter`        TAKEN. See the commit that added it: the long
-         marketing footer belongs on a landing page, not under a checkout.
-       - `hideNav`           TAKEN. It strips the desktop Bay Rates /
-         Promotions / Lessons / Club Rental / Play & Food links, leaving the
-         wordmark and the badge — which is the header the mockup draws.
+       - `hideFooter`        TAKEN FROM STEP 2 ONWARD, not on step 1.
 
-         This was previously NOT taken, on the argument that `/bookings` step 1
-         doubles as this app's landing surface and a customer there may still
-         be browsing rather than committed. The mockup settles it the other
-         way, and the argument was weaker than it looked: nothing is removed,
-         only demoted. Every one of those links is still in the burger menu,
-         which `hideNav` does not touch and which is the ONLY place a phone
-         ever had them — so what the mockup asks for is what the majority of
-         customers were already being given.
+         It was taken unconditionally on the argument that the long marketing
+         footer belongs on a landing page and not under a checkout. Half of that
+         is right, and the half it got wrong is the half this page is: step 1 IS
+         the landing surface — it is what `/` serves and what every ad and every
+         link into this app arrives on. Suppressing the footer there took the
+         address, the opening hours and the social links off the one screen
+         whose reader may still be deciding whether to come at all. Owner: "the
+         footer should still be there on the main landing page".
 
-         Taken unconditionally rather than from step 2 onward, deliberately: a
-         step-conditional nav would restructure the header as the customer
-         advances, which is the same chrome flicker the loading-state props
-         above exist to prevent. */
-    <Layout hidePromotionBar compactHeader flushMain hideFooter hideNav>
+         So the rule is now the one the original argument actually described:
+         landing gets the footer, checkout does not. Step 1 is landing; from
+         step 2 the customer has committed to a date and everything below the
+         fold is a distraction under a form.
+
+         The footer sits at the very bottom, past the sticky total bar, so it
+         changes only what is under the fold and never the chrome the customer
+         is looking at — which is why this was the first prop to go
+         step-conditional and the cheapest one to. `hideNav` followed for the
+         same landing-vs-checkout reason; see it below for the cost that one
+         does carry. The loading branch takes this same expression rather than a
+         bare `hideFooter`, so the two cannot disagree the moment the session
+         resolves.
+       - `hideNav`           TAKEN FROM STEP 2 ONWARD, not on step 1. Same rule
+         as `hideFooter`, and for the same reason.
+
+         It strips the desktop Bay Rates / Promotions / Lessons / Club Rental /
+         Play & Food links, leaving the wordmark and the badge — the header the
+         mockup draws. It was taken unconditionally to match that mockup, over
+         the objection that step 1 doubles as this app's landing surface, on the
+         grounds that nothing was removed and only demoted: every link is still
+         in the burger menu, which `hideNav` does not touch and which is the
+         only place a phone ever had them.
+
+         That reasoning holds for a customer mid-checkout and fails for the one
+         who just arrived. Owner: "what happened to the desktop header, all the
+         links are gone". A visitor landing on step 1 from an ad has not chosen
+         to book yet, and "it is in the burger menu" is a poor answer on a
+         1385px desktop where a burger menu is not where anyone looks. The
+         mockup draws the CHECKOUT header; it was never a claim about the
+         landing screen.
+
+         So this is now the second step-conditional prop, and it does cost
+         something the footer does not: the desktop header genuinely
+         restructures at the 1→2 transition. Accepted, because stripping nav on
+         entering a checkout is a conventional, legible move rather than a
+         glitch — and because it is desktop-only. Below `lg` the links live in
+         the burger either way, so a phone sees no change at all, which is where
+         chrome flicker would actually be felt.
+
+         Both branches take the same expression, so the loading placeholder and
+         the real return cannot disagree the moment the session resolves. */
+    <Layout hidePromotionBar compactHeader flushMain hideFooter={currentStep > 1} hideNav={currentStep > 1}>
       {/* `container mx-auto px-4 sm:px-6 lg:px-8`, and it must stay that exact
           string: it is what Layout's own <main> applied before `flushMain`
           moved padding ownership here, and it is what `Header` and the sticky

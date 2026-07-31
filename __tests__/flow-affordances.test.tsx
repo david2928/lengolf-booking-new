@@ -110,8 +110,8 @@ describe('booking flow affordances', () => {
  * two were generalised into this one component rather than forked, because they
  * differ only in what they omit and they make the same promise — this row states
  * a settled decision, and the control at its end re-opens it. A parallel
- * component would have been free to drift on the border, the fill, the
- * separator, or which kind of button ends the row.
+ * component would have been free to drift on the separator, the wrap rule, or
+ * which kind of button ends the row.
  *
  * These pin the properties that made merging them safe.
  */
@@ -119,6 +119,7 @@ describe('the recap row that hosts them', () => {
   const renderRow = (props: Partial<React.ComponentProps<typeof DetailsSubStepSummary>> = {}) =>
     render(
       <DetailsSubStepSummary
+        label="Session"
         value="1 hr · 1 person"
         changeLabel="Change"
         onChange={() => {}}
@@ -126,50 +127,54 @@ describe('the recap row that hosts them', () => {
       />,
     );
 
-  it('names its sub-step when given a label, and says nothing extra without one', () => {
-    const { unmount } = renderRow({ label: 'Session' });
+  it('names its sub-step, so stacked rows are not anonymous fragments', () => {
+    renderRow({ label: 'Session' });
     expect(screen.getByText('Session')).toBeInTheDocument();
     // The separator is a literal " · " so it survives copy/paste and a screen
     // reader, which is why it is asserted as text rather than as a margin.
     expect(screen.getByText('Session').parentElement!.textContent).toBe('Session · 1 hr · 1 person');
-    unmount();
-
-    renderRow();
-    expect(screen.queryByText('Session')).toBeNull();
-    // ...and no orphaned separator where the label would have been.
-    expect(screen.getByText('1 hr · 1 person').textContent).toBe('1 hr · 1 person');
-  });
-
-  it('renders a secondary affordance between the value and the Change control', () => {
-    renderRow({
-      secondaryAction: <RevealDetailsButton onClick={() => {}}>Info</RevealDetailsButton>,
-    });
-
-    const [first, second] = screen.getAllByRole('button');
-    expect(first).toHaveAccessibleName('Info');
-    expect(second).toHaveAccessibleName('Change');
-  });
-
-  it('has exactly one control when no secondary affordance is passed', () => {
-    renderRow();
-    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
   /**
-   * The layout the slot chip needed. At 360px the chip's three facts plus two
-   * controls do not fit on one line, and the old `justify-between` + `truncate`
-   * dropped the trailing segment — which for the chip is the BAY, the fact the
-   * Info link beside it explains.
+   * One control, and it is the Change pill. The row briefly took a
+   * `secondaryAction` slot for the slot chip's bay "Info" link; both the chip
+   * and the slot are gone, and the explainer lives on the steps where the bay is
+   * chosen. A second control appearing here again would mean something had been
+   * put back that this row is no longer the place for.
+   */
+  it('carries exactly one control', () => {
+    renderRow();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByRole('button')).toHaveAccessibleName('Change');
+  });
+
+  /**
+   * Collapsing a section must REMOVE weight, not add it. An expanded sub-step is
+   * plain content inside the form's own white card (`panelClass` is spacing and
+   * nothing else), and the step header's subline states its facts unboxed too —
+   * so a bordered, filled collapsed row was the odd one out in both directions.
+   */
+  it('draws no border or fill of its own', () => {
+    const { container } = renderRow();
+    const row = container.firstElementChild!;
+    expect(row.className).not.toMatch(/border/);
+    expect(row.className).not.toMatch(/bg-/);
+  });
+
+  /**
+   * When a row does not fit, wrapping is the better failure than clipping, for a
+   * row whose whole job is to state a fact — a truncating value drops its LAST
+   * segment, which is the one a customer is least able to recover from the rest
+   * of the screen.
    *
-   * So the row wraps and the pill is pushed by an auto margin rather than by
-   * `justify-between`, because auto margins resolve per flex line: the pill
-   * stays against the right edge whether it shares a line or has one to itself.
-   * Class assertions rather than measurements, since JSDOM does no layout.
+   * The pill is pushed by an auto margin rather than by `justify-between`,
+   * because auto margins resolve per flex line: it stays against the right edge
+   * whether it shares a line or has one to itself. These rows are `lg:hidden`,
+   * so that edge is always a phone's. Class assertions rather than
+   * measurements, since JSDOM does no layout.
    */
   it('wraps rather than truncating, and keeps the pill right on either line', () => {
-    const { container } = renderRow({
-      secondaryAction: <RevealDetailsButton onClick={() => {}}>Info</RevealDetailsButton>,
-    });
+    const { container } = renderRow();
 
     const row = container.firstElementChild!;
     expect(row.className).toContain('flex-wrap');

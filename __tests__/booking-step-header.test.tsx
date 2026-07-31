@@ -26,17 +26,14 @@ import { BookingStepHeader } from '@/app/[locale]/(features)/bookings/components
 import {
   BAY_BOOKING_SCREEN_COUNT,
   BAY_BOOKING_STEP_COUNT,
-  STEP_HEADER_SUBLINE_SEPARATORS,
+  STEP_HEADER_SUBLINE_SEPARATOR,
   STEP_LABEL_KEYS,
   STEP_QUESTION_KEYS,
   SUB_STEP_QUESTION_KEYS,
-  SUB_STEP_WITH_SLOT_CHIP,
   buildStepHeaderSubline,
   narrowStepFor,
   stepBarStates,
   stepHeaderSublineFor,
-  stepHeaderSublineSeparator,
-  stepHeaderSublineSuppressed,
   stepLabelKey,
   stepQuestionKey,
 } from '@/app/[locale]/(features)/bookings/components/booking/stepHeaderModel';
@@ -83,7 +80,7 @@ function renderHeader(
         label="Details"
         position="Step 3 of 3"
         question="How long?"
-        subline="Wed 29 Jul, from 13:00, Social Bay"
+        subline="Wed 29 Jul · 13:00 · Social Bay"
         onBack={onBack}
         backLabel="Go back"
         {...props}
@@ -246,7 +243,7 @@ describe('SUB_STEP_QUESTION_KEYS', () => {
  * would ship a header reading "stepDateQuestion" and nothing would have failed.
  */
 describe('the header strings exist in all five locales', () => {
-  const pageKeys = [...STEP_LABEL_KEYS, ...STEP_QUESTION_KEYS, 'stepPosition', 'sublineFromTime'];
+  const pageKeys = [...STEP_LABEL_KEYS, ...STEP_QUESTION_KEYS, 'stepPosition'];
   const detailKeys = Object.values(SUB_STEP_QUESTION_KEYS);
 
   test.each(LOCALES)('%s', (locale) => {
@@ -267,11 +264,6 @@ describe('the header strings exist in all five locales', () => {
     const position = (CATALOGS[locale].bookings.page as Record<string, string>).stepPosition;
     expect(position).toContain('{current}');
     expect(position).toContain('{total}');
-  });
-
-  test.each(LOCALES)('%s keeps the time placeholder in the subline fragment', (locale) => {
-    const fragment = (CATALOGS[locale].bookings.page as Record<string, string>).sublineFromTime;
-    expect(fragment).toContain('{time}');
   });
 
   /**
@@ -365,15 +357,22 @@ describe('bayChoiceLabelKey', () => {
 
 describe('buildStepHeaderSubline', () => {
   test('joins the segments in the order the customer chose them', () => {
-    expect(buildStepHeaderSubline(['Wed 29 Jul', 'from 13:00', 'Social Bay'])).toBe(
-      'Wed 29 Jul, from 13:00, Social Bay',
+    expect(buildStepHeaderSubline(['Wed 29 Jul', '13:00', 'Social Bay'])).toBe(
+      'Wed 29 Jul · 13:00 · Social Bay',
     );
   });
 
-  test('joins with whatever separator the locale takes', () => {
-    expect(buildStepHeaderSubline(['7月29日(水)', '13:00 から'], '、')).toBe(
-      '7月29日(水)、13:00 から',
-    );
+  /**
+   * The middle dot, for every locale — the same literal the sticky bar and the
+   * collapsed sub-step summaries join with. This line sits stacked with those
+   * rows as a peer, and two punctuation schemes an inch apart was the owner's
+   * "2 different designs" complaint. The locale-aware comma map this replaced
+   * is gone; do not bring per-locale separators back without bringing them to
+   * ALL the recap rows at once.
+   */
+  test('joins with the recap dot, not a locale comma', () => {
+    expect(STEP_HEADER_SUBLINE_SEPARATOR).toBe(' · ');
+    expect(buildStepHeaderSubline(['7月29日(水)', '13:00'])).toBe('7月29日(水) · 13:00');
   });
 
   // The subline accumulates: step 1 has nothing, step 2 has the date, step 3
@@ -381,17 +380,15 @@ describe('buildStepHeaderSubline', () => {
   test('grows a segment at a time as the flow settles them', () => {
     expect(buildStepHeaderSubline([null, null, null])).toBe('');
     expect(buildStepHeaderSubline(['Wed 29 Jul', null, null])).toBe('Wed 29 Jul');
-    expect(buildStepHeaderSubline(['Wed 29 Jul', 'from 13:00', null])).toBe(
-      'Wed 29 Jul, from 13:00',
-    );
+    expect(buildStepHeaderSubline(['Wed 29 Jul', '13:00', null])).toBe('Wed 29 Jul · 13:00');
   });
 
   test('drops an unknown middle segment rather than emitting a dangling separator', () => {
     expect(buildStepHeaderSubline(['Wed 29 Jul', undefined, 'Social Bay'])).toBe(
-      'Wed 29 Jul, Social Bay',
+      'Wed 29 Jul · Social Bay',
     );
     expect(buildStepHeaderSubline(['Wed 29 Jul', '   ', 'Social Bay'])).toBe(
-      'Wed 29 Jul, Social Bay',
+      'Wed 29 Jul · Social Bay',
     );
   });
 });
@@ -406,10 +403,10 @@ describe('stepHeaderSublineFor', () => {
     const actual = stepHeaderSublineFor({
       locale: 'en',
       date: BOOKING_DATE,
-      fromTimeLabel: 'from 13:00',
+      time: '13:00',
       bayLabel: 'Social Bay',
     });
-    expect(actual).toBe(`${formatShortDate('en', BOOKING_DATE)}, from 13:00, Social Bay`);
+    expect(actual).toBe(`${formatShortDate('en', BOOKING_DATE)} · 13:00 · Social Bay`);
   });
 
   /**
@@ -423,17 +420,17 @@ describe('stepHeaderSublineFor', () => {
       stepHeaderSublineFor({
         locale: 'en',
         date: BOOKING_DATE,
-        fromTimeLabel: 'from 13:00',
+        time: '13:00',
         bayLabel: 'Social Bay',
       }),
-    ).toBe('Wed 29 Jul, from 13:00, Social Bay');
+    ).toBe('Wed 29 Jul · 13:00 · Social Bay');
   });
 
   test('leads with the DATE, not the start time', () => {
     const subline = stepHeaderSublineFor({
       locale: 'en',
       date: BOOKING_DATE,
-      fromTimeLabel: 'from 13:00',
+      time: '13:00',
       bayLabel: 'Social Bay',
     });
 
@@ -460,11 +457,11 @@ describe('stepHeaderSublineFor', () => {
       const subline = stepHeaderSublineFor({
         locale: 'en',
         date: BOOKING_DATE,
-        fromTimeLabel: 'from 13:00',
+        time: '13:00',
         bayLabel,
       });
-      expect(subline).toBe(`Wed 29 Jul, from 13:00, ${bayLabel}`);
-      expect(subline.endsWith(', ')).toBe(false);
+      expect(subline).toBe(`Wed 29 Jul · 13:00 · ${bayLabel}`);
+      expect(subline.endsWith(STEP_HEADER_SUBLINE_SEPARATOR)).toBe(false);
     }
   });
 
@@ -472,120 +469,33 @@ describe('stepHeaderSublineFor', () => {
     const th = stepHeaderSublineFor({
       locale: 'th',
       date: BOOKING_DATE,
-      fromTimeLabel: 'เริ่ม 13:00 น.',
+      time: '13:00',
       bayLabel: 'Social Bay',
     });
     expect(th).not.toContain('Jul');
     expect(th).not.toContain('Wed');
     // The two segments the caller passes through untouched still arrive.
-    expect(th).toContain('เริ่ม 13:00 น.');
+    expect(th).toContain('13:00');
     expect(th.endsWith('Social Bay')).toBe(true);
   });
 
   /**
-   * A comma is not one character. An ASCII comma inside a Japanese or Chinese
-   * line reads as a Latin intrusion, the same class of detail as the per-locale
-   * CJK font stacks in `globals.css`.
+   * One separator for every locale — the dot the sticky bar already ships in
+   * all five. The line must never pick up a locale comma again without every
+   * other recap row moving with it.
    */
-  test('sets the separator the way each locale sets it', () => {
-    const ja = stepHeaderSublineFor({
-      locale: 'ja',
-      date: BOOKING_DATE,
-      fromTimeLabel: '13:00 から',
-    });
-    expect(ja).toContain('、');
-    expect(ja).not.toContain(', ');
-
-    const zh = stepHeaderSublineFor({
-      locale: 'zh',
-      date: BOOKING_DATE,
-      fromTimeLabel: '13:00 开始',
-    });
-    expect(zh).toContain('，');
-    expect(zh).not.toContain(', ');
-  });
-
-  test('falls back to the Latin comma for a locale it does not know', () => {
-    expect(stepHeaderSublineSeparator('en')).toBe(', ');
-    expect(stepHeaderSublineSeparator('ja')).toBe('、');
-    expect(stepHeaderSublineSeparator('de')).toBe(', ');
-    expect(stepHeaderSublineSeparator('')).toBe(', ');
-  });
-
-  /**
-   * Every locale the site ships needs a separator. A `Record<Locale, string>`
-   * makes that a typecheck error rather than a runtime fallback, but only while
-   * someone keeps using the type. This notices if the map is ever widened.
-   */
-  test('has a separator for every locale the site ships', () => {
+  test('joins with the same dot in every locale', () => {
     for (const locale of LOCALES) {
-      expect(STEP_HEADER_SUBLINE_SEPARATORS[locale].length).toBeGreaterThan(0);
+      const line = stepHeaderSublineFor({
+        locale,
+        date: BOOKING_DATE,
+        time: '13:00',
+        bayLabel: 'Social Bay',
+      });
+      expect(line).toContain(' · 13:00 · ');
+      expect(line).not.toContain('、');
+      expect(line).not.toContain('，');
     }
-    expect(Object.keys(STEP_HEADER_SUBLINE_SEPARATORS).sort()).toEqual([...LOCALES].sort());
-  });
-});
-
-/**
- * The subline and step 3's session sub-step both state the date, the start time
- * and the bay. That was the arrangement the owner objected to twice — the facts
- * said twice at the top of one screen — and it is settled in one direction: the
- * chip keeps them because its "Change" leads back to the step that decided them,
- * and the header yields on that screen only.
- *
- * The rule is a function rather than a condition inlined in `page.tsx` because
- * it is a PAIRING: it is only safe for the header to go quiet where something
- * else is speaking. Anyone moving the chip has to come here first.
- */
-describe('stepHeaderSublineSuppressed', () => {
-  test('is silent on the sub-step that carries the slot chip', () => {
-    expect(stepHeaderSublineSuppressed(3, SUB_STEP_WITH_SLOT_CHIP)).toBe(true);
-  });
-
-  test('speaks on every other step-3 sub-step, where the chip is not rendered', () => {
-    for (const subStep of DETAIL_SUB_STEPS) {
-      if (subStep === SUB_STEP_WITH_SLOT_CHIP) continue;
-      expect(stepHeaderSublineSuppressed(3, subStep)).toBe(false);
-    }
-    // ...and there really are others, so the loop above is not vacuous.
-    expect(DETAIL_SUB_STEPS.length).toBeGreaterThan(1);
-  });
-
-  /**
-   * The sub-step hook keeps its state across a trip back to step 2, so a stale
-   * `'session'` is the NORMAL reading on steps 1 and 2 rather than an edge case
-   * — which is exactly how a header could go silent on a step that has no chip
-   * to replace it. The step check is what rules that out.
-   */
-  test('never silences steps 1 and 2, whatever the sub-step still says', () => {
-    for (const step of [1, 2]) {
-      for (const subStep of DETAIL_SUB_STEPS) {
-        expect(stepHeaderSublineSuppressed(step, subStep)).toBe(false);
-      }
-    }
-  });
-
-  test('clamps an out-of-range step rather than reading it literally', () => {
-    expect(stepHeaderSublineSuppressed(0, SUB_STEP_WITH_SLOT_CHIP)).toBe(false);
-    expect(stepHeaderSublineSuppressed(99, SUB_STEP_WITH_SLOT_CHIP)).toBe(true);
-  });
-
-  /**
-   * The chip lives on a real sub-step. If `DETAIL_SUB_STEPS` is ever
-   * reordered or renamed, this fails here rather than as a subline that has
-   * quietly started printing on the screen it was meant to leave alone.
-   */
-  test('names a sub-step the flow actually navigates', () => {
-    expect(DETAIL_SUB_STEPS).toContain(SUB_STEP_WITH_SLOT_CHIP);
-  });
-
-  /**
-   * The header takes `subline` as optional and omits the row entirely when it
-   * is absent, which is what suppression relies on: there is no reserved empty
-   * row left behind for the chip to sit under.
-   */
-  test('an absent subline leaves no row behind', () => {
-    const { container } = renderHeader({ subline: undefined });
-    expect(container.querySelector('header')!.querySelectorAll('p')).toHaveLength(2);
   });
 });
 
@@ -596,7 +506,7 @@ describe('BookingStepHeader', () => {
     expect(screen.getByText('Details')).toBeInTheDocument();
     expect(screen.getByText('Step 3 of 3')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'How long?' })).toBeInTheDocument();
-    expect(screen.getByText('Wed 29 Jul, from 13:00, Social Bay')).toBeInTheDocument();
+    expect(screen.getByText('Wed 29 Jul · 13:00 · Social Bay')).toBeInTheDocument();
   });
 
   test('draws one bar per step, filled to the current one', () => {
@@ -634,6 +544,95 @@ describe('BookingStepHeader', () => {
     const back = screen.getByRole('button', { name: 'Go back' });
     await user.click(back);
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * THE SLOT LIVES HERE NOW, AND SO DOES THE WAY BACK TO IT.
+   *
+   * Step 3 used to open with a "slot chip" restating the date, the start time
+   * and the bay, which forced the subline to be suppressed on that one screen so
+   * the customer did not read the same booking twice — and made the same facts
+   * a tappable chip on one sub-step and inert text on the next. The facts have
+   * one home again, and it is this line, so the affordance is on this line too.
+   *
+   * These assert the pair that replaced it. A regression in either direction is
+   * a real bug: without the pill the slot is unreachable from the extras and
+   * contact sub-steps except by guessing at a back arrow that walks sub-steps,
+   * and putting the facts anywhere else brings back the duplication.
+   */
+  test('offers no way to change the slot unless the flow supplies one', () => {
+    renderHeader();
+    expect(screen.queryByRole('button', { name: /change/i })).not.toBeInTheDocument();
+  });
+
+  test('renders the Change pill beside the subline and calls back on click', async () => {
+    const user = userEvent.setup();
+    const onChangeSlot = jest.fn();
+    renderHeader({
+      onChangeSlot,
+      changeSlotLabel: 'Change',
+      changeSlotAriaLabel: 'Change time or bay',
+    });
+
+    const change = screen.getByRole('button', { name: 'Change time or bay' });
+    await user.click(change);
+
+    expect(onChangeSlot).toHaveBeenCalledTimes(1);
+    // Distinct from the back arrow, which walks one level rather than reaching
+    // the step the subline describes.
+    expect(change).not.toBe(screen.getByRole('button', { name: 'Go back' }));
+  });
+
+  /**
+   * The face is short so the row fits a phone; the accessible name is long
+   * because several "Change" controls share the mobile sub-step layout. WCAG
+   * 2.5.3 requires the name to contain the visible label, or a voice-control
+   * user saying the word they can see cannot activate it.
+   */
+  /**
+   * WCAG 2.5.3 IN EVERY LOCALE, not just the one the assertions below hardcode.
+   *
+   * `changeSlotAction` used to be the slot chip's VISIBLE label, so no
+   * relationship to `changeAction` was ever required of it — the two were free
+   * to pick different verbs. Promoting it to the `aria-label` over a different
+   * visible label made containment a contract retroactively, and Thai had
+   * already broken it: "แก้ไข" on the face against "เปลี่ยน…" in the name, so a
+   * Thai voice-control user saying the word they can see could not activate the
+   * button. English passed, which is exactly why this has to run per locale.
+   */
+  test.each(LOCALES)('%s: the accessible name contains the visible label', (locale) => {
+    const d = CATALOGS[locale].bookings.detailsStep as Record<string, string>;
+    expect(d.changeSlotAction).toContain(d.changeAction);
+  });
+
+  test('prints a short label and exposes the longer name', () => {
+    renderHeader({
+      onChangeSlot: jest.fn(),
+      changeSlotLabel: 'Change',
+      changeSlotAriaLabel: 'Change time or bay',
+    });
+
+    const change = screen.getByRole('button', { name: 'Change time or bay' });
+    expect(change.textContent).toBe('Change');
+    expect(change.getAttribute('aria-label')).toContain('Change');
+  });
+
+  /**
+   * The facts and the control share one row, and the FACTS are what must
+   * survive a narrow screen — the row wraps rather than truncating the line the
+   * customer is there to read. Same rule, and the same reason, as
+   * `DetailsSubStepSummary`.
+   */
+  test('keeps the pill out of the paragraph, so the line cannot truncate it away', () => {
+    renderHeader({
+      onChangeSlot: jest.fn(),
+      changeSlotLabel: 'Change',
+      changeSlotAriaLabel: 'Change time or bay',
+    });
+
+    const change = screen.getByRole('button', { name: 'Change time or bay' });
+    expect(change.closest('p')).toBeNull();
+    expect(change.parentElement?.className).toMatch(/flex-wrap/);
   });
 
   test('has no back control on step 1, where there is nowhere to go back to', () => {

@@ -69,6 +69,27 @@ export function useBookingFlow() {
   const [selectedAddOns, setSelectedAddOns] = useState<Record<string, boolean>>({});
   const [selectedSlotData, setSelectedSlotData] = useState<TimeSlot | null>(null);
 
+  /**
+   * The customer's note and their marketing consent, held HERE rather than in
+   * `useBookingDetailsForm`, for the same reason `duration` and
+   * `numberOfPeople` are: they outlive a slot change.
+   *
+   * `handleBack` from step 3 nulls `selectedTime`, and `page.tsx` renders step
+   * 3 only while a time is set — so the whole of `BookingDetails` unmounts and
+   * every `useState` inside its form hook resets, silently, with nothing on
+   * screen to say so. That was harmless while the only control reaching
+   * `handleBack` sat on the FIRST sub-step, where neither of these has been
+   * touched yet. The step header's "Change" now offers the same trip from the
+   * review sub-step, one tap from Confirm and with a typed note on screen.
+   *
+   * So they move up here with the rest of what survives. See
+   * `__tests__/session-facts-carry.test.tsx`, which states the rule: the fix is
+   * not to soften the navigation, it is to move the facts that outlive a slot
+   * change onto the flow.
+   */
+  const [customerNotes, setCustomerNotes] = useState<string>('');
+  const [marketingOptIn, setMarketingOptIn] = useState<boolean>(false);
+
   // Step 3 is presented as three sub-steps on mobile. The sub-step lives here,
   // beside `currentStep`, so this hook stays the single source of navigation
   // truth and the header arrow in page.tsx can resolve "backward one level"
@@ -102,6 +123,8 @@ export function useBookingFlow() {
       selectedClubSetId,
       selectedAddOns,
       selectedSlotData,
+      customerNotes,
+      marketingOptIn,
     },
     (s) => {
       if (hasDeepLink) return;
@@ -134,6 +157,11 @@ export function useBookingFlow() {
       if (s.selectedClubSetId) setSelectedClubSetId(s.selectedClubSetId);
       if (s.selectedAddOns) setSelectedAddOns(s.selectedAddOns);
       if (s.selectedSlotData) setSelectedSlotData(s.selectedSlotData);
+      // Truthiness again, and again it lands right: an empty note and an
+      // unticked box ARE the defaults, so there is nothing to restore either
+      // way, and a snapshot written before these were carried has neither key.
+      if (s.customerNotes) setCustomerNotes(s.customerNotes);
+      if (s.marketingOptIn) setMarketingOptIn(s.marketingOptIn);
     },
   );
 
@@ -283,6 +311,10 @@ export function useBookingFlow() {
     setDuration,
     numberOfPeople,
     setNumberOfPeople,
+    customerNotes,
+    setCustomerNotes,
+    marketingOptIn,
+    setMarketingOptIn,
     isAutoSelecting,
     selectedPackage,
     selectedClubRental,
