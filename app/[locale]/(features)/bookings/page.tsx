@@ -57,6 +57,10 @@ export default function BookingsPage() {
     setDuration,
     numberOfPeople,
     setNumberOfPeople,
+    customerNotes,
+    setCustomerNotes,
+    marketingOptIn,
+    setMarketingOptIn,
     selectedPackage,
     selectedClubRental,
     selectedClubSetId,
@@ -230,6 +234,10 @@ export default function BookingsPage() {
             onDurationChange={setDuration}
             numberOfPeople={numberOfPeople}
             onNumberOfPeopleChange={setNumberOfPeople}
+            customerNotes={customerNotes}
+            onCustomerNotesChange={setCustomerNotes}
+            marketingOptIn={marketingOptIn}
+            onMarketingOptInChange={setMarketingOptIn}
             slotData={selectedSlotData}
             onBack={handleBack}
             selectedPackage={selectedPackage}

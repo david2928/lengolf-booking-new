@@ -4,11 +4,15 @@
  * WHY THIS FILE EXISTS
  *
  * Booking step 3's first sub-step used to state the date, the start time and the
- * bay on three read-only cards with no way back to any of them. They are now one
- * chip whose "Change" leaves step 3 for step 2, which is where the start time and
- * the bay are chosen. That turns a control the customer previously had to hunt
- * for (the header's back arrow) into an obvious one on the row itself — so the
- * round trip stops being rare and starts being the advertised path.
+ * bay on three read-only cards with no way back to any of them. Those became a
+ * "slot chip", and the chip in turn became a Change pill on the step header's
+ * subline — which is where the facts live now, on ALL THREE sub-steps. Its
+ * Change leaves step 3 for step 2, where the start time and the bay are chosen.
+ *
+ * Each move made the round trip easier to reach, and the last one made it
+ * reachable from the REVIEW sub-step, one tap from Confirm. A control the
+ * customer used to have to hunt for (the header's back arrow) is now the
+ * advertised path from every screen in the step.
  *
  * And the round trip is destructive by construction: `handleBack` nulls
  * `selectedTime`, `page.tsx` renders step 3 only while a time is set, so
@@ -63,7 +67,7 @@ async function flowAtStepThree() {
   return result;
 }
 
-describe("the chip's Change leaves step 3 for step 2", () => {
+describe("the header's Change leaves step 3 for step 2", () => {
   beforeEach(() => {
     sessionStorage.clear();
   });
@@ -76,7 +80,7 @@ describe("the chip's Change leaves step 3 for step 2", () => {
     expect(result.current.currentStep).toBe(2);
     // The date is untouched, so step 2 renders the same day's slots. Reaching
     // the DATE is step 2's own back arrow, one more level up — which is why the
-    // chip's label names the time and the bay and stops there.
+    // pill's accessible name says "time or bay" and stops there.
     expect(result.current.selectedDate).not.toBeNull();
     // The start time IS dropped: they are re-picking a slot.
     expect(result.current.selectedTime).toBeNull();
@@ -97,7 +101,7 @@ describe('what the customer already chose on step 3 survives the round trip', ()
     });
 
     // Out to step 2 and back in on a different slot — the whole point of the
-    // chip's Change.
+    // header's Change.
     act(() => result.current.handleBack());
     act(() => result.current.handleTimeSelect('21:00', 3));
 
@@ -107,10 +111,44 @@ describe('what the customer already chose on step 3 survives the round trip', ()
     expect(result.current.numberOfPeople).toBe(4);
   });
 
+
   /**
-   * These three already lived on the flow before the chip existed. Pinned here
-   * anyway: the chip is what makes this trip a routine one, so "extras survive"
-   * stops being an incidental property and becomes a requirement.
+   * THE NOTE AND THE CONSENT, hoisted onto the flow by the same PR that put a
+   * Change pill on the step header.
+   *
+   * Both used to be `useState` inside `useBookingDetailsForm`. `handleBack`
+   * nulls `selectedTime`, `page.tsx` renders step 3 only while a time is set,
+   * so the component unmounts and both reset to '' / false — silently, with
+   * nothing on screen to say so. That was survivable while the only control
+   * reaching `handleBack` sat on the FIRST sub-step, where neither has been
+   * touched. The header pill offers the same trip from the REVIEW sub-step,
+   * one tap from Confirm, with a typed note on screen.
+   *
+   * Neither is a property of the slot, which is what makes carrying them
+   * correct rather than merely convenient: "please leave the left-handed clubs
+   * out" is still true half an hour later.
+   */
+  test('the note and the marketing consent survive a slot change', async () => {
+    const result = await flowAtStepThree();
+
+    act(() => {
+      result.current.setCustomerNotes('Left-handed clubs please');
+      result.current.setMarketingOptIn(true);
+    });
+
+    act(() => result.current.handleBack());
+    act(() => result.current.handleTimeSelect('21:00', 3));
+
+    expect(result.current.currentStep).toBe(3);
+    expect(result.current.customerNotes).toBe('Left-handed clubs please');
+    expect(result.current.marketingOptIn).toBe(true);
+  });
+
+  /**
+   * These three already lived on the flow before any Change pill existed.
+   * Pinned here anyway: that pill is what makes this trip a routine one, so
+   * "extras survive" stops being an incidental property and becomes a
+   * requirement.
    */
   test('the club rental, the club set and the add-ons come back too', async () => {
     const result = await flowAtStepThree();

@@ -79,16 +79,12 @@ export function DetailsSubStepSummary({
        same shape the header line uses, which is the point. */
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-0.5">
       <p className="min-w-0 text-sm text-gray-700">
-        {label && (
-          <>
-            <span className="font-semibold text-gray-900">{label}</span>
-            {/* Literal spaces, not `mx-1.5`: the separators inside `value` are
-                plain " · " strings, so a margin-only gap matched them visually
-                but not textually — screen readers and copy/paste got
-                "Session·1 hr" while every later separator had spaces. */}
-            <span className="text-gray-300">{' · '}</span>
-          </>
-        )}
+        <span className="font-semibold text-gray-900">{label}</span>
+        {/* Literal spaces, not `mx-1.5`: the separators inside `value` are plain
+            " · " strings, so a margin-only gap matched them visually but not
+            textually — screen readers and copy/paste got "Session·1 hr" while
+            every later separator had spaces. */}
+        <span className="text-gray-300">{' · '}</span>
         {value}
       </p>
       <ChangeAnswerButton onClick={onChange} className="ml-auto">

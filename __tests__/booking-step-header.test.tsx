@@ -589,6 +589,22 @@ describe('BookingStepHeader', () => {
    * 2.5.3 requires the name to contain the visible label, or a voice-control
    * user saying the word they can see cannot activate it.
    */
+  /**
+   * WCAG 2.5.3 IN EVERY LOCALE, not just the one the assertions below hardcode.
+   *
+   * `changeSlotAction` used to be the slot chip's VISIBLE label, so no
+   * relationship to `changeAction` was ever required of it — the two were free
+   * to pick different verbs. Promoting it to the `aria-label` over a different
+   * visible label made containment a contract retroactively, and Thai had
+   * already broken it: "แก้ไข" on the face against "เปลี่ยน…" in the name, so a
+   * Thai voice-control user saying the word they can see could not activate the
+   * button. English passed, which is exactly why this has to run per locale.
+   */
+  test.each(LOCALES)('%s: the accessible name contains the visible label', (locale) => {
+    const d = CATALOGS[locale].bookings.detailsStep as Record<string, string>;
+    expect(d.changeSlotAction).toContain(d.changeAction);
+  });
+
   test('prints a short label and exposes the longer name', () => {
     renderHeader({
       onChangeSlot: jest.fn(),

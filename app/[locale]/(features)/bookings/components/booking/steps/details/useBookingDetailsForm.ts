@@ -110,6 +110,17 @@ export interface BookingDetailsProps {
   onDurationChange: (value: number) => void;
   numberOfPeople: number;
   onNumberOfPeopleChange: (value: number) => void;
+  /**
+   * The note and the marketing consent, owned by `useBookingFlow` for the same
+   * reason `duration` and `numberOfPeople` are: leaving step 3 unmounts this
+   * component, and anything held in a `useState` here dies with it. The step
+   * header's "Change" makes that trip reachable from the review sub-step, one
+   * tap from Confirm, with a typed note on screen.
+   */
+  customerNotes: string;
+  onCustomerNotesChange: (value: string) => void;
+  marketingOptIn: boolean;
+  onMarketingOptInChange: (value: boolean) => void;
   slotData?: TimeSlot | null;
   onBack: () => void;
   selectedPackage?: PlayFoodPackage | null;
@@ -154,6 +165,10 @@ export function useBookingDetailsForm({
   onDurationChange: setDuration,
   numberOfPeople,
   onNumberOfPeopleChange: setNumberOfPeople,
+  customerNotes,
+  onCustomerNotesChange: setCustomerNotes,
+  marketingOptIn,
+  onMarketingOptInChange: setMarketingOptIn,
   slotData,
   onBack,
   selectedPackage,
@@ -187,8 +202,7 @@ export function useBookingDetailsForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
-  const [customerNotes, setCustomerNotes] = useState('');
-  const [marketingOptIn, setMarketingOptIn] = useState<boolean>(false);
+
   /**
    * The customer's EXISTING marketing consent on `customers.marketing_opt_in`,
    * as reported by `/api/vip/profile`. Purely presentational: it decides

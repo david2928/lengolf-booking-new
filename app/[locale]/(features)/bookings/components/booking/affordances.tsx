@@ -53,23 +53,6 @@ interface AffordanceProps {
   className?: string;
 }
 
-export interface RevealDetailsButtonProps extends AffordanceProps {
-  /**
-   * Draw the glyph alone and keep the label for assistive tech only.
-   *
-   * For rows where horizontal space is the binding constraint — today only the
-   * slot chip, which carries three facts and two controls on one line. The
-   * label is NOT dropped, it moves to `sr-only`: the accessible name is
-   * unchanged, so screen readers, voice control and every `getByRole` query
-   * still see "Info". Deleting the text outright would have traded 30px for an
-   * unnamed button.
-   *
-   * `sr-only` is `position:absolute`, so it is not a flex item for layout and
-   * the row's `gap-1` does not open a gap beside a glyph with nothing after it.
-   */
-  iconOnly?: boolean;
-}
-
 /**
  * Opens a read-only overlay. Costs the customer nothing, so it is drawn as the
  * quietest interactive thing on the row.
@@ -78,12 +61,7 @@ export interface RevealDetailsButtonProps extends AffordanceProps {
  * the booking `<form>`, where a button with no explicit type defaults to
  * `submit` and would fire the booking.
  */
-export function RevealDetailsButton({
-  onClick,
-  children,
-  className = '',
-  iconOnly = false,
-}: RevealDetailsButtonProps) {
+export function RevealDetailsButton({ onClick, children, className = '' }: AffordanceProps) {
   return (
     <button
       type="button"
@@ -91,7 +69,7 @@ export function RevealDetailsButton({
       className={`inline-flex shrink-0 items-center gap-1 rounded text-xs font-medium text-gray-500 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-1 ${className}`}
     >
       <InformationCircleIcon className="h-4 w-4" aria-hidden="true" />
-      {iconOnly ? <span className="sr-only">{children}</span> : children}
+      {children}
     </button>
   );
 }
