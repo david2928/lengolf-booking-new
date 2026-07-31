@@ -22,6 +22,10 @@ const baseInput: CostCalculationInput = {
   applicablePromotions: [],
 };
 
+// Stands in for the new-customer B1G1 (54c08739), the one promotion that mints
+// a redeemable free-hour credit. `grants_credit` is what entitles its sub-2-hour
+// hint to say "Or redeem your free hour within 7 days"; see the dedicated
+// describe block at the bottom of this file for the row that may not.
 const bogoPromo: ApplicablePromotion = {
   id: 'promo-b1g1',
   promotion_type: 'bogo',
@@ -30,6 +34,7 @@ const bogoPromo: ApplicablePromotion = {
   conditions: {},
   title_en: 'Buy 1 Get 1 Free',
   title_th: 'ซื้อ 1 แถม 1',
+  grants_credit: true,
 };
 
 function bayItem(input: Partial<CostCalculationInput>) {
@@ -43,25 +48,25 @@ describe('bay rate proration across the 14:00 boundary', () => {
   test('13:30 1h weekday straddles morning/afternoon → ฿650 (0.5×550 + 0.5×750)', () => {
     const { item } = bayItem({ startTime: '13:30', duration: 1 });
     expect(item.amount).toBe(650);
-    expect(item.detail).toBe('0.5hr × ฿550 + 0.5hr × ฿750 (Weekday)');
+    expect(item.detail).toBe('0.5 hr × ฿550 + 0.5 hr × ฿750 (Weekday)');
   });
 
   test('13:00 1h weekday stays fully in the morning slot → ฿550, unchanged format', () => {
     const { item } = bayItem({ startTime: '13:00', duration: 1 });
     expect(item.amount).toBe(550);
-    expect(item.detail).toBe('1hr × ฿550/hr (Weekday, Before 14:00)');
+    expect(item.detail).toBe('1 hr × ฿550/hr (Weekday, Before 14:00)');
   });
 
   test('12:00 3h weekday spans the boundary → 2×550 + 1×750 = ฿1,850', () => {
     const { item } = bayItem({ startTime: '12:00', duration: 3 });
     expect(item.amount).toBe(1850);
-    expect(item.detail).toBe('2hr × ฿550 + 1hr × ฿750 (Weekday)');
+    expect(item.detail).toBe('2 hr × ฿550 + 1 hr × ฿750 (Weekday)');
   });
 
   test('14:00 2h weekend is single-rate afternoon → ฿1,900', () => {
     const { item } = bayItem({ date: WEEKEND, startTime: '14:00', duration: 2 });
     expect(item.amount).toBe(1900);
-    expect(item.detail).toBe('2hr × ฿950/hr (Weekend, 14:00 - 17:00)');
+    expect(item.detail).toBe('2 hr × ฿950/hr (Weekend, 14:00 - 17:00)');
   });
 
   test('16:00 2h weekday crossing into evening promo shows prorated strikethrough original', () => {
@@ -74,7 +79,7 @@ describe('bay rate proration across the 14:00 boundary', () => {
   test('same-price slots merge for display but drop the (now wrong) slot label', () => {
     const { item } = bayItem({ startTime: '16:00', duration: 2 });
     // 16:00–18:00 is not within "14:00 - 17:00", so no slot label
-    expect(item.detail).toBe('2hr × ฿750/hr (Weekday)');
+    expect(item.detail).toBe('2 hr × ฿750/hr (Weekday)');
   });
 
   test('08:00 start inherits the morning rate instead of pricing at ฿0', () => {
@@ -85,7 +90,7 @@ describe('bay rate proration across the 14:00 boundary', () => {
   test('non-half-hour start rounds amount to whole baht and hours to 2dp', () => {
     const { item } = bayItem({ startTime: '13:20', duration: 1 });
     expect(item.amount).toBe(617); // 2/3×550 + 1/3×750 = 616.67 → 617
-    expect(item.detail).toBe('0.67hr × ฿550 + 0.33hr × ฿750 (Weekday)');
+    expect(item.detail).toBe('0.67 hr × ฿550 + 0.33 hr × ฿750 (Weekday)');
   });
 });
 
@@ -188,7 +193,7 @@ describe('Early Bird package coverage splits at 14:00', () => {
 
     expect(charged?.amount).toBe(1125); // 1.5 × ฿750
     expect(charged?.isCoveredByPackage).toBeUndefined();
-    expect(charged?.detail).toBe('1.5hr × ฿750/hr (Weekday, 14:00 - 17:00)');
+    expect(charged?.detail).toBe('1.5 hr × ฿750/hr (Weekday, 14:00 - 17:00)');
 
     expect(breakdown.estimatedTotal).toBe(1125);
     expect(breakdown.notes.some((n) => n.includes('covers until 14:00'))).toBe(true);
@@ -200,6 +205,56 @@ describe('Early Bird package coverage splits at 14:00', () => {
     expect(charged?.amount).toBe(0);
     expect(charged?.isCoveredByPackage).toBe(true);
     expect(breakdown.estimatedTotal).toBe(0);
+  });
+
+  /**
+   * The chip and a note used to say the same sentence a few lines apart:
+   * "Covered by Early Bird +" under the Bay Rate line, then "Bay rate covered
+   * by Early Bird +" under the Total. Owner-reported Jul 2026. The chip is the
+   * one that stayed, so a FULLY covered booking must carry the chip data and
+   * contribute NO coverage note in any of the five locales.
+   *
+   * Deliberately asserted as "notes hold nothing but the estimate line" rather
+   * than by matching the old wording — a reworded duplicate would sail straight
+   * past a substring check.
+   */
+  test('full coverage is said once, by the chip, and never repeated in the notes', () => {
+    const { breakdown, charged } = items({ startTime: '13:00', duration: 1 });
+
+    // The chip's inputs. Both surfaces render it off `isCoveredByPackage`.
+    expect(charged?.isCoveredByPackage).toBe(true);
+    expect(charged?.packageName).toBe('Early Bird 10H');
+
+    const ESTIMATE_ONLY = {
+      notes: ['Estimate only, payment at venue'],
+      notesTh: ['ราคาประมาณการ ชำระที่สถานที่'],
+      notesJa: ['ご予約時の見積もり、会場でお支払い'],
+      notesKo: ['예상 금액, 현장에서 결제'],
+      notesZh: ['预估价格，现场付款'],
+    };
+    expect({
+      notes: breakdown.notes,
+      notesTh: breakdown.notesTh,
+      notesJa: breakdown.notesJa,
+      notesKo: breakdown.notesKo,
+      notesZh: breakdown.notesZh,
+    }).toEqual(ESTIMATE_ONLY);
+
+    // And specifically not the package name a second time, however phrased.
+    for (const locale of Object.values(ESTIMATE_ONLY)) {
+      expect(locale.some((n) => n.includes('Early Bird 10H'))).toBe(false);
+    }
+  });
+
+  // The PARTIAL-coverage branch is the counterpart: there the chip explains the
+  // ฿0 head but nothing explains the charged tail, so its note must survive.
+  test('the partial-coverage note is untouched by the full-coverage cleanup', () => {
+    const { breakdown } = items({ startTime: '13:30', duration: 2 });
+    expect(breakdown.notes.some((n) => n.includes('covers until 14:00'))).toBe(true);
+    expect(breakdown.notesTh.some((n) => n.includes('14:00'))).toBe(true);
+    expect(breakdown.notesJa.some((n) => n.includes('14:00'))).toBe(true);
+    expect(breakdown.notesKo.some((n) => n.includes('14:00'))).toBe(true);
+    expect(breakdown.notesZh.some((n) => n.includes('14:00'))).toBe(true);
   });
 
   test('14:00 start → not covered at all, existing morning-only note fires', () => {
@@ -237,7 +292,7 @@ describe('Early Bird package coverage splits at 14:00', () => {
     const { charged } = items({ startTime: '13:00', duration: 5 });
     // charged 14:00–18:00 weekday: 3h afternoon ฿750 + 1h evening ฿750 (promo)
     expect(charged?.amount).toBe(3000);
-    expect(charged?.detail).toBe('4hr × ฿750/hr (Weekday)');
+    expect(charged?.detail).toBe('4 hr × ฿750/hr (Weekday)');
     // evening hour had a ฿1,250 pre-promo price → prorated strikethrough
     expect(charged?.originalAmount).toBe(3500);
   });
@@ -272,5 +327,959 @@ describe('Early Bird package coverage splits at 14:00', () => {
   test('Thai note is present alongside the English one on a split booking', () => {
     const { breakdown } = items({ startTime: '13:30', duration: 2 });
     expect(breakdown.notesTh.some((n) => n.includes('14:00'))).toBe(true);
+  });
+});
+
+/**
+ * `packageRemainingHours` — the bay line reflects how many hours the package
+ * actually has left, so a partially-covered booking stops previewing as ฿0.
+ *
+ * Weekday rates here: ฿550 before 14:00, ฿750 for 14:00–17:00, ฿750 promo
+ * (was ฿1,250) after 17:00.
+ */
+describe('a package balance that runs short charges the uncovered tail', () => {
+  const pkgInput: Partial<CostCalculationInput> = {
+    hasActivePackage: true,
+    packageDisplayName: 'Gold (30H)',
+  };
+
+  function items(input: Partial<CostCalculationInput>) {
+    const breakdown = calculateCost({ ...baseInput, ...pkgInput, ...input });
+    return {
+      breakdown,
+      covered: breakdown.lineItems.find((i) => i.id === 'bay-rate-covered'),
+      charged: breakdown.lineItems.find((i) => i.id === 'bay-rate'),
+    };
+  }
+
+  test('1 h left against a 1.5 h booking charges the TAIL at the afternoon rate', () => {
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00', duration: 1.5, packageRemainingHours: 1,
+    });
+
+    expect(covered?.amount).toBe(0);
+    expect(covered?.isCoveredByPackage).toBe(true);
+    expect(covered?.packageName).toBe('Gold (30H)');
+    expect(covered?.originalAmount).toBe(550);   // 13:00–14:00 × ฿550
+    expect(covered?.detail).toBe('1 hr × ฿550/hr (Weekday, Before 14:00)');
+
+    // 14:00–14:30 = 0.5 × ฿750. The HEAD would have been 0.5 × ฿550 = ฿275.
+    expect(charged?.amount).toBe(375);
+    expect(charged?.isCoveredByPackage).toBeUndefined();
+    expect(charged?.detail).toBe('0.5 hr × ฿750/hr (Weekday, 14:00 - 17:00)');
+
+    expect(breakdown.estimatedTotal).toBe(375);
+  });
+
+  test('...and specifically not the cheaper head of the booking', () => {
+    const { charged } = items({ startTime: '13:00', duration: 1.5, packageRemainingHours: 1 });
+    expect(charged?.amount).not.toBe(275);
+  });
+
+  test('a tail straddling 14:00 is itself prorated', () => {
+    // 0.5 h balance from 13:00 → covered 13:00–13:30, charged 13:30–15:00.
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00', duration: 2, packageRemainingHours: 0.5,
+    });
+    expect(covered?.originalAmount).toBe(275);   // 0.5 × ฿550
+    expect(charged?.amount).toBe(1025);          // 0.5 × ฿550 + 1 × ฿750
+    expect(charged?.detail).toBe('0.5 hr × ฿550 + 1 hr × ฿750 (Weekday)');
+    expect(breakdown.estimatedTotal).toBe(1025);
+  });
+
+  test('a tail crossing 17:00 picks up the evening promo strikethrough', () => {
+    // 1 h balance from 16:00 → charged 17:00–18:00, ฿750 promo (was ฿1,250).
+    const { charged } = items({ startTime: '16:00', duration: 2, packageRemainingHours: 1 });
+    expect(charged?.amount).toBe(750);
+    expect(charged?.originalAmount).toBe(1250);
+  });
+
+  test('exact coverage is fully covered — one ฿0 bay line, no overage', () => {
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00', duration: 1.5, packageRemainingHours: 1.5,
+    });
+    expect(covered).toBeUndefined();
+    expect(charged?.amount).toBe(0);
+    expect(charged?.isCoveredByPackage).toBe(true);
+    expect(charged?.originalAmount).toBe(925);   // 1 × ฿550 + 0.5 × ฿750
+    expect(breakdown.estimatedTotal).toBe(0);
+  });
+
+  test('a balance short by float dust does not manufacture a ฿0 tail', () => {
+    const { covered, charged } = items({
+      startTime: '13:00', duration: 1.5, packageRemainingHours: 1.5 - 1e-7,
+    });
+    expect(covered).toBeUndefined();
+    expect(charged?.isCoveredByPackage).toBe(true);
+  });
+
+  test('an unlimited package stays fully covered whatever the balance says', () => {
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00',
+      duration: 3,
+      packageRemainingHours: null,
+      packageIsUnlimited: true,
+    });
+    expect(covered).toBeUndefined();
+    expect(charged?.amount).toBe(0);
+    expect(charged?.isCoveredByPackage).toBe(true);
+    expect(breakdown.estimatedTotal).toBe(0);
+  });
+
+  test('a zero balance charges the whole booking and shows no covered line', () => {
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00', duration: 1.5, packageRemainingHours: 0,
+    });
+    expect(covered).toBeUndefined();
+    expect(charged?.amount).toBe(925);
+    expect(charged?.isCoveredByPackage).toBeUndefined();
+    expect(breakdown.estimatedTotal).toBe(925);
+    expect(breakdown.notes.some((n) => n.includes('does not cover this whole booking'))).toBe(true);
+  });
+
+  test('a shortfall note is emitted in all five locales', () => {
+    const { breakdown } = items({
+      startTime: '13:00', duration: 1.5, packageRemainingHours: 1,
+    });
+    expect(breakdown.notes.some((n) => n.includes('does not cover this whole booking'))).toBe(true);
+    expect(breakdown.notesTh.some((n) => n.includes('ไม่ครอบคลุมการจองนี้ทั้งหมด'))).toBe(true);
+    expect(breakdown.notesJa.some((n) => n.includes('カバーできません'))).toBe(true);
+    expect(breakdown.notesKo.some((n) => n.includes('이용할 수 없습니다'))).toBe(true);
+    expect(breakdown.notesZh.some((n) => n.includes('不足以涵盖整个预订'))).toBe(true);
+    // The name comes from the CRM, not a hardcoded fallback.
+    expect(breakdown.notes.some((n) => n.startsWith('Gold (30H)'))).toBe(true);
+  });
+
+  test('promotions still do not stack on a partially-covered booking', () => {
+    // `packageAppliesToBay` is keyed off eligibility, not the balance, so a
+    // package holder who runs short keeps today's (non-stacking) behaviour.
+    const { breakdown } = items({
+      startTime: '13:00',
+      duration: 2,
+      packageRemainingHours: 0.5,
+      applicablePromotions: [bogoPromo],
+    });
+    expect(breakdown.discounts).toHaveLength(0);
+  });
+
+  test('a Play & Food set still takes precedence and draws nothing down', () => {
+    const { breakdown, covered, charged } = items({
+      startTime: '13:00',
+      duration: 1,
+      playFoodPackageId: 'SET_A',
+      packageRemainingHours: 0,
+    });
+    expect(covered).toBeUndefined();
+    expect(charged).toBeUndefined();
+    expect(breakdown.lineItems.find((i) => i.id === 'play-food')).toBeDefined();
+    expect(breakdown.notes.some((n) => n.includes('does not cover this whole booking'))).toBe(false);
+  });
+
+  test('the Play & Food detail spaces its hour unit like every other English detail', () => {
+    // It renders in the same panel as the bay-rate detail ("1 hr × ฿550/hr"),
+    // and was the one English string the spacing sweep missed.
+    const { breakdown } = items({ startTime: '13:00', duration: 1, playFoodPackageId: 'SET_A' });
+    const playFood = breakdown.lineItems.find((i) => i.id === 'play-food');
+    expect(playFood?.detail).toBe('1 hr bay time + food & drinks');
+  });
+});
+
+/**
+ * Best single offer only (owner-confirmed 2026-07-25). Offers NEVER stack: the
+ * calculator evaluates every eligible promotion, applies the one worth the most,
+ * and names the rest so the customer is not left thinking one was forgotten.
+ *
+ * Before this, every match pushed its own discount — two eligible B1G1 rows each
+ * waived an hour and a ฿1,500 weekday booking previewed at ฿0.
+ */
+describe('only the best eligible offer applies', () => {
+  const secondBogo: ApplicablePromotion = {
+    ...bogoPromo,
+    id: 'promo-weekday-b1g1',
+    title_en: 'Weekday B1G1',
+    title_th: 'วันธรรมดา B1G1',
+  };
+  const pctPromo: ApplicablePromotion = {
+    id: 'promo-pct',
+    promotion_type: 'percentage',
+    discount_value: 20,
+    applies_to: 'bay_rate',
+    conditions: {},
+    title_en: '20% Off',
+    title_th: 'ลด 20%',
+  };
+
+  function withPromos(promos: ApplicablePromotion[], input: Partial<CostCalculationInput> = {}) {
+    return calculateCost({
+      ...baseInput, startTime: '14:00', duration: 2, applicablePromotions: promos, ...input,
+    });
+  }
+
+  test('two identical bogos apply ONCE, not twice — the ฿0 preview is gone', () => {
+    const breakdown = withPromos([bogoPromo, secondBogo]);
+    expect(breakdown.subtotal).toBe(1500); // 2 × ฿750 weekday afternoon
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.totalDiscount).toBe(-750);
+    expect(breakdown.estimatedTotal).toBe(750);
+  });
+
+  test('two bogos of different value pick the LARGER free-hours award', () => {
+    const twoFreeHours: ApplicablePromotion = { ...bogoPromo, id: 'promo-b2g2', free_hours: 2 };
+    const breakdown = withPromos([bogoPromo, twoFreeHours], { duration: 3 });
+    expect(breakdown.subtotal).toBe(2250);                  // 3 × ฿750
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-b2g2');
+    expect(breakdown.discounts[0].amount).toBe(-1500);      // 2 free hours, not 1
+    expect(breakdown.estimatedTotal).toBe(750);
+  });
+
+  test('bogo vs percentage is decided by VALUE, not by type — bogo wins here', () => {
+    // 2h × ฿750: bogo waives ฿750, 20% off waives ฿300.
+    const breakdown = withPromos([pctPromo, bogoPromo]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-b1g1');
+    expect(breakdown.discounts[0].amount).toBe(-750);
+  });
+
+  test('...and the percentage wins when IT is worth more', () => {
+    // 3h × ฿750 = ฿2,250: bogo waives ฿750, 60% off waives ฿1,350.
+    const bigPct: ApplicablePromotion = { ...pctPromo, discount_value: 60 };
+    const breakdown = withPromos([bogoPromo, bigPct], { duration: 3 });
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+    expect(breakdown.discounts[0].amount).toBe(-1350);
+  });
+
+  test('a fixed_amount offer competes on the same value scale', () => {
+    const bigFixed: ApplicablePromotion = {
+      id: 'promo-fixed', promotion_type: 'fixed_amount', discount_value: 900,
+      applies_to: 'total', conditions: {}, title_en: '฿900 off', title_th: 'ลด ฿900',
+    };
+    const breakdown = withPromos([bogoPromo, bigFixed]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-fixed'); // ฿900 > ฿750
+  });
+
+  test('a tie resolves on the lowest promotion id, independent of array order', () => {
+    // Both waive the same ฿750, so only the tie-break can decide.
+    const forward = withPromos([bogoPromo, secondBogo]);
+    const reversed = withPromos([secondBogo, bogoPromo]);
+    expect(forward.discounts[0].promotionId).toBe('promo-b1g1'); // < 'promo-weekday-b1g1'
+    expect(reversed.discounts[0].promotionId).toBe('promo-b1g1');
+    // Same winner either way — a JSON round-trip cannot flip it.
+    expect(reversed).toEqual(forward);
+  });
+
+  test('every permutation of three offers yields the identical breakdown', () => {
+    // Two promos cannot catch an order-dependent DISCLOSURE — the loser list has
+    // one entry and reordering is unobservable. `/api/promotions/applicable` has
+    // no ORDER BY and is edge-cached, so arrival order is genuinely arbitrary.
+    const third: ApplicablePromotion = {
+      ...pctPromo, id: 'promo-alpha', discount_value: 10, title_en: 'Alpha', title_th: 'อัลฟา',
+    };
+    const trio = [bogoPromo, secondBogo, third];
+    const permutations = [
+      [0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0],
+    ].map((order) => withPromos(order.map((i) => trio[i])));
+    for (const breakdown of permutations) {
+      expect(breakdown).toEqual(permutations[0]);
+    }
+    // ...and the loser list is genuinely ordered, most valuable first.
+    const note = permutations[0].notes.find((n) => n.includes('Only one offer applies'))!;
+    expect(note).toContain('Weekday B1G1, Alpha'); // ฿750 before ฿75
+  });
+
+  test('a duplicated promotion row is not named back at the customer', () => {
+    // `id` is the PK, but a re-render that appends rather than replaces could
+    // duplicate a row. Collapsing on id stops "Also considered: <the winner>".
+    const breakdown = withPromos([bogoPromo, { ...bogoPromo }]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.estimatedTotal).toBe(750);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+  });
+
+  test('the losing offer is disclosed by name in all five locales', () => {
+    const breakdown = withPromos([bogoPromo, secondBogo]);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies per booking'))).toBe(true);
+    expect(breakdown.notes.some((n) => n.includes('Weekday B1G1'))).toBe(true);
+    expect(breakdown.notesTh.some((n) => n.includes('วันธรรมดา B1G1'))).toBe(true);
+    expect(breakdown.notesJa.some((n) => n.includes('Weekday B1G1'))).toBe(true);
+    expect(breakdown.notesKo.some((n) => n.includes('Weekday B1G1'))).toBe(true);
+    expect(breakdown.notesZh.some((n) => n.includes('Weekday B1G1'))).toBe(true);
+  });
+
+  test('two losing offers are both named in one disclosure', () => {
+    const third: ApplicablePromotion = { ...bogoPromo, id: 'promo-third', title_en: 'Third Offer' };
+    const breakdown = withPromos([bogoPromo, secondBogo, third]);
+    expect(breakdown.discounts).toHaveLength(1);
+    const note = breakdown.notes.find((n) => n.includes('Only one offer applies'))!;
+    expect(note).toContain('Weekday B1G1');
+    expect(note).toContain('Third Offer');
+  });
+
+  test('a LONE offer is not disclosed as having competitors', () => {
+    const breakdown = withPromos([bogoPromo]);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    expect(breakdown.notesTh.some((n) => n.includes('ใช้ได้เพียงหนึ่งโปรโมชัน'))).toBe(false);
+  });
+
+  test('no eligible offer means no disclosure and no discount', () => {
+    const newOnly: ApplicablePromotion = {
+      ...bogoPromo, conditions: { new_customer_only: true },
+    };
+    const breakdown = withPromos([newOnly, { ...secondBogo, conditions: { new_customer_only: true } }], {
+      isNewCustomer: false,
+    });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+  });
+
+  test('a sub-2-hour bogo does NOT out-rank a real discount', () => {
+    // 1h booking: the bogo can only advise (worth ฿0); 20% off saves ฿150.
+    const breakdown = withPromos([bogoPromo, pctPromo], { duration: 1 });
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+    expect(breakdown.discounts[0].amount).toBe(-150); // 20% of ฿750
+    expect(breakdown.estimatedTotal).toBe(600);
+  });
+
+  test("...and the losing bogo's 'book 2 hours' hint is suppressed, not shown alongside", () => {
+    const breakdown = withPromos([bogoPromo, pctPromo], { duration: 1 });
+    // Suppressed: at 2h that offer would COMPETE with the applied one and could
+    // still lose, so promising a free hour on top would be a promise we can't keep.
+    expect(breakdown.notes.some((n) => n.includes('Book 2 hours to get 1 hour free'))).toBe(false);
+  });
+
+  test('...and it is not named as an offer that lost, because it never competed', () => {
+    // At 1 hour the bogo is worth ฿0 — it could not have applied whatever else
+    // was on the table. Naming it would frame advice as a competition it lost:
+    // "we applied the one worth the most. Also considered: Buy 1 Get 1 Free".
+    const breakdown = withPromos([bogoPromo, pctPromo], { duration: 1 });
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    expect(breakdown.notes.some((n) => n.includes('Buy 1 Get 1 Free'))).toBe(false);
+    // The real discount still applies and is the only thing claimed.
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+  });
+
+  test('a negative fixed_amount is never named as an offer that lost either', () => {
+    // `value <= 0` is the rule, not `value === 0`: a nonsensical row that would
+    // SURCHARGE the customer is not an offer they missed out on.
+    const surcharge: ApplicablePromotion = {
+      id: 'promo-negative', promotion_type: 'fixed_amount', discount_value: -50,
+      applies_to: 'total', conditions: {}, title_en: 'Bad Row', title_th: 'แถวเสีย',
+    };
+    const breakdown = withPromos([surcharge, pctPromo]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+    expect(breakdown.notes.some((n) => n.includes('Bad Row'))).toBe(false);
+  });
+
+  test('two advice-only bogos apply NOTHING and claim nothing was applied', () => {
+    // 1h booking, two eligible bogos: both are worth ฿0, so no discount exists.
+    // Saying "we applied the one worth the most" beside a ฿0 saving is a claim
+    // the breakdown itself contradicts.
+    const breakdown = withPromos([bogoPromo, secondBogo], { duration: 1 });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.estimatedTotal).toBe(750);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    // The winning offer's actionable hint is still there.
+    expect(breakdown.notes.some((n) => n.includes('Book 2 hours to get 1 hour free'))).toBe(true);
+  });
+
+  test('a LONE sub-2-hour bogo still prints its hint (unchanged behaviour)', () => {
+    const breakdown = withPromos([bogoPromo], { duration: 1 });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.notes.some((n) => n.includes('Book 2 hours to get 1 hour free'))).toBe(true);
+  });
+
+  test('package coverage still suppresses EVERY offer, however many are eligible', () => {
+    const breakdown = withPromos([bogoPromo, secondBogo, pctPromo], {
+      startTime: '13:00', hasActivePackage: true, packageDisplayName: 'Gold (30H)',
+    });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    expect(breakdown.estimatedTotal).toBe(0);
+  });
+
+  test('a Play & Food set still suppresses every bay-rate offer', () => {
+    const breakdown = withPromos([bogoPromo, secondBogo], { playFoodPackageId: 'SET_A' });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+  });
+
+  test('a bay-rate offer suppressed by a package does not beat an eligible total offer', () => {
+    // The bogo is gated off by package coverage, so the ฿100 total-scope offer
+    // is the ONLY candidate and must apply un-competed and un-disclosed.
+    const totalPromo: ApplicablePromotion = {
+      id: 'promo-total', promotion_type: 'fixed_amount', discount_value: 100,
+      applies_to: 'total', conditions: {}, title_en: '฿100 off', title_th: 'ลด ฿100',
+    };
+    const breakdown = withPromos([bogoPromo, totalPromo], {
+      startTime: '13:00', hasActivePackage: true, packageDisplayName: 'Gold (30H)',
+    });
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-total');
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+  });
+
+  test('a malformed bogo row with free_hours: 0 is skipped entirely', () => {
+    // NOT the "free window prices to ฿0" branch, despite the shape: `free_hours: 0`
+    // is falsy, so the row fails the `promo.free_hours` guard and never reaches
+    // the bogo branch at all. The genuine ฿0-free-window path (free_hours >= 1
+    // at duration >= 2, `segmentsCost` rounding to zero) is NOT pinned here and
+    // is likely unreachable with real rate data — don't read this as covering it.
+    const zeroBogo: ApplicablePromotion = { ...bogoPromo, id: 'promo-zero', free_hours: 0 };
+    const breakdown = withPromos([zeroBogo, pctPromo]);
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.discounts[0].promotionId).toBe('promo-pct');
+    expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+  });
+
+  test('the winner is stable across the isNewCustomer refetch', () => {
+    // `isNewCustomer` resolves from a phone lookup after first render. It can
+    // only add or remove whole candidates — never reshuffle a fixed set.
+    const newOnlyBig: ApplicablePromotion = {
+      ...pctPromo, id: 'promo-pct-new', discount_value: 60, conditions: { new_customer_only: true },
+    };
+    const before = withPromos([bogoPromo, newOnlyBig], { duration: 3, isNewCustomer: false });
+    const after = withPromos([bogoPromo, newOnlyBig], { duration: 3, isNewCustomer: true });
+    expect(before.discounts[0].promotionId).toBe('promo-b1g1');   // ฿750, alone
+    expect(before.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+    expect(after.discounts[0].promotionId).toBe('promo-pct-new'); // ฿1,350 wins
+    // Re-running the same input is idempotent — no flicker between winners.
+    expect(withPromos([bogoPromo, newOnlyBig], { duration: 3, isNewCustomer: true })).toEqual(after);
+  });
+});
+
+/**
+ * The identity guard for best-single-offer. The refactor's central claim is that
+ * ONE eligible promotion produces exactly the breakdown the stacking calculator
+ * produced — the change is only ever visible with two or more offers. That was
+ * verified with throwaway harnesses, which is no defence against the next
+ * refactor, and nothing else in this file asserts a WHOLE breakdown for the
+ * one-promotion case: `toHaveLength` and `discounts[0].amount` would all still
+ * pass if a stray note appeared or a locale label silently changed.
+ *
+ * The expectations below are INLINE literals on purpose. Comparing
+ * `calculateCost` against `calculateCost` proves only self-consistency; a
+ * regression that moved both sides would sail through. Every one of these ran
+ * against a boundary-straddling window (13:00/13:30 on a weekday, so the bay
+ * charge prorates across 14:00) because that is where the free-hour placement
+ * and the ฿550/฿750 split can actually diverge.
+ *
+ * `appliedPromotionId` is metadata added after the refactor so the staff LINE
+ * note can name the winner without re-deriving eligibility (see
+ * `app/api/bookings/create/route.ts`). It is the one intended difference from
+ * the pre-refactor output; nothing renders it.
+ */
+describe('a single eligible promotion produces the whole pre-refactor breakdown', () => {
+  const PRORATED_BAY_2H = {
+    id: 'bay-rate',
+    label: 'Bay Rate',
+    labelTh: 'ค่าเบย์',
+    labelJa: 'ベイ料金',
+    labelKo: '베이 요금',
+    labelZh: '球位费用',
+    detail: '1 hr × ฿550 + 1 hr × ฿750 (Weekday)',
+    detailTh: '1 ชม. × ฿550 + 1 ชม. × ฿750 (วันธรรมดา)',
+    detailJa: '1時間 × ฿550 + 1時間 × ฿750 (平日)',
+    detailKo: '1시간 × ฿550 + 1시간 × ฿750 (평일)',
+    detailZh: '1小时 × ฿550 + 1小时 × ฿750 (工作日)',
+    amount: 1300, // 13:00–15:00 weekday: 1×550 + 1×750
+  };
+  const ESTIMATE_NOTE = {
+    en: 'Estimate only, payment at venue',
+    th: 'ราคาประมาณการ ชำระที่สถานที่',
+    ja: 'ご予約時の見積もり、会場でお支払い',
+    ko: '예상 금액, 현장에서 결제',
+    zh: '预估价格，现场付款',
+  };
+
+  test('bogo: the free hour is the LAST hour, priced where it actually falls', () => {
+    // 13:00–15:00 straddles 14:00. The free hour is 14:00–15:00 = ฿750, NOT the
+    // ฿550 first hour and NOT the ฿650 average — this is the whole reason the
+    // boundary case is the one worth pinning.
+    expect(calculateCost({ ...baseInput, startTime: '13:00', duration: 2, applicablePromotions: [bogoPromo] }))
+      .toEqual({
+        lineItems: [PRORATED_BAY_2H],
+        discounts: [{
+          id: 'promo-promo-b1g1',
+          label: 'Buy 1 Get 1 Free',
+          labelTh: 'ซื้อ 1 แถม 1',
+          // Promo rows carry only title_en/title_th; ja/ko/zh fall back to English.
+          labelJa: 'Buy 1 Get 1 Free',
+          labelKo: 'Buy 1 Get 1 Free',
+          labelZh: 'Buy 1 Get 1 Free',
+          amount: -750,
+          promotionId: 'promo-b1g1',
+        }],
+        appliedPromotionId: 'promo-b1g1',
+        subtotal: 1300,
+        totalDiscount: -750,
+        estimatedTotal: 550,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [ESTIMATE_NOTE.en],
+        notesTh: [ESTIMATE_NOTE.th],
+        notesJa: [ESTIMATE_NOTE.ja],
+        notesKo: [ESTIMATE_NOTE.ko],
+        notesZh: [ESTIMATE_NOTE.zh],
+      });
+  });
+
+  test('percentage: taken off the PRORATED bay total, with the pct in every label', () => {
+    const pct: ApplicablePromotion = {
+      id: 'promo-pct', promotion_type: 'percentage', discount_value: 20,
+      applies_to: 'bay_rate', conditions: {}, title_en: '20% Off', title_th: 'ลด 20%',
+    };
+    expect(calculateCost({ ...baseInput, startTime: '13:00', duration: 2, applicablePromotions: [pct] }))
+      .toEqual({
+        lineItems: [PRORATED_BAY_2H],
+        discounts: [{
+          id: 'promo-promo-pct',
+          label: '20% Off (20% off)',
+          labelTh: 'ลด 20% (ลด 20%)',
+          labelJa: '20% Off (20%オフ)',
+          labelKo: '20% Off (20% 할인)',
+          labelZh: '20% Off (20% 折扣)',
+          amount: -260, // 20% of ฿1,300 — the prorated total, not 2 × 20% of ฿550
+          promotionId: 'promo-pct',
+        }],
+        appliedPromotionId: 'promo-pct',
+        subtotal: 1300,
+        totalDiscount: -260,
+        estimatedTotal: 1040,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [ESTIMATE_NOTE.en],
+        notesTh: [ESTIMATE_NOTE.th],
+        notesJa: [ESTIMATE_NOTE.ja],
+        notesKo: [ESTIMATE_NOTE.ko],
+        notesZh: [ESTIMATE_NOTE.zh],
+      });
+  });
+
+  test('fixed_amount: a flat baht row, untouched by where the booking falls', () => {
+    const fixed: ApplicablePromotion = {
+      id: 'promo-fixed', promotion_type: 'fixed_amount', discount_value: 200,
+      applies_to: 'total', conditions: {}, title_en: '฿200 off', title_th: 'ลด ฿200',
+    };
+    expect(calculateCost({ ...baseInput, startTime: '13:00', duration: 2, applicablePromotions: [fixed] }))
+      .toEqual({
+        lineItems: [PRORATED_BAY_2H],
+        discounts: [{
+          id: 'promo-promo-fixed',
+          label: '฿200 off',
+          labelTh: 'ลด ฿200',
+          labelJa: '฿200 off',
+          labelKo: '฿200 off',
+          labelZh: '฿200 off',
+          amount: -200,
+          promotionId: 'promo-fixed',
+        }],
+        appliedPromotionId: 'promo-fixed',
+        subtotal: 1300,
+        totalDiscount: -200,
+        estimatedTotal: 1100,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [ESTIMATE_NOTE.en],
+        notesTh: [ESTIMATE_NOTE.th],
+        notesJa: [ESTIMATE_NOTE.ja],
+        notesKo: [ESTIMATE_NOTE.ko],
+        notesZh: [ESTIMATE_NOTE.zh],
+      });
+  });
+
+  test('a sub-2-hour bogo: no discount row, the hint in all five locales', () => {
+    // The LIVE production shape — one auto-apply B1G1, a new customer, a booking
+    // under two hours. 13:30–15:00 straddles 14:00 (0.5×550 + 1×750 = ฿1,025).
+    // `appliedPromotionId` is set with `discounts` empty: the offer won by
+    // contributing advice, which the staff LINE note has to reproduce.
+    expect(calculateCost({ ...baseInput, startTime: '13:30', duration: 1.5, applicablePromotions: [bogoPromo] }))
+      .toEqual({
+        lineItems: [{
+          id: 'bay-rate',
+          label: 'Bay Rate',
+          labelTh: 'ค่าเบย์',
+          labelJa: 'ベイ料金',
+          labelKo: '베이 요금',
+          labelZh: '球位费用',
+          detail: '0.5 hr × ฿550 + 1 hr × ฿750 (Weekday)',
+          detailTh: '0.5 ชม. × ฿550 + 1 ชม. × ฿750 (วันธรรมดา)',
+          detailJa: '0.5時間 × ฿550 + 1時間 × ฿750 (平日)',
+          detailKo: '0.5시간 × ฿550 + 1시간 × ฿750 (평일)',
+          detailZh: '0.5小时 × ฿550 + 1小时 × ฿750 (工作日)',
+          amount: 1025,
+        }],
+        discounts: [],
+        appliedPromotionId: 'promo-b1g1',
+        subtotal: 1025,
+        totalDiscount: 0,
+        estimatedTotal: 1025,
+        isWeekend: false,
+        timeSlotLabel: 'Before 14:00',
+        hourlyRate: 550,
+        notes: [
+          ESTIMATE_NOTE.en,
+          '🎉 Buy 1 Get 1 Free: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days',
+        ],
+        notesTh: [
+          ESTIMATE_NOTE.th,
+          '🎉 ซื้อ 1 แถม 1: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน',
+        ],
+        notesJa: [
+          ESTIMATE_NOTE.ja,
+          '🎉 Buy 1 Get 1 Free：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください',
+        ],
+        notesKo: [
+          ESTIMATE_NOTE.ko,
+          '🎉 Buy 1 Get 1 Free: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요',
+        ],
+        notesZh: [
+          ESTIMATE_NOTE.zh,
+          '🎉 Buy 1 Get 1 Free：预订2小时即获1小时免费！或在7天内兑换您的免费时段',
+        ],
+      });
+  });
+
+  test('and none of the four ever names a competitor', () => {
+    // A lone offer competed with nothing. Cheap, but it is the assertion that
+    // would fail loudest if `alsoConsidered` ever stopped excluding the winner.
+    const lone: ApplicablePromotion[][] = [
+      [bogoPromo],
+      [{ id: 'p', promotion_type: 'percentage', discount_value: 20, applies_to: 'bay_rate', conditions: {}, title_en: 'P', title_th: 'พี' }],
+      [{ id: 'f', promotion_type: 'fixed_amount', discount_value: 200, applies_to: 'total', conditions: {}, title_en: 'F', title_th: 'เอฟ' }],
+    ];
+    for (const promos of lone) {
+      for (const duration of [1.5, 2]) {
+        const breakdown = calculateCost({ ...baseInput, startTime: '13:30', duration, applicablePromotions: promos });
+        expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
+        expect(breakdown.appliedPromotionId).toBe(promos[0].id);
+      }
+    }
+  });
+});
+
+describe('an unknown balance is byte-identical to the pre-balance calculator', () => {
+  const pkgInput: CostCalculationInput = {
+    ...baseInput,
+    startTime: '13:00',
+    duration: 1.5,
+    hasActivePackage: true,
+    packageDisplayName: 'Gold (30H)',
+  };
+
+  test('null and undefined both fall back to eligibility-only coverage', () => {
+    const omitted = calculateCost(pkgInput);
+    expect(calculateCost({ ...pkgInput, packageRemainingHours: null })).toEqual(omitted);
+    expect(calculateCost({ ...pkgInput, packageRemainingHours: undefined })).toEqual(omitted);
+    // ...which is the ฿0 preview a package holder has always seen. The balance
+    // arrives from a fetch, so this is the FIRST-RENDER state; if it charged
+    // anything the total would flicker ฿0 → charge → ฿0.
+    expect(omitted.estimatedTotal).toBe(0);
+    expect(omitted.lineItems.find((i) => i.id === 'bay-rate')!.isCoveredByPackage).toBe(true);
+  });
+
+  test('NaN is treated as unknown, not as zero', () => {
+    expect(calculateCost({ ...pkgInput, packageRemainingHours: NaN }))
+      .toEqual(calculateCost(pkgInput));
+  });
+
+  test('an Early Bird split is unchanged when no balance is given', () => {
+    const eb = { ...pkgInput, packageDisplayName: 'Early Bird 10H', duration: 2 };
+    expect(calculateCost({ ...eb, packageRemainingHours: null })).toEqual(calculateCost(eb));
+  });
+});
+
+/**
+ * The weekday off-peak B1G1 (owner-confirmed 2026-07-26): Mon-Thu, sessions
+ * starting before 16:00, one free hour on the bay rate.
+ *
+ * The row ids here are the REAL ones, because the interaction between the two
+ * offers depends on them: ties in the single-offer selection break on the
+ * lowest promotion id, and the weekday row's uuid was chosen to sort above the
+ * new-customer row's for exactly that reason.
+ */
+describe('the weekday off-peak B1G1', () => {
+  const NEW_CUSTOMER_B1G1: ApplicablePromotion = {
+    id: '54c08739-bf14-4c95-9ced-6883d8a6ea7f',
+    promotion_type: 'bogo',
+    free_hours: 1,
+    applies_to: 'bay_rate',
+    conditions: { new_customer_only: true },
+    title_en: 'Buy 1 Get 1 Free',
+    title_th: 'ซื้อ 1 แถม 1',
+    pos_discount_id: null,
+    grants_credit: true,
+  };
+
+  const WEEKDAY_B1G1: ApplicablePromotion = {
+    id: 'b7e6f4a2-3c19-4d5e-8a7b-2f9c1d0e6a34',
+    promotion_type: 'bogo',
+    free_hours: 1,
+    applies_to: 'bay_rate',
+    conditions: { days_of_week: ['mon', 'tue', 'wed', 'thu'], start_time_before: '16:00' },
+    title_en: 'Weekday Buy 1 Get 1 Free',
+    title_th: 'ซื้อ 1 แถม 1 วันธรรมดา',
+    pos_discount_id: '64a085d2-64a8-4a12-9c5f-0317203ed750',
+    // The whole reason `grants_credit` exists. This row is also `bogo` with
+    // `free_hours: 1` on `bay_rate` — indistinguishable from the new-customer
+    // B1G1 by type — and it mints nothing.
+    grants_credit: false,
+  };
+
+  const WEDNESDAY = '2026-07-15';
+  const FRIDAY = '2026-07-17';
+  const SATURDAY = '2026-07-18';
+
+  function quote(input: Partial<CostCalculationInput>) {
+    return calculateCost({
+      ...baseInput,
+      date: WEDNESDAY,
+      startTime: '14:00',
+      duration: 2,
+      isNewCustomer: false,
+      applicablePromotions: [WEEKDAY_B1G1],
+      ...input,
+    });
+  }
+
+  test('a returning customer books Wednesday 14:00 for 2h → one free hour', () => {
+    const breakdown = quote({});
+    expect(breakdown.subtotal).toBe(1500);           // 2 × ฿750 weekday afternoon
+    expect(breakdown.discounts).toHaveLength(1);
+    expect(breakdown.totalDiscount).toBe(-750);
+    expect(breakdown.estimatedTotal).toBe(750);
+    expect(breakdown.appliedPromotionId).toBe(WEEKDAY_B1G1.id);
+  });
+
+  test('the free hour prorates across the 14:00 boundary like the bogo always has', () => {
+    // 12:30 start, 2h → 12:30-14:30. The free hour is the TAIL (13:30-14:30),
+    // which straddles 14:00: 0.5 × ฿550 morning + 0.5 × ฿750 afternoon = ฿650.
+    // Priced where it actually falls, not at the start slot's rate.
+    const breakdown = quote({ startTime: '12:30' });
+    expect(breakdown.subtotal).toBe(1200);          // 1.5 × ฿550 + 0.5 × ฿750
+    expect(breakdown.discounts[0].amount).toBe(-650);
+    expect(breakdown.estimatedTotal).toBe(550);
+  });
+
+  test('16:00 is a plain clock time, not a rate-tier boundary', () => {
+    // The tiers are 14:00 and 17:00. A 15:30 start crosses 17:00 at 2h and the
+    // weekday price does NOT change there (฿750 either side — only the
+    // strikethrough original does), so nothing about the cutoff can be inferred
+    // from the rate table. It is compared as an ordinary time.
+    const breakdown = quote({ startTime: '15:30' });
+    expect(breakdown.discounts[0].amount).toBe(-750);
+  });
+
+  test.each([
+    ['16:00', 'the cutoff itself is excluded'],
+    ['16:30', 'after the cutoff'],
+    ['19:00', 'evening'],
+  ])('a Wednesday %s start gets nothing (%s)', (startTime) => {
+    const breakdown = quote({ startTime });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.appliedPromotionId).toBeUndefined();
+    expect(breakdown.estimatedTotal).toBe(breakdown.subtotal);
+  });
+
+  test.each([
+    ['Friday', FRIDAY],
+    ['Saturday', SATURDAY],
+  ])('a %s 10:00 booking gets nothing', (_label, date) => {
+    const breakdown = quote({ date, startTime: '10:00' });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.appliedPromotionId).toBeUndefined();
+  });
+
+  test('eligibility follows the BOOKING, not the moment of browsing', () => {
+    // Someone browsing at 09:00 on a Monday for a 19:00 Saturday slot must not
+    // see the offer. Nothing in the evaluator reads the clock, so freezing it
+    // on a qualifying Monday morning must not change the Saturday answer.
+    const saturdayEvening = { date: SATURDAY, startTime: '19:00' };
+    const withoutFrozenClock = quote(saturdayEvening);
+
+    jest.useFakeTimers().setSystemTime(new Date('2026-07-13T09:00:00+07:00')); // Monday 09:00 Bangkok
+    try {
+      expect(quote(saturdayEvening)).toEqual(withoutFrozenClock);
+      expect(quote(saturdayEvening).discounts).toHaveLength(0);
+      // ...and the converse: a qualifying booking made at a non-qualifying
+      // moment still gets the offer.
+      jest.setSystemTime(new Date('2026-07-18T23:00:00+07:00')); // Saturday night
+      expect(quote({}).discounts).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // The pairing case slice 4 was built for.
+  // ---------------------------------------------------------------------
+  describe('when it competes with the new-customer B1G1', () => {
+    const both = [NEW_CUSTOMER_B1G1, WEEKDAY_B1G1];
+
+    test('a NEW customer on a Wednesday at 14:00 gets ONE free hour, not two', () => {
+      const breakdown = quote({ isNewCustomer: true, applicablePromotions: both });
+      expect(breakdown.subtotal).toBe(1500);
+      expect(breakdown.discounts).toHaveLength(1);
+      expect(breakdown.totalDiscount).toBe(-750);   // one hour, not ฿1,500
+      expect(breakdown.estimatedTotal).toBe(750);   // never ฿0
+    });
+
+    test('the tie goes to the new-customer row, whose uuid sorts lower', () => {
+      // Both waive the same hour off the same tail, so they tie on value and
+      // the lowest id wins. The weekday row's uuid was picked to lose this tie
+      // on purpose, keeping the free-hour expiry text and the b1g1 credit grant
+      // attached to the promotion that has always carried them.
+      const breakdown = quote({ isNewCustomer: true, applicablePromotions: both });
+      expect(NEW_CUSTOMER_B1G1.id < WEEKDAY_B1G1.id).toBe(true);
+      expect(breakdown.appliedPromotionId).toBe(NEW_CUSTOMER_B1G1.id);
+      expect(breakdown.discounts[0].promotionId).toBe(NEW_CUSTOMER_B1G1.id);
+    });
+
+    test('the losing offer is disclosed rather than silently dropped', () => {
+      const breakdown = quote({ isNewCustomer: true, applicablePromotions: both });
+      expect(breakdown.notes.some((n) => n.includes('Weekday Buy 1 Get 1 Free'))).toBe(true);
+    });
+
+    test('a RETURNING customer on a Wednesday gets the weekday offer alone', () => {
+      const breakdown = quote({ isNewCustomer: false, applicablePromotions: both });
+      expect(breakdown.discounts).toHaveLength(1);
+      expect(breakdown.appliedPromotionId).toBe(WEEKDAY_B1G1.id);
+      expect(breakdown.estimatedTotal).toBe(750);
+    });
+
+    test('a NEW customer on a Saturday evening still gets their own offer', () => {
+      // The weekday row is withheld; the new-customer row is not day-limited.
+      const breakdown = quote({
+        isNewCustomer: true, applicablePromotions: both, date: SATURDAY, startTime: '19:00',
+      });
+      expect(breakdown.discounts).toHaveLength(1);
+      expect(breakdown.appliedPromotionId).toBe(NEW_CUSTOMER_B1G1.id);
+    });
+  });
+
+  test('a typo in the conditions withholds the offer instead of widening it', () => {
+    // The whole point of the strict evaluator: a misspelled key must not become
+    // "no restriction".
+    //
+    // The booking has to be chosen so that the SURVIVING keys all pass, or the
+    // test proves nothing. An earlier version asserted on Saturday 19:00, where
+    // the correctly-spelled `start_time_before: '16:00'` denies a 19:00 start
+    // by itself — it would have passed with the unknown-key rule deleted.
+    //
+    // Saturday 10:00 is the case that isolates the rule: 10:00 clears the
+    // cutoff, so the ONLY thing standing between a Saturday booking and a free
+    // hour is the misspelled `days_of_weeks` being treated as a restriction we
+    // cannot read rather than as one that is not there.
+    const typo: ApplicablePromotion = {
+      ...WEEKDAY_B1G1,
+      conditions: { days_of_weeks: ['mon', 'tue', 'wed', 'thu'], start_time_before: '16:00' },
+    };
+    const SATURDAY_MORNING = { date: SATURDAY, startTime: '10:00' };
+
+    // Sanity check that this booking really is one the surviving key admits:
+    // spelled correctly, the same row denies Saturday, and with `days_of_week`
+    // dropped entirely it would apply. So the assertion below is about the typo.
+    expect(
+      quote({ applicablePromotions: [{ ...typo, conditions: WEEKDAY_B1G1.conditions }], ...SATURDAY_MORNING })
+        .discounts,
+    ).toHaveLength(0);
+    expect(
+      quote({ applicablePromotions: [{ ...typo, conditions: { start_time_before: '16:00' } }], ...SATURDAY_MORNING })
+        .discounts,
+    ).toHaveLength(1);
+
+    const breakdown = quote({ applicablePromotions: [typo], ...SATURDAY_MORNING });
+    expect(breakdown.discounts).toHaveLength(0);
+    expect(breakdown.estimatedTotal).toBe(breakdown.subtotal);
+  });
+
+  test('a package booking still blocks the offer, unchanged', () => {
+    const breakdown = quote({ hasActivePackage: true });
+    expect(breakdown.discounts).toHaveLength(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // The sub-2-hour hint. One hour is the DEFAULT duration on the ladder, so
+  // this is the majority of what a returning customer sees from this offer.
+  // -------------------------------------------------------------------------
+  describe('the sub-2-hour hint promises only what the row can deliver', () => {
+    // The clause is a promise that a CREDIT exists. Only a promotion with
+    // `grants_credit` mints one (see /api/bookings/create), and the weekday row
+    // does not. A returning customer reading it would be owed an hour nothing
+    // ever creates — and could not find out, because the credit wallet is
+    // read-only to customers. They would discover it at the counter.
+    const REDEEM_CLAUSE = {
+      en: 'redeem your free hour within 7 days',
+      th: 'ใช้สิทธิ์ฟรีภายใน 7 วัน',
+      ja: '7日以内に無料時間をご利用ください',
+      ko: '7일 이내에 무료 시간을 사용하세요',
+      zh: '在7天内兑换您的免费时段',
+    };
+
+    const oneHour = (promo: ApplicablePromotion) =>
+      quote({ applicablePromotions: [promo], startTime: '10:00', duration: 1 });
+
+    test('the weekday offer never promises a credit, in any locale', () => {
+      const b = oneHour(WEEKDAY_B1G1);
+      expect(b.appliedPromotionId).toBe(WEEKDAY_B1G1.id);
+      expect(b.discounts).toHaveLength(0); // advice only: nothing was discounted
+      expect(b.notes.join(' ')).not.toContain(REDEEM_CLAUSE.en);
+      expect(b.notesTh.join(' ')).not.toContain(REDEEM_CLAUSE.th);
+      expect(b.notesJa.join(' ')).not.toContain(REDEEM_CLAUSE.ja);
+      expect(b.notesKo.join(' ')).not.toContain(REDEEM_CLAUSE.ko);
+      expect(b.notesZh.join(' ')).not.toContain(REDEEM_CLAUSE.zh);
+    });
+
+    test('...and still says the one useful, true thing, in all five locales', () => {
+      // Silence would be worse than the false promise: at 1 hour the customer
+      // CAN have the free hour, they just have to book 2. That part is true.
+      const b = oneHour(WEEKDAY_B1G1);
+      expect(b.notes).toContain('🎉 Weekday Buy 1 Get 1 Free: Book 2 hours and your second hour is free!');
+      expect(b.notesTh).toContain('🎉 ซื้อ 1 แถม 1 วันธรรมดา: จอง 2 ชม. รับชั่วโมงที่ 2 ฟรี!');
+      expect(b.notesJa).toContain('🎉 Weekday Buy 1 Get 1 Free：2時間ご予約いただくと、2時間目が無料になります！');
+      expect(b.notesKo).toContain('🎉 Weekday Buy 1 Get 1 Free: 2시간 예약하시면 두 번째 시간은 무료입니다!');
+      expect(b.notesZh).toContain('🎉 Weekday Buy 1 Get 1 Free：预订 2 小时，第 2 小时免费！');
+    });
+
+    test('the new-customer B1G1 still promises the credit, unchanged', () => {
+      const b = quote({
+        applicablePromotions: [NEW_CUSTOMER_B1G1],
+        isNewCustomer: true,
+        startTime: '10:00',
+        duration: 1,
+      });
+      expect(b.appliedPromotionId).toBe(NEW_CUSTOMER_B1G1.id);
+      expect(b.notes).toContain('🎉 Buy 1 Get 1 Free: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days');
+      expect(b.notesTh).toContain('🎉 ซื้อ 1 แถม 1: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน');
+      expect(b.notesJa).toContain('🎉 Buy 1 Get 1 Free：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください');
+      expect(b.notesKo).toContain('🎉 Buy 1 Get 1 Free: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요');
+      expect(b.notesZh).toContain('🎉 Buy 1 Get 1 Free：预订2小时即获1小时免费！或在7天内兑换您的免费时段');
+    });
+
+    test('an undeclared grants_credit reads as NO credit, not as the old default', () => {
+      // Every promotion row predating the column defaults to false in Postgres,
+      // and the field is optional on `ApplicablePromotion`. If absent ever meant
+      // "grant", adding a bogo row would silently promise credits again — the
+      // failure this column was introduced to end.
+      const undeclared: ApplicablePromotion = { ...WEEKDAY_B1G1 };
+      delete undeclared.grants_credit;
+      expect(oneHour(undeclared).notes.join(' ')).not.toContain(REDEEM_CLAUSE.en);
+    });
+
+    test('at 2 hours the free hour is taken here, so neither hint is printed', () => {
+      // The hint only exists to tell a short booking to grow. Once the discount
+      // is real, "book 2 hours" would be advice the customer already took.
+      const b = quote({ applicablePromotions: [WEEKDAY_B1G1], startTime: '10:00', duration: 2 });
+      expect(b.discounts).toHaveLength(1);
+      expect(b.notes.join(' ')).not.toContain('Book 2 hours');
+      expect(b.notes.join(' ')).not.toContain('second hour is free');
+    });
   });
 });

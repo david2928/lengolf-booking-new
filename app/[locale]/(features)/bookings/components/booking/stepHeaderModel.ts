@@ -1,0 +1,247 @@
+import { formatShortDate } from './steps/details/summarySubline';
+import { DETAIL_SUB_STEPS, type DetailSubStep } from './steps/details/useDetailsSubStep';
+
+/**
+ * PROGRESS IS A DISPLAY MODEL, NOT THE FUNNEL.
+ * ---------------------------------------------------------------------------
+ * Everything in this block describes what the customer is SHOWN. None of it may
+ * be derived from, or fed back into, `BAY_BOOKING_STEPS` in
+ * `lib/booking-telemetry`. That array names the GA4 funnel events and is read by
+ * dashboards whose value is comparability with history, so it stays
+ * `['date','time','details']` no matter what the header draws.
+ *
+ * The two are now deliberately DIFFERENT numbers below `lg:`, and that is the
+ * point: the funnel measures three server-meaningful stages, the header counts
+ * the screens a thumb actually swipes through. Conflating them is what produced
+ * the bug this replaces — "Step 3 of 3" with a full bar, shown to someone on the
+ * third of five screens.
+ */
+
+/**
+ * How many bars the progress indicator draws at `lg:` and up, and the `total`
+ * the wide position row prints.
+ *
+ * Above `lg:` step 3 renders all of its sub-steps at once, so a screen really is
+ * a step and three is the honest count.
+ *
+ * Deliberately a local constant rather than `BAY_BOOKING_STEPS.length`:
+ * importing that would make a header layout change look like a safe edit to a
+ * file whose real job is analytics. The two happening to be 3 is checked by a
+ * test instead, which fails loudly if they ever diverge.
+ */
+export const BAY_BOOKING_STEP_COUNT = 3;
+
+/**
+ * How many bars the indicator draws below `lg:`, and the `total` the narrow
+ * position row prints.
+ *
+ * Below `lg:` step 3 is split across `DETAIL_SUB_STEPS`, one screen at a time,
+ * so the customer traverses date, time and then each sub-step: five screens.
+ *
+ * DERIVED, not typed as 5, and this is load-bearing: `DETAIL_SUB_STEPS` is the
+ * array `useDetailsSubStep` navigates, so adding or removing a sub-step there
+ * moves the header's count with it. A literal 5 would leave the bars silently
+ * disagreeing with the screens the very next time that array changed. A test
+ * pins today's value at 5 so the derivation cannot quietly drift either.
+ */
+export const BAY_BOOKING_SCREEN_COUNT =
+  BAY_BOOKING_STEP_COUNT - 1 + DETAIL_SUB_STEPS.length;
+
+/**
+ * The `bookings.page` key naming each step in the header's label row — "DATE",
+ * "TIME", "DETAILS". Small caps and muted; it says WHERE the customer is.
+ *
+ * Indexed by step number minus one. `as const` is load-bearing: next-intl types
+ * `t()` against the key union, so a widened `string[]` would not typecheck at
+ * the call site.
+ */
+export const STEP_LABEL_KEYS = ['stepLabelDate', 'stepLabelTime', 'stepLabelDetails'] as const;
+
+/**
+ * The `bookings.page` key asking each step's question — the large heading.
+ *
+ * Steps 1 and 2 always use theirs. Step 3 uses `stepDetailsQuestion` ONLY at
+ * `lg:` and up, where all three of its sub-steps are on screen at once and no
+ * single sub-step question would be true; below `lg:` the heading is the current
+ * sub-step's question from `SUB_STEP_QUESTION_KEYS`.
+ */
+export const STEP_QUESTION_KEYS = [
+  'stepDateQuestion',
+  'stepTimeQuestion',
+  'stepDetailsQuestion',
+] as const;
+
+/**
+ * The `bookings.detailsStep` key asking each step-3 sub-step's question.
+ *
+ * Lives here rather than beside `SUB_STEP_LABEL_KEYS` in `useDetailsSubStep`
+ * because that module owns sub-step NAVIGATION, which this rework does not
+ * touch. Keyed by `DetailSubStep` so adding a sub-step there is a typecheck
+ * error here rather than a missing heading at runtime.
+ */
+export const SUB_STEP_QUESTION_KEYS = {
+  session: 'subStepSessionQuestion',
+  extras: 'subStepExtrasQuestion',
+  contact: 'subStepContactQuestion',
+} as const satisfies Record<DetailSubStep, string>;
+
+/**
+ * THERE IS NO SUPPRESSION RULE, AND THAT IS THE DESIGN.
+ * ---------------------------------------------------------------------------
+ * `stepHeaderSublineSuppressed` and `SUB_STEP_WITH_SLOT_CHIP` used to live here.
+ * The session sub-step opened with a "slot chip" restating the date, the start
+ * time and the bay, so the subline had to fall silent on that one screen or the
+ * customer read the same booking twice.
+ *
+ * That rule was a symptom. Two surfaces held the same three facts, so one of
+ * them had to be silenced by a condition, and the two then LOOKED different on
+ * adjacent screens: a bordered, tappable chip on "How long?", inert grey text on
+ * "Anything to add?". The owner asked why.
+ *
+ * The subline is now the only home for those facts on every screen, and it
+ * carries the affordance itself — see `onChangeSlot` in `BookingStepHeader`.
+ * One home cannot duplicate itself, so no rule is needed to stop it, and the
+ * three sub-steps present the slot identically because they are all showing the
+ * same element.
+ *
+ * If a future screen needs to restate the slot, do not add a second surface and
+ * a condition to hide one of them. Ask why the header cannot say it.
+ */
+
+/**
+ * What separates the subline's segments: "Wed 29 Jul · 13:00 · Social Bay".
+ *
+ * The middle dot, matching every other recap line in the flow — the sticky
+ * bar's subline and the collapsed sub-step summaries all join with the same
+ * literal " · ", for every locale.
+ *
+ * It used to be a locale-aware comma plus a translated "from {time}", on the
+ * argument that this line was a sentence fragment under a heading while those
+ * were rows of peer facts. That argument died when the line stopped being a
+ * caption: it now ends in a Change pill and sits directly above the collapsed
+ * summaries, and the owner read the two punctuation schemes an inch apart as
+ * exactly what they were — two designs for one job. The comma map (with its
+ * ideographic `、`/`，` variants) and the `sublineFromTime` message key are
+ * gone with it; the dot needs neither, and the sticky bar had already shipped
+ * it across all five locales without complaint.
+ *
+ * The line is read, never re-read by code — nothing may split or parse it.
+ */
+export const STEP_HEADER_SUBLINE_SEPARATOR = ' · ';
+
+/**
+ * Which of the three progress bars are filled at a given step.
+ *
+ * A step is filled once the customer has REACHED it, so the current step reads
+ * as filled rather than as the one still to do — the bars answer "how far in am
+ * I", which is also what the position row says in words.
+ *
+ * Total by construction: an out-of-range step clamps instead of producing a
+ * short array or a negative fill, so a future caller cannot make the indicator
+ * disagree with the position row it sits above.
+ */
+export function stepBarStates(
+  currentStep: number,
+  total: number = BAY_BOOKING_STEP_COUNT,
+): boolean[] {
+  const reached = Math.min(Math.max(Math.round(currentStep), 0), total);
+  return Array.from({ length: total }, (_, index) => index < reached);
+}
+
+/** Clamps a step number onto the 1..`BAY_BOOKING_STEP_COUNT` range. */
+function clampStep(step: number): number {
+  return Math.min(Math.max(Math.round(step), 1), BAY_BOOKING_STEP_COUNT);
+}
+
+/**
+ * Where the customer is in the NARROW five-screen walk: date, time, then one
+ * screen per step-3 sub-step.
+ *
+ * Steps 1 and 2 are one screen each and keep their own number. Step 3 is where
+ * the two models come apart: it starts at screen 3 and advances one screen per
+ * sub-step, so `session` is 3, `extras` is 4 and `contact` is 5.
+ *
+ * Reads the sub-step INDEX rather than its name so it stays a pure arithmetic
+ * function of `DETAIL_SUB_STEPS` order — the same order `nextSubStep` and
+ * `prevSubStep` walk, which is why the number always matches the screen.
+ *
+ * Both arguments are clamped. A caller that lost track of either must not be
+ * able to print "Step 7 of 5" or drive `stepBarStates` past its total.
+ */
+export function narrowStepFor(step: number, subStepIndex: number): number {
+  const clamped = clampStep(step);
+  if (clamped < BAY_BOOKING_STEP_COUNT) return clamped;
+
+  const sub = Math.min(
+    Math.max(Math.round(subStepIndex) || 0, 0),
+    DETAIL_SUB_STEPS.length - 1,
+  );
+  return BAY_BOOKING_STEP_COUNT + sub;
+}
+
+/** The `bookings.page` label key for a step, clamped to the steps that exist. */
+export function stepLabelKey(step: number): (typeof STEP_LABEL_KEYS)[number] {
+  return STEP_LABEL_KEYS[clampStep(step) - 1];
+}
+
+/** The `bookings.page` question key for a step, clamped to the steps that exist. */
+export function stepQuestionKey(step: number): (typeof STEP_QUESTION_KEYS)[number] {
+  return STEP_QUESTION_KEYS[clampStep(step) - 1];
+}
+
+/**
+ * Joins the subline's segments, dropping the ones that are not yet known.
+ *
+ * The subline is accumulated context — what the customer has chosen SO FAR — so
+ * it grows a segment per step: nothing at step 1, the date at step 2, the date
+ * plus start time plus bay at step 3. Dropping empties rather than joining them
+ * is what makes that one code path instead of three: a segment the flow has no
+ * value for simply is not printed, and no dangling separator can appear.
+ */
+export function buildStepHeaderSubline(
+  segments: ReadonlyArray<string | null | undefined>,
+): string {
+  return segments
+    .filter((segment): segment is string => typeof segment === 'string' && segment.trim().length > 0)
+    .map((segment) => segment.trim())
+    .join(STEP_HEADER_SUBLINE_SEPARATOR);
+}
+
+/**
+ * The subline exactly as the booking flow builds it.
+ *
+ * The whole wiring, so the suite can assert that the DATE reaches the date slot
+ * and reaches it FIRST. `buildStepHeaderSubline` on its own only proves that
+ * whatever is handed to the first slot leads the line; a call site that passed
+ * the start time there would satisfy every one of its assertions. Taking a
+ * `Date` rather than a string is the other half of that — the start time is a
+ * string, so the compiler rejects the swap.
+ *
+ * Formatting goes through `formatShortDate`, the same function the sticky
+ * summary bar uses, so the two surfaces cannot print the same booking's date in
+ * two different shapes.
+ */
+export function stepHeaderSublineFor(parts: {
+  /** The active locale, which picks the short-date tag. `useLocale()` at the call site. */
+  locale: string;
+  /** The booking's date, unformatted — this function owns the formatting. */
+  date: Date | null;
+  /**
+   * Start time in venue-local 24h, e.g. "13:00". Null before step 3. Bare, not
+   * a translated "from {time}": every other recap line in the flow prints the
+   * time bare between dots, and the deleted slot chip already shipped that
+   * shape without confusion.
+   */
+  time?: string | null;
+  /**
+   * Already-localised bay name, e.g. "Social Bay". Null whenever the bay is not
+   * yet a settled choice — see the call site in `page.tsx`.
+   */
+  bayLabel?: string | null;
+}): string {
+  return buildStepHeaderSubline([
+    parts.date ? formatShortDate(parts.locale, parts.date) : null,
+    parts.time,
+    parts.bayLabel,
+  ]);
+}

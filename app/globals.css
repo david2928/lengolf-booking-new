@@ -86,11 +86,39 @@
   }
 }
 
-/* Reserve the scrollbar gutter so content-height changes (e.g. expanding the
-   course-rental pricing guide) don't toggle the vertical scrollbar and shift
-   centered layouts horizontally. No-op on mobile overlay scrollbars. */
+/*
+ * Reserve the scrollbar gutter so content-height changes (e.g. expanding the
+ * course-rental pricing guide) don't toggle the vertical scrollbar and shift
+ * centered layouts horizontally. No-op where scrollbars are overlays, which is
+ * every phone.
+ *
+ * `both-edges` IS THE LOAD-BEARING WORD. Plain `stable` reserves the gutter on
+ * the inline-end edge only, so it stops the layout SHIFTING at the cost of
+ * leaving it permanently off-centre: every `mx-auto` box centres inside the
+ * narrowed content box and therefore sits half a scrollbar left of centre in
+ * the window. That is not a subtle effect and the owner reported it from a QA
+ * build as "the screen is not fully centred".
+ *
+ * Measured on the bay booking flow (real component DOM, headless Chrome via
+ * CDP, one viewport per row):
+ *
+ *   viewport   scrollbars   window   <html>   gap L / gap R
+ *   390 CSS    overlay       390      390       16 / 16   (gutter is a no-op)
+ *   412 CSS    overlay       412      412       16 / 16   (gutter is a no-op)
+ *   869 CSS    classic       869      854       24 / 39   <- 15px off-centre
+ *
+ * With `both-edges` the 869 row becomes 39 / 39. The cost is the other 15px:
+ * the gutter is now reserved on both sides, so a classic-scrollbar viewport
+ * gives up 30px of width in total rather than 15. That is the correct trade —
+ * symmetric layout is worth more than 15px, and it is what the first paragraph
+ * of this comment always claimed the rule was doing.
+ *
+ * Note this is NOT a mobile-only bug despite how it was reported. Overlay
+ * scrollbars make it invisible on phones; it was on every desktop viewport the
+ * whole time. Do not "simplify" this back to plain `stable`.
+ */
 html {
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
 }
 
 body {
@@ -245,4 +273,152 @@ html[lang="th"] body {
 
 .pb-safe {
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+
+/*
+ * Chat FAB collision avoidance -------------------------------------------
+ * components/shared/BookingSummaryBar.tsx adds a `has-summary-bar` class to
+ * <body> for as long as at least one instance is mounted (refcounted — see
+ * the useEffect there). The chat FAB in components/chat/ChatButton.tsx is a
+ * `fixed z-50` circle pinned to `bottom-4 right-4` (`sm:bottom-6
+ * sm:right-6`), marked with a `data-chat-fab` attribute, and is present on
+ * the same pages the summary bar mounts on — notably the bay-booking flow
+ * at `/`, which components/chat/ChatWidget.tsx's `isBookingsPage` regex
+ * also matches. Raising the bar's own z-index would not fix this:
+ * ChatWidgetLoader renders after {children} in app/[locale]/layout.tsx, so
+ * at equal z-index the FAB still wins the paint order and the two would
+ * still visually collide. Lifting the FAB clear of the bar here instead
+ * keeps BookingSummaryBar and ChatButton decoupled — neither imports the
+ * other, they only agree on this attribute/class contract.
+ *
+ * We key off `[data-chat-fab]` rather than ChatButton's Tailwind utility
+ * classes so this rule can't silently stop matching if someone tweaks
+ * ChatButton's spacing (e.g. `bottom-4` -> `bottom-5`) without knowing this
+ * rule exists.
+ *
+ * On why this wins over `bottom-4` / `sm:bottom-6`: this project runs
+ * Tailwind CSS 3.4.17, where `@tailwind utilities` is a plain PostCSS
+ * directive that expands to ordinary unlayered CSS — native `@layer`
+ * cascade scoping only shipped in Tailwind v4. (Verified directly: running
+ * this project's Tailwind CLI against a fixture containing `bottom-4
+ * right-4 z-50` produces zero `@layer` at-rules in the output.) So this is
+ * a same-bucket specificity fight: `body.has-summary-bar [data-chat-fab]`
+ * is (0,2,1) against `.bottom-4`'s (0,1,0) — we win on specificity alone,
+ * plus the `!important` below. That `!important` is a guard against
+ * `important: true` ever being added to tailwind.config.ts: v3 with that
+ * flag set emits `!important` on every utility, INCLUDING `.bottom-4`, at
+ * that utility's original (lower) specificity — important declarations do
+ * not gain specificity, they only win ties within the important tier. Two
+ * `!important` rules still resolve by specificity, so our `!important`
+ * keeps winning in that hypothetical too.
+ */
+body.has-summary-bar [data-chat-fab] {
+  bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+}
+
+/*
+ * DELIBERATELY NO `body.has-summary-bar { padding-bottom }` RULE HERE.
+ * ------------------------------------------------------------------------
+ * There used to be one — `calc(7rem + env(safe-area-inset-bottom))` — and it
+ * was the phantom scrollbar the owner reported: a vertical scrollbar on a
+ * screen whose content visibly ended well above the fold. Do not restore it.
+ *
+ * Why it always scrolls. Both flows that mount the bar render inside
+ * `Layout`'s `min-h-screen flex flex-col` shell, so the document is ALREADY
+ * guaranteed to be at least one viewport tall before this rule is considered.
+ * Padding on <body> sits OUTSIDE that box and is therefore purely additive:
+ * 100vh + 7rem, on every screen, no matter how little content there is. The
+ * clearance was also being paid twice, since both consumers already apply
+ * BOOKING_SUMMARY_BAR_SPACER (`pb-28`) inside the flow — 224px of it against
+ * a bar measured at 87px.
+ *
+ * Why only mobile saw it. `BookingDetails` genuinely does not mount the bar
+ * above `lg:` (the `isDesktop` gate, not a CSS hide), so the class is never
+ * claimed on a desktop viewport and the document there is honest. Measuring at
+ * a wide viewport finds nothing wrong; the bug lives at ~420px.
+ *
+ * Why the rule is not needed any more. It existed because the bar is `fixed`
+ * and covers whatever is last in the DOCUMENT rather than last in the form:
+ * the shared marketing footer used to render after the form, and the bar was
+ * intercepting taps on four of its controls including the Privacy Policy link
+ * (verified with elementFromPoint). Both consumers now take `hideFooter` —
+ * app/[locale]/(features)/bookings/page.tsx and
+ * app/[locale]/course-rental/page.tsx — so the form IS the last thing in the
+ * document, and BOOKING_SUMMARY_BAR_SPACER on the form is exactly the right
+ * place for the clearance. Course rental mounts the bar only from step 2
+ * onward, which is precisely where its wrapper carries that spacer.
+ *
+ * The in-flow spacer does not have this failure mode: it pads an element
+ * inside `<main class="flex-grow">`, which a short page has already stretched,
+ * so the padding is absorbed rather than added.
+ *
+ * If a consumer ever renders something after the form again, give THAT
+ * consumer the spacer. Do not pad the document.
+ *
+ * The `has-summary-bar` class itself stays — the chat-FAB rule above is keyed
+ * off it and is still doing its job.
+ */
+
+/*
+ * Chat FAB vs the DESKTOP summary rail -----------------------------------
+ * The same collision, one breakpoint over. Above `lg:` booking step 3 drops
+ * the sticky bar and puts the total in a 296px right-hand rail
+ * (app/[locale]/(features)/bookings/components/booking/steps/details/SummaryRail.tsx,
+ * laid out by its sibling BookingDetails.tsx), whose LAST element is the
+ * Confirm button. The rail hugs the content box's right edge, and the FAB in
+ * components/chat/ChatButton.tsx is pinned to the viewport's bottom-right, so
+ * on a short laptop viewport the two land on top of each other: measured in a
+ * browser at 1280x720 on a fresh load, the FAB's left edge sat 1px right of the
+ * Confirm button's right edge with 27px of vertical overlap. It worked, but a
+ * one-pixel margin on the primary booking action is not a margin.
+ *
+ * SummaryRail claims `has-summary-rail` on <body> while mounted (refcounted,
+ * same shape as `has-summary-bar` above), and this HIDES the FAB outright while
+ * a rail is up.
+ *
+ * WHY NOT AN OFFSET. This rule used to lift the FAB to
+ * `bottom: calc(8rem + env(safe-area-inset-bottom))`, which measured 27-32px of
+ * clearance from the Confirm button in both of the rail's resting positions at
+ * 1280x720. Two cases survived it, both because a fixed offset cannot follow a
+ * button that MOVES:
+ *   - over the ~163px of scroll where the rail slides up to its pin, the button
+ *     crosses the FAB's y-band with only the 1px horizontal gap between the two
+ *     columns as separation;
+ *   - a rail taller than ~512px on a 720px viewport re-enters that band once
+ *     pinned and STAYS there.
+ * The second one is not hypothetical — queued slices add food-set pricing,
+ * package hours and offer lines to the rail, so it will grow past 512px. And
+ * the offset needed to clear a taller rail is unbounded: CSS cannot know the
+ * rail's height, so every future line item would need this number re-measured.
+ * Shifting the FAB sideways is worse still — it would mean encoding the
+ * container's gutter (`(100vw - max-width)/2 + padding`), which changes at
+ * every breakpoint. Nothing here knows how wide anything is, and it shouldn't.
+ *
+ * This is a deliberate product decision, not a rendering workaround: it
+ * suppresses a support entry point, on ONE step of ONE flow, at ONE breakpoint,
+ * for the moments a customer is looking at the price and the Confirm button.
+ * The chat FAB is available on every other step and every other page.
+ * Owner-accepted 2026-07-25 in preference to chasing the offset.
+ *
+ * The MOBILE path is untouched: below `lg:` the rail is not mounted, the sticky
+ * `BookingSummaryBar` is, and `body.has-summary-bar` above still LIFTS the FAB
+ * to 6rem (measured 9px clearance — tight but working). The FAB stays reachable
+ * on mobile, which is where most of this traffic is.
+ *
+ * The two rules remain mutually exclusive in practice: BookingDetails only
+ * mounts the bar below `lg:` (it is unmounted, not merely hidden — the class is
+ * the reason), and this rule only applies above it. The rail does claim its
+ * class on every viewport, so the media query — not the class — is what keeps
+ * the two apart.
+ *
+ * `!important` and the specificity story are the same as for `has-summary-bar`
+ * above: `body.has-summary-rail [data-chat-fab]` is (0,2,1) against the FAB's
+ * own utility classes at (0,1,0), so this wins on specificity alone and the
+ * `!important` is belt-and-braces against `important: true` ever landing in
+ * tailwind.config.ts.
+ */
+@media (min-width: 1024px) {
+  body.has-summary-rail [data-chat-fab] {
+    display: none !important;
+  }
 }

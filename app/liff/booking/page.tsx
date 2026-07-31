@@ -256,16 +256,28 @@ export default function LiffBookingPage() {
           return slot;
         }
 
-        // Recalculate maxHours based on bay-specific availability
+        // Recalculate maxHours based on bay-specific availability.
+        //
+        // The explicit ascending sort and `parseFloat` are both load-bearing
+        // since /api/availability moved to the v3 slots function, which added
+        // FRACTIONAL keys ('1.5', '2.5') to this map. Two traps, both silent:
+        //   - `parseInt('1.5', 10)` is 1, so a fractional rung would read as a
+        //     shorter one and drag maxHours back down.
+        //   - A JS object orders array-index-like keys ('1', '2') numerically
+        //     BEFORE non-index string keys ('1.5', '2.5'), so `Object.entries`
+        //     yields 1,2,3,4,5,1.5,2.5 — not ascending. Walking that order with
+        //     a break-on-first-unavailable loop made a 5-hour slot report 2.
+        //
+        // LIFF's own picker still offers whole hours only, so a fractional
+        // maxHours here just floors out in `BookingForm`'s duration list.
         let maxHours = 0;
-        for (const [durationStr, info] of Object.entries(slot.bayAvailabilityByDuration)) {
-          const duration = parseInt(durationStr, 10);
+        const rungs = Object.entries(slot.bayAvailabilityByDuration)
+          .map(([durationStr, info]) => ({ duration: parseFloat(durationStr), info }))
+          .sort((a, b) => a.duration - b.duration);
+        for (const { duration, info } of rungs) {
           const hasPreferredBay = bayPref === 'ai_lab' ? info.ai > 0 : info.social > 0;
-          if (hasPreferredBay) {
-            maxHours = duration;
-          } else {
-            break;
-          }
+          if (!hasPreferredBay) break;
+          maxHours = duration;
         }
 
         if (maxHours === 0) return null;
@@ -301,10 +313,13 @@ export default function LiffBookingPage() {
       }
 
       const data = await response.json();
-      const allSlots: TimeSlot[] = (data.slots || []).map((slot: { startTime: string; maxHours: number; period: string; availableBays?: string[]; socialBayCount?: number; aiLabCount?: number; bayAvailabilityByDuration?: BayAvailabilityByDuration }) => ({
+      // The API's `period` field is deliberately dropped: it splits the morning
+      // at 12, which contradicts the hour captions the customer reads.
+      // `TimeSlotList` derives the period from the start time via
+      // `lib/booking-periods.ts` instead.
+      const allSlots: TimeSlot[] = (data.slots || []).map((slot: { startTime: string; maxHours: number; availableBays?: string[]; socialBayCount?: number; aiLabCount?: number; bayAvailabilityByDuration?: BayAvailabilityByDuration }) => ({
         time: slot.startTime,
         maxHours: slot.maxHours,
-        period: slot.period,
         availableBays: slot.availableBays,
         socialBayCount: slot.socialBayCount,
         aiLabCount: slot.aiLabCount,

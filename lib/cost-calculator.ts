@@ -7,6 +7,8 @@
 import { isWeekendDate, getRateForTime, getRateSegments, timeSlots } from '@/lib/liff/bay-rates-data';
 import { getClubPricing, GOLF_CLUB_OPTIONS, getGearUpItems } from '@/types/golf-club-rental';
 import { getPackageById } from '@/types/play-food-packages';
+import { computePackageCoverage, HOUR_EPSILON } from '@/lib/package-coverage';
+import { isPromotionEligible } from '@/lib/promotion-conditions';
 
 // --- Types ---
 
@@ -19,6 +21,34 @@ export interface ApplicablePromotion {
   conditions: Record<string, unknown>;
   title_en: string;
   title_th: string;
+  /**
+   * The `pos.discounts` row staff must apply at the till to honour this offer,
+   * when the promotion declares one. Null means the mapping is unconfirmed, NOT
+   * that no discount is needed.
+   *
+   * Nothing in the calculation reads this — it carries through to the staff LINE
+   * note in `app/api/bookings/create/route.ts`, which names the winning offer.
+   * It lives on this type so the note reads it off the SAME row the quote was
+   * computed from rather than re-deriving a mapping by convention.
+   */
+  pos_discount_id?: string | null;
+  /**
+   * Does winning this promotion mint a free-hour CREDIT the customer redeems on
+   * a later visit?
+   *
+   * True for the new-customer B1G1 and nothing else today. It is a property of
+   * the ROW, not of `promotion_type`: the weekday off-peak offer is also a
+   * `bogo` with `free_hours: 1` and grants nothing, so a type check cannot tell
+   * them apart. Read here to decide whether the sub-2-hour hint may promise
+   * "redeem your free hour within 7 days", and read again in
+   * `app/api/bookings/create/route.ts` to decide whether to actually grant it —
+   * one column, so the promise and the grant cannot drift.
+   *
+   * Absent reads as FALSE, matching the column default. A promotion that forgets
+   * to declare it behaves as an ordinary discount, which is visible and free to
+   * correct; the opposite default would promise credits nothing creates.
+   */
+  grants_credit?: boolean;
 }
 
 export interface CostCalculationInput {
@@ -35,6 +65,26 @@ export interface CostCalculationInput {
   playFoodPackageId?: string | null;
   hasActivePackage: boolean;
   packageDisplayName?: string;
+  /**
+   * Hours left on that package, when the caller knows them.
+   *
+   * OPTIONAL BY DESIGN. Omitted (or `null`) means "balance unknown" and the bay
+   * line falls back to eligibility-only coverage — the whole package-eligible
+   * window zeroed — which is byte-for-byte what this calculator did before the
+   * input existed. That fallback is not just for legacy callers: the balance
+   * arrives from a fetch, so it is genuinely unknown on first render, and
+   * inventing a 0 there would flicker the total from ฿0 to a charge and back.
+   *
+   * When a balance IS supplied and it runs short of the booking, the covered
+   * head of the booking stays covered and the uncovered TAIL becomes a charged
+   * line — priced where it actually falls, so it prorates across 14:00/17:00.
+   */
+  packageRemainingHours?: number | null;
+  /**
+   * Unlimited packages cover their whole eligible window whatever the balance
+   * says. Mirrors `PackageCoverageInput.isUnlimited`.
+   */
+  packageIsUnlimited?: boolean;
   isNewCustomer: boolean;
   applicablePromotions: ApplicablePromotion[];
 }
@@ -71,6 +121,20 @@ export interface CostDiscount {
 export interface CostBreakdown {
   lineItems: CostLineItem[];
   discounts: CostDiscount[];
+  /**
+   * The one promotion this breakdown reflects — offers never stack, so at most
+   * one ever wins. `undefined` when none was eligible.
+   *
+   * Read this, never a second eligibility pass, when another surface has to
+   * agree with the customer's quote (the staff LINE note in
+   * `app/api/bookings/create/route.ts` does). `discounts[0].promotionId` is NOT
+   * a substitute: a sub-2-hour bogo wins by contributing ADVICE ("book 2 hours
+   * to get 1 hour free") and pushes no discount row, yet it is still a promise
+   * made to the customer that staff have to honour.
+   *
+   * Metadata only — no line item, discount, note or total depends on it.
+   */
+  appliedPromotionId?: string;
   subtotal: number;
   totalDiscount: number;
   estimatedTotal: number;
@@ -111,6 +175,82 @@ const STANDARD_SET_LABEL = {
 const COMPLIMENTARY_LABEL = { en: 'Complimentary', th: 'ฟรี', ja: '無料', ko: '무료', zh: '免费' };
 const ADD_ON_PREFIX = { en: 'Add-on', th: 'เพิ่ม', ja: 'アドオン', ko: '추가 상품', zh: '加购' };
 
+type Lang = 'en' | 'th' | 'ja' | 'ko' | 'zh';
+
+/** Per-locale stand-in when the CRM gave us no package display name. */
+const PACKAGE_FALLBACK_NAME: Record<Lang, string> = {
+  en: 'Your package',
+  th: 'แพ็กเกจของคุณ',
+  ja: 'お客様のパッケージ',
+  ko: '회원님의 패키지',
+  zh: '您的套餐',
+};
+
+/**
+ * Shown when the package's remaining-hours BALANCE does not stretch across the
+ * booking. The uncovered tail is a real charged line in the breakdown, so this
+ * only has to explain why a package holder is being billed for bay time — it
+ * must not imply the amount sits outside the estimate.
+ */
+const PACKAGE_SHORTFALL_NOTE: Record<Lang, (pkg: string) => string> = {
+  en: (p) => `${p} does not cover this whole booking. The uncovered time is charged at the normal rate`,
+  th: (p) => `${p} ไม่ครอบคลุมการจองนี้ทั้งหมด เวลาส่วนที่ไม่ครอบคลุมคิดค่าบริการตามอัตราปกติ`,
+  ja: (p) => `${p}ではこのご予約の全時間をカバーできません。カバーされない時間は通常料金となります`,
+  ko: (p) => `${p}로는 이 예약 전체를 이용할 수 없습니다. 미포함 시간은 정상 요금이 부과됩니다`,
+  zh: (p) => `${p}不足以涵盖整个预订。未涵盖的时间按正常价格收费`,
+};
+
+/**
+ * Shown when more than one offer was eligible and only the best one was kept.
+ *
+ * Owner rule (confirmed 2026-07-25): offers never stack. A customer who knows
+ * they hold two offers must not be left thinking one was forgotten, so the
+ * losing offers are named rather than silently dropped.
+ */
+const BEST_OFFER_ONLY_NOTE: Record<Lang, (others: string) => string> = {
+  en: (o) => `Only one offer applies per booking, so we applied the one worth the most. Also considered: ${o}`,
+  th: (o) => `ใช้ได้เพียงหนึ่งโปรโมชันต่อการจอง เราใช้โปรโมชันที่คุ้มที่สุดให้คุณแล้ว โปรโมชันอื่นที่พิจารณา: ${o}`,
+  ja: (o) => `1回のご予約に適用できる特典は1つのみです。最もお得な特典を適用しました。他に検討した特典：${o}`,
+  ko: (o) => `예약당 하나의 혜택만 적용됩니다. 가장 유리한 혜택을 적용했습니다. 함께 검토한 혜택: ${o}`,
+  zh: (o) => `每次预订仅可使用一项优惠，我们已为您选择最优惠的一项。同时考虑的优惠：${o}`,
+};
+
+/** Separator for the "also considered" offer list. CJK uses its own comma. */
+const OFFER_LIST_SEPARATOR: Record<Lang, string> = {
+  en: ', ', th: ', ', ja: '、', ko: ', ', zh: '、',
+};
+
+/** Note lines a promotion candidate would contribute, keyed by locale. */
+type LocalizedNotes = Record<Lang, string[]>;
+
+/**
+ * What ONE eligible promotion would contribute to the breakdown, computed
+ * without mutating it. Only the winning candidate is ever committed — see the
+ * selection step in `calculateCost`.
+ */
+interface PromotionCandidate {
+  /**
+   * Promotion row id. Doubles as the tie-break key so the winner never depends
+   * on the order `applicablePromotions` happened to arrive in.
+   */
+  promotionId: string;
+  /**
+   * Baht the customer saves if this candidate is applied — the sole ranking key.
+   * Zero for a candidate that only carries advice (the sub-2-hour bogo), which
+   * is why such a candidate can never out-rank a real discount.
+   */
+  value: number;
+  /** Discount row to push. `null` for an advice-only candidate. */
+  discount: CostDiscount | null;
+  /** Notes to push if this candidate wins, in push order. */
+  notes: LocalizedNotes;
+  /** Titles used when naming this offer in the "also considered" disclosure. */
+  titleEn: string;
+  titleTh: string;
+}
+
+const emptyLocalizedNotes = (): LocalizedNotes => ({ en: [], th: [], ja: [], ko: [], zh: [] });
+
 /** A booking portion priced at one rate (a booking may straddle slot boundaries). */
 interface PricedSegment {
   hours: number;
@@ -146,8 +286,15 @@ function segmentsOriginalCost(segments: PricedSegment[]): number {
   return segments.reduce((sum, s) => sum + s.hours * (s.originalPrice ?? s.price), 0);
 }
 
+/**
+ * Suffix appended straight after a number, so it carries its own leading space
+ * where the script wants one. English and Thai space the unit off ("1.5 hr",
+ * "1.5 ชม."), matching `durationHoursShort` / `summaryRailHours` in
+ * `messages/*.json`, which print the same duration a few pixels away on step 3.
+ * CJK does not space units, so ja/ko/zh stay flush.
+ */
 const HOUR_UNIT: Record<'en' | 'th' | 'ja' | 'ko' | 'zh', string> = {
-  en: 'hr', th: ' ชม.', ja: '時間', ko: '시간', zh: '小时',
+  en: ' hr', th: ' ชม.', ja: '時間', ko: '시간', zh: '小时',
 };
 
 /** Display precision for fractional hours (0.5 stays 0.5; 1/3 → 0.33). */
@@ -191,7 +338,9 @@ function buildBayRateDetail(
       case 'zh':
         return `${duration}小时 × ${rate}/小时 ${suffix}`;
       default:
-        return `${duration}hr × ${rate}/hr ${suffix}`;
+        // Space before the unit, none inside the per-hour rate — "/hr" is one
+        // token, exactly as Thai reads "/ชม." above.
+        return `${duration} hr × ${rate}/hr ${suffix}`;
     }
   }
 
@@ -207,7 +356,7 @@ function buildDurationDetail(lang: 'en' | 'th' | 'ja' | 'ko' | 'zh', duration: n
     case 'ja': return `${duration}時間`;
     case 'ko': return `${duration}시간`;
     case 'zh': return `${duration}小时`;
-    default: return `${duration}hr`;
+    default: return `${duration} hr`;
   }
 }
 
@@ -243,17 +392,19 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     playFoodPackageId,
     hasActivePackage,
     packageDisplayName,
+    packageRemainingHours,
+    packageIsUnlimited,
     isNewCustomer,
     applicablePromotions,
   } = input;
 
   const lineItems: CostLineItem[] = [];
   const discounts: CostDiscount[] = [];
-  const notes: string[] = ['Estimate only — payment at venue'];
-  const notesTh: string[] = ['ราคาประมาณการ — ชำระที่สถานที่'];
-  const notesJa: string[] = ['ご予約時の見積もり — 会場でお支払い'];
-  const notesKo: string[] = ['예상 금액 — 현장에서 결제'];
-  const notesZh: string[] = ['预估价格 — 现场付款'];
+  const notes: string[] = ['Estimate only, payment at venue'];
+  const notesTh: string[] = ['ราคาประมาณการ ชำระที่สถานที่'];
+  const notesJa: string[] = ['ご予約時の見積もり、会場でお支払い'];
+  const notesKo: string[] = ['예상 금액, 현장에서 결제'];
+  const notesZh: string[] = ['预估价格，现场付款'];
 
   const [startHourPart, startMinutePart] = (startTime ?? '').split(':');
   const startHour = parseInt(startHourPart, 10);
@@ -297,27 +448,80 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     && (!isEarlyBirdPackage || bookingEnd <= EARLY_BIRD_CUTOFF);
   const packageCoversPartially = hasActivePackage && isEarlyBirdPackage
     && !packageCoversThisSlot && startFraction < EARLY_BIRD_CUTOFF;
-  // Promotions never stack on a booking the package pays for (fully or partially)
+  // Promotions never stack on a booking the package pays for (fully or partially).
+  // Deliberately keyed off ELIGIBILITY only, NOT the balance: a package that runs
+  // short keeps exactly today's stacking behaviour.
   const packageAppliesToBay = packageCoversThisSlot || packageCoversPartially;
+
+  // How many hours of the booking the package's BALANCE actually pays for.
+  // `lib/package-coverage.ts` owns this arithmetic — the Early Bird 14:00 cap,
+  // the unlimited case, the float-dust epsilon and the "unknown balance" guard
+  // all live there, and we consume only its `coveredHours`.
+  //
+  // `null` means "no usable balance information": no balance supplied, an
+  // unlimited package, or a balance that comfortably covers the eligible window.
+  // In every one of those cases the eligibility-only windows below are used
+  // unchanged, so the output is identical to before this input existed.
+  const balanceCoverage = computePackageCoverage({
+    date,
+    startTime,
+    duration,
+    hasActivePackage,
+    packageDisplayName,
+    remainingHours: packageRemainingHours ?? null,
+    isUnlimited: packageIsUnlimited,
+    playFoodPackageId,
+  });
+  const balanceCoveredHours = balanceCoverage?.isPartial ? balanceCoverage.coveredHours : null;
+  const packageRunsShort = balanceCoveredHours !== null;
+
+  // The window the package pays for, and the remainder charged at normal rates.
+  // TWO limits can cut the covered window short and they COMPOSE — an Early Bird
+  // package stops at 14:00, and the balance runs out after `balanceCoveredHours`.
+  // `coveredEnd` is whichever comes first, which keeps the charged tail
+  // contiguous and priced from where it really starts.
+  const packageEligibleEnd = packageCoversThisSlot
+    ? bookingEnd
+    : packageCoversPartially ? EARLY_BIRD_CUTOFF : startFraction;
+  const packageCoveredEnd = packageRunsShort
+    ? Math.min(packageEligibleEnd, startFraction + balanceCoveredHours!)
+    : packageEligibleEnd;
+  const packageCoveredHours = packageCoveredEnd - startFraction;
+  const packageChargedHours = bookingEnd - packageCoveredEnd;
+
+  const pushShortfallNote = () => {
+    const named = (lang: Lang) =>
+      PACKAGE_SHORTFALL_NOTE[lang](packageDisplayName ?? PACKAGE_FALLBACK_NAME[lang]);
+    notes.push(named('en'));
+    notesTh.push(named('th'));
+    notesJa.push(named('ja'));
+    notesKo.push(named('ko'));
+    notesZh.push(named('zh'));
+  };
 
   if (playFoodPkg) {
     // Play & Food package replaces bay rate. Package name is brand data;
     // keep it untranslated across locales.
     lineItems.push({
       id: 'play-food',
-      label: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
-      labelTh: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
-      labelJa: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
-      labelKo: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
-      labelZh: `${playFoodPkg.name} — ${playFoodPkg.displayName}`,
-      detail: `${playFoodPkg.duration}hr bay time + food & drinks`,
+      label: `${playFoodPkg.name}: ${playFoodPkg.displayName}`,
+      labelTh: `${playFoodPkg.name}: ${playFoodPkg.displayName}`,
+      labelJa: `${playFoodPkg.name}：${playFoodPkg.displayName}`,
+      labelKo: `${playFoodPkg.name}: ${playFoodPkg.displayName}`,
+      labelZh: `${playFoodPkg.name}：${playFoodPkg.displayName}`,
+      // Spaced unit, same as `buildBayRateDetail` / `buildDurationDetail` — this
+      // detail renders in the same panel as those.
+      detail: `${playFoodPkg.duration} hr bay time + food & drinks`,
       detailTh: `${playFoodPkg.duration} ชม. + อาหารและเครื่องดื่ม`,
       detailJa: `${playFoodPkg.duration}時間のベイ利用 + お食事とドリンク`,
       detailKo: `${playFoodPkg.duration}시간 베이 이용 + 식사와 음료`,
       detailZh: `${playFoodPkg.duration}小时球位使用 + 餐饮`,
       amount: playFoodPkg.price,
     });
-  } else if (packageCoversThisSlot) {
+  } else if (packageAppliesToBay && packageChargedHours <= HOUR_EPSILON) {
+    // Nothing left to charge — the package pays for the whole booking. Reached
+    // by an eligible package with no balance information (the pre-existing
+    // `packageCoversThisSlot` case) and by a balance that exactly covers it.
     lineItems.push({
       id: 'bay-rate',
       label: BAY_RATE_LABEL.en,
@@ -335,20 +539,27 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       packageName: packageDisplayName,
       originalAmount: bayCost,
     });
-    notes.push(`Bay rate covered by ${packageDisplayName ?? 'your package'}`);
-    notesTh.push(`ค่าเบย์รวมอยู่ในแพ็กเกจ ${packageDisplayName ?? 'ของคุณ'}`);
-    notesJa.push(`ベイ料金は${packageDisplayName ?? 'お客様のパッケージ'}に含まれています`);
-    notesKo.push(`베이 요금은 ${packageDisplayName ?? '회원님의 패키지'}에 포함되어 있습니다`);
-    notesZh.push(`球位费用已包含在${packageDisplayName ?? '您的套餐'}中`);
-  } else if (packageCoversPartially) {
-    // Early Bird booking crossing 14:00 — split into a covered line
-    // (start → 14:00, drawn from the package) and a charged line
-    // (14:00 → end, at the normal prorated rate).
-    const coveredSegments = getPricedSegments(
-      startFraction, EARLY_BIRD_CUTOFF - startFraction, isWeekend,
-    );
+    // NO coverage note here, deliberately. `isCoveredByPackage` above already
+    // renders a green "Covered by <package>" chip directly beneath this line
+    // item, in BOTH surfaces that render notes — `RailLineItem` in
+    // `SummaryRail.tsx` and the line-item loop in `ProjectedCostBreakdown.tsx`.
+    // A note saying "Bay rate covered by <package>" repeats that exact sentence
+    // a few lines lower, under the Total, which is what the owner reported
+    // (Jul 2026). The chip wins because it sits next to the line it explains.
+    //
+    // The PARTIAL-coverage branch below is NOT the same case: there the
+    // customer is charged for the uncovered tail, no chip explains the charge,
+    // and its note is the only thing that does. Do not "restore symmetry" by
+    // adding one back here.
+  } else if (packageAppliesToBay && packageCoveredHours > HOUR_EPSILON) {
+    // The package pays for the HEAD of the booking and the tail is charged.
+    // Split at `packageCoveredEnd` — 14:00 for an Early Bird booking crossing
+    // the cutoff, or wherever the remaining-hours balance runs out, whichever
+    // comes first. The charged tail goes through the same segment machinery as
+    // an unpackaged booking, so it prorates across 14:00 and 17:00.
+    const coveredSegments = getPricedSegments(startFraction, packageCoveredHours, isWeekend);
     const chargedSegments = getPricedSegments(
-      EARLY_BIRD_CUTOFF, bookingEnd - EARLY_BIRD_CUTOFF, isWeekend,
+      packageCoveredEnd, packageChargedHours, isWeekend,
     );
     const chargedCost = Math.round(segmentsCost(chargedSegments));
     const chargedOriginal = Math.round(segmentsOriginalCost(chargedSegments));
@@ -377,21 +588,30 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       labelJa: BAY_RATE_LABEL.ja,
       labelKo: BAY_RATE_LABEL.ko,
       labelZh: BAY_RATE_LABEL.zh,
-      detail: buildBayRateDetail('en', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
-      detailTh: buildBayRateDetail('th', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
-      detailJa: buildBayRateDetail('ja', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
-      detailKo: buildBayRateDetail('ko', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
-      detailZh: buildBayRateDetail('zh', chargedSegments, isWeekend, EARLY_BIRD_CUTOFF),
+      // Slot label comes from where the CHARGED window starts, which is now
+      // `packageCoveredEnd` rather than always the 14:00 cutoff.
+      detail: buildBayRateDetail('en', chargedSegments, isWeekend, Math.floor(packageCoveredEnd)),
+      detailTh: buildBayRateDetail('th', chargedSegments, isWeekend, Math.floor(packageCoveredEnd)),
+      detailJa: buildBayRateDetail('ja', chargedSegments, isWeekend, Math.floor(packageCoveredEnd)),
+      detailKo: buildBayRateDetail('ko', chargedSegments, isWeekend, Math.floor(packageCoveredEnd)),
+      detailZh: buildBayRateDetail('zh', chargedSegments, isWeekend, Math.floor(packageCoveredEnd)),
       amount: chargedCost,
       originalAmount: chargedOriginal > chargedCost ? chargedOriginal : undefined,
     });
 
-    const pkg = packageDisplayName;
-    notes.push(`${pkg ?? 'Your package'} covers until 14:00 — time after 14:00 is charged at the normal rate`);
-    notesTh.push(`${pkg ?? 'แพ็กเกจของคุณ'} ครอบคลุมถึง 14:00 — เวลาหลัง 14:00 คิดค่าบริการตามอัตราปกติ`);
-    notesJa.push(`${pkg ?? 'お客様のパッケージ'}は14:00までが対象です。14:00以降は通常料金となります`);
-    notesKo.push(`${pkg ?? '회원님의 패키지'}는 14:00까지만 적용됩니다. 14:00 이후는 정상 요금이 부과됩니다`);
-    notesZh.push(`${pkg ?? '您的套餐'}仅涵盖至14:00，14:00之后按正常价格收费`);
+    if (packageRunsShort) {
+      // The balance ran out at or before the 14:00 cap, so the cap is not what
+      // ends the coverage here — saying "covers until 14:00" would misdescribe
+      // a split that happens earlier. The balance note is the accurate one.
+      pushShortfallNote();
+    } else {
+      const pkg = packageDisplayName;
+      notes.push(`${pkg ?? 'Your package'} covers until 14:00. Time after 14:00 is charged at the normal rate`);
+      notesTh.push(`${pkg ?? 'แพ็กเกจของคุณ'} ครอบคลุมถึง 14:00 เวลาหลัง 14:00 คิดค่าบริการตามอัตราปกติ`);
+      notesJa.push(`${pkg ?? 'お客様のパッケージ'}は14:00までが対象です。14:00以降は通常料金となります`);
+      notesKo.push(`${pkg ?? '회원님의 패키지'}는 14:00까지만 적용됩니다. 14:00 이후는 정상 요금이 부과됩니다`);
+      notesZh.push(`${pkg ?? '您的套餐'}仅涵盖至14:00，14:00之后按正常价格收费`);
+    }
   } else {
     const originalTotal = Math.round(segmentsOriginalCost(baySegments));
 
@@ -411,6 +631,13 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       originalAmount: originalTotal > bayCost ? originalTotal : undefined,
     });
 
+    // An eligible package with a balance too small to pay for any of the
+    // booking — no covered line is worth showing, but the customer still needs
+    // to know why their package did not apply.
+    if (packageRunsShort) {
+      pushShortfallNote();
+    }
+
     if (hasActivePackage && isEarlyBirdPackage && startHour >= 14) {
       const pkg = packageDisplayName;
       notes.push(`${pkg ?? 'Your package'} covers morning hours only (before 14:00)`);
@@ -427,11 +654,11 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     const clubName = getClubDisplayName(clubRentalId);
     lineItems.push({
       id: 'club-rental',
-      label: `${CLUB_RENTAL_PREFIX.en} — ${clubName}`,
-      labelTh: `${CLUB_RENTAL_PREFIX.th} — ${clubName}`,
-      labelJa: `${CLUB_RENTAL_PREFIX.ja} — ${clubName}`,
-      labelKo: `${CLUB_RENTAL_PREFIX.ko} — ${clubName}`,
-      labelZh: `${CLUB_RENTAL_PREFIX.zh} — ${clubName}`,
+      label: `${CLUB_RENTAL_PREFIX.en}: ${clubName}`,
+      labelTh: `${CLUB_RENTAL_PREFIX.th}: ${clubName}`,
+      labelJa: `${CLUB_RENTAL_PREFIX.ja}：${clubName}`,
+      labelKo: `${CLUB_RENTAL_PREFIX.ko}: ${clubName}`,
+      labelZh: `${CLUB_RENTAL_PREFIX.zh}：${clubName}`,
       detail: buildDurationDetail('en', duration),
       detailTh: buildDurationDetail('th', duration),
       detailJa: buildDurationDetail('ja', duration),
@@ -442,11 +669,11 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   } else if (clubRentalId === 'standard') {
     lineItems.push({
       id: 'club-rental',
-      label: `${CLUB_RENTAL_PREFIX.en} — ${STANDARD_SET_LABEL.en}`,
-      labelTh: `${CLUB_RENTAL_PREFIX.th} — ${STANDARD_SET_LABEL.th}`,
-      labelJa: `${CLUB_RENTAL_PREFIX.ja} — ${STANDARD_SET_LABEL.ja}`,
-      labelKo: `${CLUB_RENTAL_PREFIX.ko} — ${STANDARD_SET_LABEL.ko}`,
-      labelZh: `${CLUB_RENTAL_PREFIX.zh} — ${STANDARD_SET_LABEL.zh}`,
+      label: `${CLUB_RENTAL_PREFIX.en}: ${STANDARD_SET_LABEL.en}`,
+      labelTh: `${CLUB_RENTAL_PREFIX.th}: ${STANDARD_SET_LABEL.th}`,
+      labelJa: `${CLUB_RENTAL_PREFIX.ja}：${STANDARD_SET_LABEL.ja}`,
+      labelKo: `${CLUB_RENTAL_PREFIX.ko}: ${STANDARD_SET_LABEL.ko}`,
+      labelZh: `${CLUB_RENTAL_PREFIX.zh}：${STANDARD_SET_LABEL.zh}`,
       detail: COMPLIMENTARY_LABEL.en,
       detailTh: COMPLIMENTARY_LABEL.th,
       detailJa: COMPLIMENTARY_LABEL.ja,
@@ -466,11 +693,11 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
       if (!addOns[item.id]) continue;
       lineItems.push({
         id: `addon-${item.id}`,
-        label: `${ADD_ON_PREFIX.en} — ${item.name}`,
-        labelTh: `${ADD_ON_PREFIX.th} — ${item.name}`,
-        labelJa: `${ADD_ON_PREFIX.ja} — ${item.name}`,
-        labelKo: `${ADD_ON_PREFIX.ko} — ${item.name}`,
-        labelZh: `${ADD_ON_PREFIX.zh} — ${item.name}`,
+        label: `${ADD_ON_PREFIX.en}: ${item.name}`,
+        labelTh: `${ADD_ON_PREFIX.th}: ${item.name}`,
+        labelJa: `${ADD_ON_PREFIX.ja}：${item.name}`,
+        labelKo: `${ADD_ON_PREFIX.ko}: ${item.name}`,
+        labelZh: `${ADD_ON_PREFIX.zh}：${item.name}`,
         amount: item.price,
       });
     }
@@ -479,12 +706,38 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   // 3. Calculate subtotal before discounts
   const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
 
-  // 4. Apply promotions
+  // 4. Promotions — EVALUATE every eligible offer, then apply only the best one.
+  //
+  // Owner rule (confirmed 2026-07-25): offers never stack. Before this, the loop
+  // pushed a discount for every match, so two eligible `bogo` rows each waived
+  // an hour and a ฿1,500 booking previewed at ฿0. Nothing but the shape of the
+  // `promotions` table (one machine-readable row) was preventing that.
+  //
+  // The loop below is therefore pure: it builds candidates and touches neither
+  // `discounts` nor the notes arrays. Committing happens once, after selection.
+  // Eligibility guards (`new_customer_only`, package coverage, Play & Food) are
+  // unchanged and still decide whether a promotion becomes a candidate at all.
+  const promotionCandidates: PromotionCandidate[] = [];
+
   for (const promo of applicablePromotions) {
+    // Hoisted out of the per-type branches it used to be duplicated in — the
+    // types are mutually exclusive, so this is the same gate as before.
+    //
+    // This used to read exactly ONE key (`new_customer_only`) and ignore the
+    // rest of the jsonb. `lib/promotion-conditions.ts` now evaluates the whole
+    // object and DENIES on any key it does not recognise — see its header for
+    // why an unread condition is the expensive direction to be wrong in.
+    //
+    // Evaluated against `date`/`startTime` — the BOOKING's — never `now()`. A
+    // customer browsing on Monday morning for a Saturday evening slot is asked
+    // about Saturday evening, because that is the session the quote prices and
+    // the session staff will charge for.
+    if (!isPromotionEligible(promo.conditions, { date, startTime, isNewCustomer })) continue;
+
+    const candidateNotes = emptyLocalizedNotes();
+
     // BOGO: 2+ hours → discount applied now; 1 hour → hint to book longer next time for free hour
     if (promo.promotion_type === 'bogo' && promo.free_hours) {
-      const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
-      if (isNewCustomerOnly && !isNewCustomer) continue;
       if (packageAppliesToBay || playFoodPkg) continue;
 
       if (duration >= 2) {
@@ -499,45 +752,87 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         );
         const discountAmount = Math.round(segmentsCost(freeSegments));
         if (discountAmount > 0) {
-          discounts.push({
-            id: `promo-${promo.id}`,
-            label: promo.title_en,
-            labelTh: promo.title_th,
-            // promo titles only carry title_en/title_th from the DB — fall
-            // back to the English title for other locales until the promo
-            // schema supports more.
-            labelJa: promo.title_en,
-            labelKo: promo.title_en,
-            labelZh: promo.title_en,
-            amount: -discountAmount,
+          promotionCandidates.push({
             promotionId: promo.id,
+            value: discountAmount,
+            discount: {
+              id: `promo-${promo.id}`,
+              label: promo.title_en,
+              labelTh: promo.title_th,
+              // promo titles only carry title_en/title_th from the DB — fall
+              // back to the English title for other locales until the promo
+              // schema supports more.
+              labelJa: promo.title_en,
+              labelKo: promo.title_en,
+              labelZh: promo.title_en,
+              amount: -discountAmount,
+              promotionId: promo.id,
+            },
+            notes: candidateNotes,
+            titleEn: promo.title_en,
+            titleTh: promo.title_th,
           });
         }
+        // A free window that prices to ฿0 saves the customer nothing, so there
+        // is no candidate to push. It is invisible at the disclosure for the
+        // same reason the sub-2-hour bogo below is: see the `value > 0` filter
+        // on `alsoConsidered` — an offer worth ฿0 never competed for anything.
       } else {
-        notes.push(`🎉 ${promo.title_en} — Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
-        notesTh.push(`🎉 ${promo.title_th} — จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
-        notesJa.push(`🎉 ${promo.title_en} — 2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください`);
-        notesKo.push(`🎉 ${promo.title_en} — 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요`);
-        notesZh.push(`🎉 ${promo.title_en} — 预订2小时即获1小时免费！或在7天内兑换您的免费时段`);
+        // Two hints, because there are two kinds of bogo.
+        //
+        // "Or redeem your free hour within 7 days" is a promise that a CREDIT
+        // exists — `app/api/bookings/create/route.ts` mints one, the customer
+        // spends it on a later visit. Only the new-customer B1G1 does that, and
+        // it says so via `grants_credit`. The clause was written when that was
+        // the only bogo row, and printing it for the weekday off-peak offer
+        // would promise a returning customer an hour nothing ever creates —
+        // undiscoverable, since the credit wallet is read-only to customers.
+        //
+        // Without a credit, the sub-2-hour case has exactly one true and useful
+        // thing to say: extend to 2 hours and the second hour is free HERE. Do
+        // not gate on `promotion_type` or on the row id; gate on the declared
+        // column, which is the same one the grant reads.
+        if (promo.grants_credit) {
+          candidateNotes.en.push(`🎉 ${promo.title_en}: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
+          candidateNotes.th.push(`🎉 ${promo.title_th}: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
+          candidateNotes.ja.push(`🎉 ${promo.title_en}：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください`);
+          candidateNotes.ko.push(`🎉 ${promo.title_en}: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요`);
+          candidateNotes.zh.push(`🎉 ${promo.title_en}：预订2小时即获1小时免费！或在7天内兑换您的免费时段`);
+        } else {
+          candidateNotes.en.push(`🎉 ${promo.title_en}: Book 2 hours and your second hour is free!`);
+          candidateNotes.th.push(`🎉 ${promo.title_th}: จอง 2 ชม. รับชั่วโมงที่ 2 ฟรี!`);
+          candidateNotes.ja.push(`🎉 ${promo.title_en}：2時間ご予約いただくと、2時間目が無料になります！`);
+          candidateNotes.ko.push(`🎉 ${promo.title_en}: 2시간 예약하시면 두 번째 시간은 무료입니다!`);
+          candidateNotes.zh.push(`🎉 ${promo.title_en}：预订 2 小时，第 2 小时免费！`);
+        }
 
         // The free hour waives the BAY charge only — a paid club set is
         // billed on total play time. Disclose it so the venue charge
         // (e.g. 2h club tier after redeeming the free hour in-session)
         // doesn't surprise the customer.
         if (clubRentalId && clubRentalId !== 'none' && clubRentalId !== 'standard') {
-          notes.push('Club rental is charged on total play time, including the free hour');
-          notesTh.push('ค่าเช่าไม้กอล์ฟคิดตามเวลาเล่นจริงทั้งหมด รวมชั่วโมงฟรีด้วย');
-          notesJa.push('クラブレンタル料金は無料時間を含む総プレー時間に対して発生します');
-          notesKo.push('클럽 렌탈 요금은 무료 시간을 포함한 총 플레이 시간 기준으로 청구됩니다');
-          notesZh.push('球杆租赁费用按总打球时间计算（包含免费时段）');
+          candidateNotes.en.push('Club rental is charged on total play time, including the free hour');
+          candidateNotes.th.push('ค่าเช่าไม้กอล์ฟคิดตามเวลาเล่นจริงทั้งหมด รวมชั่วโมงฟรีด้วย');
+          candidateNotes.ja.push('クラブレンタル料金は無料時間を含む総プレー時間に対して発生します');
+          candidateNotes.ko.push('클럽 렌탈 요금은 무료 시간을 포함한 총 플레이 시간 기준으로 청구됩니다');
+          candidateNotes.zh.push('球杆租赁费用按总打球时间计算（包含免费时段）');
         }
-      }
-    }
 
-    // Percentage discount on bay rate
-    if (promo.promotion_type === 'percentage' && promo.discount_value && promo.applies_to === 'bay_rate') {
-      const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
-      if (isNewCustomerOnly && !isNewCustomer) continue;
+        // Worth ฿0 today — this offer only advises booking longer. It stays a
+        // candidate so a LONE sub-2-hour bogo still prints its hint, but a value
+        // of 0 means it can never out-rank an offer that actually saves money —
+        // nor be named as one that lost, which it never was.
+        promotionCandidates.push({
+          promotionId: promo.id,
+          value: 0,
+          discount: null,
+          notes: candidateNotes,
+          titleEn: promo.title_en,
+          titleTh: promo.title_th,
+        });
+      }
+    } else if (promo.promotion_type === 'percentage' && promo.discount_value && promo.applies_to === 'bay_rate') {
+      // Percentage discount on bay rate
       if (packageAppliesToBay || playFoodPkg) continue;
 
       const bayItem = lineItems.find(item => item.id === 'bay-rate');
@@ -545,36 +840,136 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         const discountAmount = Math.round(bayItem.amount * (promo.discount_value / 100));
         if (discountAmount > 0) {
           const pct = promo.discount_value;
-          discounts.push({
-            id: `promo-${promo.id}`,
-            label: `${promo.title_en} (${pct}% off)`,
-            labelTh: `${promo.title_th} (ลด ${pct}%)`,
-            labelJa: `${promo.title_en} (${pct}%オフ)`,
-            labelKo: `${promo.title_en} (${pct}% 할인)`,
-            labelZh: `${promo.title_en} (${pct}% 折扣)`,
-            amount: -discountAmount,
+          promotionCandidates.push({
             promotionId: promo.id,
+            value: discountAmount,
+            discount: {
+              id: `promo-${promo.id}`,
+              label: `${promo.title_en} (${pct}% off)`,
+              labelTh: `${promo.title_th} (ลด ${pct}%)`,
+              labelJa: `${promo.title_en} (${pct}%オフ)`,
+              labelKo: `${promo.title_en} (${pct}% 할인)`,
+              labelZh: `${promo.title_en} (${pct}% 折扣)`,
+              amount: -discountAmount,
+              promotionId: promo.id,
+            },
+            notes: candidateNotes,
+            titleEn: promo.title_en,
+            titleTh: promo.title_th,
           });
         }
       }
-    }
-
-    // Fixed amount discount
-    if (promo.promotion_type === 'fixed_amount' && promo.discount_value) {
-      const isNewCustomerOnly = promo.conditions?.new_customer_only === true;
-      if (isNewCustomerOnly && !isNewCustomer) continue;
+    } else if (promo.promotion_type === 'fixed_amount' && promo.discount_value) {
+      // Fixed amount discount
       if (promo.applies_to === 'bay_rate' && (packageAppliesToBay || playFoodPkg)) continue;
 
-      discounts.push({
-        id: `promo-${promo.id}`,
-        label: promo.title_en,
-        labelTh: promo.title_th,
-        labelJa: promo.title_en,
-        labelKo: promo.title_en,
-        labelZh: promo.title_en,
-        amount: -promo.discount_value,
+      // `value` is what the customer SAVES, so a (nonsensical) negative
+      // `discount_value` ranks as the surcharge it is and loses to anything
+      // else. Kept as a candidate rather than filtered out so a lone such row
+      // still produces exactly the row the old loop pushed.
+      promotionCandidates.push({
         promotionId: promo.id,
+        value: promo.discount_value,
+        discount: {
+          id: `promo-${promo.id}`,
+          label: promo.title_en,
+          labelTh: promo.title_th,
+          labelJa: promo.title_en,
+          labelKo: promo.title_en,
+          labelZh: promo.title_en,
+          amount: -promo.discount_value,
+          promotionId: promo.id,
+        },
+        notes: candidateNotes,
+        titleEn: promo.title_en,
+        titleTh: promo.title_th,
       });
+    }
+  }
+
+  // 4b. SELECT the single best candidate, then APPLY only that one.
+  //
+  // Ranked on value alone, so the offer TYPE never decides — a ฿300 percentage
+  // beats a ฿200 bogo and vice versa. Ties break on the LOWEST promotion id:
+  // ids are unique per row, which makes the order total and the winner
+  // reproducible. Deliberately NOT array position — `applicablePromotions`
+  // arrives from `/api/promotions/applicable`, which has no ORDER BY and is
+  // edge-cached, so two customers can be served the same offers in two orders.
+  //
+  // Selection is a pure function of the candidate SET, so the phone-aware
+  // `isNewCustomer` refetch can only add or remove whole candidates; it can
+  // never reshuffle the winner within an unchanged set.
+  //
+  // A promotion row cannot legitimately appear twice — `id` is the primary key
+  // — but a re-render that appends rather than replaces, or two merged fetches,
+  // could duplicate one. Left in, the duplicate gets named back at the customer
+  // as an offer that "was also considered" against itself. Collapse on id first,
+  // keeping the best entry; genuine duplicates are interchangeable, so the
+  // result does not depend on which copy arrived first.
+  const bestCandidateById = new Map<string, PromotionCandidate>();
+  for (const candidate of promotionCandidates) {
+    const seen = bestCandidateById.get(candidate.promotionId);
+    if (!seen || candidate.value > seen.value) bestCandidateById.set(candidate.promotionId, candidate);
+  }
+  const uniqueCandidates = [...bestCandidateById.values()];
+
+  const winner = uniqueCandidates.reduce<PromotionCandidate | null>((best, candidate) => {
+    if (!best) return candidate;
+    if (candidate.value > best.value) return candidate;
+    if (candidate.value === best.value && candidate.promotionId < best.promotionId) return candidate;
+    return best;
+  }, null);
+
+  if (winner) {
+    if (winner.discount) discounts.push(winner.discount);
+    notes.push(...winner.notes.en);
+    notesTh.push(...winner.notes.th);
+    notesJa.push(...winner.notes.ja);
+    notesKo.push(...winner.notes.ko);
+    notesZh.push(...winner.notes.zh);
+
+    // Only the WINNER's notes are pushed. A losing sub-2-hour bogo's "book 2
+    // hours to get 1 hour free" hint is deliberately suppressed: because offers
+    // do not stack, at 2 hours that offer would merely compete with the one
+    // already applied and could still lose, so the hint would be a promise we
+    // cannot keep. Restoring the hint was considered and rejected on exactly
+    // that ground (owner decision, 2026-07-25) — honest silence beats a nudge we
+    // might not honour. Do not re-litigate it without re-opening the promise.
+    //
+    // Disclosed ONLY when the winner actually applied a discount. When the best
+    // candidate is advice-only (a sub-2-hour bogo), every other candidate is
+    // worth ≤ ฿0 too, so nothing was applied — and "we applied the one worth
+    // the most" next to a ฿0 saving is a claim the breakdown contradicts.
+    //
+    // `value > 0` because "also considered" has to mean an offer that could
+    // GENUINELY have applied and lost. A ฿0 candidate — the sub-2-hour bogo, or
+    // a nonsensical negative `fixed_amount` — never competed for anything, and
+    // naming it frames advice as a competition it lost: at a 1-hour booking the
+    // customer would read "we applied the one worth the most. Also considered:
+    // Buy 1 Get 1 Free" about an offer that could not have applied at 1 hour.
+    // This is the same reason the ฿0 free window above is not even a candidate;
+    // both zero-value paths end up equally invisible here.
+    //
+    // Sorted on the SAME key as the selection, because a `filter` would inherit
+    // the arrival order the comment above explains we cannot trust — with three
+    // eligible offers the sentence itself would otherwise vary between users.
+    // Compared with `<` rather than `localeCompare`, which is collation- and
+    // ICU-dependent: this list has to read the same for every customer.
+    const alsoConsidered = winner.discount
+      ? uniqueCandidates
+        .filter((candidate) => candidate !== winner && candidate.value > 0)
+        .sort((a, b) => b.value - a.value || (a.promotionId < b.promotionId ? -1 : a.promotionId > b.promotionId ? 1 : 0))
+      : [];
+    if (alsoConsidered.length > 0) {
+      const list = (lang: Lang) =>
+        alsoConsidered
+          .map((candidate) => (lang === 'th' ? candidate.titleTh : candidate.titleEn))
+          .join(OFFER_LIST_SEPARATOR[lang]);
+      notes.push(BEST_OFFER_ONLY_NOTE.en(list('en')));
+      notesTh.push(BEST_OFFER_ONLY_NOTE.th(list('th')));
+      notesJa.push(BEST_OFFER_ONLY_NOTE.ja(list('ja')));
+      notesKo.push(BEST_OFFER_ONLY_NOTE.ko(list('ko')));
+      notesZh.push(BEST_OFFER_ONLY_NOTE.zh(list('zh')));
     }
   }
 
@@ -584,6 +979,10 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
   return {
     lineItems,
     discounts,
+    // Left `undefined` rather than `null` when nothing won, so a breakdown with
+    // no eligible offer stays `toEqual`-identical to one produced before this
+    // field existed. Nothing renders it.
+    appliedPromotionId: winner?.promotionId,
     subtotal,
     totalDiscount,
     estimatedTotal,

@@ -177,7 +177,6 @@ utils/
 ├── customer-matching.ts  # Customer matching logic
 ├── booking-formatter.ts  # Booking formatting
 ├── calendar-retry.ts     # Calendar retry logic
-├── parallel-processing.ts # Parallel operations
 ├── gtm.ts               # Google Tag Manager
 ├── logging.ts           # Logging utilities
 ├── date.ts              # Date utilities

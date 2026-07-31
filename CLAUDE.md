@@ -165,9 +165,36 @@ ShopeePay re-sends the payment notify ~5 min after refund (observed 2026-05-26 o
 
 Additionally for the `success` terminal state, the guard ALSO verifies the rental's `payment_status='paid'` before short-circuiting. If a prior delivery committed the txn update but failed the rental update mid-handler (transient DB blip → 500 → retry), strict idempotency would silence the retry and orphan the rental at `payment_status='pending'`. The fallthrough lets the retry repair it. Fix in commit `15eec1a`.
 
-### Side-effects must be awaited, not fired-and-forgotten
+### Side-effects: never floating, either awaited or under `after()`
 
-`void promise()` and `.catch(handler)` patterns DIE on Vercel — the function instance gets torn down the moment the response is sent, killing any in-flight Supabase or self-fetch sockets. Surfaces as `TypeError: fetch failed` in logs ~2-10s after the route returned. All side-effects in this codebase (customer email, staff LINE) are `await` + `try/catch`. Don't reintroduce fire-and-forget. See `feedback_vercel_void_fire_and_forget_dies.md` in personal memory for the full diagnosis.
+**Still banned:** `void promise()`, a bare `promise.then(...)`, and `.catch(handler)` left dangling. These DIE on Vercel — the function instance gets torn down the moment the response is sent, killing any in-flight Supabase or self-fetch sockets. Surfaces as `TypeError: fetch failed` in logs ~2-10s after the route returned. See `feedback_vercel_void_fire_and_forget_dies.md` in personal memory for the full diagnosis.
+
+**The sanctioned way to answer before the work finishes is `after()` from `next/server`.** It is NOT the pattern above and the ban does not cover it. `after()` registers the callback against the invocation's `waitUntil`, so Vercel keeps the instance alive until the promise settles — the socket cannot be torn down mid-flight. It also works under `next dev` and in `jest`, which is why we use it rather than `waitUntil` from `@vercel/functions`; that package would be an extra dependency for the same mechanism. Stable in Next 15.1 (`typeof require('next/server').after === 'function'`).
+
+```ts
+import { NextResponse, after } from 'next/server';
+
+after(async () => {
+  try {
+    await sendConfirmationEmail(...);
+  } catch (e) {
+    console.error('[Booking] side-effect failed after response:', e);
+  }
+});
+return NextResponse.json({ success: true });
+```
+
+So the rule is: **a side effect is either awaited before the response, or handed to `after()`. It is never left floating.**
+
+Which to pick — does the customer's answer depend on it?
+- **Awaited:** anything the response body reports, and any integrity check on the row you just wrote (e.g. the club-set overbooking re-check in `/api/bookings/create`).
+- **`after()`:** notifications, consent and language writes, promo-ledger grants, review-request scheduling. `/api/bookings/create` is the worked example — it responds as soon as the booking row commits.
+
+Consequence to remember: a route that defers its notifications **cannot report on them**. `/api/bookings/create` used to return `notificationsSuccess` and the client raised a toast from it; both are gone. Failures land in `booking_process_logs` as the `Email notification` / `LINE notification` steps instead. Don't try to reinstate a delivery flag on a deferred send.
+
+`booking_process_logs` note: after this change `total_duration_ms` is no longer customer-visible latency for the post-response steps. **`Response sent` is the marker for what the customer actually waited.** Regression test: `__tests__/booking-create-defers-side-effects.test.ts`.
+
+Related: prefer calling a handler's logic directly over `fetch(`${baseUrl}/api/...`)`. Self-HTTP costs a second serverless invocation plus a round trip plus TLS, and can cold-start. `lib/notifications/{bookingEmail,staffLine}.ts` exist so booking creation can skip that; the HTTP routes remain for the other callers.
 
 ### Refunds must flip lifecycle status
 
@@ -282,6 +309,34 @@ Design spec: `docs/superpowers/specs/2026-07-25-gclid-capture-design.md`.
 - VIP profile data cached (3-minute TTL)
 - Availability queries optimized for real-time responses
 - Use proper loading states and error boundaries
+
+#### `vercel.json` pins `regions: ["sin1"]` — do not remove it
+
+Supabase is in `ap-southeast-1` (Singapore). Until 2026-07-31 the functions ran
+in **`iad1` (Washington DC)** because no region was pinned, so every PostgREST
+call crossed the Pacific: ~230ms RTT baseline plus 2–3 RTTs for a cold TLS
+handshake. The damage was invisible in query plans — a single `INSERT` into
+`bookings` executes in ~1ms server-side but measured **990ms p50** end-to-end,
+and the whole pre-response path of `/api/bookings/create` cost ~3s for ~165ms of
+actual query work.
+
+SMTP was worse: `mail.len.golf` is Thai-hosted and SMTP is a 9-round-trip
+conversation (connect → EHLO → STARTTLS → EHLO → AUTH → MAIL → RCPT → DATA →
+QUIT), so a confirmation email took ~4.6s from US East.
+
+Check the current execution region with the response header — the **second**
+segment is where the function ran, the first is only the edge PoP that accepted
+the connection:
+
+```bash
+curl -sI https://booking.len.golf/ | grep -i x-vercel-id
+```
+
+`sin1::sin1::…` is correct. If you ever see `::iad1::` again, the pin was lost.
+
+Related: `preferredRegion` does NOT work here — it is edge-runtime only and these
+routes are Node. Top-level `regions` in `vercel.json` is the mechanism.
+`functionFailoverRegions` is Enterprise-only; we don't have it.
 
 ### Booking Flow
 - Multi-step: Date → Bay → Time → Details → Confirmation

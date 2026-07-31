@@ -134,13 +134,99 @@ export async function findOrCreateCustomer(
 }
 
 /**
+ * Everything the `get_customer_packages` RPC already tells us about the one
+ * package that applies to a booking — a superset of what
+ * `getPackageInfoForCustomer` returns.
+ *
+ * `remainingHours` (with `isUnlimited`) reaches `lib/cost-calculator.ts` as
+ * `packageRemainingHours`, so it moves the ESTIMATE: a balance that runs short
+ * charges the uncovered tail of the booking rather than previewing ฿0. It is
+ * still only an estimate — the venue's POS charges the real amount.
+ * `totalHours`/`usedHours`/`expiryDate` are display-only.
+ */
+export interface ActivePackageDetails {
+  /** Human-readable summary. `'Normal Bay Rate'` when no package applies. */
+  packageInfo: string;
+  packageId?: string;
+  /** Full CRM type name, e.g. `"Silver (15H)"`. */
+  packageTypeName?: string;
+  /** Short CRM display name, e.g. `"Silver"`. */
+  displayName?: string;
+  /** Hours left. `null` for unlimited packages (and when none applies). */
+  remainingHours: number | null;
+  /** Hours the package was sold with. `null` for unlimited / none. */
+  totalHours: number | null;
+  /** Hours already consumed. `null` for unlimited / none. */
+  usedHours: number | null;
+  /** `yyyy-MM-dd`, or `null` when the package never expires / none applies. */
+  expiryDate: string | null;
+  isUnlimited: boolean;
+}
+
+/**
+ * No-package result — keeps the `'Normal Bay Rate'` contract in one place.
+ * A factory, not a shared constant: returning one module-level object by
+ * reference to every caller means a single mutation anywhere poisons every
+ * later lookup in the process.
+ */
+function noPackage(): ActivePackageDetails {
+  return {
+    packageInfo: 'Normal Bay Rate',
+    remainingHours: null,
+    totalHours: null,
+    usedHours: null,
+    expiryDate: null,
+    isUnlimited: false,
+  };
+}
+
+/**
+ * Postgres `numeric` can arrive as a JSON number or a string depending on
+ * driver/serialisation. Anything unparseable becomes `null` rather than 0 — a
+ * spurious 0 would render "0 h left" and trigger a bogus overage warning.
+ */
+function toNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
  * Get package info for customer using the customer_active_packages view
  * Much simpler lookup with pre-calculated remaining hours and status
+ *
+ * Thin projection of {@link getActivePackageDetailsForCustomer} — kept at its
+ * original three-field shape so existing callers (notably
+ * `app/api/bookings/create/route.ts`, which is on the booking-creation path)
+ * are untouched.
  */
 export async function getPackageInfoForCustomer(
   customerId: string,
   options?: { excludeCategories?: string[] }
 ): Promise<{packageInfo: string, packageId?: string, packageTypeName?: string}> {
+  const details = await getActivePackageDetailsForCustomer(customerId, options);
+  return {
+    packageInfo: details.packageInfo,
+    packageId: details.packageId,
+    packageTypeName: details.packageTypeName,
+  };
+}
+
+/**
+ * Same single RPC call and the same package selection as
+ * {@link getPackageInfoForCustomer}, but also returns the balance and expiry
+ * fields the RPC was already fetching and throwing away.
+ *
+ * Selection is deliberately identical to the legacy path (status
+ * `active`/`unlimited`, minus excluded categories, first match). The booking
+ * flow gates the 4 h and 5 h duration rungs on this same result, so the name
+ * and the hours must always describe ONE package — a divergent filter here
+ * would show "Gold" alongside some other package's balance.
+ */
+export async function getActivePackageDetailsForCustomer(
+  customerId: string,
+  options?: { excludeCategories?: string[] }
+): Promise<ActivePackageDetails> {
   try {
     const supabase = createAdminClient();
     console.log(`[Customer Service] Looking up packages for customer: ${customerId}`, options?.excludeCategories ? `(excluding: ${options.excludeCategories.join(', ')})` : '');
@@ -151,12 +237,12 @@ export async function getPackageInfoForCustomer(
 
     if (packageError) {
       console.error(`[Customer Service] Error looking up packages:`, packageError);
-      return { packageInfo: 'Normal Bay Rate' };
+      return noPackage();
     }
 
     if (!packages || packages.length === 0) {
       console.log(`[Customer Service] No active packages found for customer ${customerId}`);
-      return { packageInfo: 'Normal Bay Rate' };
+      return noPackage();
     }
 
     // Filter to only active/unlimited packages (exclude expired and depleted)
@@ -175,14 +261,15 @@ export async function getPackageInfoForCustomer(
 
     if (filteredPackages.length === 0) {
       console.log(`[Customer Service] No packages remaining after filtering for customer ${customerId}`);
-      return { packageInfo: 'Normal Bay Rate' };
+      return noPackage();
     }
 
     // Use the first active package
     const activePackage = filteredPackages[0];
-    
+    const isUnlimited = activePackage.package_status === 'unlimited';
+
     let packageInfo: string;
-    if (activePackage.package_status === 'unlimited') {
+    if (isUnlimited) {
       packageInfo = `${activePackage.display_name} (Unlimited)`;
       console.log(`[Customer Service] Found unlimited package: ${packageInfo}`);
     } else {
@@ -190,15 +277,24 @@ export async function getPackageInfoForCustomer(
       packageInfo = `${activePackage.display_name} (${remainingHours}h remaining)`;
       console.log(`[Customer Service] Found active package: ${packageInfo} (${activePackage.used_hours}h used of ${activePackage.total_hours}h total)`);
     }
-    
-    return { 
-      packageInfo, 
+
+    return {
+      packageInfo,
       packageId: activePackage.package_id,
-      packageTypeName: activePackage.package_type_name // The full name like "Silver (15H)"
+      packageTypeName: activePackage.package_type_name, // The full name like "Silver (15H)"
+      displayName: activePackage.display_name ?? undefined,
+      // An unlimited package has no meaningful balance — report null rather
+      // than whatever the RPC happens to put in the hours columns, so the UI
+      // shows "unlimited" instead of a meter against a fabricated total.
+      remainingHours: isUnlimited ? null : toNumberOrNull(activePackage.remaining_hours),
+      totalHours: isUnlimited ? null : toNumberOrNull(activePackage.total_hours),
+      usedHours: isUnlimited ? null : toNumberOrNull(activePackage.used_hours),
+      expiryDate: activePackage.expiration_date ?? null,
+      isUnlimited,
     };
-    
+
   } catch (error) {
-    console.error('Error in getPackageInfoForCustomer:', error);
-    return { packageInfo: 'Normal Bay Rate' };
+    console.error('Error in getActivePackageDetailsForCustomer:', error);
+    return noPackage();
   }
 }

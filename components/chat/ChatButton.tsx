@@ -15,7 +15,7 @@ interface ChatButtonProps {
 
 export function ChatButton({ onClick, unreadCount }: ChatButtonProps) {
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
+    <div data-chat-fab className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50">
       <Button
         onClick={onClick}
         className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary p-0 shadow-lg transition-all duration-300 hover:scale-110 hover:bg-primary/90"

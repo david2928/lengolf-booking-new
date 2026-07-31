@@ -14,8 +14,22 @@ interface DurationBayAvailability {
 interface TimeSlot {
   startTime: string;
   endTime: string;
+  /**
+   * Longest bookable session at this slot, in hours. FRACTIONAL since the
+   * availability function moved to v3 — 2.5 is a normal value. Do not narrow
+   * this to an integer type and do not round it: `lib/booking-durations.ts`
+   * filters the duration ladder with `hours <= maxHours`, so rounding 2.5 up to
+   * 3 would offer a duration the server rejects, and rounding down would hide a
+   * bookable 2.5.
+   */
   maxHours: number;
-  period: 'morning' | 'afternoon' | 'evening';
+  /**
+   * @deprecated Vestigial wire field. The SQL splits the morning at hour < 12,
+   * which contradicts the hour captions the customer reads and the LIFF flow.
+   * Nothing consumes it — group with `getBookingPeriod` from
+   * `lib/booking-periods.ts` instead. Typed only to describe the payload.
+   */
+  period?: 'morning' | 'afternoon' | 'evening';
   availableBays?: string[];
   socialBayCount?: number;
   aiLabCount?: number;

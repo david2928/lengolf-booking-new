@@ -73,3 +73,38 @@ describe('stringLeaves reaches the whole catalog', () => {
     expect(leaves.map(({ key }) => key)).toContain('auth.login.guestNudgeBody');
   });
 });
+
+/**
+ * A retired key stays retired.
+ *
+ * `consentNoteWithOptIn` was a second variant of the booking consent
+ * disclosure, appending "Marketing emails are separate and use the opt-in
+ * above." That clause was meta-commentary about an adjacent checkbox rather
+ * than a statement about the booking, so it was dropped and the key removed
+ * from all five catalogs.
+ *
+ * `types/messages.d.ts` types every locale off `en.json`, so a locale MISSING a
+ * key is a typecheck error. A locale KEEPING an extra one is not. Without this,
+ * a stale Thai or Japanese variant could sit in the catalog indefinitely and be
+ * "restored" by the next translator who noticed English had lost it.
+ */
+describe('retired keys stay retired', () => {
+  test.each(LOCALES)('%s has no consentNoteWithOptIn', (locale) => {
+    const keys = stringLeaves(CATALOGS[locale]).map(({ key }) => key);
+
+    expect(keys).not.toContain('bookings.detailsStep.consentNoteWithOptIn');
+  });
+
+  /**
+   * Retired when booking creation moved its notifications under `after()`.
+   * The route dispatches them after the response, so it can no longer report
+   * whether they landed — there is no `notificationsSuccess` to branch on and
+   * nothing left to raise this toast. Delivery failures go to
+   * `booking_process_logs` instead.
+   */
+  test.each(LOCALES)('%s has no notificationsFailed', (locale) => {
+    const keys = stringLeaves(CATALOGS[locale]).map(({ key }) => key);
+
+    expect(keys).not.toContain('errors.notificationsFailed');
+  });
+});
