@@ -71,15 +71,36 @@ jest.mock('@/utils/customer-service', () => ({
   }),
 }));
 
+const isB1G1GrantEligible = jest.fn().mockResolvedValue({
+  eligible: false,
+  phoneNew: false,
+  profileHasPriorBooking: false,
+});
+const grantB1G1NewCustomerCredit = jest.fn().mockResolvedValue({ created: true, grantId: 'grant-1' });
 jest.mock('@/lib/b1g1-credit', () => ({
   ...jest.requireActual('@/lib/b1g1-credit'),
-  isB1G1GrantEligible: jest.fn().mockResolvedValue({
-    eligible: false,
-    phoneNew: false,
-    profileHasPriorBooking: false,
-  }),
-  grantB1G1NewCustomerCredit: jest.fn().mockResolvedValue({ created: false }),
+  isB1G1GrantEligible: (...args: unknown[]) => isB1G1GrantEligible(...args),
+  grantB1G1NewCustomerCredit: (...args: unknown[]) => grantB1G1NewCustomerCredit(...args),
 }));
+
+/**
+ * An active auto-apply new-customer B1G1. `grants_credit` is what gates the
+ * credit branch, and a 1-hour booking makes the offer advice-only — it promises
+ * a free hour to redeem later rather than discounting this booking, which is
+ * the case that actually mints a grant.
+ */
+const B1G1_PROMO_ROW = {
+  id: '11111111-1111-4111-8111-111111111111',
+  promotion_type: 'bogo',
+  discount_value: null,
+  free_hours: 1,
+  applies_to: 'bay_rate',
+  conditions: {},
+  title_en: 'First-timer: buy 1 hour get 1 free',
+  title_th: 'ลูกค้าใหม่: ซื้อ 1 ชม. ฟรี 1 ชม.',
+  pos_discount_id: null,
+  grants_credit: true,
+};
 
 const BOOKING_ROW = {
   id: 'BK260731TEST',
@@ -105,11 +126,17 @@ const BOOKING_ROW = {
  * to resolve; everything else returns an empty result so the route's own
  * defensive branches take over.
  */
+/**
+ * Rows a test wants a given table to return from an awaited query builder.
+ * Empty by default so the route takes its own "nothing found" branches.
+ */
+const tableRows: Record<string, unknown> = {};
+
 function makeSupabaseStub() {
   const insertedBooking = { data: BOOKING_ROW, error: null };
 
   const builder = (table: string) => {
-    const result: Record<string, unknown> = { data: null, error: null };
+    const result: Record<string, unknown> = { data: tableRows[table] ?? null, error: null };
     const chain: Record<string, unknown> = {};
     const self = () => chain;
 
@@ -182,6 +209,9 @@ describe('POST /api/bookings/create defers its side effects', () => {
     sendBookingConfirmationEmail.mockClear();
     pushToStaffGroup.mockClear();
     scheduleReviewRequest.mockClear();
+    grantB1G1NewCustomerCredit.mockClear();
+    isB1G1GrantEligible.mockClear();
+    for (const key of Object.keys(tableRows)) delete tableRows[key];
   });
 
   it('answers the customer before sending anything', async () => {
@@ -223,6 +253,57 @@ describe('POST /api/bookings/create defers its side effects', () => {
     );
   });
 
+  /**
+   * The free-hour credit is a financial promise, and it is the most
+   * consequential thing this change deferred. Pin that it really is deferred —
+   * and that deferring it did not quietly stop it happening.
+   */
+  it('defers the B1G1 free-hour credit without dropping it', async () => {
+    tableRows.promotions = [B1G1_PROMO_ROW];
+    isB1G1GrantEligible.mockResolvedValueOnce({
+      eligible: true,
+      phoneNew: true,
+      profileHasPriorBooking: false,
+    });
+
+    await POST(buildRequest());
+
+    // Not on the customer's clock...
+    expect(isB1G1GrantEligible).not.toHaveBeenCalled();
+    expect(grantB1G1NewCustomerCredit).not.toHaveBeenCalled();
+
+    await capturedAfterCallbacks[0]();
+
+    // ...but recorded all the same.
+    expect(grantB1G1NewCustomerCredit).toHaveBeenCalledTimes(1);
+    expect(grantB1G1NewCustomerCredit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ customerId: 'customer-uuid-1', bookingId: 'BK260731TEST' })
+    );
+
+    // And staff are told about the hour the customer was promised.
+    expect(pushToStaffGroup).toHaveBeenCalledWith(expect.stringContaining('free hr to redeem within 7 days'));
+  });
+
+  /**
+   * The inverse: an ineligible customer must not mint a grant even though the
+   * same promo row is active. Without this the test above would pass against
+   * code that granted unconditionally.
+   */
+  it('does not grant a credit to an ineligible customer', async () => {
+    tableRows.promotions = [B1G1_PROMO_ROW];
+    isB1G1GrantEligible.mockResolvedValueOnce({
+      eligible: false,
+      phoneNew: false,
+      profileHasPriorBooking: true,
+    });
+
+    await POST(buildRequest());
+    await capturedAfterCallbacks[0]();
+
+    expect(grantB1G1NewCustomerCredit).not.toHaveBeenCalled();
+  });
+
   it('does not report a notification outcome it cannot know', async () => {
     const response = await POST(buildRequest());
     const body = await response.json();
@@ -240,7 +321,10 @@ describe('POST /api/bookings/create defers its side effects', () => {
 
     // The deferred chain must absorb it — an unhandled rejection here would
     // surface as a failed invocation well after the customer had left.
-    await expect(capturedAfterCallbacks[0]()).resolves.not.toThrow();
+    // `.resolves.toBeUndefined()`, not `.resolves.not.toThrow()`: the latter
+    // passes trivially against any resolved non-function value, so it would
+    // assert nothing.
+    await expect(capturedAfterCallbacks[0]()).resolves.toBeUndefined();
 
     // And the email still went, because the two settle independently now.
     expect(sendBookingConfirmationEmail).toHaveBeenCalledTimes(1);

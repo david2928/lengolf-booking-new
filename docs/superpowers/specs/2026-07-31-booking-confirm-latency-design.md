@@ -122,13 +122,26 @@ Expected: pre-response path ~4s → ~1s; email 4.6s → ~1s.
    return NextResponse.json(...)
    ─────────────────────────────────────────────────────
    after(async () => {
-     formatBookingData + auto-promo label lookup
-     email + LINE, called directly, Promise.allSettled
      preferred_language write
      marketing_opt_in write
+     formatBookingData + B1G1 eligibility + auto-promo label + credit grant
+     email + LINE, called directly, Promise.allSettled
      review-request scheduling
+     drain the pending booking_process_logs writes
    })
 ```
+
+The consent and language writes run *ahead* of the notifications rather than
+after them, so they never sit behind a notification that is waiting out its 15s
+guard.
+
+The final drain matters: `logTiming` fires its `booking_process_logs` insert
+without awaiting it. That was harmless while the route kept running afterwards,
+but the last statement in the deferred callback is itself a `logTiming` — so
+without the drain the callback would resolve with an INSERT still in flight and
+Vercel could tear the instance down on top of it. That is the same floating
+promise the rule above bans, and these rows are the only remaining channel
+reporting notification delivery.
 
 **The club-set race check stays inline.** It is a data-integrity check on the row
 just written, it only runs when a premium club set was chosen (minority path),
@@ -144,7 +157,7 @@ and keeping it avoids reasoning about whether the response carries a stale
   API call, throwing a typed error carrying `status`/`details` so the route can
   reproduce its current response shape).
 
-Both notification routes stay live and behaviourally unchanged — eight other
+Both notification routes stay live and behaviourally unchanged — seven other
 callers depend on them (`clubs/order`, `clubs/reserve`, the ShopeePay webhook and
 refund route, the expiry cron, `lineNotifyService`, `handleRefundNotify`). This
 PR changes only who the *booking-create* path calls.
