@@ -8,27 +8,11 @@
  * and let Supabase Cron trigger our webhook endpoint at the appropriate time.
  */
 
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { addMinutes, addHours, parse } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 
 const TIMEZONE = 'Asia/Bangkok';
-
-// Create service role client for admin operations
-const getServiceRoleClient = () => {
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-        detectSessionInUrl: false
-      }
-    }
-  );
-};
 
 interface ScheduleOptions {
   bookingId: string;
@@ -36,6 +20,16 @@ interface ScheduleOptions {
   provider: 'line' | 'email';
   contactInfo: string;
   delayMinutes?: number; // Optional direct delay in minutes
+  /**
+   * The booking's own scheduling inputs. Callers that just wrote the booking row
+   * already hold these — passing them skips a redundant SELECT. Omit them and we
+   * fall back to reading the row (staff/legacy callers).
+   */
+  booking?: {
+    date: string;
+    start_time: string;
+    duration: number;
+  };
 }
 
 /**
@@ -44,9 +38,9 @@ interface ScheduleOptions {
  */
 export async function scheduleReviewRequest(options: ScheduleOptions): Promise<boolean> {
   try {
-    const supabase = getServiceRoleClient();
+    const supabase = createAdminClient();
     let scheduledTime: Date;
-    
+
     // If specific delay minutes are provided, use them from current time
     if (options.delayMinutes) {
       // Calculate scheduled time using provided delay
@@ -54,18 +48,23 @@ export async function scheduleReviewRequest(options: ScheduleOptions): Promise<b
       scheduledTime = addMinutes(now, options.delayMinutes);
       console.log(`Scheduling review request using delay of ${options.delayMinutes} minutes from now`);
     } else {
-      // Look up the booking details to calculate based on end time
-      const { data: booking, error: bookingError } = await supabase
-        .from('bookings')
-        .select('date, start_time, duration')
-        .eq('id', options.bookingId)
-        .single();
-      
-      if (bookingError || !booking) {
-        console.error('Error fetching booking details for review scheduling:', bookingError);
-        return false;
+      // Prefer the caller's copy of the booking; only read the row if we weren't given one.
+      let booking = options.booking;
+
+      if (!booking) {
+        const { data: fetched, error: bookingError } = await supabase
+          .from('bookings')
+          .select('date, start_time, duration')
+          .eq('id', options.bookingId)
+          .single();
+
+        if (bookingError || !fetched) {
+          console.error('Error fetching booking details for review scheduling:', bookingError);
+          return false;
+        }
+        booking = fetched;
       }
-      
+
       // Calculate the end time of the booking
       const parsedDateTime = parse(`${booking.date} ${booking.start_time}`, 'yyyy-MM-dd HH:mm', new Date());
       const startTimeUtc = zonedTimeToUtc(parsedDateTime, TIMEZONE);

@@ -440,7 +440,6 @@
       "phoneRequired": "Phone number is required",
       "phoneInvalid": "Please enter a valid phone number",
       "clubSetUnavailable": "The selected club set is no longer available for your time slot. Please choose a different option.",
-      "notificationsFailed": "Your booking was created, but there was an issue sending confirmation messages. Staff will be in touch shortly.",
       "genericBookingError": "An error occurred during booking"
     }
   },

@@ -934,14 +934,15 @@ export function useBookingDetailsForm({
         throw new Error(tErrors('invalidBookingResponse'));
       }
 
-      const { booking, notificationsSuccess } = createData;
+      const { booking } = createData;
+
+      // There is no notification status to check any more. The confirmation
+      // email and the staff LINE message are dispatched after the response, so
+      // the server cannot report on them here — and a confirmed booking is a
+      // confirmed booking whether or not the email has landed yet. Delivery
+      // failures are logged server-side and show up in `booking_process_logs`.
 
 
-      // If notifications failed, show a warning but continue
-      if (notificationsSuccess === false) {
-        toast.error(tErrors('notificationsFailed'));
-      }
-      
       // Step 2: Ensure we've shown the processing steps long enough for a good UX
       await ensureMinimumAnimationDuration(submissionStartTime, 3000);
       

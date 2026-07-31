@@ -440,7 +440,6 @@
       "phoneRequired": "전화번호는 필수입니다",
       "phoneInvalid": "올바른 전화번호를 입력해 주세요",
       "clubSetUnavailable": "선택하신 클럽 세트는 더 이상 해당 시간에 이용할 수 없습니다. 다른 옵션을 선택해 주세요.",
-      "notificationsFailed": "예약은 생성되었지만 확인 메시지 전송에 문제가 있었습니다. 곧 직원이 연락드릴 예정입니다.",
       "genericBookingError": "예약 중 오류가 발생했습니다"
     }
   },
