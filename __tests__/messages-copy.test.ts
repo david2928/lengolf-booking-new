@@ -94,4 +94,17 @@ describe('retired keys stay retired', () => {
 
     expect(keys).not.toContain('bookings.detailsStep.consentNoteWithOptIn');
   });
+
+  /**
+   * Retired when booking creation moved its notifications under `after()`.
+   * The route dispatches them after the response, so it can no longer report
+   * whether they landed — there is no `notificationsSuccess` to branch on and
+   * nothing left to raise this toast. Delivery failures go to
+   * `booking_process_logs` instead.
+   */
+  test.each(LOCALES)('%s has no notificationsFailed', (locale) => {
+    const keys = stringLeaves(CATALOGS[locale]).map(({ key }) => key);
+
+    expect(keys).not.toContain('errors.notificationsFailed');
+  });
 });

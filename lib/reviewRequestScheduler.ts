@@ -21,9 +21,14 @@ interface ScheduleOptions {
   contactInfo: string;
   delayMinutes?: number; // Optional direct delay in minutes
   /**
-   * The booking's own scheduling inputs. Callers that just wrote the booking row
-   * already hold these — passing them skips a redundant SELECT. Omit them and we
-   * fall back to reading the row (staff/legacy callers).
+   * The booking's own scheduling inputs. A caller that just wrote the row
+   * already holds these, and passing them skips a redundant SELECT.
+   *
+   * `/api/bookings/create` is the only caller in this repo today and it always
+   * passes them, so the read-back path below is currently unexercised. It is
+   * kept because this is a shared lib and the fields are optional — a future
+   * caller holding only a booking id stays correct by default rather than
+   * needing to know it must fetch first.
    */
   booking?: {
     date: string;

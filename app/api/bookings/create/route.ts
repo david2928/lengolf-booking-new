@@ -6,7 +6,7 @@ import type { Json } from '@/types/supabase';
 import { getGearUpItems } from '@/types/golf-club-rental';
 import { formatBookingData } from '@/utils/booking-formatter';
 import { sendBookingConfirmationEmail } from '@/lib/notifications/bookingEmail';
-import { buildBookingCreatedMessage, pushToStaffGroup } from '@/lib/notifications/staffLine';
+import { buildBookingCreatedMessage, pushToStaffGroup, StaffLineError } from '@/lib/notifications/staffLine';
 
 import { findOrCreateCustomer, getPackageInfoForCustomer } from '@/utils/customer-service';
 import { BAY_DISPLAY_NAMES } from '@/lib/bayConfig';
@@ -63,6 +63,19 @@ interface CustomerResult {
 function errorMessage(reason: unknown): string | undefined {
   if (reason === undefined) return undefined;
   return reason instanceof Error ? reason.message : String(reason);
+}
+
+/**
+ * The diagnosable half of a LINE failure.
+ *
+ * `StaffLineError.message` is a constant ('Failed to send LINE notification to
+ * LINE API') — the part worth reading is LINE's own errcode and body, which
+ * lands in `details`. Since `booking_process_logs` is now the primary channel
+ * for notification failures, that belongs in the row rather than only in the
+ * console.
+ */
+function errorDetails(reason: unknown): unknown {
+  return reason instanceof StaffLineError ? reason.details : undefined;
 }
 
 
@@ -223,6 +236,18 @@ export async function POST(request: NextRequest) {
     let customerCode: string | null = null; // Will be set for LIFF users
     let isLiffContext = false;
 
+    // Every `booking_process_logs` insert `logTiming` fires, so the deferred
+    // chain can wait for them before it lets the instance go.
+    //
+    // Pre-response these were harmless to leave floating — the route kept
+    // running. Inside `after()` they are not: the LAST statement in the
+    // deferred callback is a `logTiming`, so without this the callback would
+    // settle with an INSERT still in flight and Vercel could tear the instance
+    // down on top of it. That is the same floating-promise failure CLAUDE.md
+    // bans, and these rows are now the only channel reporting notification
+    // delivery since `notificationsSuccess` went away.
+    const pendingLogWrites: Promise<unknown>[] = [];
+
     const logTiming = (step: string, status: 'success' | 'error' | 'info' = 'info', metadata: Record<string, unknown> = {}) => {
       const now = Date.now();
       const stepDuration = now - lastCheckpoint;
@@ -232,15 +257,17 @@ export async function POST(request: NextRequest) {
 
       // Log to Supabase if we have a user ID
       if (userId) {
-        logBookingProcessStep({
-          bookingId,
-          userId,
-          step,
-          status,
-          durationMs: stepDuration,
-          totalDurationMs: totalDuration,
-          metadata
-        });
+        pendingLogWrites.push(
+          logBookingProcessStep({
+            bookingId,
+            userId,
+            step,
+            status,
+            durationMs: stepDuration,
+            totalDurationMs: totalDuration,
+            metadata
+          })
+        );
       }
 
       lastCheckpoint = now;
@@ -1182,6 +1209,7 @@ export async function POST(request: NextRequest) {
         logTiming('LINE notification', notificationResults.lineOk ? 'success' : 'error', {
           success: notificationResults.lineOk,
           error: errorMessage(notificationResults.lineError),
+          details: errorDetails(notificationResults.lineError),
         });
 
 
@@ -1293,6 +1321,11 @@ export async function POST(request: NextRequest) {
         // The booking is already committed and the customer already has their
         // confirmation; nothing here is worth surfacing to them.
         console.error('[Booking] Side-effect chain failed after response:', sideEffectError);
+      } finally {
+        // Drain the timing writes before the callback resolves. `after()` keeps
+        // the instance alive until this promise settles, so anything still in
+        // flight when it does can be killed mid-INSERT.
+        await Promise.allSettled(pendingLogWrites);
       }
     });
 
