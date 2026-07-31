@@ -440,7 +440,6 @@
       "phoneRequired": "电话号码为必填",
       "phoneInvalid": "请输入有效的电话号码",
       "clubSetUnavailable": "所选球杆套装在您的时段已不可用。请选择其他选项。",
-      "notificationsFailed": "您的预约已创建，但发送确认消息时出现问题。工作人员将很快与您联系。",
       "genericBookingError": "预约过程中发生错误"
     }
   },
