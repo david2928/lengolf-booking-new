@@ -283,6 +283,34 @@ Design spec: `docs/superpowers/specs/2026-07-25-gclid-capture-design.md`.
 - Availability queries optimized for real-time responses
 - Use proper loading states and error boundaries
 
+#### `vercel.json` pins `regions: ["sin1"]` — do not remove it
+
+Supabase is in `ap-southeast-1` (Singapore). Until 2026-07-31 the functions ran
+in **`iad1` (Washington DC)** because no region was pinned, so every PostgREST
+call crossed the Pacific: ~230ms RTT baseline plus 2–3 RTTs for a cold TLS
+handshake. The damage was invisible in query plans — a single `INSERT` into
+`bookings` executes in ~1ms server-side but measured **990ms p50** end-to-end,
+and the whole pre-response path of `/api/bookings/create` cost ~3s for ~165ms of
+actual query work.
+
+SMTP was worse: `mail.len.golf` is Thai-hosted and SMTP is a 9-round-trip
+conversation (connect → EHLO → STARTTLS → EHLO → AUTH → MAIL → RCPT → DATA →
+QUIT), so a confirmation email took ~4.6s from US East.
+
+Check the current execution region with the response header — the **second**
+segment is where the function ran, the first is only the edge PoP that accepted
+the connection:
+
+```bash
+curl -sI https://booking.len.golf/ | grep -i x-vercel-id
+```
+
+`sin1::sin1::…` is correct. If you ever see `::iad1::` again, the pin was lost.
+
+Related: `preferredRegion` does NOT work here — it is edge-runtime only and these
+routes are Node. Top-level `regions` in `vercel.json` is the mechanism.
+`functionFailoverRegions` is Enterprise-only; we don't have it.
+
 ### Booking Flow
 - Multi-step: Date → Bay → Time → Details → Confirmation
 - Real-time availability with database-backed bay checking
