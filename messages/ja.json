@@ -440,7 +440,6 @@
       "phoneRequired": "電話番号は必須です",
       "phoneInvalid": "正しい電話番号を入力してください",
       "clubSetUnavailable": "選択されたクラブセットはご希望の時間帯では利用できません。別のオプションをお選びください。",
-      "notificationsFailed": "予約は作成されましたが、確認メッセージの送信に問題がありました。スタッフから追ってご連絡いたします。",
       "genericBookingError": "予約中にエラーが発生しました"
     }
   },
