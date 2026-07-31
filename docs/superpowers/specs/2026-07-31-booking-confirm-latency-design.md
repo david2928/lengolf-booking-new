@@ -237,6 +237,15 @@ and out of scope here.
 
 ## Follow-ups (not in scope)
 
+- **A B1G1 reconciliation query.** If the invocation dies between the response
+  and the credit grant, the promise is broken *silently* — the
+  `[B1G1] FAILED to record` log never fires either. A query for bookings whose
+  staff note printed the free-hour promise with no matching `credit_grants` row
+  would catch that, and the pre-existing failure modes with it.
+- **Derive `NOTIFICATION_TIMEOUT_MS` from the remaining budget** rather than a
+  fixed 15s, so a pathological cold start can't push the deferred chain toward
+  the 30s `maxDuration`. Worst case today is ~20s, so this is not urgent.
+
 - **Pre-booking logging blackout.** The `bookingId = 'pending'` FK violation
   means ~3s of every request is unmeasured. Fixing it means buffering pre-insert
   log rows and flushing them once the booking id exists.
