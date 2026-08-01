@@ -5,7 +5,7 @@ import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Booking } from '@/types';
+import { type ConfirmationBooking } from './confirmationBooking';
 import { type ApplicablePromotion } from '@/lib/cost-calculator';
 import {
   CheckCircleIcon,
@@ -39,7 +39,10 @@ const PageTransition = dynamic(
 );
 
 interface ConfirmationContentProps {
-  booking: Booking;
+  // Deliberately narrower than the full `bookings` row — see
+  // ./confirmationBooking. Anything this component reads must be added to
+  // CONFIRMATION_BOOKING_COLUMNS, which publishes it to the browser.
+  booking: ConfirmationBooking;
 }
 
 export function ConfirmationContent({ booking }: ConfirmationContentProps) {

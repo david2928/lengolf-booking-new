@@ -1,10 +1,13 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 import { getTranslations } from 'next-intl/server';
-import type { Database } from '@/types/supabase';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { Layout } from '../components/booking/Layout';
 import { ConfirmationContent } from '../components/booking/ConfirmationContent';
+import {
+  CONFIRMATION_BOOKING_SELECT,
+  canViewBooking,
+} from '../components/booking/confirmationBooking';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/options';
 
@@ -28,29 +31,36 @@ export default async function ConfirmationPage({
   }
 
   const session = await getServerSession(authOptions);
-  if (!session) {
+  if (!session?.user?.id) {
     redirect('/auth/login');
   }
 
-  // Create a Supabase client with service role key to access booking data
-  const supabase = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-        detectSessionInUrl: false
-      }
-    }
-  );
-  const { data: booking, error: bookingError } = await supabase
-    .from('bookings')
-    .select('*')
-    .eq('id', id)
-    .single();
+  // Service role, so this query is not RLS-scoped and the ownership check below
+  // is the ONLY thing standing between a caller and someone else's booking.
+  // Booking ids are `BK` + YYMMDD + 4 base36 chars (see generateBookingId in
+  // app/api/bookings/create/route.ts), i.e. ~1.68M per known date — enumerable,
+  // not a secret. Treat them as identifiers, never as capability tokens.
+  const supabase = createAdminClient();
+
+  const [{ data: profile }, { data: booking, error: bookingError }] = await Promise.all([
+    supabase.from('profiles').select('customer_id').eq('id', session.user.id).maybeSingle(),
+    supabase.from('bookings').select(CONFIRMATION_BOOKING_SELECT).eq('id', id).maybeSingle(),
+  ]);
 
   if (bookingError || !booking) {
+    redirect('/bookings');
+  }
+
+  const mayView = canViewBooking({
+    sessionUserId: session.user.id,
+    profileCustomerId: profile?.customer_id,
+    bookingUserId: booking.user_id,
+    bookingCustomerId: booking.customer_id,
+  });
+
+  if (!mayView) {
+    // Same destination as "not found", so this page cannot be used to probe
+    // which booking ids exist.
     redirect('/bookings');
   }
 
