@@ -973,7 +973,9 @@
       "paymentLinkHint": "立即使用信用卡/借记卡或 ShopeePay 钱包支付",
       "addressRequiredHint": "请在上方填写配送地址以继续",
       "continue": "继续",
-      "deliveryFeeNote": "1–2 套 ฿500，每增加一套加 ฿250"
+      "deliveryFeeNote": "1–2 套 ฿500，每增加一套加 ฿250",
+      "deliveryNotesLabel": "配送备注",
+      "deliveryNotesPlaceholder": "楼层、房号、门禁密码或其他进入说明（选填）"
     },
     "contact": {
       "nameLabel": "姓名",

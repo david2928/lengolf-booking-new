@@ -973,7 +973,9 @@
       "paymentLinkHint": "ชำระตอนนี้ด้วยบัตรเครดิต/เดบิต หรือกระเป๋าเงิน ShopeePay",
       "addressRequiredHint": "กรุณากรอกที่อยู่จัดส่งด้านบนเพื่อดำเนินการต่อ",
       "continue": "ดำเนินการต่อ",
-      "deliveryFeeNote": "฿500 สำหรับ 1–2 ชุด เพิ่มชุดละ ฿250"
+      "deliveryFeeNote": "฿500 สำหรับ 1–2 ชุด เพิ่มชุดละ ฿250",
+      "deliveryNotesLabel": "หมายเหตุการจัดส่ง",
+      "deliveryNotesPlaceholder": "ชั้น เลขห้อง รหัสประตู หรือวิธีเข้าถึงอื่นๆ (ไม่บังคับ)"
     },
     "contact": {
       "nameLabel": "ชื่อ-นามสกุล",

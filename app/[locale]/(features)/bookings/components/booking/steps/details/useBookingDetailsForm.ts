@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 // Type-only namespace import: `handleSubmit` keeps its original
 // `React.FormEvent` annotation and this file has no JSX.
 import type * as React from 'react';
@@ -32,6 +32,7 @@ import { shouldWriteProfile } from './profileWriteBack';
 import { formatFlowDate } from './summarySubline';
 import { localePath } from '@/i18n/locale-path';
 import { takeContactDraft } from './contactDraft';
+import { toE164 } from '@/lib/phone-e164';
 
 /**
  * The balance half of `/api/user/active-packages`.
@@ -201,6 +202,39 @@ export function useBookingDetailsForm({
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+
+  /**
+   * Has the customer touched the contact fields themselves?
+   *
+   * Prefill arrives from two async sources (`/api/vip/profile`, then `profiles`
+   * as a fallback) that resolve whenever the network says so — which can be
+   * AFTER someone has started typing. Without this guard a slow fetch silently
+   * replaces what they wrote, and the faster your connection the less likely
+   * you are to catch it in testing.
+   *
+   * A ref rather than state: it must be readable inside those effects without
+   * re-running them, and setting it must not trigger a render.
+   */
+  const userEditedContact = useRef(false);
+
+  /**
+   * The setters this hook hands out. Anything set through these came from a
+   * customer keystroke, so it latches `userEditedContact` and freezes prefill
+   * for every field. Prefill itself uses the raw setters above and so cannot
+   * trip its own guard.
+   */
+  const setNameEdited = (value: string) => {
+    userEditedContact.current = true;
+    setName(value);
+  };
+  const setEmailEdited = (value: string) => {
+    userEditedContact.current = true;
+    setEmail(value);
+  };
+  const setPhoneNumberEdited = (value: string | undefined) => {
+    userEditedContact.current = true;
+    setPhoneNumber(value);
+  };
 
   /**
    * Restore whatever the customer had typed before leaving for a provider.
@@ -501,29 +535,31 @@ export function useBookingDetailsForm({
           
           if (vipProfile) {
             
-            // Prepopulate form with VIP data if available and valid
+            // The CRM record is the GOOD prefill source: it carries a name and
+            // phone for 100% of linked customers, where `profiles` has a phone
+            // for only ~6% of Google accounts. Blanks only, though — a fetch
+            // that resolves after the customer started typing must not
+            // overwrite them.
             if (vipProfile.name) {
-              setName(vipProfile.name);
+              setName((current) =>
+                userEditedContact.current || current ? current : vipProfile.name
+              );
             }
             if (vipProfile.email) {
-              setEmail(vipProfile.email);
+              setEmail((current) =>
+                userEditedContact.current || current ? current : vipProfile.email
+              );
             }
             if (vipProfile.phoneNumber) {
-              // Format phone number to E.164 if needed
-              let formattedPhoneNumber = vipProfile.phoneNumber;
-              
-              // If the phone number doesn't start with +, format it
-              if (!formattedPhoneNumber.startsWith('+')) {
-                // For Thai numbers: convert 0842695447 to +66842695447, or 842695447 to +66842695447
-                if (formattedPhoneNumber.startsWith('0') && formattedPhoneNumber.length === 10) {
-                  formattedPhoneNumber = '+66' + formattedPhoneNumber.substring(1);
-                } else if (formattedPhoneNumber.length === 9) {
-                  formattedPhoneNumber = '+66' + formattedPhoneNumber;
-                }
-                // Add more country-specific rules if needed
+              // Shared with the browser-autofill path — see lib/phone-e164. It
+              // used to live here inline, which is why an autofilled local-format
+              // number went in raw and rendered as invalid.
+              const formatted = toE164(vipProfile.phoneNumber);
+              if (formatted) {
+                setPhoneNumber((current) =>
+                  userEditedContact.current || current ? current : formatted
+                );
               }
-              
-              setPhoneNumber(formattedPhoneNumber);
             }
             
             // `/api/vip/profile` returns `marketing_opt_in ?? null`, so an
@@ -569,6 +605,36 @@ export function useBookingDetailsForm({
               phone_number: profileData.phone_number || '',
               display_name: profileData.display_name || ''
             });
+
+            // Also PREFILL from it. This used to set `profile` and nothing
+            // else — the state's only consumer was the write-back diff at
+            // submit — so a customer whose `/api/vip/profile` call failed or
+            // returned nothing was shown an empty form even though we held
+            // their details. Both of that route's failure paths are silent
+            // `return`s, which is why it went unnoticed.
+            //
+            // A weak source, and treated as one: `profiles` carries a phone for
+            // only ~6% of Google accounts, so this is strictly a fallback that
+            // fills what the CRM record did not. Same two rules as above —
+            // never over typing, never over an existing value.
+            if (profileData.display_name) {
+              setName((current) =>
+                userEditedContact.current || current ? current : profileData.display_name
+              );
+            }
+            if (profileData.email) {
+              setEmail((current) =>
+                userEditedContact.current || current ? current : profileData.email
+              );
+            }
+            if (profileData.phone_number) {
+              const formatted = toE164(profileData.phone_number);
+              if (formatted) {
+                setPhoneNumber((current) =>
+                  userEditedContact.current || current ? current : formatted
+                );
+              }
+            }
           }
         } catch {
           // Failed to fetch profile
@@ -1160,11 +1226,16 @@ export function useBookingDetailsForm({
     duration,
     setDuration,
     phoneNumber,
-    setPhoneNumber,
+    // The EXPORTED setters mark the field as customer-edited; the raw ones stay
+    // internal for prefill. Wrapping here rather than asking every call site to
+    // remember means the guard cannot be forgotten when a new input is added —
+    // and the only way to set these from outside the hook is through a
+    // customer's own keystroke.
+    setPhoneNumber: setPhoneNumberEdited,
     email,
-    setEmail,
+    setEmail: setEmailEdited,
     name,
-    setName,
+    setName: setNameEdited,
     numberOfPeople,
     setNumberOfPeople,
     customerNotes,

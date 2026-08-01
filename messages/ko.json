@@ -973,7 +973,9 @@
       "paymentLinkHint": "신용/체크카드 또는 ShopeePay 월렛으로 지금 결제",
       "addressRequiredHint": "계속하려면 위에 배송 주소를 입력해 주세요",
       "continue": "계속",
-      "deliveryFeeNote": "1~2세트는 ฿500, 세트당 ฿250 추가"
+      "deliveryFeeNote": "1~2세트는 ฿500, 세트당 ฿250 추가",
+      "deliveryNotesLabel": "배송 요청사항",
+      "deliveryNotesPlaceholder": "층, 호수, 출입 코드 등 출입 안내사항 (선택)"
     },
     "contact": {
       "nameLabel": "성명",
