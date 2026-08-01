@@ -349,6 +349,11 @@
     },
     "confirmation": {
       "pageTitle": "予約確認 - LENGOLF",
+      "upsellTitle": "この予約をアカウントに残す",
+      "upsellBody": "ログインすると、この予約がアカウントに追加されます。今後のご予約もまとめて管理できます。",
+      "upsellFailed": "今回は予約を紐付けできませんでした。ご予約自体は確定しています。スタッフが後から紐付けることもできます。",
+      "upsellLinkedTitle": "アカウントに保存しました",
+      "upsellLinkedBody": "この予約はアカウントに保存されました。「予約一覧」からいつでもご確認いただけます。",
       "pageDescription": "LENGOLF でのご予約を確認してください",
       "heading": "予約完了！",
       "subheading": "ご予約の詳細はこちらです：",

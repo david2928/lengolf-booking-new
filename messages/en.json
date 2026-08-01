@@ -349,6 +349,11 @@
     },
     "confirmation": {
       "pageTitle": "Booking Confirmation - LENGOLF",
+      "upsellTitle": "Keep this booking with you",
+      "upsellBody": "Sign in and this booking joins your account, along with everything you book from now on.",
+      "upsellFailed": "We could not link the booking just now. It is confirmed either way, and staff can attach it for you.",
+      "upsellLinkedTitle": "Saved to your account",
+      "upsellLinkedBody": "This booking is now in your account. You can see it any time under My Bookings.",
       "pageDescription": "Confirm your booking at LENGOLF",
       "heading": "Booking Confirmed!",
       "subheading": "Here are your booking details:",

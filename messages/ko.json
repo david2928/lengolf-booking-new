@@ -349,6 +349,11 @@
     },
     "confirmation": {
       "pageTitle": "예약 확인 - LENGOLF",
+      "upsellTitle": "이 예약을 계정에 보관하세요",
+      "upsellBody": "로그인하시면 이 예약이 계정에 저장되고, 앞으로의 예약도 함께 관리됩니다.",
+      "upsellFailed": "지금은 예약을 연결하지 못했습니다. 예약 자체는 정상적으로 확정되었으며, 직원이 연결해 드릴 수 있습니다.",
+      "upsellLinkedTitle": "계정에 저장되었습니다",
+      "upsellLinkedBody": "이 예약이 계정에 저장되었습니다. 내 예약에서 언제든 확인하실 수 있습니다.",
       "pageDescription": "LENGOLF 예약을 확인하세요",
       "heading": "예약 확정!",
       "subheading": "예약 세부정보입니다:",

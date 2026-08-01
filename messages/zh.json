@@ -349,6 +349,11 @@
     },
     "confirmation": {
       "pageTitle": "预约确认 - LENGOLF",
+      "upsellTitle": "把这次预约保存到账户",
+      "upsellBody": "登录后，这次预约会加入您的账户，之后的预约也会一并保存。",
+      "upsellFailed": "暂时无法关联这次预约。预约本身已确认，工作人员也可以帮您关联。",
+      "upsellLinkedTitle": "已保存到您的账户",
+      "upsellLinkedBody": "这次预约已保存到您的账户，可随时在“我的预约”中查看。",
       "pageDescription": "确认您在 LENGOLF 的预约",
       "heading": "预约成功！",
       "subheading": "以下是您的预约详情：",

@@ -10,6 +10,10 @@ import {
 } from '../components/booking/confirmationBooking';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/options';
+import { getLocale } from 'next-intl/server';
+import { mintClaimToken } from '@/lib/auth/claim-token';
+import { localePath } from '@/i18n/locale-path';
+import { ConfirmationUpsell } from '../components/booking/ConfirmationUpsell';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('bookings.confirmation');
@@ -64,6 +68,31 @@ export default async function ConfirmationPage({
     redirect('/bookings');
   }
 
+  // Mint the claim token HERE, while the guest session that made the booking is
+  // still the one on this request. After the customer signs in it is gone, and
+  // there is nothing left to prove they were ever the guest who booked.
+  //
+  // Only for guests: a customer already signed in has nothing to claim. Returns
+  // null if the secret is unavailable, in which case the upsell hides itself
+  // rather than offering something it cannot honour.
+  const isGuest = (session.user as { provider?: string }).provider === 'guest';
+  const claimToken = isGuest
+    ? mintClaimToken({ bookingId: booking.id, profileId: session.user.id })
+    : null;
+
+  // Return to THIS page after the provider round trip, so the claim can finish
+  // and the customer sees the booking they were promised rather than a generic
+  // landing page.
+  //
+  // Carrying `?id=` here is correct, and is NOT the trap that applies to the
+  // booking flow's own callbackUrl: `useBookingFlow` reads query parameters as
+  // a deep link and skips its sessionStorage restore, but it is not mounted on
+  // the confirmation page. This page requires the id to render at all.
+  const locale = await getLocale();
+  const confirmationPath = `${localePath('/bookings/confirmation', locale)}?id=${encodeURIComponent(
+    booking.id
+  )}`;
+
   return (
     /* The same in-flow chrome as `/bookings`, all four props, no asymmetry.
 
@@ -95,6 +124,18 @@ export default async function ConfirmationPage({
        640px and 1280px. `max-w-4xl` on the content still wins inside it. */
     <Layout hidePromotionBar compactHeader flushMain hideFooter>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Above the details, not below them: this is the one moment a guest
+            has something concrete to gain, and burying it under the whole
+            booking summary would waste that. It renders nothing at all for a
+            signed-in customer, or when no token could be minted. */}
+        <div className="max-w-4xl mx-auto">
+          <ConfirmationUpsell
+            bookingId={booking.id}
+            isGuest={isGuest}
+            claimToken={claimToken}
+            callbackUrl={confirmationPath}
+          />
+        </div>
         <ConfirmationContent booking={booking} />
       </div>
     </Layout>
