@@ -154,8 +154,16 @@ export function YourDetailsStep({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {t('name')}
             </label>
+            {/* autoComplete is the cheapest prefill we have and the only one
+                that works on a customer's FIRST visit, cross-site, without us
+                storing anything. Without these tokens browsers fall back to
+                guessing from field names, which is unreliable for name and
+                phone, and iOS Contacts autofill and password managers largely
+                ignore fields that lack them. */}
             <input
               type="text"
+              name="name"
+              autoComplete="name"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -183,6 +191,15 @@ export function YourDetailsStep({
                 international
                 defaultCountry="TH"
                 placeholder={t('phoneNumberPlaceholder')}
+                /* Forwarded to the underlying <input>. Note an autofilled value
+                   usually arrives in local format (0842695447), which
+                   `isValidPhoneNumber` rejects — PhoneInput will show it as
+                   invalid until the customer corrects it. Normalising autofilled
+                   input to E.164 is tracked with the wider phone-normalisation
+                   cleanup; the token still earns its place meanwhile, because a
+                   near-right number to correct beats an empty field. */
+                name="tel"
+                autoComplete="tel"
                 value={phoneNumber}
                 onChange={(value) => {
                   setPhoneNumber(value);
@@ -223,6 +240,8 @@ export function YourDetailsStep({
             <div className="relative">
               <input
                 type="email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);

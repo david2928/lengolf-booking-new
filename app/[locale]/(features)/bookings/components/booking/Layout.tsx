@@ -120,13 +120,12 @@ export function Layout({ children, hidePromotionBar, hideNav, compactHeader, flu
   const shouldShowLinkAccount = sessionStatus === 'authenticated' && isAccountUnmatched;
 
 
-  if (sessionStatus === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  // No full-page spinner while the session resolves. Nothing below this point
+  // needs a session to render — `isVipEligible` and `shouldShowLinkAccount`
+  // already default to false while it is 'loading', so the account menu simply
+  // appears once it lands. Blocking here put a session round-trip on the
+  // critical path of the very first paint for every anonymous visitor, which is
+  // most of the cost the gate removal was meant to recover.
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

@@ -11,7 +11,7 @@ import type { Database } from '@/types/supabase';
 import { useRouter } from 'next/navigation';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession, signIn, getSession } from 'next-auth/react';
 import type { Session } from 'next-auth';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
@@ -388,21 +388,21 @@ export function useBookingDetailsForm({
     };
   }, [phoneNumber]);
 
-  // `/auth/signin` is not a page in this app — the login page is `/auth/login`,
-  // and `/api/auth/signin` is NextAuth's API route — so pushing it 404'd the
-  // customer straight out of the flow. signIn() resolves the configured login
-  // page itself and carries a callbackUrl, and the in-progress booking is
-  // restored from sessionStorage (useFlowPersistence) once they land back.
+  // Reaching this step no longer requires a session. It used to redirect on
+  // mount, which meant an anonymous customer who got this far — via a deep
+  // link, a restored flow, or an expired session — was thrown out of the form
+  // rather than allowed to finish it.
   //
-  // Came from main's embedded-browser fix (c30d562), which patched this in
-  // BookingDetails.tsx before slice 8 extracted the effect into this hook. The
-  // merge resolved that file to the orchestrator, so without porting it here by
-  // hand the fix would have been silently dropped.
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      signIn(undefined, { callbackUrl: '/bookings' });
-    }
-  }, [status]);
+  // The history is worth keeping because it shows how easily this breaks: the
+  // redirect originally pointed at `/auth/signin`, which is not a page in this
+  // app (the login page is `/auth/login`; `/api/auth/signin` is NextAuth's API
+  // route), so it 404'd customers straight out of the flow. That was fixed in
+  // the embedded-browser work (c30d562) against BookingDetails.tsx, then had to
+  // be ported here by hand when slice 8 extracted this effect, or the fix would
+  // have been silently dropped in the merge.
+  //
+  // Contact details are collected on this step anyway, which is exactly what
+  // the guest provider needs — so identity is established at submit instead.
 
   useEffect(() => {
 
@@ -787,24 +787,53 @@ export function useBookingDetailsForm({
       return;
     }
 
-    if (!session) {
-      toast.error(tErrors('signInToContinue'));
-      // See the note on the unauthenticated effect above: /auth/signin 404s.
-      signIn(undefined, { callbackUrl: '/bookings' });
-      return;
-    }
-
     // Start timing the submission process
     const submissionStartTime = Date.now();
     setIsSubmitting(true);
     setShowLoadingOverlay(true);
     setLoadingStep(0);
-    
+
     try {
-      if (!session?.user?.id) {
-        throw new Error(tErrors('userNotAuthenticated'));
+      // No session? Mint a guest one from what the customer has already typed.
+      //
+      // `validateForm()` above has just guaranteed name, email and phone are
+      // present and well formed — which is precisely what the guest provider
+      // needs. So identity can be established here, silently, instead of
+      // bouncing the customer to a login page and losing their place. This is
+      // the last of the six gates, and the only one that becomes something
+      // rather than simply going away.
+      //
+      // Deliberately passes NO marketing flag: consent is written exactly once,
+      // by the booking route, from `marketingOptIn` below. Sending it here too
+      // would write it twice under two different sources and defeat the audit
+      // trail `marketing_opt_in_source` exists for.
+      if (!session) {
+        const result = await signIn('guest', {
+          name,
+          email,
+          phone: phoneNumber,
+          redirect: false,
+        });
+
+        if (!result?.ok) {
+          // Distinct from a booking failure, and it must not read as one — the
+          // booking has not been attempted yet and the customer's form is
+          // untouched, so the honest thing is to let them try again.
+          setIsSubmitting(false);
+          setShowLoadingOverlay(false);
+          toast.error(tErrors('signInToContinue'));
+          return;
+        }
+
+        // The route authenticates from the httpOnly cookie via getToken(), which
+        // is already set by the time the call above resolves — so this is not
+        // what makes the POST work. It warms next-auth's CLIENT cache, so the
+        // re-render into `authenticated` does not race the in-flight submit.
+        // GuestForm carries the same call for the same reason, after a customer
+        // was observed double-submitting 12 seconds apart.
+        await getSession();
       }
-      
+
       // Build customer_notes with system-generated lines (club rental, add-ons)
       // PREPENDED so a long user note can never push them past column limits or
       // out of view in the LINE staff notification. User text always lands last.
@@ -841,7 +870,16 @@ export function useBookingDetailsForm({
         alsoUpdateAccount,
       });
 
-      // Update profile if needed
+      // Update profile if needed.
+      //
+      // `session` is the value this render closed over, so for a guest minted a
+      // few lines above it is still null and this is skipped. That is correct,
+      // not a gap: the guest provider's `authorize` has just written the name
+      // and phone with the service role, under its own fill-blanks-only rule.
+      // Repeating the write here would be redundant, and — because it does NOT
+      // apply that rule — could overwrite a stored value the provider
+      // deliberately preserved. Do not "fix" this by reaching for a fresh
+      // session.
       if (shouldUpdateProfile && session?.user?.id) {
         await supabase
           .from('profiles')

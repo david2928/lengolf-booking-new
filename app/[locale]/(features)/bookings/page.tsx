@@ -1,6 +1,5 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useTranslations, useLocale } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { Layout } from './components/booking/Layout';
@@ -41,12 +40,6 @@ export default function BookingsPage() {
      and the short-date form. */
   const locale = useLocale();
 
-  const { status } = useSession({
-    required: false,
-    onUnauthenticated() {
-    },
-  });
-
   const {
     currentStep,
     selectedDate,
@@ -79,20 +72,13 @@ export default function BookingsPage() {
     isPackageMode,
   } = useBookingFlow();
 
-  // Session-loading placeholder. It carries the SAME Layout props as the real
-  // return below: any difference here shows up as chrome appearing or
-  // disappearing the moment the session resolves, which reads as a flash of a
-  // different page rather than a load.
-  if (status === 'loading') {
-    return (
-      <Layout hidePromotionBar compactHeader flushMain hideFooter={currentStep > 1} hideNav={currentStep > 1}>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      </Layout>
-    );
-  }
-  
+  // There used to be a session-loading placeholder here, carrying the same
+  // Layout props so the chrome would not flash. It is gone: step 1 does not
+  // depend on the session for anything it renders, so waiting on one only
+  // delayed the first meaningful paint for every anonymous visitor — the exact
+  // cost this work exists to remove. The account menu in the header fills in on
+  // its own once the session resolves.
+
   /**
    * The bay, for the header's subline.
    *
