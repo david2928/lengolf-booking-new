@@ -97,10 +97,11 @@ export function SetMenuCard({
 
          Always a photo-over-content column: on a phone the grid in
          `SessionStep` stacks the cards, from `md` up it sets them three
-         across, and the card itself does not need to know which. `h-full` +
-         `flex-col` exist for the grid case — the grid stretches all three
-         cards to the tallest row, and the flex chain (content `flex-1`,
-         includes `flex-1` inside it) spends the slack above the select pill,
+         across, and the card itself does not need to know which. The grid's
+         default `items-stretch` is what makes all three cards the height of
+         the tallest (`h-full` is only belt-and-braces for a future
+         non-stretching parent); `flex-col` and the flex chain (content
+         `flex-1`, includes `flex-1` inside it) spend the slack above the pill,
          so the three actions land on one line however long each includes
          list runs. In the stacked case there is no slack and they are
          inert. */
@@ -129,7 +130,7 @@ export function SetMenuCard({
             alt={pkg.name}
             fill
             className="object-cover"
-            sizes="(min-width: 768px) 33vw, 100vw"
+            sizes="(min-width: 1024px) 300px, (min-width: 768px) 33vw, 100vw"
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-green-700/40">
