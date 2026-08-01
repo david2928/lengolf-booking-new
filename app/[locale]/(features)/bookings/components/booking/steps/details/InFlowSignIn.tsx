@@ -37,9 +37,14 @@ export function InFlowSignIn({ name, email, phoneNumber, callbackUrl }: InFlowSi
 
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
-      <p className="text-sm font-medium text-gray-900">{t('signInPromptTitle')}</p>
-      <p className="mt-1 mb-3 text-xs text-gray-500">{t('signInPromptBody')}</p>
+    <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+      {/* Title and body sit on one line from `sm:` up. Stacked, they cost two
+          rows above a control that is itself only one row on desktop, which is
+          what made this block read as heavier than the fields it introduces. */}
+      <div className="mb-3 sm:flex sm:items-baseline sm:gap-2">
+        <p className="text-sm font-medium text-gray-900 shrink-0">{t('signInPromptTitle')}</p>
+        <p className="mt-1 text-xs text-gray-500 sm:mt-0">{t('signInPromptBody')}</p>
+      </div>
 
       <ProviderButtons
         callbackUrl={callbackUrl}
@@ -52,7 +57,11 @@ export function InFlowSignIn({ name, email, phoneNumber, callbackUrl }: InFlowSi
         // Provider detection runs in an effect, so the first paint shows all
         // three and then settles. Reserving the height stops that settle
         // shifting the contact fields under a thumb mid-tap.
-        minHeightClass="min-h-[9.5rem]"
+        //
+        // Two values because the layout is two layouts: three stacked rows
+        // below `sm:`, one row of three above it. Reserving the mobile height
+        // on desktop would leave ~6rem of dead space under the buttons.
+        minHeightClass="min-h-[8.75rem] sm:min-h-[2.75rem]"
       />
 
       <div className="relative my-4">

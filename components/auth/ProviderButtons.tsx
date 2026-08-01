@@ -99,8 +99,24 @@ export function ProviderButtons({
     }
   };
 
-  const pad = layout === 'compact' ? 'px-4 py-2.5' : 'px-4 py-3';
+  const pad = layout === 'compact' ? 'px-3 py-2.5' : 'px-4 py-3';
   const base = `flex w-full items-center justify-center rounded-lg text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-wait ${pad}`;
+
+  // `stacked` is for the login page: a narrow centred card where one button per
+  // row is the whole layout.
+  //
+  // `compact` is for the in-flow row, which sits in the booking form's content
+  // column — ~1,100px on a desktop. Three full-width buttons there read as a
+  // wall and push the fields they are meant to save you filling in below the
+  // fold. Side by side from `sm:` up, they are one row instead of three.
+  //
+  // The grid degrades correctly when a provider is dropped: in an embedded
+  // WebView Google disappears and the remaining two simply share the width, so
+  // there is no hole and no special case.
+  const container =
+    layout === 'compact'
+      ? 'grid grid-cols-1 gap-2 sm:grid-cols-3'
+      : 'flex flex-col gap-3';
 
   const Spinner = () => (
     <span className="flex items-center justify-center">
@@ -110,9 +126,9 @@ export function ProviderButtons({
   );
 
   return (
-    <div className={`space-y-3 ${minHeightClass ?? ''}`}>
+    <div className={minHeightClass ?? ''}>
       {browserType !== null && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
           <div className="flex items-start gap-2 text-sm text-amber-800">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -122,6 +138,7 @@ export function ProviderButtons({
         </div>
       )}
 
+      <div className={container}>
       {showGoogle && (
         <button
           type="button"
@@ -180,6 +197,7 @@ export function ProviderButtons({
           )}
         </button>
       )}
+      </div>
     </div>
   );
 }
