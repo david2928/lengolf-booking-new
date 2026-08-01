@@ -345,8 +345,7 @@
       "errorNeedPhone": "กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง",
       "errorNeedEmail": "กรุณากรอกอีเมลเพื่อรับการยืนยันการจอง",
       "signInPromptTitle": "ประหยัดเวลาพิมพ์",
-      "signInPromptBody": "เข้าสู่ระบบแล้วเราจะกรอกข้อมูลที่เรามีให้",
-      "signInPromptDivider": "หรือกรอกเอง"
+      "signInPromptBody": "เข้าสู่ระบบแล้วเราจะกรอกข้อมูลที่เรามีให้"
     },
     "confirmation": {
       "pageTitle": "ยืนยันการจอง - LENGOLF",

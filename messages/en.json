@@ -345,8 +345,7 @@
       "errorNeedPhone": "Please enter a valid phone number.",
       "errorNeedEmail": "We need an email to send your confirmation.",
       "signInPromptTitle": "Save the typing",
-      "signInPromptBody": "Sign in and we will fill in what we already know.",
-      "signInPromptDivider": "or enter them yourself"
+      "signInPromptBody": "Sign in and we will fill in what we already know."
     },
     "confirmation": {
       "pageTitle": "Booking Confirmation - LENGOLF",

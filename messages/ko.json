@@ -345,8 +345,7 @@
       "errorNeedPhone": "올바른 전화번호를 입력해 주세요.",
       "errorNeedEmail": "예약 확인 메일을 보내려면 이메일이 필요합니다.",
       "signInPromptTitle": "입력 시간을 줄이세요",
-      "signInPromptBody": "로그인하시면 저장된 정보를 자동으로 채워드려요.",
-      "signInPromptDivider": "또는 직접 입력하기"
+      "signInPromptBody": "로그인하시면 저장된 정보를 자동으로 채워드려요."
     },
     "confirmation": {
       "pageTitle": "예약 확인 - LENGOLF",

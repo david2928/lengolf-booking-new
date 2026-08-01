@@ -345,8 +345,7 @@
       "errorNeedPhone": "请填写有效的电话号码。",
       "errorNeedEmail": "需要邮箱地址以便发送确认邮件。",
       "signInPromptTitle": "省去输入",
-      "signInPromptBody": "登录后，我们会自动填写已有的信息。",
-      "signInPromptDivider": "或自行填写"
+      "signInPromptBody": "登录后，我们会自动填写已有的信息。"
     },
     "confirmation": {
       "pageTitle": "预约确认 - LENGOLF",
