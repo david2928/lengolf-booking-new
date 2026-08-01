@@ -183,7 +183,7 @@ function renderState(input: RentalLineInput): StateRender {
         failureLine: null,
         footerLine:
           status.paymentMode === 'online'
-            ? `⌛ Awaiting ShopeePay payment — auto-cancels in 30 min if unpaid.`
+            ? `⌛ Awaiting ShopeePay payment — auto-cancels in 2 hours if unpaid.`
             : `👉 Please contact the customer to confirm availability and arrange payment.`,
       };
     }
@@ -207,7 +207,7 @@ function renderState(input: RentalLineInput): StateRender {
         moneyLine: `💰 Total: ${totalDisplay}`,
         referenceLine: null,
         failureLine: status.reason ? `⚠️ Failure reason: ${status.reason}` : null,
-        footerLine: `👉 Customer should retry. Reservation still held until 30-min window expires.`,
+        footerLine: `👉 Customer should retry. Reservation still held until the 2-hour window expires.`,
       };
     }
     case 'Refunded': {
@@ -247,7 +247,7 @@ function renderState(input: RentalLineInput): StateRender {
         moneyLine: `💰 Total: ${totalDisplay} (never paid)`,
         referenceLine: null,
         failureLine: null,
-        footerLine: `🗑️ Auto-cancelled — customer didn't complete payment in 30 min. Slot released.`,
+        footerLine: `🗑️ Auto-cancelled — customer didn't complete payment in time. Slot released.`,
       };
     }
   }
@@ -309,7 +309,7 @@ export function composeOrderCreatedLineMessage(input: OrderCreatedLineInput): st
 
   const footerLine =
     input.paymentMode === 'online'
-      ? `⌛ Awaiting ShopeePay payment — auto-cancels in 30 min if unpaid.`
+      ? `⌛ Awaiting ShopeePay payment — auto-cancels in 2 hours if unpaid.`
       : `👉 Please contact the customer to confirm availability and arrange payment.`;
 
   const lines: Array<string | null> = [
@@ -400,6 +400,67 @@ export function composeOrderPaidLineMessage(input: OrderPaidLineInput): string {
     input.notes ? `📝 Notes: ${input.notes}` : null,
     SEPARATOR,
     `👉 Booking confirmed — please prep clubs for ${pickupOrDeliveryNoun}.`,
+  ];
+
+  return lines.filter((l): l is string => l !== null).join('\n');
+}
+
+export interface OrderPaymentReminderLineInput {
+  order_code: string;
+  customer_name: string;
+  customer_phone: string | null;
+  customer_email: string | null;
+  contact_preference?: string | null;
+  sets: Array<{ name: string; tier: string; gender: string }>;
+  total_price: number | string;
+  /** Reservation expiry, pre-formatted for display (e.g. '14:30'). */
+  expiresAtDisplay: string;
+  /**
+   * Outcome of the customer reminder email: 'sent' | 'failed' (address on
+   * file but the send errored — staff follow-up is the ONLY recovery, the
+   * claim is kept and the email is never retried) | 'none' (no address).
+   */
+  emailStatus: 'sent' | 'failed' | 'none';
+  uatPrefix?: boolean;
+}
+
+/**
+ * Staff ping sent alongside the T+30min customer payment-reminder email —
+ * the human-recovery hook: staff see who is stalling and can follow up
+ * personally on the customer's preferred channel before the 2-hour window
+ * closes. Sent by GET /api/cron/club-rental-payment-reminder.
+ */
+export function composeOrderPaymentReminderLineMessage(
+  input: OrderPaymentReminderLineInput,
+): string {
+  const prefix = input.uatPrefix ? '[UAT] ' : '';
+  const header = `${prefix}⏰ PAYMENT STILL PENDING (ID: ${input.order_code}) ⏰`;
+  const contactPrefLabel = contactPreferenceLabel(input.contact_preference);
+  const setLines = input.sets.map(
+    (s, i) => `🏌️ Set ${i + 1}: ${s.name} (${tierLabel(s.tier)}, ${genderLabel(s.gender)})`,
+  );
+
+  const via = contactPrefLabel ? ` via ${contactPrefLabel}` : '';
+  const footerLine =
+    input.emailStatus === 'sent'
+      ? `👉 Reminder email sent to the customer — a personal follow-up${via} converts best.`
+      : input.emailStatus === 'failed'
+        ? `👉 Reminder email FAILED to send — please follow up${via}; staff outreach is the only reminder this customer gets.`
+        : `👉 No email on file — please follow up${via} before the window closes.`;
+
+  const lines: Array<string | null> = [
+    header,
+    SEPARATOR,
+    `👤 Customer: ${input.customer_name}`,
+    input.customer_phone ? `📞 Phone: ${input.customer_phone}` : null,
+    input.customer_email ? `📧 Email: ${input.customer_email}` : null,
+    contactPrefLabel ? `💬 Contact via: ${contactPrefLabel}` : null,
+    `📦 ${input.sets.length} set${input.sets.length === 1 ? '' : 's'} in this order:`,
+    ...setLines,
+    `💰 Total: ฿${formatPrice(input.total_price)} (unpaid, 30+ min)`,
+    `⌛ Reservation expires: ${input.expiresAtDisplay}`,
+    SEPARATOR,
+    footerLine,
   ];
 
   return lines.filter((l): l is string => l !== null).join('\n');

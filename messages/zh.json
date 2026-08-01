@@ -1017,6 +1017,7 @@
       "paymentHeading": "支付",
       "paymentCashBody": "在 LENGOLF 取件时使用现金支付。",
       "paymentLinkBody": "您将在 ShopeePay 的安全付款页面完成支付，完成后将自动返回此页面。",
+      "paymentWindowNote": "在您完成付款期间，球杆将为您保留 2 小时。",
       "submitting": "提交中...",
       "confirmReservation": "确认预订",
       "payNow": "立即付款",
@@ -1234,6 +1235,23 @@
       "footerAddressValue": "Mercury Ville at BTS Chidlom 4 楼",
       "visitWebsiteCta": "访问我们的网站",
       "copyright": "© {year} LENGOLF 版权所有"
+    },
+    "courseRentalPaymentReminder": {
+      "subject": "请完成您的高尔夫球杆租赁付款 - {orderCode}",
+      "logoAlt": "LENGOLF 标志",
+      "heading": "您的球杆仍为您保留中",
+      "greeting": "{name} 您好,",
+      "intro": "您的付款似乎尚未完成。请放心，我们仍在为您保留球杆。请通过以下链接完成付款以确认预订。",
+      "payCta": "完成付款",
+      "deadline": "此链接有效期至 {time}（曼谷时间，GMT+7）。逾期后，预订将自动取消。",
+      "orderCodeLabel": "订单编号",
+      "setsLabel": "球杆套装",
+      "rentalPeriodLabel": "租赁期限",
+      "rentalPeriodSingle": "{date}",
+      "rentalPeriodRange": "{startDate} → {endDate} ({days, plural, =1 {# 天} other {# 天}})",
+      "totalLabel": "总计",
+      "help": "付款遇到问题？请直接回复此邮件或通过 LINE（@lengolf）联系我们，我们的团队将为您提供其他付款方式。",
+      "ignore": "如果您已完成付款或不再需要租赁，请忽略此邮件。"
     },
     "courseRentalRefund": {
       "subject": "LENGOLF Refund Processed - {rentalCode}",

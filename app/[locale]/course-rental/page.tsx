@@ -1550,7 +1550,10 @@ export default function CourseRentalPage() {
               {paymentMethod === 'cash' ? (
                 <p>{t('review.paymentCashBody')}</p>
               ) : (
-                <p>{t('review.paymentLinkBody')}</p>
+                <>
+                  <p>{t('review.paymentLinkBody')}</p>
+                  <p className="mt-1 text-blue-600">{t('review.paymentWindowNote')}</p>
+                </>
               )}
             </div>
 

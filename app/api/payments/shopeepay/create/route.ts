@@ -26,7 +26,7 @@ import { applyOrderPaymentState, loadOrderChargeContext } from '@/lib/shopeepay/
  * Backoffice flow: callers may override the link validity window by
  * supplying `validity_period_seconds` AND a valid `Authorization:
  * Bearer ${BACKOFFICE_API_TOKEN}` header. Staff issuing links from
- * lengolf-forms use this path; customers use the default 30 min.
+ * lengolf-forms use this path; customers use the default 2 hours.
  */
 
 interface CreateBody {
@@ -42,7 +42,11 @@ interface CreateBody {
   validity_period_seconds?: number;
 }
 
-const DEFAULT_VALIDITY_PERIOD_SECONDS = 1800; // 30 min, matches the cleanup cron window.
+// 2 hours (was 30 min until 2026-07-12). Payers complete in minutes (p50 ~4min,
+// max ever 26min) — the longer window exists so the T+30min payment reminder
+// (cron club-rental-payment-reminder) lands while the reservation is still
+// recoverable. The cleanup cron keys off expires_at, no change needed there.
+const DEFAULT_VALIDITY_PERIOD_SECONDS = 7200;
 const MIN_VALIDITY_PERIOD_SECONDS = 60;
 const MAX_VALIDITY_PERIOD_SECONDS = 86400; // ShopeePay's documented upper bound.
 const BACKOFFICE_TOKEN_MIN_LENGTH = 32;
@@ -117,7 +121,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Resolve the link validity. Customer flow omits the field and gets
-  // the 30-min default. Backoffice flow (lengolf-forms) supplies it and
+  // the 2-hour default. Backoffice flow (lengolf-forms) supplies it and
   // must authenticate via bearer token first.
   let effectiveValidity = DEFAULT_VALIDITY_PERIOD_SECONDS;
   if (validity_period_seconds !== undefined) {
