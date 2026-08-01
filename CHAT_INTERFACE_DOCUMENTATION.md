@@ -1,6 +1,6 @@
 # LENGOLF Website Chat Interface - Complete Documentation
 
-**Real-time customer support chat system integrated into the LENGOLF booking website**
+**Customer support chat system integrated into the LENGOLF booking website — near-real-time message delivery via polling**
 
 ## 📋 Table of Contents
 
@@ -10,7 +10,7 @@
 4. [Database Schema](#database-schema)
 5. [API Documentation](#api-documentation)
 6. [Component Architecture](#component-architecture)
-7. [Real-time Features](#real-time-features)
+7. [Message Delivery (Polling)](#message-delivery-polling)
 8. [Integration with Backoffice](#integration-with-backoffice)
 9. [Security & Privacy](#security--privacy)
 10. [Performance Considerations](#performance-considerations)
@@ -21,10 +21,10 @@
 
 ### What is the Chat Interface?
 
-The LENGOLF Chat Interface is a real-time customer support system that allows website visitors to communicate directly with staff members. It features:
+The LENGOLF Chat Interface is a customer support system that allows website visitors to communicate directly with staff members. It features:
 
 - **Floating chat widget** - Messenger-style button in bottom-right corner
-- **Real-time messaging** - Instant message delivery via Supabase subscriptions
+- **Near-real-time messaging** - New messages picked up by polling an ownership-checked API route (3s interval while the tab is visible)
 - **User persistence** - Messages saved for logged-in users across sessions
 - **Staff notifications** - Automatic alerts when customers send messages
 - **Mobile responsive** - Works seamlessly on all devices
@@ -34,7 +34,7 @@ The LENGOLF Chat Interface is a real-time customer support system that allows we
 
 ✅ **Anonymous & Authenticated Support** - Works for both guest users and logged-in customers
 ✅ **Message Persistence** - Conversation history maintained across browser sessions
-✅ **Real-time Updates** - Instant message delivery without page refreshes
+✅ **Near-real-time Updates** - New messages appear within seconds without page refreshes (polling, no WebSockets)
 ✅ **Staff Notifications** - Alerts staff via existing notification systems
 ✅ **Single Conversation per User** - Each logged-in user has exactly one persistent conversation
 ✅ **Responsive Design** - Optimized for desktop, tablet, and mobile devices
@@ -114,7 +114,7 @@ Anonymous User          →    Logs In           →    Authenticated User
 #### 3. **Loading States**
 - **Initial Load**: Skeleton placeholders for messages
 - **Sending**: Disabled input with loading indicator
-- **Connection**: Reconnection indicators for real-time updates
+- **Connection**: Polling silently retries after network errors; a permanent "Chat session ended" error is shown if access to the conversation is lost
 
 ## 3. Technical Architecture
 
@@ -125,27 +125,28 @@ Anonymous User          →    Logs In           →    Authenticated User
 │                    LENGOLF Chat Architecture                     │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Frontend (Next.js)              Backend (Supabase)             │
+│  Frontend (Next.js)              Backend (Next.js API routes)   │
 │  ┌─────────────────┐              ┌────────────────────────┐     │
-│  │ Chat Widget     │◄─────────────┤ Real-time Subscriptions │     │
-│  │ ├─ ChatButton   │              │ ├─ postgres_changes     │     │
-│  │ ├─ ChatWindow   │              │ └─ Message broadcasts   │     │
-│  │ ├─ ChatMessages │              └────────────────────────┘     │
-│  │ └─ ChatInput    │                                            │
-│  └─────────────────┘              ┌────────────────────────┐     │
-│           │                       │ Database Tables        │     │
-│           │                       │ ├─ web_chat_sessions   │     │
-│           ▼                       │ ├─ web_chat_conversations│     │
-│  ┌─────────────────┐              │ └─ web_chat_messages    │     │
-│  │ useChatSession  │◄─────────────┤                        │     │
-│  │ Hook            │              └────────────────────────┘     │
-│  └─────────────────┘                                            │
-│           │                       ┌────────────────────────┐     │
-│           ▼                       │ API Routes             │     │
-│  ┌─────────────────┐              │ ├─ /api/chat/initialize │     │
-│  │ ChatService     │◄─────────────┤ ├─ /api/chat/send       │     │
-│  │ (Data Layer)    │              │ └─ /api/chat/mark-read  │     │
-│  └─────────────────┘              └────────────────────────┘     │
+│  │ Chat Widget     │              │ API Routes             │     │
+│  │ ├─ ChatButton   │   HTTP       │ (service-role client,  │     │
+│  │ ├─ ChatWindow   │◄────────────►│  ownership-checked)    │     │
+│  │ ├─ ChatMessages │              │ ├─ /api/chat/initialize │     │
+│  │ └─ ChatInput    │              │ ├─ /api/chat/send       │     │
+│  └─────────────────┘              │ ├─ /api/chat/messages   │     │
+│           │                       │ └─ /api/chat/mark-read  │     │
+│           ▼                       └───────────┬────────────┘     │
+│  ┌─────────────────┐                          │                  │
+│  │ useChatSession  │                          ▼                  │
+│  │ Hook            │              ┌────────────────────────┐     │
+│  │ (polling loop:  │              │ Supabase (Postgres)    │     │
+│  │  3s visible /   │              │ ├─ web_chat_sessions   │     │
+│  │  15s hidden)    │              │ ├─ web_chat_conversations│    │
+│  └─────────────────┘              │ └─ web_chat_messages    │     │
+│           │                       └────────────────────────┘     │
+│           ▼                                                      │
+│  ┌─────────────────┐                                             │
+│  │ lib/chatPolling │  pure merge / diff / unread helpers         │
+│  └─────────────────┘                                             │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -157,11 +158,12 @@ Anonymous User          →    Logs In           →    Authenticated User
 1. User types message in ChatInput
 2. ChatInput calls sendMessage() from useChatSession
 3. useChatSession sends POST to /api/chat/send
-4. API route calls ChatService.sendMessage()
-5. ChatService stores message in web_chat_messages table
-6. Supabase real-time subscription broadcasts message
-7. All connected clients receive message instantly
-8. Message appears in sender's and recipient's chat windows
+4. API route stores the message in web_chat_messages (service-role client)
+5. The /api/chat/send response echoes the persisted message row (plus any
+   out-of-hours auto-reply); the hook merges it into local state immediately,
+   so the sender's own bubble never waits for a poll
+6. Other participants (staff in the backoffice, the customer's other
+   tabs/devices) pick the message up on their next poll of /api/chat/messages
 ```
 
 #### Session Management Flow
@@ -172,7 +174,8 @@ Anonymous User          →    Logs In           →    Authenticated User
    └─ For logged-in users: user_${user.id}
 3. Hook calls initializeChat() which posts to /api/chat/initialize
 4. API creates or retrieves chat session and conversation
-5. Hook loads existing messages and sets up real-time subscription
+5. Hook loads existing messages via POST /api/chat/messages and starts
+   the polling loop for the conversation
 6. Chat widget displays with conversation history
 ```
 
@@ -316,12 +319,57 @@ FOR SELECT USING (
 {
   success: true;
   message: ChatMessage;        // Created message object
+  autoReply?: ChatMessage;     // Out-of-hours auto-reply, if one was generated
 }
 ```
+
+The widget merges `message` (and `autoReply`) into local state directly from
+this response, so the sender's own bubble appears without waiting for the
+next poll.
 
 #### Error Responses
 - `400`: Missing required fields or invalid message length
 - `500`: Database error creating message
+
+### POST /api/chat/messages
+
+**Purpose**: Fetch messages for a conversation with ownership checks. This is
+the route the widget polls for new messages (see
+[Message Delivery (Polling)](#message-delivery-polling)).
+
+#### Request Body
+```typescript
+{
+  conversationId: string;      // Conversation UUID
+  sessionId?: string;          // Required for anonymous users (ownership proof)
+}
+```
+
+#### Authorization
+- **Authenticated users** (NextAuth session present): the conversation's
+  `user_id` must match the logged-in user.
+- **Anonymous users**: the supplied `sessionId` must match the
+  `web_chat_sessions.session_id` of the conversation's session.
+
+#### Response
+```typescript
+{
+  success: true;
+  messages: ChatMessage[];     // The LATEST 50 messages, ascending by created_at
+}
+```
+
+The route fetches the newest 50 rows descending, then reverses them, so long
+conversations always include the newest replies. (An ascending query with a
+limit would return the *oldest* 50 and hide new replies — fatal for the
+polling widget.)
+
+#### Error Responses
+- `400`: Missing conversationId, or missing sessionId for anonymous users
+- `403`: Conversation not found, belongs to a different user, or session
+  mismatch — the widget treats this as permanent and stops polling
+- `500`: Transient database error — deliberately distinct from 403 so the
+  widget's poll loop retries instead of stopping
 
 ### POST /api/chat/mark-read
 
@@ -438,70 +486,84 @@ interface ChatSessionHook {
 }
 ```
 
-## 7. Real-time Features
+## 7. Message Delivery (Polling)
 
-### Supabase Real-time Subscriptions
+### Why polling, not realtime
 
-The chat system uses Supabase's real-time capabilities for instant message delivery:
+Until July 2026 the widget held a Supabase realtime subscription
+(`postgres_changes` on `web_chat_messages`) opened with the browser anon-key
+client. The 2026-07 Supabase security hardening revoked anon SELECT on
+`web_chat_messages`, which both broke that subscription and closed the
+security surface it depended on. As of PR #75 (merged 2026-07-20, commit
+`64fab50`), the widget instead polls the ownership-checked
+`POST /api/chat/messages` route, which runs server-side with the service-role
+client and verifies conversation ownership on every request. The browser
+never queries the chat tables directly — do not re-grant anon/authenticated
+access to them.
+
+### The polling loop (`hooks/useChatSession.ts`)
+
+A `useEffect` keyed on the conversation ID runs a self-scheduling loop:
+
+- **Interval**: 3 seconds while the tab is visible, 15 seconds while hidden
+  (`document.visibilityState`). The next tick is scheduled via `setTimeout`
+  *after* the previous response completes, so ticks never overlap (an
+  `inFlight` guard covers re-entry).
+- **Catch-up on tab return**: a `visibilitychange` listener fires an
+  immediate poll when the tab becomes visible again, so returning users
+  don't wait out a 15-second hidden-tab interval.
+- **Merging**: each poll response (latest 50 messages) is merged into local
+  state with the pure helpers in `lib/chatPolling.ts` — nothing is blindly
+  appended, so the sent-message echo and poll results never duplicate.
+- **Typing indicator**: `isTyping` is set while a send is in flight and
+  cleared when a `bot` message arrives via poll.
+- **Unread count**: recomputed from the poll response via `countUnread`
+  (unread bot/staff messages; the customer's own messages never count).
+
+### Terminal vs transient failures
+
+- **401 / 403 / 404** → polling stops **permanently** and the widget shows
+  "Chat session ended". These mean access is gone for good (conversation
+  deactivated or deleted, or session mismatch after logout); each further
+  tick would cost the server 2–3 DB queries with an answer that won't change.
+- **5xx and network errors** → silently retried on the next tick. The
+  `/api/chat/messages` route deliberately returns 500 (not 403) on transient
+  DB failures so a blip can't kill the loop.
+
+### Pure merge helpers (`lib/chatPolling.ts`)
 
 ```typescript
-// Real-time subscription setup
-const channel = supabase
-  .channel(`chat-${conversationId}`)
-  .on(
-    'postgres_changes',
-    {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'web_chat_messages',
-      filter: `conversation_id=eq.${conversationId}`,
-    },
-    (payload) => {
-      const newMessage = payload.new as ChatMessage;
-      setMessages(prev => [...prev, newMessage]);
+// Union prev + incoming by id (server copy wins), sorted by created_at
+// ascending (ties broken by id).
+mergeMessages(prev, incoming): ChatMessage[]
 
-      // Update unread count for staff messages
-      if (newMessage.sender_type === 'staff') {
-        setUnreadCount(prev => prev + 1);
-      }
-    }
-  )
-  .subscribe();
+// Incoming messages whose id is not already in prev — used to detect
+// whether a poll actually delivered anything new.
+diffNew(prev, incoming): ChatMessage[]
+
+// Unread messages from bot/staff (customer's own messages never count).
+countUnread(messages): number
 ```
 
-### Message Broadcasting
+These are side-effect-free and unit-testable; the hook owns all state and
+scheduling.
 
-When a message is sent:
+### Sent-message echo
 
-1. **Database Insert**: Message stored in `web_chat_messages`
-2. **Real-time Trigger**: Supabase broadcasts change to all subscribers
-3. **Client Update**: All connected clients receive message instantly
-4. **UI Update**: Message appears in chat window without refresh
+`POST /api/chat/send` returns the persisted message row (and any
+out-of-hours auto-reply) in its response. The hook merges those rows into
+state immediately via `mergeMessages`, so the sender's own bubble appears
+without waiting for the next poll — and when the poll later returns the same
+rows, the id-based merge dedupes them.
 
-### Connection Management
+### Delivery latency
 
-```typescript
-// Connection state handling
-useEffect(() => {
-  const handleConnectionChange = () => {
-    if (navigator.onLine) {
-      // Reconnect and sync messages
-      initializeChat();
-    } else {
-      // Show offline indicator
-      setError('Connection lost. Messages will sync when online.');
-    }
-  };
-
-  window.addEventListener('online', handleConnectionChange);
-  window.addEventListener('offline', handleConnectionChange);
-
-  return () => {
-    window.removeEventListener('online', handleConnectionChange);
-    window.removeEventListener('offline', handleConnectionChange);
-  };
-}, []);
-```
+| Scenario | Latency |
+|---|---|
+| Sender's own message | Immediate (echoed from the send response) |
+| Staff/bot reply, tab visible | ≤ 3 seconds |
+| Staff/bot reply, tab hidden | ≤ 15 seconds |
+| Tab returns to foreground | Immediate catch-up poll |
 
 ## 8. Integration with Backoffice
 
@@ -597,7 +659,8 @@ const replyToWebsiteChat = async (conversationId: string, message: string) => {
       sender_name: staffMember.name
     });
 
-  // Real-time subscription automatically delivers to customer
+  // The customer's widget picks this up on its next poll of
+  // /api/chat/messages (≤3s when their tab is visible)
 };
 ```
 
@@ -694,18 +757,22 @@ const MessageBubble = React.memo(({ message }: { message: ChatMessage }) => {
 
 #### Efficient Message Loading
 ```typescript
-// Load messages with pagination to avoid loading entire conversation history
-const loadMessages = useCallback(async (conversationId: string, limit = 50) => {
-  const { data } = await supabase
-    .from('web_chat_messages')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
+// Server-side, in /api/chat/messages: fetch the LATEST 50 rows descending,
+// then reverse so the response is ascending. Ascending+limit would return
+// the OLDEST 50 and hide new replies in long conversations — fatal for the
+// polling widget.
+const { data: messages } = await supabase
+  .from('web_chat_messages')
+  .select('*')
+  .eq('conversation_id', conversationId)
+  .order('created_at', { ascending: false })
+  .limit(50);
 
-  return data?.reverse() || []; // Show newest at bottom
-}, []);
+return NextResponse.json({ success: true, messages: (messages || []).reverse() });
 ```
+
+The 50-message window also bounds every poll's payload and the widget's
+in-memory state — the widget never accumulates an unbounded history.
 
 #### Optimistic Updates
 ```typescript
@@ -745,20 +812,20 @@ CREATE INDEX idx_sessions_user_active ON web_chat_sessions(user_id, last_seen_at
 
 #### Connection Pooling
 ```typescript
-// Supabase connection configuration
+// Supabase connection configuration (server-side service-role client)
 const supabaseConfig = {
   db: {
     pooler: {
       poolMode: 'transaction',
       maxConnections: 20
     }
-  },
-  realtime: {
-    maxChannels: 100,
-    enableHeartbeats: true
   }
 };
 ```
+
+Each poll costs the server 2–3 queries (conversation ownership check,
+optional anonymous-session check, message fetch) — this is why the widget
+permanently stops polling once access is confirmed lost (401/403/404).
 
 #### Query Optimization
 ```sql
@@ -777,34 +844,25 @@ ORDER BY wcc.last_message_at DESC;
 ### Memory Management
 
 #### Message History Limits
-```typescript
-// Limit messages in memory to prevent memory leaks
-const MAX_MESSAGES_IN_MEMORY = 200;
 
-const addMessage = (newMessage: ChatMessage) => {
-  setMessages(prev => {
-    const updated = [...prev, newMessage];
-    // Keep only recent messages in memory
-    return updated.length > MAX_MESSAGES_IN_MEMORY
-      ? updated.slice(-MAX_MESSAGES_IN_MEMORY)
-      : updated;
-  });
-};
-```
+Message state is bounded by construction: every poll returns at most the
+latest 50 messages, and `mergeMessages` unions by id, so in-memory state only
+grows past 50 by the handful of just-sent messages echoed from
+`/api/chat/send` before they fall out of the window. No separate cap or
+eviction logic is needed.
 
 #### Cleanup on Unmount
 ```typescript
-// Proper cleanup of subscriptions and timers
+// The polling effect cancels its loop, clears the pending timer, and
+// removes the visibilitychange listener on unmount / conversation change
 useEffect(() => {
+  // ...polling loop...
   return () => {
-    if (channel) {
-      supabase.removeChannel(channel);
-    }
-    if (typingTimer) {
-      clearTimeout(typingTimer);
-    }
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+    document.removeEventListener('visibilitychange', handleVisibility);
   };
-}, []);
+}, [skip, chatSession.conversationId, chatSession.sessionId]);
 ```
 
 ## 11. Deployment & Configuration
@@ -888,20 +946,20 @@ ALTER TABLE web_chat_messages ENABLE ROW LEVEL SECURITY;
 
 ### Supabase Configuration
 
-#### Real-time Settings
-```sql
--- Enable real-time for chat tables
-ALTER PUBLICATION supabase_realtime ADD TABLE web_chat_messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE web_chat_conversations;
-```
+#### No realtime publication needed
+
+The customer widget does **not** use Supabase realtime — message delivery is
+polling via `/api/chat/messages`. The chat tables do not need to be in the
+`supabase_realtime` publication for the widget to work.
 
 #### Permissions Setup
-```sql
--- Grant necessary permissions for authenticated users
-GRANT SELECT, INSERT, UPDATE ON web_chat_sessions TO authenticated;
-GRANT SELECT, INSERT, UPDATE ON web_chat_conversations TO authenticated;
-GRANT SELECT, INSERT, UPDATE ON web_chat_messages TO authenticated;
-```
+
+All widget access goes through server-side API routes using the service-role
+key; the browser never queries the chat tables directly. Anon SELECT on
+`web_chat_messages` was revoked in the 2026-07 Supabase security hardening —
+**do not re-grant anon or authenticated table access for the widget**. New
+chat features should follow the same pattern: an API route with
+`createServerClient()` plus an explicit ownership check.
 
 ### Next.js Configuration
 
@@ -928,7 +986,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 #### API Route Registration
 Ensure these API routes are available:
 - `/api/chat/initialize` - Session initialization
-- `/api/chat/send` - Message sending
+- `/api/chat/send` - Message sending (response echoes the persisted row)
+- `/api/chat/messages` - Message fetch (polled by the widget)
 - `/api/chat/mark-read` - Mark messages as read
 
 ## 12. Troubleshooting
@@ -958,34 +1017,35 @@ const getSessionId = useCallback(() => {
 }, [session?.user?.id]);
 ```
 
-#### 2. **Real-time Updates Not Working**
+#### 2. **New Messages Not Appearing (Polling Issues)**
 
-**Symptoms**: Messages don't appear instantly, require page refresh
+**Symptoms**: Staff replies don't show up in the widget, or only appear after
+reopening the chat
 
 **Diagnosis Steps**:
-```typescript
-// Check Supabase connection
-const testRealtimeConnection = async () => {
-  const channel = supabase.channel('test-channel');
-
-  channel.on('broadcast', { event: 'test' }, (payload) => {
-    console.log('Real-time working:', payload);
-  });
-
-  channel.subscribe((status) => {
-    console.log('Subscription status:', status);
-  });
-
-  // Test broadcast
-  channel.send({ type: 'broadcast', event: 'test', payload: { message: 'test' } });
-};
-```
+1. Open the browser Network tab and confirm `POST /api/chat/messages` fires
+   roughly every 3 seconds while the chat is open and the tab is visible
+   (every 15 seconds when the tab is hidden).
+2. Check the response status:
+   - **200 but stale content** — verify the reply row actually landed in
+     `web_chat_messages` with the right `conversation_id`. Also remember the
+     route returns only the **latest 50** messages; a "missing" old message
+     may simply have fallen out of the window.
+   - **401 / 403 / 404** — the widget stops polling permanently and shows
+     "Chat session ended". Expected after logout (session mismatch), or if
+     the conversation was deactivated or deleted. Reopening/reinitializing
+     the chat creates a fresh conversation context.
+   - **500** — transient; the loop retries on the next tick. Investigate
+     only if it persists (check server logs for the Supabase error).
+3. If no polls fire at all, verify `chatSession.conversationId` is set
+   (initialization succeeded) and the page isn't a LIFF page (the hook is
+   skipped there via the `skip` option).
 
 **Common Fixes**:
-- Verify `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- Check Supabase real-time settings
-- Ensure RLS policies allow real-time subscriptions
-- Verify table is added to `supabase_realtime` publication
+- Verify `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set
+  (the messages route uses the service-role client server-side)
+- For anonymous users, confirm `chat_session_id` in localStorage matches the
+  session the conversation was created under
 
 #### 3. **Database Connection Errors**
 
@@ -1114,32 +1174,22 @@ ORDER BY wcm.created_at DESC
 LIMIT 20;
 ```
 
-#### Test Real-time Subscription
+#### Test the Polled Messages Endpoint
 ```typescript
-// Test real-time connection
-const testRealtime = () => {
-  const channel = supabase
-    .channel('test-messages')
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'web_chat_messages'
-      },
-      (payload) => {
-        console.log('New message received:', payload.new);
-      }
-    )
-    .subscribe((status) => {
-      console.log('Subscription status:', status);
-    });
-
-  // Clean up
-  setTimeout(() => {
-    supabase.removeChannel(channel);
-    console.log('Test subscription cleaned up');
-  }, 10000);
+// From the browser console on the site (authenticated users need their
+// NextAuth cookie, which fetch sends automatically; anonymous users must
+// supply the sessionId from localStorage)
+const testMessagesEndpoint = async (conversationId) => {
+  const response = await fetch('/api/chat/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      conversationId,
+      sessionId: localStorage.getItem('chat_session_id'),
+    }),
+  });
+  console.log('Status:', response.status); // 403/404 => widget stops polling
+  console.log(await response.json());      // latest 50 messages, ascending
 };
 ```
 
@@ -1150,16 +1200,16 @@ const testRealtime = () => {
 Track these key metrics for chat system health:
 
 - **Message Delivery Rate**: Percentage of messages successfully delivered
-- **Real-time Connection Success**: Rate of successful WebSocket connections
+- **Polling Success Rate**: Share of `/api/chat/messages` polls returning 200 (watch for sustained 500s or unexpected 403s)
 - **Average Response Time**: Time between customer message and staff reply
 - **Session Persistence**: Percentage of returning users who see their message history
-- **Error Rates**: Database errors, API failures, real-time disconnections
+- **Error Rates**: Database errors, API failures, permanently-stopped poll loops ("Chat session ended")
 
 ### Regular Maintenance Tasks
 
 1. **Database Cleanup**: Remove old anonymous sessions (>30 days inactive)
 2. **Performance Monitoring**: Track query performance and optimize slow queries
-3. **Connection Monitoring**: Monitor real-time subscription health
+3. **Polling Health**: Monitor `/api/chat/messages` volume and error rates (each open, visible widget polls every 3s)
 4. **Security Updates**: Regular updates to dependencies and security patches
 5. **Backup Verification**: Ensure chat data is included in regular backups
 
