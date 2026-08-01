@@ -93,8 +93,18 @@ export function SetMenuCard({
       onClick={onSelect}
       aria-pressed={isSelected}
       /* The whole card is the control, so nothing inside it is interactive —
-         that keeps the tap target the full card without nesting buttons. */
-      className={`w-full text-left rounded-xl border-2 overflow-hidden transition-colors ${
+         that keeps the tap target the full card without nesting buttons.
+
+         Always a photo-over-content column: on a phone the grid in
+         `SessionStep` stacks the cards, from `md` up it sets them three
+         across, and the card itself does not need to know which. `h-full` +
+         `flex-col` exist for the grid case — the grid stretches all three
+         cards to the tallest row, and the flex chain (content `flex-1`,
+         includes `flex-1` inside it) spends the slack above the select pill,
+         so the three actions land on one line however long each includes
+         list runs. In the stacked case there is no slack and they are
+         inert. */
+      className={`w-full h-full flex flex-col text-left rounded-xl border-2 overflow-hidden transition-colors ${
         isSelected
           ? 'border-green-600 bg-green-50/60'
           : !isAvailable
@@ -104,7 +114,14 @@ export function SetMenuCard({
     >
       {/* The image slot. `imageSrc` wins, then the set's own photo, then the
           placeholder — so a set with no photography still renders a card of the
-          same height and nothing below it shifts. */}
+          same height and nothing below it shifts.
+          The slot is always the card's full width at 16/9 — the same ratio the
+          photography was cropped to. That matters: each set photo is a wide
+          spread (burger left, fries centre, drink right, edge to edge), so any
+          slot with a different shape puts `object-cover` in charge of deciding
+          which items survive. An earlier row-layout draft learned this the
+          hard way: its taller-than-wide slab cropped SET A down to the fries
+          plate and silently dropped the burger and the drink. */}
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-gradient-to-br from-green-50 via-emerald-50 to-amber-50">
         {resolvedImageSrc ? (
           <Image
@@ -112,7 +129,7 @@ export function SetMenuCard({
             alt={pkg.name}
             fill
             className="object-cover"
-            sizes="(min-width: 1024px) 640px, 100vw"
+            sizes="(min-width: 768px) 33vw, 100vw"
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-green-700/40">
@@ -129,15 +146,26 @@ export function SetMenuCard({
           </span>
         )}
 
-        {/* Duration sits on the image, top-right: load-bearing, because picking
-            this set overwrites whatever length the customer had chosen. */}
-        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-gray-900 shadow-sm tabular-nums">
-          <ClockIcon className="h-3.5 w-3.5 text-green-600" />
+        {/* Duration sits on the image, bottom-right: load-bearing, because
+            picking this set overwrites whatever length the customer had
+            chosen. Bottom rather than top so it can never collide with the
+            "Most Popular" ribbon: at the grid's narrowest column (~185px at a
+            1024px viewport) the two pills side by side outrun the image. */}
+        {/* Solid brand green at text-sm, not the 11px white whisper it started
+            as — the hours are the one figure on the photo, and the owner asked
+            for them to actually read at a glance. */}
+        <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-green-700 px-3 py-1 text-sm font-bold text-white shadow-md tabular-nums">
+          <ClockIcon className="h-4 w-4" />
           {tPkg('durationValue', { hours: pkg.duration })}
         </span>
       </div>
 
-      <div className="p-4 space-y-3">
+      {/* The flex chain described on the button: this column takes the height
+          the grid row leaves after the photo, and the includes list (`flex-1`
+          below) absorbs it, pinning the select pill to the card's bottom edge
+          in every column — three cards whose actions do not line up read as
+          three unrelated boxes. */}
+      <div className="p-4 space-y-3 flex flex-1 flex-col">
         {/* Name + tier. Both are brand/menu strings and stay untranslated,
             matching how `/play-and-food` renders them. */}
         <div className="flex items-baseline justify-between gap-2">
@@ -233,7 +261,7 @@ export function SetMenuCard({
         </div>
 
         {/* Itemised food and drinks, unlimited vs per-person preserved. */}
-        <div className="border-t border-gray-100 pt-3">
+        <div className="border-t border-gray-100 pt-3 flex-1">
           <p className="text-xs font-semibold text-gray-700 mb-1.5">{tPkg('includesLabel')}</p>
           <ul className="space-y-1 text-xs text-gray-600">
             <li>• {tPkg('simulatorUsage', { hours: pkg.duration })}</li>
