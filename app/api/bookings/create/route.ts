@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { createAdminClient } from '@/utils/supabase/admin';
+import { verifyLineIdToken } from '@/lib/auth/line-id-token';
 import type { Json } from '@/types/supabase';
 import { getGearUpItems } from '@/types/golf-club-rental';
 import { formatBookingData } from '@/utils/booking-formatter';
@@ -323,13 +324,54 @@ export async function POST(request: NextRequest) {
       : null;
 
     // 2. Authenticate user - support both NextAuth and LIFF context
-    const lineUserId = request.headers.get('x-line-user-id');
+    const claimedLineUserId = request.headers.get('x-line-user-id');
+
+    // The claimed id is an UNVERIFIED assertion: `x-line-user-id` is set by the
+    // client and anyone can send any value. Below it we mint profile rows, so
+    // this is a write path — the worst place for an unchecked identity.
+    //
+    // The fix is a LIFF ID token, which LINE signs. Rolled out in three steps so
+    // live LINE customers are never locked out mid-deploy:
+    //
+    //   A. client starts sending `x-line-id-token` alongside the old header;
+    //   B. THIS STEP — verify when a token is present, log when it is absent,
+    //      allow either way;
+    //   C. require a verified id, once the log line below goes quiet.
+    //
+    // A LIFF app reloads from Vercel on every launch, so the stale window is
+    // hours rather than the weeks an app-store rollout would need. Step C is a
+    // one-line change: drop the fallback to `claimedLineUserId`.
+    const verifiedLineUserId = await verifyLineIdToken(
+      request.headers.get('x-line-id-token')
+    );
+
+    if (claimedLineUserId && !verifiedLineUserId) {
+      // GATE FOR STEP C. Grep for this in Vercel logs; when the rate reaches
+      // zero, every live client is sending a token and enforcement is safe.
+      console.warn('[LineAuth] legacy-header-only booking create; no verified token');
+    }
+    if (
+      verifiedLineUserId &&
+      claimedLineUserId &&
+      verifiedLineUserId !== claimedLineUserId
+    ) {
+      // The client asserted one identity and proved another. Either a bug or an
+      // attempt; refuse outright rather than picking one.
+      console.error('[LineAuth] claimed LINE id does not match the verified token');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Prefer the proven identity. Falls back to the claimed one only while step
+    // B is in force.
+    const lineUserId = verifiedLineUserId ?? claimedLineUserId;
 
     if (lineUserId) {
       // LIFF context - get profile from profiles table
       // Customer matching will happen via findOrCreateCustomer() same as website flow
       isLiffContext = true;
-      console.log('[LIFF Auth] Authenticating with LINE user ID:', lineUserId);
+      console.log('[LIFF Auth] Authenticating with LINE user ID:', lineUserId, {
+        verified: Boolean(verifiedLineUserId),
+      });
 
       const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')

@@ -25,6 +25,19 @@ export interface LiffMethods {
   isLoggedIn: () => boolean;
   login: (config?: { redirectUri?: string }) => void;
   getProfile: () => Promise<LiffProfile>;
+  /**
+   * The LINE-issued ID token for the current session, or null when the channel
+   * lacks the `openid` scope.
+   *
+   * This is the only value from the SDK that is PROOF of identity —
+   * `getProfile().userId` is a plain client-side string that anything could
+   * supply. Verify it server-side (`lib/auth/line-id-token.ts`) rather than
+   * trusting a user id off the wire.
+   *
+   * Optional in this type because it is absent from older SDK builds, and the
+   * rollout has to tolerate a webview that predates it.
+   */
+  getIDToken?: () => string | null;
   isApiAvailable: (apiName: string) => boolean;
   shareTargetPicker: (messages: unknown[]) => Promise<void>;
   closeWindow?: () => void;
