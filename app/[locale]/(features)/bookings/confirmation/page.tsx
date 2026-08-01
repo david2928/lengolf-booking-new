@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import { redirect } from '@/i18n/navigation';
 import type { Database } from '@/types/supabase';
 import { Layout } from '../components/booking/Layout';
 import { ConfirmationContent } from '../components/booking/ConfirmationContent';
@@ -22,14 +22,17 @@ export default async function ConfirmationPage({
   searchParams: Promise<{ id?: string }>;
 }) {
   const { id } = await searchParams;
-  
+  // next-intl's `redirect` requires an explicit locale on the server — there is
+  // no client context to infer it from.
+  const locale = await getLocale();
+
   if (!id) {
-    redirect('/bookings');
+    redirect({ href: '/bookings', locale });
   }
 
   const session = await getServerSession(authOptions);
   if (!session) {
-    redirect('/auth/login');
+    redirect({ href: '/auth/login', locale });
   }
 
   // Create a Supabase client with service role key to access booking data
@@ -51,7 +54,7 @@ export default async function ConfirmationPage({
     .single();
 
   if (bookingError || !booking) {
-    redirect('/bookings');
+    redirect({ href: '/bookings', locale });
   }
 
   return (

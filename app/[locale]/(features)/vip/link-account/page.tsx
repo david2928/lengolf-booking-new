@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import ManualLinkAccountForm from '@/components/vip/ManualLinkAccountForm';
 import { useVipContext } from '../contexts/VipContext';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // User needs to ensure this component is installed (e.g., npx shadcn-ui@latest add alert)
 

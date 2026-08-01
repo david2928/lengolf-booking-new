@@ -1,11 +1,10 @@
 'use client';
 
 import React, { ReactNode, useState, useEffect, useCallback, useRef } from 'react';
-import Link from 'next/link';
+import { Link, useRouter, getPathname } from '@/i18n/navigation';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
-import { redirect } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { ChevronDown, User, Package, Calendar, LogOut, Trophy, LinkIcon, ExternalLink } from 'lucide-react';
 import { XMarkIcon, FireIcon } from '@heroicons/react/24/outline';
 import { VipContextProvider, VipContextType, VipSharedData } from './contexts/VipContext';
@@ -22,6 +21,8 @@ interface VipLayoutProps {
 
 const VipLayout = ({ children }: VipLayoutProps) => {
   const { data: session, status: sessionStatus } = useSession();
+  const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations('vip.common');
   const tLayout = useTranslations('vip.layout');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -127,13 +128,19 @@ const VipLayout = ({ children }: VipLayoutProps) => {
 
   useEffect(() => {
     if (sessionStatus === 'unauthenticated') {
-      redirect('/auth/login?callbackUrl=/vip'); // Updated to redirect to /vip instead of /vip/dashboard
+      // `router.replace` (not `redirect`) is the right primitive inside an
+      // effect, and it infers the locale. The callbackUrl is consumed by
+      // NextAuth rather than the router, so it needs an explicit prefix.
+      router.replace({
+        pathname: '/auth/login',
+        query: { callbackUrl: getPathname({ href: '/vip', locale }) },
+      });
     }
 
     if (sessionStatus === 'authenticated') {
       fetchVipStatus();
     }
-  }, [sessionStatus, fetchVipStatus]);
+  }, [sessionStatus, fetchVipStatus, router, locale]);
 
   // Check if user has any bookings for promotion bar display
   useEffect(() => {
@@ -160,7 +167,8 @@ const VipLayout = ({ children }: VipLayoutProps) => {
       lastFetchTime: null,
       sessionId: null,
     };
-    await signOut({ callbackUrl: '/' }); // Redirect to homepage after sign out
+    // Redirect to homepage after sign out, staying in the current locale.
+    await signOut({ callbackUrl: getPathname({ href: '/', locale }) });
   };
   
   const toggleMobileMenu = () => {

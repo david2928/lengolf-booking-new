@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useLocale } from 'next-intl';
+import { useRouter, getPathname } from '@/i18n/navigation';
 import { getPlayFoodPackages, type PlayFoodPackage } from '@/types/play-food-packages';
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
@@ -13,6 +15,7 @@ export function useBookingFlow() {
   const { status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const locale = useLocale();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -138,7 +141,9 @@ export function useBookingFlow() {
 
   const handleDateSelect = (date: Date) => {
     if (status === 'unauthenticated') {
-      let callbackUrl = `/bookings?selectDate=${date.toISOString()}`;
+      // NextAuth hard-redirects to this raw string, bypassing the locale-aware
+      // router, so the prefix has to be baked in here.
+      let callbackUrl = `${getPathname({ href: '/bookings', locale })}?selectDate=${date.toISOString()}`;
       if (selectedPackage) {
         callbackUrl += `&package=${selectedPackage.id}`;
       }

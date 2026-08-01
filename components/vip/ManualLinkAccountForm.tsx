@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { linkAccount } from '../../lib/vipService';
 import { VipApiError } from '../../types/vip';
 import { useVipContext } from '@/app/[locale]/(features)/vip/contexts/VipContext';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Phone, CheckCircle, AlertCircle } from 'lucide-react';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';

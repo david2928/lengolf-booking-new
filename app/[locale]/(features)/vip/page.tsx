@@ -7,7 +7,7 @@ import { useVipContext } from './contexts/VipContext';
 import { getVipProfile, getVipBookings, getVipPackages } from '@/lib/vipService'; // Adjusted path
 import { VipProfileResponse, VipBooking, VipBookingsResponse, VipPackagesResponse, VipApiError } from '@/types/vip'; // Adjusted path
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 
 // Define the local Booking type for DashboardView prop matching
 interface DashboardBooking {

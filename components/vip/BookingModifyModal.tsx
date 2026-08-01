@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cancelVipBooking } from '../../lib/vipService';
 import { VipApiError } from '../../types/vip';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
 interface BookingModifyModalProps {

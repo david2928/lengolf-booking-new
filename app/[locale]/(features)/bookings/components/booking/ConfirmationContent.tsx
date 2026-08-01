@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Link } from '@/i18n/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { Booking } from '@/types';
 import { type ApplicablePromotion } from '@/lib/cost-calculator';
 import {

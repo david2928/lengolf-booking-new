@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { useSession } from 'next-auth/react';
 import { getCurrentBangkokTime } from '@/utils/date';
 

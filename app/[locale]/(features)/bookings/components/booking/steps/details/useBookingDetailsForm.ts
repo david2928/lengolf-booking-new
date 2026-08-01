@@ -8,7 +8,7 @@ import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import { format } from 'date-fns';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
@@ -247,7 +247,7 @@ export function useBookingDetailsForm({
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+      router.push('/auth/login');
     }
   }, [status, router]);
 
@@ -564,7 +564,7 @@ export function useBookingDetailsForm({
 
     if (!session) {
       toast.error(tErrors('signInToContinue'));
-      router.push('/auth/signin');
+      router.push('/auth/login');
       return;
     }
 

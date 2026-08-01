@@ -10,7 +10,35 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => ({
     get: jest.fn(),
   }),
+  // next-intl's `useLocale` resolves the active locale through `useParams()`,
+  // so this has to be present or every component using it throws.
+  useParams: () => ({ locale: 'en' }),
 }));
+
+// Mock the locale-aware navigation re-exports. App code imports these instead
+// of `next/navigation` / `next/link` so the locale prefix survives (see
+// eslint.config.mjs), and the real ones call `useLocale()`, which throws
+// without a NextIntlClientProvider in the tree.
+jest.mock('@/i18n/navigation', () => {
+  const React = require('react');
+  return {
+    useRouter: () => ({
+      push: jest.fn(),
+      replace: jest.fn(),
+      prefetch: jest.fn(),
+      back: jest.fn(),
+    }),
+    usePathname: () => '/',
+    redirect: jest.fn(),
+    getPathname: ({ href }) => (typeof href === 'string' ? href : href.pathname),
+    Link: ({ href, children, ...props }) =>
+      React.createElement(
+        'a',
+        { href: typeof href === 'string' ? href : href?.pathname, ...props },
+        children,
+      ),
+  };
+});
 
 // Mock cache functions
 jest.mock('@/lib/cache', () => ({

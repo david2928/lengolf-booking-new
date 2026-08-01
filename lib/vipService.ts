@@ -15,8 +15,23 @@ import {
   ApiErrorPayload,
   VipApiError,
 } from '../types/vip';
+import { getPathname } from '@/i18n/navigation';
+import { isValidLocale, routing } from '@/i18n/routing';
 
 const VIP_API_BASE_URL = '/api/vip';
+
+/**
+ * Resolve the active locale outside of React. This module is a plain API client
+ * shared by many callers, so threading a locale parameter through every export
+ * would be far more invasive than the one place that needs it. The root layout
+ * renders `<html lang={locale}>`, so that attribute is the authoritative value
+ * for the current request. Only reached in the browser (the force-logout path).
+ */
+function getCurrentLocale() {
+  if (typeof document === 'undefined') return routing.defaultLocale;
+  const lang = document.documentElement.lang;
+  return isValidLocale(lang) ? lang : routing.defaultLocale;
+}
 
 async function fetchVipApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const startTime = performance.now();
@@ -53,7 +68,9 @@ async function fetchVipApi<T>(endpoint: string, options: RequestInit = {}): Prom
         console.warn('[VIP API] Force logout requested due to stale session');
         // Import signOut dynamically to avoid circular dependencies
         import('next-auth/react').then(({ signOut }) => {
-          signOut({ callbackUrl: '/auth/login' });
+          signOut({
+            callbackUrl: getPathname({ href: '/auth/login', locale: getCurrentLocale() }),
+          });
         });
       }
       

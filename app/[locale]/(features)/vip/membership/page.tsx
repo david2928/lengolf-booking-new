@@ -1,7 +1,7 @@
 import React from 'react';
 import { Construction } from 'lucide-react';
 import { Button } from '@/components/ui/button'; // Assuming Button component is available
-import Link from 'next/link'; // For optional button
+import { Link } from '@/i18n/navigation'; // For optional button
 import { getTranslations } from 'next-intl/server';
 
 const MembershipComingSoonPage = async () => {
