@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/options';
+import { authOptions } from '@/app/api/auth/options';
+import { denyVipAccess } from '@/lib/auth/vip-access';
 import { createAdminClient } from '@/utils/supabase/admin';
 
 interface LinkAccountSessionUser {
@@ -18,6 +19,12 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  // Authenticated, but a GUEST session is resolved on email alone, so it
+  // is not proof of identity — see lib/auth/vip-access.ts. Kept separate
+  // from the check above so that one still narrows `session` for the rest
+  // of this handler.
+  const denial = denyVipAccess(session);
+  if (denial) return denial;
 
   const profileId = session.user.id;
 

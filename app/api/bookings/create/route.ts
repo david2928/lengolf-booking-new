@@ -841,6 +841,15 @@ export async function POST(request: NextRequest) {
             // un-tick — note: we only carry-over upward from false→true, never
             // the other direction).
             let shouldOptIn = marketingOptInForm;
+            // Which SURFACE actually collected the consent, tracked alongside the
+            // decision rather than inferred from it. This used to be derived as
+            // `isNewCustomer ? 'guest_signup' : 'booking_form'`, which recorded
+            // every first-time customer's booking-form tick as a guest signup —
+            // the two questions are unrelated, and `marketing_opt_in_source` is
+            // the column a PDPA audit reads. It is doubly wrong now that the
+            // booking flow mints guests silently and passes no consent at all,
+            // so `guest_signup` can only ever mean the standalone GuestForm.
+            let source: 'booking_form' | 'guest_signup' = 'booking_form';
             if (!shouldOptIn && isNewCustomer) {
               const { data: profileRow, error: profileLookupError } = await supabase
                 .from('profiles')
@@ -854,6 +863,8 @@ export async function POST(request: NextRequest) {
                 );
               } else if (profileRow?.marketing_preference === true) {
                 shouldOptIn = true;
+                // The only path where the consent did NOT come from this form.
+                source = 'guest_signup';
               }
             }
 
@@ -872,7 +883,6 @@ export async function POST(request: NextRequest) {
                   { customerId, isNewCustomer }
                 );
               } else {
-                const source = isNewCustomer ? 'guest_signup' : 'booking_form';
                 // Awaited, not fired and forgotten. This write was lost for three
                 // months in 2026 to an unapplied migration and the warning below is
                 // the only alarm for it — a torn-down socket would silence that too.

@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/options';
+import { authOptions } from '@/app/api/auth/options';
+import { denyVipAccess } from '@/lib/auth/vip-access';
 import { createServerClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import type { Session as NextAuthSession, User as NextAuthUser } from 'next-auth';
@@ -61,6 +62,17 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
   if (cancellationReason !== undefined && cancellationReason !== null && typeof cancellationReason !== 'string') {
     return NextResponse.json({ error: 'cancellation_reason must be a string or null if provided' }, { status: 400 });
   }
+
+  // A guest session may not cancel through the VIP surface. It is resolved on
+  // email alone (see lib/auth/vip-access.ts), so it is not proof of identity —
+  // and cancelling is destructive, which makes this stricter than the read
+  // routes rather than looser.
+  //
+  // Placed BEFORE the branching on purpose: a guest session would otherwise
+  // take the first branch below and never be examined. The LIFF path is
+  // untouched, because it authenticates a LINE profile rather than a guest one.
+  const guestDenial = denyVipAccess(session);
+  if (session?.user?.id && guestDenial) return guestDenial;
 
   // Support both NextAuth session and LINE userId authentication
   let profileId: string;
