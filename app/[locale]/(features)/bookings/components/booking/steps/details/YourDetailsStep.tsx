@@ -7,6 +7,7 @@ import { BookingReviewPanel } from './BookingReviewPanel';
 import type { CostBreakdown } from '@/lib/cost-calculator';
 import { IdentityCard, isIdentityComplete } from './IdentityCard';
 import { ConsentNote } from './ConsentNote';
+import { InFlowSignIn } from './InFlowSignIn';
 
 /**
  * Whether the customer is already on the marketing list, and so should be shown
@@ -40,6 +41,10 @@ export interface YourDetailsStepProps {
   /** `errors.email` — already translated inside the form hook. */
   emailError: string;
   isLineUser: boolean;
+  /** Hides the in-flow sign-in row for customers who are already signed in. */
+  isSignedIn: boolean;
+  /** Locale-prefixed, query-free return path for the in-flow sign-in row. */
+  signInCallbackUrl: string;
   customerNotes: string;
   setCustomerNotes: (value: string) => void;
   costBreakdown: CostBreakdown | null;
@@ -104,6 +109,8 @@ export function YourDetailsStep({
   phoneNumberError,
   emailError,
   isLineUser,
+  isSignedIn,
+  signInCallbackUrl,
   customerNotes,
   setCustomerNotes,
   costBreakdown,
@@ -147,6 +154,22 @@ export function YourDetailsStep({
         ) : (
         <>
         <h3 className="text-sm font-semibold text-gray-900 mb-4">{t('contactInformation')}</h3>
+
+        {/* Sign-in as a shortcut, above the fields it saves the customer
+            filling in. Hidden once they are signed in — there is nothing left
+            to offer — and hidden behind the IdentityCard branch above, because
+            a customer whose details are already complete has nothing to gain
+            either. */}
+        {!isSignedIn && (
+          <div className="mb-4">
+            <InFlowSignIn
+              name={name}
+              email={email}
+              phoneNumber={phoneNumber}
+              callbackUrl={signInCallbackUrl}
+            />
+          </div>
+        )}
 
         <div className="space-y-4">
           {/* Name field */}

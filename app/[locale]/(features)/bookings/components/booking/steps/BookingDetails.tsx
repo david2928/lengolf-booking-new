@@ -90,6 +90,8 @@ export function BookingDetails(props: BookingDetailsProps) {
     creditBalance,
     packageDisplayName,
     isLineUser,
+    isSignedIn,
+    signInCallbackUrl,
     costBreakdown,
     costDataLoading,
     handleSubmit,
@@ -328,6 +330,8 @@ export function BookingDetails(props: BookingDetailsProps) {
               phoneNumberError={errors.phoneNumber}
               emailError={errors.email}
               isLineUser={isLineUser}
+              isSignedIn={isSignedIn}
+              signInCallbackUrl={signInCallbackUrl}
               customerNotes={customerNotes}
               setCustomerNotes={setCustomerNotes}
               costBreakdown={costBreakdown}

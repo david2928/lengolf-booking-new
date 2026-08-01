@@ -343,7 +343,10 @@
       "summaryRailHours": "{hours} ชม.",
       "errorNeedName": "กรุณากรอกชื่อเพื่อยืนยันการจอง",
       "errorNeedPhone": "กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง",
-      "errorNeedEmail": "กรุณากรอกอีเมลเพื่อรับการยืนยันการจอง"
+      "errorNeedEmail": "กรุณากรอกอีเมลเพื่อรับการยืนยันการจอง",
+      "signInPromptTitle": "ประหยัดเวลาพิมพ์",
+      "signInPromptBody": "เข้าสู่ระบบแล้วเราจะกรอกข้อมูลที่เรามีให้",
+      "signInPromptDivider": "หรือกรอกเอง"
     },
     "confirmation": {
       "pageTitle": "ยืนยันการจอง - LENGOLF",

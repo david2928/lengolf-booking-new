@@ -57,6 +57,8 @@ const baseProps: YourDetailsStepProps = {
   phoneNumberError: '',
   emailError: '',
   isLineUser: false,
+  isSignedIn: false,
+  signInCallbackUrl: '/bookings',
   customerNotes: '',
   setCustomerNotes: () => {},
   costBreakdown: null,

@@ -30,6 +30,8 @@ import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
 import { firstIncompleteContactField } from './IdentityCard';
 import { shouldWriteProfile } from './profileWriteBack';
 import { formatFlowDate } from './summarySubline';
+import { localePath } from '@/i18n/locale-path';
+import { takeContactDraft } from './contactDraft';
 
 /**
  * The balance half of `/api/user/active-packages`.
@@ -199,6 +201,25 @@ export function useBookingDetailsForm({
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+
+  /**
+   * Restore whatever the customer had typed before leaving for a provider.
+   *
+   * Runs once on mount, BEFORE the profile and VIP prefill effects have
+   * resolved, and `takeContactDraft` clears the key as it reads — so this can
+   * only ever fire for the one navigation it was written for.
+   *
+   * Fills blanks only. If prefill somehow won the race, what the profile
+   * supplied is at least as good as what the customer typed, and overwriting it
+   * would make the fields flicker between two values.
+   */
+  useEffect(() => {
+    const draft = takeContactDraft();
+    if (!draft) return;
+    if (draft.name) setName((current) => current || draft.name);
+    if (draft.email) setEmail((current) => current || draft.email);
+    if (draft.phoneNumber) setPhoneNumber((current) => current || draft.phoneNumber);
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
@@ -1014,6 +1035,18 @@ export function useBookingDetailsForm({
      is bound to the app locale and so cannot compose English as `en-GB`. */
 
   const isLineUser = session?.user?.provider === 'line';
+  // Drives the in-flow sign-in row. `status` rather than `!!session` so the
+  // row does not flash in during the brief 'loading' window for a customer
+  // who IS signed in and should never be offered it.
+  const isSignedIn = status === 'authenticated';
+  /**
+   * Return target for the in-flow sign-in row.
+   *
+   * MUST stay query-free: `useBookingFlow` treats `selectDate`/`package`/`club`
+   * as a deep link and skips its sessionStorage restore entirely, so one stray
+   * parameter here silently discards the in-progress booking on the way back.
+   */
+  const signInCallbackUrl = localePath('/bookings', locale);
 
   // Returns the id of the first incomplete required field, or null if valid.
   // Order matters: it is the order the customer reads the form in.
@@ -1178,6 +1211,8 @@ export function useBookingDetailsForm({
     creditBalance,
     packageDisplayName,
     isLineUser,
+    isSignedIn,
+    signInCallbackUrl,
     costBreakdown,
     costDataLoading,
     // Handlers
