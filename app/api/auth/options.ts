@@ -11,6 +11,7 @@ import type { User } from 'next-auth';
 import type { Account } from 'next-auth';
 import type { Profile as OAuthProfile } from 'next-auth';
 import jwt from 'jsonwebtoken'; // For minting Supabase JWT
+import { buildGuestProfileUpdate } from '@/lib/auth/guest-profile';
 
 if (!process.env.NEXTAUTH_SECRET) {
   throw new Error('Please provide process.env.NEXTAUTH_SECRET');
@@ -130,30 +131,33 @@ export const authOptions: NextAuthOptions = {
 
         const supabase = supabaseAdminClient;
 
+        // `.single()` here used to ERROR whenever an email had more than one
+        // guest row (three do in production, one of them a shared service
+        // account with 150+ bookings). The error was discarded, so the function
+        // fell through and minted yet another duplicate on every sign-in.
+        // Order + limit + maybeSingle resolves the duplicates deterministically
+        // instead: most recently used wins, and because the row we pick is the
+        // one we then touch, the choice is stable across sign-ins.
         const { data: existingProfile } = await supabase
           .from('profiles')
           .select('*')
           .eq('email', credentials.email)
           .eq('provider', 'guest')
-          .single();
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
         if (existingProfile) {
-          // Upgrade-only: ticking the box re-affirms consent on the existing
-          // profile, but unticking it never silently revokes a prior opt-in.
-          // Customers revoke deliberately via the preference center.
-          const updatePayload: {
-            display_name: string;
-            phone_number: string;
-            updated_at: string;
-            marketing_preference?: boolean;
-          } = {
-            display_name: credentials.name,
-            phone_number: credentials.phone,
-            updated_at: new Date().toISOString()
-          };
-          if (marketingOptIn) {
-            updatePayload.marketing_preference = true;
-          }
+          // This branch is reached on nothing more than a matching email, so
+          // name and phone are unverified claims. Fill gaps, never overwrite —
+          // see lib/auth/guest-profile.ts for why.
+          const updatePayload = buildGuestProfileUpdate({
+            stored: existingProfile,
+            suppliedName: credentials.name,
+            suppliedPhone: credentials.phone,
+            marketingOptIn,
+            now: new Date().toISOString()
+          });
 
           const { data: profile } = await supabase
             .from('profiles')
