@@ -65,6 +65,7 @@ export function InFlowSignIn({ name, email, phoneNumber, callbackUrl }: InFlowSi
           <ProviderButtons
             callbackUrl={callbackUrl}
             layout="compact"
+            surface="booking_details"
             // OAuth is a FULL-DOCUMENT navigation. Without this the very button
             // we just added would destroy whatever the customer had already
             // typed. Written synchronously in the click handler — anything

@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { FaLine, FaFacebook } from 'react-icons/fa';
 import { detectInAppBrowser, blocksGoogleOAuth, type InAppBrowser } from '@/lib/in-app-browser';
+import { pushAuthProviderChosen, type AuthSurface } from '@/lib/booking-telemetry';
 
 /**
  * The OAuth provider buttons, shared by `/auth/login` and the in-flow sign-in
@@ -57,6 +58,14 @@ interface ProviderButtonsProps {
   onBeforeSignIn?: (provider: ProviderId) => void;
   /** Reserve vertical space so the post-hydration settle cannot shift layout. */
   minHeightClass?: string;
+  /**
+   * Which surface offered the sign-in, for the funnel.
+   *
+   * Emitted as a dataLayer event rather than left for GTM to scrape off the
+   * button: the existing triggers match click TEXT, which ties them to the
+   * exact English copy and has never matched a Thai or Japanese click at all.
+   */
+  surface: AuthSurface;
 }
 
 export function ProviderButtons({
@@ -64,6 +73,7 @@ export function ProviderButtons({
   layout = 'stacked',
   onBeforeSignIn,
   minHeightClass,
+  surface,
 }: ProviderButtonsProps) {
   const t = useTranslations('auth.login');
   const [browserType, setBrowserType] = useState<InAppBrowser>(null);
@@ -90,6 +100,7 @@ export function ProviderButtons({
 
   const handleSignIn = async (provider: ProviderId) => {
     onBeforeSignIn?.(provider);
+    pushAuthProviderChosen(provider, surface);
     setLoadingProvider(provider);
     try {
       await signIn(provider, { callbackUrl });

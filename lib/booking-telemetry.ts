@@ -30,3 +30,25 @@ export function pushBayBookingStepViewed(currentStep: number): void {
     total_steps: BAY_BOOKING_STEPS.length,
   });
 }
+
+/** Where a sign-in was offered. Distinguishes the surfaces in the funnel. */
+export type AuthSurface = 'login_page' | 'booking_details' | 'confirmation_upsell';
+
+/**
+ * A customer chose a sign-in provider.
+ *
+ * A real dataLayer event rather than something GTM scrapes off the button.
+ * The existing triggers for this match CLICK TEXT — "Continue with Google" and
+ * friends — which makes them silently dependent on two things they should not
+ * be: the exact copy, and the language it is rendered in. The in-flow row
+ * labels its buttons with the brand alone, so those triggers would simply stop
+ * counting it, and no Thai or Japanese click has ever matched them at all.
+ *
+ * `surface` is what click-text can never tell you anyway: the same three
+ * providers now appear on the login page, inside the booking form, and on the
+ * confirmation upsell, and the whole point of the funnel work is knowing which
+ * of them converts.
+ */
+export function pushAuthProviderChosen(provider: string, surface: AuthSurface): void {
+  pushEventToGtm('auth_provider_chosen', { provider, surface });
+}

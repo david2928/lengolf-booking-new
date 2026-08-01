@@ -102,6 +102,7 @@ export function ConfirmationUpsell({
       <ProviderButtons
         callbackUrl={callbackUrl}
         layout="compact"
+        surface="confirmation_upsell"
         // Stored synchronously before the redirect, exactly like the contact
         // draft on the details step. Anything async races the navigation.
         onBeforeSignIn={() => saveClaimHandoff({ bookingId, token: claimToken })}

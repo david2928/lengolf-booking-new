@@ -122,7 +122,7 @@ export default function LoginPage() {
         {/* Provider gating, ordering, loading state and the in-app-browser
             warning all live in ProviderButtons, shared with the booking flow's
             in-flow sign-in row. */}
-        <ProviderButtons callbackUrl={callbackUrl} layout="stacked" />
+        <ProviderButtons callbackUrl={callbackUrl} layout="stacked" surface="login_page" />
 
         {/* Guest entry point in its normal position. Suppressed when the error
             banner has already promoted it above, so it never appears twice. */}
