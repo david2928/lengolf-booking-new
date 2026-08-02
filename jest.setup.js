@@ -12,22 +12,60 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-// Mock cache functions
-jest.mock('@/lib/cache', () => ({
-  calendarCache: {
-    get: jest.fn(),
-    set: jest.fn(),
-  },
-  authCache: {
-    get: jest.fn(),
-    set: jest.fn(),
-  },
-  getCacheKey: {
-    auth: jest.fn(),
-    calendar: jest.fn(),
-  },
-  updateCalendarCache: jest.fn(),
-}));
+// Mock cache functions.
+//
+// `appCache` is a WORKING in-memory fake rather than a jest.fn() stub, and that
+// difference matters: it is a real read-through cache in production (the LINE
+// ID-token verifier, the LIFF data routes), so code that uses it has behaviour
+// worth testing — a second call must not re-hit the network, an entry must
+// expire, a key must not contain a secret. Stubs would let all of that pass
+// vacuously.
+//
+// It was previously absent from this mock altogether, which made every
+// `appCache` consumer resolve to `undefined` under test and threw on first use.
+jest.mock('@/lib/cache', () => {
+  const makeCache = () => {
+    const store = new Map();
+    const alive = (entry) => entry && (entry.expiresAt === null || entry.expiresAt > Date.now());
+    return {
+      get: (key) => {
+        const entry = store.get(key);
+        if (!alive(entry)) {
+          store.delete(key);
+          return undefined;
+        }
+        return entry.value;
+      },
+      set: (key, value, ttlSeconds) => {
+        store.set(key, {
+          value,
+          expiresAt: typeof ttlSeconds === 'number' ? Date.now() + ttlSeconds * 1000 : null,
+        });
+        return true;
+      },
+      del: (key) => (store.delete(key) ? 1 : 0),
+      keys: () => Array.from(store.keys()).filter((k) => alive(store.get(k))),
+      flushAll: () => store.clear(),
+    };
+  };
+
+  return {
+    calendarCache: {
+      get: jest.fn(),
+      set: jest.fn(),
+    },
+    authCache: {
+      get: jest.fn(),
+      set: jest.fn(),
+    },
+    appCache: makeCache(),
+    getCacheKey: {
+      auth: jest.fn(),
+      calendar: jest.fn(),
+    },
+    updateCalendarCache: jest.fn(),
+  };
+});
 
 // Mock debug functions
 jest.mock('@/lib/debug', () => ({

@@ -67,6 +67,13 @@ export default function LiffBookingPage() {
   const [viewState, setViewState] = useState<ViewState>('loading');
   const [bookingStep, setBookingStep] = useState<BookingStep>('date');
   const [lineUserId, setLineUserId] = useState('');
+  /**
+   * LINE-issued proof of identity, sent alongside the legacy `x-line-user-id`
+   * header. The header is a plain client-supplied string and the server used to
+   * trust it outright; the token is what actually establishes who this is.
+   * Both are sent while the server-side rollout is non-enforcing.
+   */
+  const [lineIdToken, setLineIdToken] = useState('');
   const [language, setLanguage] = useState<Language>('en');
   const [error, setError] = useState('');
 
@@ -185,6 +192,21 @@ export default function LiffBookingPage() {
 
       const profile = await window.liff.getProfile();
       setLineUserId(profile.userId);
+
+      // The signed proof of who this is. `getProfile().userId` is just a
+      // client-side value — it is what the server used to trust, and anyone
+      // could send any string in its place. The ID token is issued by LINE and
+      // verified server-side against the LIFF app's own Login channel.
+      //
+      // Best-effort on purpose: if it is unavailable the booking still goes
+      // through on the legacy header while the rollout is in its non-enforcing
+      // phase. `getIDToken` returns null when the channel lacks the `openid`
+      // scope, and throws if called before init resolves.
+      try {
+        setLineIdToken(window.liff.getIDToken?.() ?? '');
+      } catch (tokenErr) {
+        console.warn('[Booking] Could not read LIFF ID token:', tokenErr);
+      }
 
       await loadUserData(profile.userId);
 
@@ -437,7 +459,11 @@ export default function LiffBookingPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-line-user-id': lineUserId
+          // Unverified assertion, kept only until the server-side rollout stops
+          // accepting it. The server prefers the id proven by the token below
+          // and refuses outright if the two disagree.
+          'x-line-user-id': lineUserId,
+          ...(lineIdToken ? { 'x-line-id-token': lineIdToken } : {}),
         },
         body: JSON.stringify(bookingData)
       });

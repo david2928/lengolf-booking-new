@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 // Type-only namespace import: `handleSubmit` keeps its original
 // `React.FormEvent` annotation and this file has no JSX.
 import type * as React from 'react';
@@ -11,7 +11,7 @@ import type { Database } from '@/types/supabase';
 import { useRouter } from 'next/navigation';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession, signIn, getSession } from 'next-auth/react';
 import type { Session } from 'next-auth';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
@@ -30,6 +30,10 @@ import type { DetailSubStep, DetailsSubStepNav } from './useDetailsSubStep';
 import { firstIncompleteContactField } from './IdentityCard';
 import { shouldWriteProfile } from './profileWriteBack';
 import { formatFlowDate } from './summarySubline';
+import { localePath } from '@/i18n/locale-path';
+import { takeContactDraft } from './contactDraft';
+import { toE164 } from '@/lib/phone-e164';
+import { saveClaimToken } from '../../claimHandoff';
 
 /**
  * The balance half of `/api/user/active-packages`.
@@ -199,6 +203,58 @@ export function useBookingDetailsForm({
   const [phoneNumber, setPhoneNumber] = useState<string | undefined>(undefined);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+
+  /**
+   * Has the customer touched the contact fields themselves?
+   *
+   * Prefill arrives from two async sources (`/api/vip/profile`, then `profiles`
+   * as a fallback) that resolve whenever the network says so — which can be
+   * AFTER someone has started typing. Without this guard a slow fetch silently
+   * replaces what they wrote, and the faster your connection the less likely
+   * you are to catch it in testing.
+   *
+   * A ref rather than state: it must be readable inside those effects without
+   * re-running them, and setting it must not trigger a render.
+   */
+  const userEditedContact = useRef(false);
+
+  /**
+   * The setters this hook hands out. Anything set through these came from a
+   * customer keystroke, so it latches `userEditedContact` and freezes prefill
+   * for every field. Prefill itself uses the raw setters above and so cannot
+   * trip its own guard.
+   */
+  const setNameEdited = (value: string) => {
+    userEditedContact.current = true;
+    setName(value);
+  };
+  const setEmailEdited = (value: string) => {
+    userEditedContact.current = true;
+    setEmail(value);
+  };
+  const setPhoneNumberEdited = (value: string | undefined) => {
+    userEditedContact.current = true;
+    setPhoneNumber(value);
+  };
+
+  /**
+   * Restore whatever the customer had typed before leaving for a provider.
+   *
+   * Runs once on mount, BEFORE the profile and VIP prefill effects have
+   * resolved, and `takeContactDraft` clears the key as it reads — so this can
+   * only ever fire for the one navigation it was written for.
+   *
+   * Fills blanks only. If prefill somehow won the race, what the profile
+   * supplied is at least as good as what the customer typed, and overwriting it
+   * would make the fields flicker between two values.
+   */
+  useEffect(() => {
+    const draft = takeContactDraft();
+    if (!draft) return;
+    if (draft.name) setName((current) => current || draft.name);
+    if (draft.email) setEmail((current) => current || draft.email);
+    if (draft.phoneNumber) setPhoneNumber((current) => current || draft.phoneNumber);
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
@@ -388,21 +444,21 @@ export function useBookingDetailsForm({
     };
   }, [phoneNumber]);
 
-  // `/auth/signin` is not a page in this app — the login page is `/auth/login`,
-  // and `/api/auth/signin` is NextAuth's API route — so pushing it 404'd the
-  // customer straight out of the flow. signIn() resolves the configured login
-  // page itself and carries a callbackUrl, and the in-progress booking is
-  // restored from sessionStorage (useFlowPersistence) once they land back.
+  // Reaching this step no longer requires a session. It used to redirect on
+  // mount, which meant an anonymous customer who got this far — via a deep
+  // link, a restored flow, or an expired session — was thrown out of the form
+  // rather than allowed to finish it.
   //
-  // Came from main's embedded-browser fix (c30d562), which patched this in
-  // BookingDetails.tsx before slice 8 extracted the effect into this hook. The
-  // merge resolved that file to the orchestrator, so without porting it here by
-  // hand the fix would have been silently dropped.
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      signIn(undefined, { callbackUrl: '/bookings' });
-    }
-  }, [status]);
+  // The history is worth keeping because it shows how easily this breaks: the
+  // redirect originally pointed at `/auth/signin`, which is not a page in this
+  // app (the login page is `/auth/login`; `/api/auth/signin` is NextAuth's API
+  // route), so it 404'd customers straight out of the flow. That was fixed in
+  // the embedded-browser work (c30d562) against BookingDetails.tsx, then had to
+  // be ported here by hand when slice 8 extracted this effect, or the fix would
+  // have been silently dropped in the merge.
+  //
+  // Contact details are collected on this step anyway, which is exactly what
+  // the guest provider needs — so identity is established at submit instead.
 
   useEffect(() => {
 
@@ -480,29 +536,31 @@ export function useBookingDetailsForm({
           
           if (vipProfile) {
             
-            // Prepopulate form with VIP data if available and valid
+            // The CRM record is the GOOD prefill source: it carries a name and
+            // phone for 100% of linked customers, where `profiles` has a phone
+            // for only ~6% of Google accounts. Blanks only, though — a fetch
+            // that resolves after the customer started typing must not
+            // overwrite them.
             if (vipProfile.name) {
-              setName(vipProfile.name);
+              setName((current) =>
+                userEditedContact.current || current ? current : vipProfile.name
+              );
             }
             if (vipProfile.email) {
-              setEmail(vipProfile.email);
+              setEmail((current) =>
+                userEditedContact.current || current ? current : vipProfile.email
+              );
             }
             if (vipProfile.phoneNumber) {
-              // Format phone number to E.164 if needed
-              let formattedPhoneNumber = vipProfile.phoneNumber;
-              
-              // If the phone number doesn't start with +, format it
-              if (!formattedPhoneNumber.startsWith('+')) {
-                // For Thai numbers: convert 0842695447 to +66842695447, or 842695447 to +66842695447
-                if (formattedPhoneNumber.startsWith('0') && formattedPhoneNumber.length === 10) {
-                  formattedPhoneNumber = '+66' + formattedPhoneNumber.substring(1);
-                } else if (formattedPhoneNumber.length === 9) {
-                  formattedPhoneNumber = '+66' + formattedPhoneNumber;
-                }
-                // Add more country-specific rules if needed
+              // Shared with the browser-autofill path — see lib/phone-e164. It
+              // used to live here inline, which is why an autofilled local-format
+              // number went in raw and rendered as invalid.
+              const formatted = toE164(vipProfile.phoneNumber);
+              if (formatted) {
+                setPhoneNumber((current) =>
+                  userEditedContact.current || current ? current : formatted
+                );
               }
-              
-              setPhoneNumber(formattedPhoneNumber);
             }
             
             // `/api/vip/profile` returns `marketing_opt_in ?? null`, so an
@@ -548,6 +606,36 @@ export function useBookingDetailsForm({
               phone_number: profileData.phone_number || '',
               display_name: profileData.display_name || ''
             });
+
+            // Also PREFILL from it. This used to set `profile` and nothing
+            // else — the state's only consumer was the write-back diff at
+            // submit — so a customer whose `/api/vip/profile` call failed or
+            // returned nothing was shown an empty form even though we held
+            // their details. Both of that route's failure paths are silent
+            // `return`s, which is why it went unnoticed.
+            //
+            // A weak source, and treated as one: `profiles` carries a phone for
+            // only ~6% of Google accounts, so this is strictly a fallback that
+            // fills what the CRM record did not. Same two rules as above —
+            // never over typing, never over an existing value.
+            if (profileData.display_name) {
+              setName((current) =>
+                userEditedContact.current || current ? current : profileData.display_name
+              );
+            }
+            if (profileData.email) {
+              setEmail((current) =>
+                userEditedContact.current || current ? current : profileData.email
+              );
+            }
+            if (profileData.phone_number) {
+              const formatted = toE164(profileData.phone_number);
+              if (formatted) {
+                setPhoneNumber((current) =>
+                  userEditedContact.current || current ? current : formatted
+                );
+              }
+            }
           }
         } catch {
           // Failed to fetch profile
@@ -787,24 +875,53 @@ export function useBookingDetailsForm({
       return;
     }
 
-    if (!session) {
-      toast.error(tErrors('signInToContinue'));
-      // See the note on the unauthenticated effect above: /auth/signin 404s.
-      signIn(undefined, { callbackUrl: '/bookings' });
-      return;
-    }
-
     // Start timing the submission process
     const submissionStartTime = Date.now();
     setIsSubmitting(true);
     setShowLoadingOverlay(true);
     setLoadingStep(0);
-    
+
     try {
-      if (!session?.user?.id) {
-        throw new Error(tErrors('userNotAuthenticated'));
+      // No session? Mint a guest one from what the customer has already typed.
+      //
+      // `validateForm()` above has just guaranteed name, email and phone are
+      // present and well formed — which is precisely what the guest provider
+      // needs. So identity can be established here, silently, instead of
+      // bouncing the customer to a login page and losing their place. This is
+      // the last of the six gates, and the only one that becomes something
+      // rather than simply going away.
+      //
+      // Deliberately passes NO marketing flag: consent is written exactly once,
+      // by the booking route, from `marketingOptIn` below. Sending it here too
+      // would write it twice under two different sources and defeat the audit
+      // trail `marketing_opt_in_source` exists for.
+      if (!session) {
+        const result = await signIn('guest', {
+          name,
+          email,
+          phone: phoneNumber,
+          redirect: false,
+        });
+
+        if (!result?.ok) {
+          // Distinct from a booking failure, and it must not read as one — the
+          // booking has not been attempted yet and the customer's form is
+          // untouched, so the honest thing is to let them try again.
+          setIsSubmitting(false);
+          setShowLoadingOverlay(false);
+          toast.error(tErrors('signInToContinue'));
+          return;
+        }
+
+        // The route authenticates from the httpOnly cookie via getToken(), which
+        // is already set by the time the call above resolves — so this is not
+        // what makes the POST work. It warms next-auth's CLIENT cache, so the
+        // re-render into `authenticated` does not race the in-flight submit.
+        // GuestForm carries the same call for the same reason, after a customer
+        // was observed double-submitting 12 seconds apart.
+        await getSession();
       }
-      
+
       // Build customer_notes with system-generated lines (club rental, add-ons)
       // PREPENDED so a long user note can never push them past column limits or
       // out of view in the LINE staff notification. User text always lands last.
@@ -841,7 +958,16 @@ export function useBookingDetailsForm({
         alsoUpdateAccount,
       });
 
-      // Update profile if needed
+      // Update profile if needed.
+      //
+      // `session` is the value this render closed over, so for a guest minted a
+      // few lines above it is still null and this is skipped. That is correct,
+      // not a gap: the guest provider's `authorize` has just written the name
+      // and phone with the service role, under its own fill-blanks-only rule.
+      // Repeating the write here would be redundant, and — because it does NOT
+      // apply that rule — could overwrite a stored value the provider
+      // deliberately preserved. Do not "fix" this by reaching for a fresh
+      // session.
       if (shouldUpdateProfile && session?.user?.id) {
         await supabase
           .from('profiles')
@@ -936,6 +1062,16 @@ export function useBookingDetailsForm({
 
       const { booking } = createData;
 
+      // Hold the claim token the create response issued, if any. It is only
+      // present for a guest booking, and it is the ONLY proof that this browser
+      // is the one that made this booking — the confirmation upsell has nothing
+      // to offer without it. Stored here rather than minted on the confirmation
+      // page, because there the only available proof is a session, and a guest
+      // session resolves on email alone.
+      if (typeof createData.claimToken === 'string' && createData.claimToken) {
+        saveClaimToken({ bookingId: booking.id, token: createData.claimToken });
+      }
+
       // There is no notification status to check any more. The confirmation
       // email and the staff LINE message are dispatched after the response, so
       // the server cannot report on them here — and a confirmed booking is a
@@ -976,6 +1112,18 @@ export function useBookingDetailsForm({
      is bound to the app locale and so cannot compose English as `en-GB`. */
 
   const isLineUser = session?.user?.provider === 'line';
+  // Drives the in-flow sign-in row. `status` rather than `!!session` so the
+  // row does not flash in during the brief 'loading' window for a customer
+  // who IS signed in and should never be offered it.
+  const isSignedIn = status === 'authenticated';
+  /**
+   * Return target for the in-flow sign-in row.
+   *
+   * MUST stay query-free: `useBookingFlow` treats `selectDate`/`package`/`club`
+   * as a deep link and skips its sessionStorage restore entirely, so one stray
+   * parameter here silently discards the in-progress booking on the way back.
+   */
+  const signInCallbackUrl = localePath('/bookings', locale);
 
   // Returns the id of the first incomplete required field, or null if valid.
   // Order matters: it is the order the customer reads the form in.
@@ -1089,11 +1237,16 @@ export function useBookingDetailsForm({
     duration,
     setDuration,
     phoneNumber,
-    setPhoneNumber,
+    // The EXPORTED setters mark the field as customer-edited; the raw ones stay
+    // internal for prefill. Wrapping here rather than asking every call site to
+    // remember means the guard cannot be forgotten when a new input is added —
+    // and the only way to set these from outside the hook is through a
+    // customer's own keystroke.
+    setPhoneNumber: setPhoneNumberEdited,
     email,
-    setEmail,
+    setEmail: setEmailEdited,
     name,
-    setName,
+    setName: setNameEdited,
     numberOfPeople,
     setNumberOfPeople,
     customerNotes,
@@ -1140,6 +1293,8 @@ export function useBookingDetailsForm({
     creditBalance,
     packageDisplayName,
     isLineUser,
+    isSignedIn,
+    signInCallbackUrl,
     costBreakdown,
     costDataLoading,
     // Handlers

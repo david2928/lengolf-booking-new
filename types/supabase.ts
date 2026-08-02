@@ -77,6 +77,12 @@ export interface Database {
           cancelled_by_identifier?: string | null
           cancellation_reason?: string | null
           is_new_customer?: boolean | null
+          // Present in the database since the CRM migration, but missing from
+          // this hand-maintained type until now — which is why callers that
+          // select them (the LIFF booking-detail route, the confirmation page)
+          // lost row-type inference and silently degraded to a loose shape.
+          customer_id?: string | null
+          package_id?: string | null
           add_ons?: Json | null
           rental_club_set_id?: string | null
           gclid?: string | null

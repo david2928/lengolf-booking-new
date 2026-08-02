@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useSession, signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getPlayFoodPackages, type PlayFoodPackage } from '@/types/play-food-packages';
 import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
@@ -10,7 +9,9 @@ import { pushBayBookingStepViewed } from '@/lib/booking-telemetry';
 import { useDetailsSubStep, DETAIL_SUB_STEPS } from '../components/booking/steps/details/useDetailsSubStep';
 
 export function useBookingFlow() {
-  const { status } = useSession();
+  // Deliberately no useSession here. The flow no longer branches on auth state
+  // at all, and reading it would put a session round-trip back on the critical
+  // path of the first paint for every anonymous visitor.
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -195,8 +196,12 @@ export function useBookingFlow() {
         console.log(`[useBookingFlow] Club rental selected: ${clubParam}`);
       }
 
-      // Handle date parameter (existing logic)
-      if (status === 'authenticated' && dateParam) {
+      // Gated on `authenticated` while the flow required a session to reach
+      // step 2. Anonymous visitors can now walk the whole flow, and a marketing
+      // deep-link carrying ?selectDate= is aimed at exactly them — leaving the
+      // check in would have silently ignored the parameter for the audience the
+      // link was built for.
+      if (dateParam) {
         setIsAutoSelecting(true);
         try {
           const selectedDateFromParam = new Date(dateParam);
@@ -218,21 +223,14 @@ export function useBookingFlow() {
         }
       }
     }
-  }, [status, searchParams, isAutoSelecting, router, selectedPackage]);
+  }, [searchParams, isAutoSelecting, router, selectedPackage]);
 
+  // Picking a date used to bounce anonymous visitors to /auth/login. That gate
+  // fired ~6 seconds after landing, before anyone saw a single time slot, and
+  // it was the first of six. Signing in is now offered on the details step as a
+  // shortcut, and a guest session is minted at submit from the contact details
+  // the customer types there anyway.
   const handleDateSelect = (date: Date) => {
-    if (status === 'unauthenticated') {
-      let callbackUrl = `/bookings?selectDate=${date.toISOString()}`;
-      if (selectedPackage) {
-        callbackUrl += `&package=${selectedPackage.id}`;
-      }
-      if (selectedClubRental && selectedClubRental !== 'none') {
-        callbackUrl += `&club=${selectedClubRental}`;
-      }
-      signIn(undefined, { callbackUrl });
-      return;
-    }
-
     setSelectedDate(date);
     setCurrentStep(2);
   };

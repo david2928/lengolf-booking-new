@@ -7,6 +7,7 @@ import { BookingReviewPanel } from './BookingReviewPanel';
 import type { CostBreakdown } from '@/lib/cost-calculator';
 import { IdentityCard, isIdentityComplete } from './IdentityCard';
 import { ConsentNote } from './ConsentNote';
+import { InFlowSignIn } from './InFlowSignIn';
 
 /**
  * Whether the customer is already on the marketing list, and so should be shown
@@ -40,6 +41,10 @@ export interface YourDetailsStepProps {
   /** `errors.email` — already translated inside the form hook. */
   emailError: string;
   isLineUser: boolean;
+  /** Hides the in-flow sign-in row for customers who are already signed in. */
+  isSignedIn: boolean;
+  /** Locale-prefixed, query-free return path for the in-flow sign-in row. */
+  signInCallbackUrl: string;
   customerNotes: string;
   setCustomerNotes: (value: string) => void;
   costBreakdown: CostBreakdown | null;
@@ -104,6 +109,8 @@ export function YourDetailsStep({
   phoneNumberError,
   emailError,
   isLineUser,
+  isSignedIn,
+  signInCallbackUrl,
   customerNotes,
   setCustomerNotes,
   costBreakdown,
@@ -148,14 +155,38 @@ export function YourDetailsStep({
         <>
         <h3 className="text-sm font-semibold text-gray-900 mb-4">{t('contactInformation')}</h3>
 
+        {/* Sign-in as a shortcut, above the fields it saves the customer
+            filling in. Hidden once they are signed in — there is nothing left
+            to offer — and hidden behind the IdentityCard branch above, because
+            a customer whose details are already complete has nothing to gain
+            either. */}
+        {!isSignedIn && (
+          <div className="mb-4">
+            <InFlowSignIn
+              name={name}
+              email={email}
+              phoneNumber={phoneNumber}
+              callbackUrl={signInCallbackUrl}
+            />
+          </div>
+        )}
+
         <div className="space-y-4">
           {/* Name field */}
           <div id="bd-name" className="scroll-mt-24">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {t('name')}
             </label>
+            {/* autoComplete is the cheapest prefill we have and the only one
+                that works on a customer's FIRST visit, cross-site, without us
+                storing anything. Without these tokens browsers fall back to
+                guessing from field names, which is unreliable for name and
+                phone, and iOS Contacts autofill and password managers largely
+                ignore fields that lack them. */}
             <input
               type="text"
+              name="name"
+              autoComplete="name"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -183,6 +214,15 @@ export function YourDetailsStep({
                 international
                 defaultCountry="TH"
                 placeholder={t('phoneNumberPlaceholder')}
+                /* Forwarded to the underlying <input>. Note an autofilled value
+                   usually arrives in local format (0842695447), which
+                   `isValidPhoneNumber` rejects — PhoneInput will show it as
+                   invalid until the customer corrects it. Normalising autofilled
+                   input to E.164 is tracked with the wider phone-normalisation
+                   cleanup; the token still earns its place meanwhile, because a
+                   near-right number to correct beats an empty field. */
+                name="tel"
+                autoComplete="tel"
                 value={phoneNumber}
                 onChange={(value) => {
                   setPhoneNumber(value);
@@ -223,6 +263,8 @@ export function YourDetailsStep({
             <div className="relative">
               <input
                 type="email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);

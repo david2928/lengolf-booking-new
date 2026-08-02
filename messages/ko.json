@@ -343,10 +343,17 @@
       "summaryRailHours": "{hours}시간",
       "errorNeedName": "예약을 위해 이름을 입력해 주세요.",
       "errorNeedPhone": "올바른 전화번호를 입력해 주세요.",
-      "errorNeedEmail": "예약 확인 메일을 보내려면 이메일이 필요합니다."
+      "errorNeedEmail": "예약 확인 메일을 보내려면 이메일이 필요합니다.",
+      "signInPromptTitle": "입력 시간을 줄이세요",
+      "signInPromptBody": "로그인하시면 저장된 정보를 자동으로 채워드려요."
     },
     "confirmation": {
       "pageTitle": "예약 확인 - LENGOLF",
+      "upsellTitle": "이 예약을 계정에 보관하세요",
+      "upsellBody": "로그인하시면 이 예약이 계정에 저장되고, 앞으로의 예약도 함께 관리됩니다.",
+      "upsellFailed": "지금은 예약을 연결하지 못했습니다. 예약 자체는 정상적으로 확정되었으며, 직원이 연결해 드릴 수 있습니다.",
+      "upsellLinkedTitle": "계정에 저장되었습니다",
+      "upsellLinkedBody": "이 예약이 계정에 저장되었습니다. 내 예약에서 언제든 확인하실 수 있습니다.",
       "pageDescription": "LENGOLF 예약을 확인하세요",
       "heading": "예약 확정!",
       "subheading": "예약 세부정보입니다:",
@@ -971,7 +978,9 @@
       "paymentLinkHint": "신용/체크카드 또는 ShopeePay 월렛으로 지금 결제",
       "addressRequiredHint": "계속하려면 위에 배송 주소를 입력해 주세요",
       "continue": "계속",
-      "deliveryFeeNote": "1~2세트는 ฿500, 세트당 ฿250 추가"
+      "deliveryFeeNote": "1~2세트는 ฿500, 세트당 ฿250 추가",
+      "deliveryNotesLabel": "배송 요청사항",
+      "deliveryNotesPlaceholder": "층, 호수, 출입 코드 등 출입 안내사항 (선택)"
     },
     "contact": {
       "nameLabel": "성명",

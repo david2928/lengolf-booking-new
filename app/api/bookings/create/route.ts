@@ -2,6 +2,8 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { createAdminClient } from '@/utils/supabase/admin';
+import { verifyLineIdToken } from '@/lib/auth/line-id-token';
+import { mintClaimToken } from '@/lib/auth/claim-token';
 import type { Json } from '@/types/supabase';
 import { getGearUpItems } from '@/types/golf-club-rental';
 import { formatBookingData } from '@/utils/booking-formatter';
@@ -235,6 +237,12 @@ export async function POST(request: NextRequest) {
     let customerId: string | null = null; // Will be set for LIFF users
     let customerCode: string | null = null; // Will be set for LIFF users
     let isLiffContext = false;
+    /**
+     * The auth provider behind this booking, for the claim token at the end.
+     * Null on the LIFF path, which never issues one — a LINE customer already
+     * has a durable identity and nothing to claim.
+     */
+    let bookingUserProvider: string | null = null;
 
     // Every `booking_process_logs` insert `logTiming` fires, so the deferred
     // chain can wait for them before it lets the instance go.
@@ -323,13 +331,54 @@ export async function POST(request: NextRequest) {
       : null;
 
     // 2. Authenticate user - support both NextAuth and LIFF context
-    const lineUserId = request.headers.get('x-line-user-id');
+    const claimedLineUserId = request.headers.get('x-line-user-id');
+
+    // The claimed id is an UNVERIFIED assertion: `x-line-user-id` is set by the
+    // client and anyone can send any value. Below it we mint profile rows, so
+    // this is a write path — the worst place for an unchecked identity.
+    //
+    // The fix is a LIFF ID token, which LINE signs. Rolled out in three steps so
+    // live LINE customers are never locked out mid-deploy:
+    //
+    //   A. client starts sending `x-line-id-token` alongside the old header;
+    //   B. THIS STEP — verify when a token is present, log when it is absent,
+    //      allow either way;
+    //   C. require a verified id, once the log line below goes quiet.
+    //
+    // A LIFF app reloads from Vercel on every launch, so the stale window is
+    // hours rather than the weeks an app-store rollout would need. Step C is a
+    // one-line change: drop the fallback to `claimedLineUserId`.
+    const verifiedLineUserId = await verifyLineIdToken(
+      request.headers.get('x-line-id-token')
+    );
+
+    if (claimedLineUserId && !verifiedLineUserId) {
+      // GATE FOR STEP C. Grep for this in Vercel logs; when the rate reaches
+      // zero, every live client is sending a token and enforcement is safe.
+      console.warn('[LineAuth] legacy-header-only booking create; no verified token');
+    }
+    if (
+      verifiedLineUserId &&
+      claimedLineUserId &&
+      verifiedLineUserId !== claimedLineUserId
+    ) {
+      // The client asserted one identity and proved another. Either a bug or an
+      // attempt; refuse outright rather than picking one.
+      console.error('[LineAuth] claimed LINE id does not match the verified token');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Prefer the proven identity. Falls back to the claimed one only while step
+    // B is in force.
+    const lineUserId = verifiedLineUserId ?? claimedLineUserId;
 
     if (lineUserId) {
       // LIFF context - get profile from profiles table
       // Customer matching will happen via findOrCreateCustomer() same as website flow
       isLiffContext = true;
-      console.log('[LIFF Auth] Authenticating with LINE user ID:', lineUserId);
+      console.log('[LIFF Auth] Authenticating with LINE user ID:', lineUserId, {
+        verified: Boolean(verifiedLineUserId),
+      });
 
       const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
@@ -395,6 +444,11 @@ export async function POST(request: NextRequest) {
         );
       }
       userId = token.sub;
+      // Needed at the end of the handler to decide whether to issue a claim
+      // token. Read from the JWT rather than re-queried: the `jwt` callback in
+      // app/api/auth/options.ts puts it there, and a second round trip to
+      // `profiles` for one string would sit on the customer-visible path.
+      bookingUserProvider = typeof token.provider === 'string' ? token.provider : null;
       logTiming('Authentication', 'success');
     }
 
@@ -841,6 +895,15 @@ export async function POST(request: NextRequest) {
             // un-tick — note: we only carry-over upward from false→true, never
             // the other direction).
             let shouldOptIn = marketingOptInForm;
+            // Which SURFACE actually collected the consent, tracked alongside the
+            // decision rather than inferred from it. This used to be derived as
+            // `isNewCustomer ? 'guest_signup' : 'booking_form'`, which recorded
+            // every first-time customer's booking-form tick as a guest signup —
+            // the two questions are unrelated, and `marketing_opt_in_source` is
+            // the column a PDPA audit reads. It is doubly wrong now that the
+            // booking flow mints guests silently and passes no consent at all,
+            // so `guest_signup` can only ever mean the standalone GuestForm.
+            let source: 'booking_form' | 'guest_signup' = 'booking_form';
             if (!shouldOptIn && isNewCustomer) {
               const { data: profileRow, error: profileLookupError } = await supabase
                 .from('profiles')
@@ -854,6 +917,8 @@ export async function POST(request: NextRequest) {
                 );
               } else if (profileRow?.marketing_preference === true) {
                 shouldOptIn = true;
+                // The only path where the consent did NOT come from this form.
+                source = 'guest_signup';
               }
             }
 
@@ -872,7 +937,6 @@ export async function POST(request: NextRequest) {
                   { customerId, isNewCustomer }
                 );
               } else {
-                const source = isNewCustomer ? 'guest_signup' : 'booking_form';
                 // Awaited, not fired and forgotten. This write was lost for three
                 // months in 2026 to an unapplied migration and the warning below is
                 // the only alarm for it — a torn-down socket would silence that too.
@@ -1337,10 +1401,28 @@ export async function POST(request: NextRequest) {
     // warning. Failures are logged server-side and land in
     // `booking_process_logs` as the 'Email notification' / 'LINE notification'
     // steps.
+    // Claim token for the confirmation upsell, issued HERE and nowhere else.
+    //
+    // This is the only request in the whole flow where we know the caller is the
+    // one who made this booking. Minting it on the confirmation page instead —
+    // which is what the first version did — meant the proof was a SESSION, and a
+    // guest session resolves on email alone, so anyone who knew a customer's
+    // email could obtain one, open their booking, and be handed a token minted
+    // against their profile. Possession proved nothing.
+    //
+    // Guests only: a customer already signed in has nothing to claim. Null when
+    // the secret is unavailable, in which case the upsell hides itself rather
+    // than offering something it cannot honour.
+    const claimToken =
+      !isLiffContext && bookingUserProvider === 'guest'
+        ? mintClaimToken({ bookingId: booking.id, profileId: userId })
+        : null;
+
     return NextResponse.json({
       success: true,
       booking,
       bookingId: booking.id,
+      claimToken,
       bay: availableBay,
       bayDisplayName,
       customerId: customerId || undefined,

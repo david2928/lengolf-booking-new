@@ -343,10 +343,17 @@
       "summaryRailHours": "{hours}小时",
       "errorNeedName": "请填写姓名以保留预订。",
       "errorNeedPhone": "请填写有效的电话号码。",
-      "errorNeedEmail": "需要邮箱地址以便发送确认邮件。"
+      "errorNeedEmail": "需要邮箱地址以便发送确认邮件。",
+      "signInPromptTitle": "省去输入",
+      "signInPromptBody": "登录后，我们会自动填写已有的信息。"
     },
     "confirmation": {
       "pageTitle": "预约确认 - LENGOLF",
+      "upsellTitle": "把这次预约保存到账户",
+      "upsellBody": "登录后，这次预约会加入您的账户，之后的预约也会一并保存。",
+      "upsellFailed": "暂时无法关联这次预约。预约本身已确认，工作人员也可以帮您关联。",
+      "upsellLinkedTitle": "已保存到您的账户",
+      "upsellLinkedBody": "这次预约已保存到您的账户，可随时在“我的预约”中查看。",
       "pageDescription": "确认您在 LENGOLF 的预约",
       "heading": "预约成功！",
       "subheading": "以下是您的预约详情：",
@@ -971,7 +978,9 @@
       "paymentLinkHint": "立即使用信用卡/借记卡或 ShopeePay 钱包支付",
       "addressRequiredHint": "请在上方填写配送地址以继续",
       "continue": "继续",
-      "deliveryFeeNote": "1–2 套 ฿500，每增加一套加 ฿250"
+      "deliveryFeeNote": "1–2 套 ฿500，每增加一套加 ฿250",
+      "deliveryNotesLabel": "配送备注",
+      "deliveryNotesPlaceholder": "楼层、房号、门禁密码或其他进入说明（选填）"
     },
     "contact": {
       "nameLabel": "姓名",

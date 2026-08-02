@@ -1,7 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
-import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { getCurrentBangkokTime } from '@/utils/date';
 
 interface DurationBayAvailability {
@@ -42,8 +40,6 @@ export type { TimeSlot, DurationBayAvailability };
 export function useAvailability() {
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
-  const router = useRouter();
-  const { data: session } = useSession();
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastRequestDateRef = useRef<string>('');
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -83,11 +79,10 @@ export function useAvailability() {
         setIsLoadingSlots(true);
 
         try {
-          if (!session) {
-            router.push('/auth/login');
-            resolve();
-            return;
-          }
+          // No session pre-check. Availability is public, read-only data that
+          // the booking UI renders to anyone anyway, and requiring a session
+          // here bounced anonymous visitors out of the flow before they saw a
+          // single slot.
 
           // Check if this request is still the latest one
           if (currentRequestId !== requestCounterRef.current) {
@@ -118,12 +113,10 @@ export function useAvailability() {
             return;
           }
 
-          if (response.status === 401) {
-            router.push('/auth/login');
-            resolve();
-            return;
-          }
-
+          // A 401 is no longer an expected outcome — the route serves anonymous
+          // callers. If one appears it is a server-side regression, so let it
+          // fall through to the generic error path and surface as such rather
+          // than silently ejecting the customer to a login page.
           if (!response.ok) {
             throw new Error('Failed to fetch availability');
           }
@@ -151,7 +144,9 @@ export function useAvailability() {
         }
       }, 100);
     });
-  }, [session, router]);
+  // No auth dependencies: the fetch no longer reads session state, so this
+  // callback is stable for the life of the hook.
+  }, []);
 
   // Cleanup: Cancel any pending requests and timeouts when component unmounts
   useEffect(() => {

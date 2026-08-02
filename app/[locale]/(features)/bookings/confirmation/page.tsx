@@ -1,12 +1,18 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 import { getTranslations } from 'next-intl/server';
-import type { Database } from '@/types/supabase';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { Layout } from '../components/booking/Layout';
 import { ConfirmationContent } from '../components/booking/ConfirmationContent';
+import {
+  CONFIRMATION_BOOKING_SELECT,
+  canViewBooking,
+} from '../components/booking/confirmationBooking';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/options';
+import { getLocale } from 'next-intl/server';
+import { localePath } from '@/i18n/locale-path';
+import { ConfirmationUpsell } from '../components/booking/ConfirmationUpsell';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('bookings.confirmation');
@@ -28,31 +34,63 @@ export default async function ConfirmationPage({
   }
 
   const session = await getServerSession(authOptions);
-  if (!session) {
+  if (!session?.user?.id) {
     redirect('/auth/login');
   }
 
-  // Create a Supabase client with service role key to access booking data
-  const supabase = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-        detectSessionInUrl: false
-      }
-    }
-  );
-  const { data: booking, error: bookingError } = await supabase
-    .from('bookings')
-    .select('*')
-    .eq('id', id)
-    .single();
+  // Service role, so this query is not RLS-scoped and the ownership check below
+  // is the ONLY thing standing between a caller and someone else's booking.
+  // Booking ids are `BK` + YYMMDD + 4 base36 chars (see generateBookingId in
+  // app/api/bookings/create/route.ts), i.e. ~1.68M per known date — enumerable,
+  // not a secret. Treat them as identifiers, never as capability tokens.
+  const supabase = createAdminClient();
+
+  const [{ data: profile }, { data: booking, error: bookingError }] = await Promise.all([
+    supabase.from('profiles').select('customer_id').eq('id', session.user.id).maybeSingle(),
+    supabase.from('bookings').select(CONFIRMATION_BOOKING_SELECT).eq('id', id).maybeSingle(),
+  ]);
 
   if (bookingError || !booking) {
     redirect('/bookings');
   }
+
+  const sessionProvider = (session.user as { provider?: string }).provider ?? null;
+
+  const mayView = canViewBooking({
+    sessionUserId: session.user.id,
+    profileCustomerId: profile?.customer_id,
+    bookingUserId: booking.user_id,
+    bookingCustomerId: booking.customer_id,
+    sessionProvider,
+  });
+
+  if (!mayView) {
+    // Same destination as "not found", so this page cannot be used to probe
+    // which booking ids exist.
+    redirect('/bookings');
+  }
+
+  // NOT where the claim token is minted. It used to be, and that was wrong:
+  // the only proof available on this request is the session, and a guest
+  // session resolves on email alone — so anyone who knew a customer's email
+  // could obtain one, open their booking, and be handed a token minted against
+  // their profile. The token now comes from the `/api/bookings/create`
+  // response, the one request where the caller is provably the person who made
+  // the booking. The upsell reads it from client storage.
+  const isGuest = sessionProvider === 'guest';
+
+  // Return to THIS page after the provider round trip, so the claim can finish
+  // and the customer sees the booking they were promised rather than a generic
+  // landing page.
+  //
+  // Carrying `?id=` here is correct, and is NOT the trap that applies to the
+  // booking flow's own callbackUrl: `useBookingFlow` reads query parameters as
+  // a deep link and skips its sessionStorage restore, but it is not mounted on
+  // the confirmation page. This page requires the id to render at all.
+  const locale = await getLocale();
+  const confirmationPath = `${localePath('/bookings/confirmation', locale)}?id=${encodeURIComponent(
+    booking.id
+  )}`;
 
   return (
     /* The same in-flow chrome as `/bookings`, all four props, no asymmetry.
@@ -85,6 +123,17 @@ export default async function ConfirmationPage({
        640px and 1280px. `max-w-4xl` on the content still wins inside it. */
     <Layout hidePromotionBar compactHeader flushMain hideFooter>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Above the details, not below them: this is the one moment a guest
+            has something concrete to gain, and burying it under the whole
+            booking summary would waste that. It renders nothing at all for a
+            signed-in customer, or when no token could be minted. */}
+        <div className="max-w-4xl mx-auto">
+          <ConfirmationUpsell
+            bookingId={booking.id}
+            isGuest={isGuest}
+            callbackUrl={confirmationPath}
+          />
+        </div>
         <ConfirmationContent booking={booking} />
       </div>
     </Layout>
