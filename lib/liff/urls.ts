@@ -15,3 +15,7 @@ export type LiffPage = keyof typeof LIFF_URLS;
 export function getLiffBookingDetailUrl(bookingId: string): string {
   return `${LIFF_URLS.membership}/booking/${bookingId}`;
 }
+
+export function getLiffBookingEditUrl(bookingId: string): string {
+  return `${LIFF_URLS.membership}/booking/${bookingId}/edit`;
+}

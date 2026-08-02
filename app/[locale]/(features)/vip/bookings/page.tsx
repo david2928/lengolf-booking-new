@@ -9,14 +9,14 @@ import { Loader2 } from 'lucide-react';
 import BookingModifyModal from '@/components/vip/BookingModifyModal';
 import BookingCancelModal from '@/components/vip/BookingCancelModal';
 import { getVipBookings } from '@/lib/vipService';
-import type { VipBooking } from '@/types/vip';
+import type { ModifyVipBookingChanges, VipBooking } from '@/types/vip';
 
 // Placeholder for Modal components to be added in VIP-FE-007 and VIP-FE-008
 // import ModifyBookingModal from '../../../../components/vip/BookingModifyModal';
 // import CancelBookingModal from '../../../../components/vip/BookingCancelModal';
 
 const VipBookingsPage = () => {
-  const { vipStatus, isLoadingVipStatus, session, refetchVipStatus } = useVipContext();
+  const { vipStatus, isLoadingVipStatus, session } = useVipContext();
   const router = useRouter();
   const t = useTranslations('vip.bookings');
   const tCommon = useTranslations('vip.common');
@@ -39,10 +39,20 @@ const VipBookingsPage = () => {
     }
   }, [vipStatus, isLoadingVipStatus, router]);
 
-  const handleOpenModifyModal = (bookingId: string) => {
+  // The edit modal needs the whole booking (date, time, duration, pax, bay) to
+  // prefill its form, not just the id — same reason the cancel modal fetches.
+  const handleOpenModifyModal = async (bookingId: string) => {
     setSelectedBookingId(bookingId);
+
+    try {
+      const bookingsData = await getVipBookings({ filter: 'all', limit: 100 });
+      setSelectedBooking(bookingsData.bookings.find(b => b.id === bookingId));
+    } catch (error) {
+      console.error('Failed to fetch booking details for edit modal:', error);
+      setSelectedBooking(undefined);
+    }
+
     setIsModifyModalOpen(true);
-    // console.log(`Request to modify booking: ${bookingId}`); // For testing
   };
 
   const handleOpenCancelModal = async (bookingId: string) => {
@@ -65,6 +75,7 @@ const VipBookingsPage = () => {
   const handleCloseModifyModal = useCallback(() => {
     setIsModifyModalOpen(false);
     setSelectedBookingId(null);
+    setSelectedBooking(undefined);
   }, []);
 
   const handleCloseCancelModal = useCallback(() => {
@@ -73,15 +84,31 @@ const VipBookingsPage = () => {
     setSelectedBooking(undefined);
   }, []);
 
-  const handleBookingModifiedAndRedirect = useCallback(async () => {
-    handleCloseModifyModal();
-    if (refetchVipStatus) {
-        await refetchVipStatus();
-    }
-    // Modal handles actual redirect to /bookings
-    // List on this page doesn't strictly need refresh if we are navigating away,
-    // but a general status refresh might be good.
-  }, [handleCloseModifyModal, refetchVipStatus]);
+  /**
+   * The edit succeeded. No redirect any more — the booking still exists, so the
+   * customer stays on the list and watches their card update.
+   *
+   * The modal keeps itself open to show its success state; this only patches the
+   * list underneath it and asks for fresh data, exactly like the cancel flow.
+   */
+  const handleBookingModified = useCallback(
+    (bookingId: string, changes: ModifyVipBookingChanges) => {
+      const patch: Partial<VipBooking> = {};
+      if (changes.date) patch.date = changes.date.to;
+      if (changes.start_time) patch.startTime = changes.start_time.to;
+      if (changes.duration) patch.duration = changes.duration.to;
+      if (changes.number_of_people && changes.number_of_people.to !== null) {
+        patch.numberOfPeople = changes.number_of_people.to;
+      }
+      if (changes.customer_notes) patch.notes = changes.customer_notes.to ?? undefined;
+
+      if (Object.keys(patch).length > 0) {
+        setOptimisticUpdates(prev => ({ ...prev, [bookingId]: patch }));
+      }
+      setRefreshNonce(prev => prev + 1);
+    },
+    []
+  );
 
   const handleBookingCancelled = useCallback(async () => {
     // DON'T close modal yet - let the success state show first
@@ -152,12 +179,12 @@ const VipBookingsPage = () => {
         optimisticUpdates={optimisticUpdates}
       />
 
-      {isModifyModalOpen && selectedBookingId && (
+      {isModifyModalOpen && selectedBooking && (
         <BookingModifyModal
-          bookingId={selectedBookingId}
+          booking={selectedBooking}
           isOpen={isModifyModalOpen}
           onClose={handleCloseModifyModal}
-          onBookingCancelledAndRedirect={handleBookingModifiedAndRedirect}
+          onBookingModified={handleBookingModified}
         />
       )}
 

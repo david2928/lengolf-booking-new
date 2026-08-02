@@ -80,16 +80,76 @@ export interface VipBookingsResponse {
 }
 
 // 6. PUT /api/vip/bookings/{bookingId}/modify
+/**
+ * Every field is optional: the endpoint is a sparse patch, so a customer who
+ * only moves the time does not have to echo back their guest count.
+ *
+ * Keys are snake_case to match the wire format the route actually reads. They
+ * used to be camelCase here while the route read snake_case, so anything typed
+ * against this interface silently failed to change the time — the mismatch
+ * survived because nothing ever called it.
+ *
+ * `bay` is deliberately absent. Customers pick a bay *type* at creation, never a
+ * specific bay, and the edit endpoint reassigns within that type itself.
+ */
 export interface ModifyVipBookingRequest {
-  date: string; // yyyy-MM-dd
-  startTime: string; // HH:mm
-  duration: number; // hours
+  date?: string; // yyyy-MM-dd
+  start_time?: string; // HH:mm
+  duration?: number; // hours
+  number_of_people?: number;
+  customer_notes?: string | null;
+}
+
+/** One field the edit actually changed, for the confirmation screen. */
+export interface VipBookingChange<T> {
+  from: T;
+  to: T;
+}
+
+/**
+ * Only fields that CHANGED appear. The review screen renders old → new from
+ * this rather than diffing two snapshots client-side, so the server stays the
+ * single authority on what happened — including the bay, which the customer
+ * never chose and may not expect to have moved.
+ */
+export interface ModifyVipBookingChanges {
+  date?: VipBookingChange<string>;
+  start_time?: VipBookingChange<string>;
+  duration?: VipBookingChange<number>;
+  bay?: VipBookingChange<string | null>;
+  number_of_people?: VipBookingChange<number | null>;
+  customer_notes?: VipBookingChange<string | null>;
 }
 
 export interface ModifyVipBookingResponse {
   success: boolean;
-  updatedBooking: VipBooking;
+  booking: VipBooking;
+  changes: ModifyVipBookingChanges;
 }
+
+/**
+ * Machine-readable failure reasons. The UI maps these to translated copy, so a
+ * customer sees why the slot was refused instead of a generic error.
+ */
+export type ModifyVipBookingErrorCode =
+  | 'NO_FIELDS'
+  | 'VALIDATION_ERROR'
+  | 'NEW_TIME_IN_PAST'
+  | 'UNAUTHORIZED'
+  | 'FORBIDDEN'
+  | 'ACCOUNT_NOT_LINKED'
+  | 'NOT_FOUND'
+  | 'NOT_CONFIRMED'
+  | 'BOOKING_IN_PAST'
+  | 'TOO_LATE_TO_EDIT'
+  | 'COACHING_NOT_EDITABLE'
+  | 'SLOT_UNAVAILABLE'
+  | 'CLUB_SET_UNAVAILABLE'
+  | 'PACKAGE_EXPIRED'
+  | 'CREDIT_INVARIANT'
+  | 'DURATION_LOCKED'
+  | 'STATE_CHANGED'
+  | 'INTERNAL';
 
 // 7. POST /api/vip/bookings/{bookingId}/cancel
 export interface CancelVipBookingRequest {

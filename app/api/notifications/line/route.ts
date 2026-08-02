@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 // import { LINE_NOTIFY_TOKEN } from '@/lib/env'; // User's code doesn't use this for Messaging API
 import {
   buildBookingCreatedMessage,
+  buildBookingModifiedMessage,
   formatDateWithOrdinal,
   pushToStaffGroup,
   StaffLineError,
 } from '@/lib/notifications/staffLine';
+import type { BookingModifiedLinePayload } from '@/lib/notifications/staffLine';
 
 interface BaseNotificationPayload {
   notificationType?: 'booking_created' | 'booking_cancelled_vip' | 'booking_modified_vip' | 'general_message';
@@ -71,8 +73,27 @@ interface BookingCancellationPayload extends BaseNotificationPayload {
   cancelledBy?: string | null;
 }
 
+/**
+ * Customer edited their own booking.
+ *
+ * `booking_modified_vip` has been in the union above since the VIP portal was
+ * designed, but nothing ever handled it — a caller would have fallen through to
+ * the "unknown notification type" branch and pushed a raw JSON dump to the staff
+ * group. The in-process path (`/api/vip/bookings/[id]/modify`) calls
+ * `buildBookingModifiedMessage` directly; this exists so the HTTP surface stays
+ * consistent with it.
+ */
+interface BookingModificationPayload extends BaseNotificationPayload {
+  notificationType: 'booking_modified_vip';
+  booking: BookingModifiedLinePayload;
+}
+
 // Union type for more specific payload handling if needed in the future
-type NotificationPayload = BookingCreationPayload | BookingCancellationPayload | BaseNotificationPayload;
+type NotificationPayload =
+  | BookingCreationPayload
+  | BookingCancellationPayload
+  | BookingModificationPayload
+  | BaseNotificationPayload;
 
 // `formatDateWithOrdinal` and the booking-created message builder now live in
 // `@/lib/notifications/staffLine` so in-process callers can reach them without
@@ -112,6 +133,10 @@ export async function POST(request: NextRequest) {
       messageToSend += `\n🗑️ Cancelled by ${cancelledByDisplay}`;
       messageToSend += reasonDisplay;
       messageToSend = messageToSend.trim();
+
+    } else if (notificationType === 'booking_modified_vip') {
+      const data = payload as BookingModificationPayload;
+      messageToSend = buildBookingModifiedMessage(data.booking);
 
     } else if (notificationType === 'booking_created' || (!payload.notificationType && (payload as BookingCreationPayload).bookingDate)) {
       // This condition handles both explicit 'booking_created' and implicit booking creation if notificationType is missing but booking fields are present

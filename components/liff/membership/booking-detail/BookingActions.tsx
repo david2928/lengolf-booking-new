@@ -4,16 +4,42 @@ import { LIFF_URLS } from '@/lib/liff/urls';
 
 interface BookingActionsProps {
   canCancel: boolean;
+  /** From the detail API. False for coaching, past, and non-confirmed bookings. */
+  canEdit?: boolean;
+  /** True when editing is blocked specifically because it is a lesson. */
+  isCoaching?: boolean;
   language: Language;
+  onEditClick?: () => void;
   onCancelClick: () => void;
   onBack: () => void;
 }
 
-export default function BookingActions({ canCancel, language, onCancelClick, onBack }: BookingActionsProps) {
+export default function BookingActions({
+  canCancel,
+  canEdit = false,
+  isCoaching = false,
+  language,
+  onEditClick,
+  onCancelClick,
+  onBack,
+}: BookingActionsProps) {
   const t = membershipTranslations[language];
 
   return (
     <div className="space-y-2">
+      {canEdit && onEditClick && (
+        <button
+          onClick={onEditClick}
+          className="w-full py-3 text-sm font-medium text-white bg-[#005a32] rounded-lg hover:bg-[#004025] transition-colors"
+        >
+          {t.editBooking}
+        </button>
+      )}
+      {/* A lesson has to be moved with the coach, so point at LINE rather than
+          showing a button that would be refused. */}
+      {!canEdit && isCoaching && canCancel && (
+        <p className="px-1 pb-1 text-xs text-gray-500 text-center">{t.coachingEditHint}</p>
+      )}
       {canCancel && (
         <button
           onClick={onCancelClick}

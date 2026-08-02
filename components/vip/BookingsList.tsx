@@ -14,6 +14,7 @@ import Link from 'next/link';
 import EmptyState from './EmptyState'; // Import EmptyState
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card imports
 import { utcToZonedTime, format } from 'date-fns-tz'; // Import from date-fns-tz
+import { isCoachingBooking } from '@/lib/booking-edit-rules';
 
 interface BookingsListProps {
   onModifyBooking: (bookingId: string) => void; 
@@ -288,11 +289,18 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
 
                 if (!isFutureBooking) return null;
 
+                // A lesson has to be moved with the coach, whose availability is
+                // nothing to do with bay availability, so it offers cancel only.
+                // Same rule the LIFF booking detail already applies.
+                const isCoaching = isCoachingBooking(booking.bookingType);
+
                 return (
                   <CardFooter className="flex gap-2 pt-0 pb-4 px-4">
-                    <Button variant="outline" onClick={() => onModifyBooking(booking.id)} className="flex-1 py-1 px-2 h-auto text-xs">
-                      <Edit className="mr-1 h-3 w-3" /> {t('edit')}
-                    </Button>
+                    {!isCoaching && (
+                      <Button variant="outline" onClick={() => onModifyBooking(booking.id)} className="flex-1 py-1 px-2 h-auto text-xs">
+                        <Edit className="mr-1 h-3 w-3" /> {t('edit')}
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       onClick={() => onCancelBooking(booking.id)}

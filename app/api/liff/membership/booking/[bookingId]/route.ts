@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { appCache } from '@/lib/cache';
+import { parseBangkokDate } from '@/utils/date';
+import { MIN_EDIT_NOTICE_HOURS, computeEditability, computeEndTime } from '@/lib/booking-edit-rules';
 
 const BOOKING_ID_REGEX = /^BK\d{6}[A-Za-z0-9]{4}$/;
 
@@ -27,9 +29,12 @@ export async function GET(
       );
     }
 
-    // Check cache
+    // Check cache. `?fresh=1` bypasses it, which the edit flow uses on return:
+    // the cache is per-lambda-instance, so an edit cannot reliably evict the
+    // entry that serves the next request.
     const cacheKey = `booking_detail_${lineUserId}_${bookingId}`;
-    const cachedData = appCache.get(cacheKey);
+    const wantsFresh = searchParams.get('fresh') === '1';
+    const cachedData = wantsFresh ? null : appCache.get(cacheKey);
     if (cachedData) {
       return NextResponse.json(cachedData, {
         headers: {
@@ -94,22 +99,32 @@ export async function GET(
       );
     }
 
-    // Compute end time
-    const [hours, minutes] = booking.start_time.split(':').map(Number);
-    const endHours = hours + booking.duration;
-    const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    // Minute arithmetic, so a 1.5 h booking ends at 20:30 rather than at the
+    // "20.5:00" that adding a fractional duration to the hour produces.
+    const endTime = computeEndTime(booking.start_time, booking.duration);
 
     // Compute bay type
     const bayLower = (booking.bay || '').toLowerCase();
     const bayType = (bayLower.includes('ai') || bayLower === 'bay 4' || bayLower === 'bay_4')
       ? 'ai' : 'social';
 
-    // Check if booking can be cancelled
-    const [year, month, day] = booking.date.split('-').map(Number);
-    const [bHours, bMinutes] = booking.start_time.split(':').map(Number);
-    const bookingDateTime = new Date(year, month - 1, day, bHours, bMinutes);
+    // `new Date(y, m-1, d, h, m)` builds the instant in the RUNTIME's zone, but
+    // these are Bangkok wall-clock values — on Vercel (UTC) that made a booking
+    // look future-dated for seven hours after it started, so a customer could
+    // cancel a session they had already had. `parseBangkokDate` anchors at +07.
+    const bookingDateTime = parseBangkokDate(booking.date, booking.start_time);
     const isCoaching = (booking.booking_type || '').toLowerCase().includes('coaching');
     const canCancel = booking.status === 'confirmed' && bookingDateTime.getTime() > Date.now() && !isCoaching;
+
+    // Editing shares the cancel rules and adds no others today (the notice
+    // window is zero), but it goes through the shared resolver so the button and
+    // the endpoint can never disagree about who may edit.
+    const editability = computeEditability({
+      status: booking.status,
+      date: booking.date,
+      start_time: booking.start_time,
+      booking_type: booking.booking_type,
+    });
 
     const responseData = {
       id: booking.id,
@@ -127,6 +142,9 @@ export async function GET(
       createdAt: booking.created_at,
       cancellationReason: booking.cancellation_reason,
       canCancel,
+      canEdit: editability.canEdit,
+      editBlockedReason: editability.reason ?? null,
+      minEditNoticeHours: MIN_EDIT_NOTICE_HOURS,
     };
 
     // Cache for 30 seconds

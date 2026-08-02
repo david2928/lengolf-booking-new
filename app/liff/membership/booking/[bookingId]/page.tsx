@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { Language, isValidLanguage } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
 import { saveLanguagePreference, resolveLanguage } from '@/lib/liff/language-persistence';
-import { LIFF_URLS } from '@/lib/liff/urls';
+import { LIFF_URLS, getLiffBookingEditUrl } from '@/lib/liff/urls';
 import BookingDetailHeader from '@/components/liff/membership/booking-detail/BookingDetailHeader';
 import BookingStatusBanner from '@/components/liff/membership/booking-detail/BookingStatusBanner';
 import BookingDetailCard from '@/components/liff/membership/booking-detail/BookingDetailCard';
@@ -29,6 +29,8 @@ interface BookingDetail {
   createdAt: string;
   cancellationReason?: string | null;
   canCancel: boolean;
+  canEdit?: boolean;
+  editBlockedReason?: string | null;
 }
 
 type ViewState = 'loading' | 'error' | 'not_found' | 'access_denied' | 'detail';
@@ -249,7 +251,15 @@ export default function BookingDetailPage() {
           <BookingDetailCard booking={booking} language={language} />
           <BookingActions
             canCancel={booking.canCancel}
+            canEdit={Boolean(booking.canEdit)}
+            isCoaching={booking.editBlockedReason === 'COACHING_NOT_EDITABLE'}
             language={language}
+            onEditClick={() => {
+              // A full navigation, not a client route push: this stays inside
+              // the membership LIFF app, and reloading re-runs liff.init so the
+              // edit screen gets its own fresh ID token.
+              window.location.href = getLiffBookingEditUrl(booking.id);
+            }}
             onCancelClick={handleCancelClick}
             onBack={navigateToMembership}
           />

@@ -46,7 +46,13 @@ export function useAvailability() {
   const isLoadingRef = useRef<boolean>(false);
   const requestCounterRef = useRef<number>(0);
 
-  const fetchAvailability = useCallback(async (selectedDate: Date) => {
+  /**
+   * @param excludeBookingId When editing a booking, its own id. The server
+   *   ignores that booking while computing availability, so the customer is not
+   *   shown their current slot as full. Honoured only for the booking's owner;
+   *   see `/api/availability`.
+   */
+  const fetchAvailability = useCallback(async (selectedDate: Date, excludeBookingId?: string) => {
     const dateString = format(selectedDate, 'yyyy-MM-dd');
 
     // Increment request counter for this specific request
@@ -95,7 +101,8 @@ export function useAvailability() {
 
           const requestBody = {
             date: dateString,
-            currentTimeInBangkok: currentTimeInBangkok.toISOString()
+            currentTimeInBangkok: currentTimeInBangkok.toISOString(),
+            ...(excludeBookingId ? { excludeBookingId } : {})
           };
 
           const response = await fetch('/api/availability', {

@@ -85,6 +85,46 @@ export interface MembershipTranslations {
   bookingDetails: string;
   backToBookings: string;
   bookAgain: string;
+
+  // Edit booking (in-place edit flow)
+  editBooking: string;
+  editTitle: string;
+  editIntro: string;
+  selectNewDate: string;
+  selectNewTime: string;
+  otherDate: string;
+  currentTimeLabel: string;
+  noTimesAvailable: string;
+  guests: string;
+  bayNoteSocial: string;
+  bayNoteAiLab: string;
+  reviewChanges: string;
+  reviewTitle: string;
+  reviewIntro: string;
+  beforeLabel: string;
+  afterLabel: string;
+  unchangedLabel: string;
+  noChangesYet: string;
+  backToEdit: string;
+  confirmChanges: string;
+  savingChanges: string;
+  noChargeNote: string;
+  editSuccessTitle: string;
+  editSuccessBody: string;
+  editSuccessEmailNote: string;
+  coachingEditHint: string;
+  errSlotUnavailable: string;
+  errSlotUnavailableSameType: string;
+  errTooLateToEdit: string;
+  errBookingInPast: string;
+  errCoaching: string;
+  errPackageExpired: string;
+  errCreditInvariant: string;
+  errClubSetUnavailable: string;
+  errDurationLocked: string;
+  errStateChanged: string;
+  errSessionExpired: string;
+  errEditDefault: string;
   bookingId: string;
   bookingType: string;
   regular: string;
@@ -192,6 +232,44 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     bookingDetails: 'Booking Details',
     backToBookings: 'Back to My Bookings',
     bookAgain: 'Book Again',
+    editBooking: 'Edit Booking',
+    editTitle: 'Edit Booking',
+    editIntro: 'Pick a new date, time, or length. You keep the same booking and the same bay type.',
+    selectNewDate: 'Date',
+    selectNewTime: 'Start time',
+    otherDate: 'Other date',
+    currentTimeLabel: 'Dashed outline is your current time',
+    noTimesAvailable: 'No times available on this date. Try another day.',
+    guests: 'Guests',
+    bayNoteSocial: 'You are in a Social Bay and will stay in one.',
+    bayNoteAiLab: 'You are in the AI Lab and will stay there.',
+    reviewChanges: 'Review Changes',
+    reviewTitle: 'Review Changes',
+    reviewIntro: 'Check the details below, then confirm.',
+    beforeLabel: 'Before',
+    afterLabel: 'After',
+    unchangedLabel: 'Unchanged',
+    noChangesYet: 'You have not changed anything yet.',
+    backToEdit: 'Back to Edit',
+    confirmChanges: 'Confirm Changes',
+    savingChanges: 'Saving',
+    noChargeNote: 'No charge for changing your booking.',
+    editSuccessTitle: 'Booking Updated',
+    editSuccessBody: 'Your booking is confirmed for the new time, and the booking ID stays the same.',
+    editSuccessEmailNote: 'We have emailed you the updated details and told our team.',
+    coachingEditHint: 'To reschedule a lesson, please message us on LINE.',
+    errSlotUnavailable: 'That time was just taken. Please pick another.',
+    errSlotUnavailableSameType: 'The AI Lab is booked at that time. Please pick another time.',
+    errTooLateToEdit: 'It is too close to your start time to change this online. Message us on LINE and we will help.',
+    errBookingInPast: 'This booking has already started, so it can no longer be changed.',
+    errCoaching: 'Coaching sessions are scheduled with your coach. Message us on LINE to reschedule.',
+    errPackageExpired: 'Your package expires before that date. Please choose an earlier date.',
+    errCreditInvariant: 'This booking has free credit applied, so it cannot be made shorter.',
+    errClubSetUnavailable: 'Your reserved clubs are already booked at that time. Please choose another slot.',
+    errDurationLocked: 'Your Play & Food set includes a fixed number of hours. You can still move the date and time.',
+    errStateChanged: 'This booking changed while you were editing. Please reload and try again.',
+    errSessionExpired: 'Your session expired. Please reopen this page from LINE.',
+    errEditDefault: 'We could not save your changes. Please try again.',
     bookingId: 'Booking ID',
     bookingType: 'Booking Type',
     regular: 'Regular',
@@ -297,6 +375,44 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     bookingDetails: 'รายละเอียดการจอง',
     backToBookings: 'กลับไปยังการจองของฉัน',
     bookAgain: 'จองอีกครั้ง',
+    editBooking: 'แก้ไขการจอง',
+    editTitle: 'แก้ไขการจอง',
+    editIntro: 'เลือกวันที่ เวลา หรือระยะเวลาใหม่ได้เลยค่ะ การจองและประเภทเบย์ยังคงเดิม',
+    selectNewDate: 'วันที่',
+    selectNewTime: 'เวลาเริ่ม',
+    otherDate: 'วันอื่น',
+    currentTimeLabel: 'กรอบเส้นประคือเวลาปัจจุบันของคุณ',
+    noTimesAvailable: 'วันนี้ไม่มีเวลาว่างค่ะ ลองเลือกวันอื่นนะคะ',
+    guests: 'จำนวนผู้เล่น',
+    bayNoteSocial: 'คุณอยู่ที่ Social Bay และจะยังอยู่ที่ Social Bay ค่ะ',
+    bayNoteAiLab: 'คุณอยู่ที่ AI Lab และจะยังอยู่ที่ AI Lab ค่ะ',
+    reviewChanges: 'ตรวจสอบการเปลี่ยนแปลง',
+    reviewTitle: 'ตรวจสอบการเปลี่ยนแปลง',
+    reviewIntro: 'กรุณาตรวจสอบรายละเอียดด้านล่าง แล้วกดยืนยันค่ะ',
+    beforeLabel: 'เดิม',
+    afterLabel: 'ใหม่',
+    unchangedLabel: 'ไม่เปลี่ยนแปลง',
+    noChangesYet: 'ยังไม่มีการเปลี่ยนแปลงค่ะ',
+    backToEdit: 'กลับไปแก้ไข',
+    confirmChanges: 'ยืนยันการเปลี่ยนแปลง',
+    savingChanges: 'กำลังบันทึก',
+    noChargeNote: 'ไม่มีค่าใช้จ่ายในการเปลี่ยนแปลงการจองค่ะ',
+    editSuccessTitle: 'อัปเดตการจองแล้ว',
+    editSuccessBody: 'การจองของคุณได้รับการยืนยันตามเวลาใหม่แล้วค่ะ รหัสการจองยังคงเดิม',
+    editSuccessEmailNote: 'เราได้ส่งอีเมลรายละเอียดใหม่ให้คุณ และแจ้งทีมงานเรียบร้อยแล้วค่ะ',
+    coachingEditHint: 'หากต้องการเปลี่ยนเวลาเรียน กรุณาทักหาเราทาง LINE นะคะ',
+    errSlotUnavailable: 'เวลานี้เพิ่งถูกจองไปค่ะ กรุณาเลือกเวลาอื่นนะคะ',
+    errSlotUnavailableSameType: 'AI Lab ถูกจองในเวลานั้นแล้วค่ะ กรุณาเลือกเวลาอื่นนะคะ',
+    errTooLateToEdit: 'ใกล้เวลาเริ่มมากเกินกว่าจะเปลี่ยนออนไลน์ได้ค่ะ ทักหาเราทาง LINE ได้เลยนะคะ',
+    errBookingInPast: 'การจองนี้เริ่มไปแล้ว จึงไม่สามารถเปลี่ยนแปลงได้ค่ะ',
+    errCoaching: 'คลาสเรียนต้องนัดหมายกับโค้ชค่ะ ทักหาเราทาง LINE เพื่อเปลี่ยนเวลานะคะ',
+    errPackageExpired: 'แพ็กเกจของคุณหมดอายุก่อนวันดังกล่าวค่ะ กรุณาเลือกวันที่เร็วขึ้นนะคะ',
+    errCreditInvariant: 'การจองนี้ใช้เครดิตฟรีอยู่ จึงลดระยะเวลาลงไม่ได้ค่ะ',
+    errClubSetUnavailable: 'ชุดไม้กอล์ฟที่คุณจองไว้ถูกใช้ในเวลานั้นแล้วค่ะ กรุณาเลือกเวลาอื่นนะคะ',
+    errDurationLocked: 'เซ็ต Play & Food มีจำนวนชั่วโมงที่กำหนดไว้ค่ะ แต่ยังเปลี่ยนวันและเวลาได้นะคะ',
+    errStateChanged: 'การจองนี้มีการเปลี่ยนแปลงระหว่างที่คุณแก้ไขค่ะ กรุณาโหลดหน้าใหม่แล้วลองอีกครั้งนะคะ',
+    errSessionExpired: 'เซสชันหมดอายุค่ะ กรุณาเปิดหน้านี้จาก LINE อีกครั้งนะคะ',
+    errEditDefault: 'ไม่สามารถบันทึกการเปลี่ยนแปลงได้ค่ะ กรุณาลองใหม่อีกครั้งนะคะ',
     bookingId: 'รหัสการจอง',
     bookingType: 'ประเภทการจอง',
     regular: 'ทั่วไป',
@@ -402,6 +518,44 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     bookingDetails: '予約詳細',
     backToBookings: '予約一覧に戻る',
     bookAgain: '再予約',
+    editBooking: '予約を変更',
+    editTitle: 'ご予約の変更',
+    editIntro: '新しい日付、時間、利用時間をお選びください。予約とベイの種類はそのままです。',
+    selectNewDate: '日付',
+    selectNewTime: '開始時刻',
+    otherDate: '別の日付',
+    currentTimeLabel: '破線は現在のご予約時間です',
+    noTimesAvailable: 'この日は空きがありません。別の日をお試しください。',
+    guests: '人数',
+    bayNoteSocial: 'ソーシャルベイのご予約です。同じ種類のベイをご用意します。',
+    bayNoteAiLab: 'AI Lab のご予約です。引き続き AI Lab をご用意します。',
+    reviewChanges: '変更内容を確認',
+    reviewTitle: '変更内容の確認',
+    reviewIntro: '以下の内容をご確認のうえ、確定してください。',
+    beforeLabel: '変更前',
+    afterLabel: '変更後',
+    unchangedLabel: '変更なし',
+    noChangesYet: 'まだ変更されていません。',
+    backToEdit: '編集に戻る',
+    confirmChanges: '変更を確定する',
+    savingChanges: '保存しています',
+    noChargeNote: '変更に料金はかかりません。',
+    editSuccessTitle: 'ご予約を変更しました',
+    editSuccessBody: '新しい時間でご予約が確定しました。予約番号は変わりません。',
+    editSuccessEmailNote: '新しい内容をメールでお送りし、スタッフにも共有しました。',
+    coachingEditHint: 'レッスンの日程変更は LINE でご連絡ください。',
+    errSlotUnavailable: 'その時間はたった今埋まりました。別の時間をお選びください。',
+    errSlotUnavailableSameType: 'その時間は AI Lab が埋まっています。別の時間をお選びください。',
+    errTooLateToEdit: '開始時刻が近いためオンラインでは変更できません。LINE でご連絡ください。',
+    errBookingInPast: 'このご予約はすでに開始しているため変更できません。',
+    errCoaching: 'レッスンはコーチとの調整が必要です。LINE でご連絡ください。',
+    errPackageExpired: 'パッケージの有効期限がその日より前に切れます。より早い日をお選びください。',
+    errCreditInvariant: 'このご予約には無料クレジットが適用されているため、短くはできません。',
+    errClubSetUnavailable: 'ご予約のクラブセットはその時間すでに貸出予定です。別の時間をお選びください。',
+    errDurationLocked: 'Play & Food セットは利用時間が決まっています。日付と時間は変更できます。',
+    errStateChanged: '編集中にご予約が変更されました。再読み込みしてお試しください。',
+    errSessionExpired: 'セッションの有効期限が切れました。LINE からこのページを開き直してください。',
+    errEditDefault: '変更を保存できませんでした。もう一度お試しください。',
     bookingId: '予約ID',
     bookingType: '予約タイプ',
     regular: '通常',
@@ -507,6 +661,44 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     bookingDetails: '预约详情',
     backToBookings: '返回我的预约',
     bookAgain: '再次预约',
+    editBooking: '更改预约',
+    editTitle: '更改预约',
+    editIntro: '选择新的日期、时间或时长。预约和打位类型保持不变。',
+    selectNewDate: '日期',
+    selectNewTime: '开始时间',
+    otherDate: '其他日期',
+    currentTimeLabel: '虚线框为您当前的时间',
+    noTimesAvailable: '这一天没有可预约的时间，请选择其他日期。',
+    guests: '人数',
+    bayNoteSocial: '您预约的是社交打位，将继续安排同类打位。',
+    bayNoteAiLab: '您预约的是 AI Lab，将继续为您保留。',
+    reviewChanges: '查看更改',
+    reviewTitle: '确认更改',
+    reviewIntro: '请核对以下内容后确认。',
+    beforeLabel: '更改前',
+    afterLabel: '更改后',
+    unchangedLabel: '未更改',
+    noChangesYet: '您还没有做任何更改。',
+    backToEdit: '返回修改',
+    confirmChanges: '确认更改',
+    savingChanges: '正在保存',
+    noChargeNote: '更改预约不收取费用。',
+    editSuccessTitle: '预约已更新',
+    editSuccessBody: '您的预约已按新时间确认，预约编号保持不变。',
+    editSuccessEmailNote: '我们已将更新后的详情发送到您的邮箱，并通知了工作人员。',
+    coachingEditHint: '如需更改课程时间，请通过 LINE 联系我们。',
+    errSlotUnavailable: '该时间刚刚被预订。请选择其他时间。',
+    errSlotUnavailableSameType: '该时间 AI Lab 已被预订。请选择其他时间。',
+    errTooLateToEdit: '距离开始时间太近，无法在线更改。请通过 LINE 联系我们。',
+    errBookingInPast: '该预约已经开始，无法再更改。',
+    errCoaching: '教练课程需要与教练协调时间。请通过 LINE 联系我们。',
+    errPackageExpired: '您的套餐在该日期之前到期。请选择更早的日期。',
+    errCreditInvariant: '该预约已使用免费额度，因此无法缩短时长。',
+    errClubSetUnavailable: '您预订的球杆在该时间已被租出。请选择其他时段。',
+    errDurationLocked: 'Play & Food 套餐包含固定时长。您仍然可以更改日期和时间。',
+    errStateChanged: '您编辑期间该预约发生了变化。请刷新后重试。',
+    errSessionExpired: '会话已过期。请从 LINE 重新打开此页面。',
+    errEditDefault: '未能保存您的更改。请重试。',
     bookingId: '预约编号',
     bookingType: '预约类型',
     regular: '普通',

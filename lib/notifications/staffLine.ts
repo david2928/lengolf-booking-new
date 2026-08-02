@@ -178,6 +178,91 @@ export function buildBookingCreatedMessage(data: BookingCreatedLinePayload): str
   return messageToSend.trim();
 }
 
+/** One field of a modified booking, as staff need to read it. */
+export interface ModifiedField<T> {
+  from: T;
+  to: T;
+}
+
+export interface BookingModifiedLinePayload {
+  bookingId: string;
+  customerName?: string | null;
+  phoneNumber?: string | null;
+  /** `yyyy-MM-dd`. Pass a `ModifiedField` when it moved. */
+  bookingDate: string | ModifiedField<string>;
+  /** `HH:mm`. */
+  bookingStartTime: string | ModifiedField<string>;
+  /** `HH:mm`. */
+  bookingEndTime: string | ModifiedField<string>;
+  /** Hours. */
+  duration: number | ModifiedField<number>;
+  /** Display name, e.g. `Bay 1 (Bar)`. */
+  bayNumber: string | ModifiedField<string>;
+  numberOfPeople?: number | null | ModifiedField<number | null>;
+  customerNotes?: string | null;
+  /** Where the edit came from, for the audit line. */
+  channel?: string;
+}
+
+function isModified<T>(value: T | ModifiedField<T>): value is ModifiedField<T> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'from' in (value as Record<string, unknown>) &&
+    'to' in (value as Record<string, unknown>)
+  );
+}
+
+/**
+ * Render a field that may or may not have changed.
+ *
+ * Unchanged fields print bare so the message still reads as a booking. Changed
+ * ones print `old → new`, because the thing staff most need off this message is
+ * what is different from the version already written on the whiteboard.
+ */
+function renderField<T>(value: T | ModifiedField<T>, format: (v: T) => string): string {
+  if (!isModified(value)) return format(value);
+  return `${format(value.from)} → ${format(value.to)}`;
+}
+
+/**
+ * Build the staff-group text for a customer-edited booking.
+ *
+ * Deliberately shows the BAY even when the customer never chose one: an edit can
+ * silently reassign it (see `selectBayForEditedSlot`), and a bay move nobody
+ * announced is a bay move the desk discovers when two groups arrive at once.
+ */
+export function buildBookingModifiedMessage(data: BookingModifiedLinePayload): string {
+  const asIs = (v: string) => v;
+  const dateText = renderField(data.bookingDate, (d) =>
+    d ? formatDateWithOrdinal(d) : 'N/A'
+  );
+
+  const timeText = isModified(data.bookingStartTime) || isModified(data.bookingEndTime)
+    ? `${renderField(data.bookingStartTime, asIs)} - ${renderField(data.bookingEndTime, asIs)}`
+    : `${data.bookingStartTime} - ${data.bookingEndTime}`;
+
+  const durationText = renderField(data.duration, (h) => `${h}h`);
+
+  let message = `🔄 BOOKING MODIFIED (ID: ${data.bookingId}) 🔄`;
+  message += `\n----------------------------------`;
+  message += `\n👤 Customer: ${data.customerName || 'N/A'}`;
+  if (data.phoneNumber) message += `\n📞 Phone: ${data.phoneNumber}`;
+  message += `\n🗓️ Date: ${dateText}`;
+  message += `\n⏰ Time: ${timeText} (${durationText})`;
+  message += `\n⛳ Bay: ${renderField(data.bayNumber, asIs)}`;
+  if (data.numberOfPeople !== undefined && data.numberOfPeople !== null) {
+    message += `\n🧑‍🤝‍🧑 Pax: ${renderField(data.numberOfPeople, (p) => String(p ?? 'N/A'))}`;
+  }
+  if (data.customerNotes) {
+    message += `\n📝 Notes: ${data.customerNotes}`;
+  }
+  message += `\n----------------------------------`;
+  message += `\n✏️ Changed by the customer via ${data.channel || 'the booking site'}`;
+
+  return message.trim();
+}
+
 /**
  * Push a text message to the staff LINE group.
  *
