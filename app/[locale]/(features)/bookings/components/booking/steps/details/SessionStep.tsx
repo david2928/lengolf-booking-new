@@ -349,20 +349,31 @@ export function SessionStep({
               </p>
             )}
 
-            {PLAY_FOOD_PACKAGES.map((pkg) => (
-              <SetMenuCard
-                key={pkg.id}
-                pkg={pkg}
-                isSelected={localSelectedPackage?.id === pkg.id}
-                /* A set longer than the slot's headroom stays visible but
-                   unselectable, same rule as the tile it replaced. */
-                isAvailable={pkg.duration <= maxDuration}
-                onSelect={() => selectSet(pkg)}
-                numberOfPeople={numberOfPeople}
-                date={anchorDate}
-                startTime={selectedTime}
-              />
-            ))}
+            {/* Stacked on a phone, one row of three from `md` up — the same
+                three-tier comparison /play-and-food makes, and the reason it
+                is a grid rather than the full-width stack this started as: in
+                the desktop form column a stacked card is ~500px of photo and
+                prose PER SET, which made this fork taller than the rest of
+                the form combined. `items-stretch` (the grid default) is
+                load-bearing: it hands every card the same height so the flex
+                chain inside `SetMenuCard` can line their select pills up on
+                the bottom edge. */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {PLAY_FOOD_PACKAGES.map((pkg) => (
+                <SetMenuCard
+                  key={pkg.id}
+                  pkg={pkg}
+                  isSelected={localSelectedPackage?.id === pkg.id}
+                  /* A set longer than the slot's headroom stays visible but
+                     unselectable, same rule as the tile it replaced. */
+                  isAvailable={pkg.duration <= maxDuration}
+                  onSelect={() => selectSet(pkg)}
+                  numberOfPeople={numberOfPeople}
+                  date={anchorDate}
+                  startTime={selectedTime}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
