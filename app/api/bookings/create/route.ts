@@ -3,6 +3,7 @@ import { getToken } from 'next-auth/jwt';
 import { v4 as uuidv4 } from 'uuid';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { verifyLineIdToken } from '@/lib/auth/line-id-token';
+import { mintClaimToken } from '@/lib/auth/claim-token';
 import type { Json } from '@/types/supabase';
 import { getGearUpItems } from '@/types/golf-club-rental';
 import { formatBookingData } from '@/utils/booking-formatter';
@@ -236,6 +237,12 @@ export async function POST(request: NextRequest) {
     let customerId: string | null = null; // Will be set for LIFF users
     let customerCode: string | null = null; // Will be set for LIFF users
     let isLiffContext = false;
+    /**
+     * The auth provider behind this booking, for the claim token at the end.
+     * Null on the LIFF path, which never issues one — a LINE customer already
+     * has a durable identity and nothing to claim.
+     */
+    let bookingUserProvider: string | null = null;
 
     // Every `booking_process_logs` insert `logTiming` fires, so the deferred
     // chain can wait for them before it lets the instance go.
@@ -437,6 +444,11 @@ export async function POST(request: NextRequest) {
         );
       }
       userId = token.sub;
+      // Needed at the end of the handler to decide whether to issue a claim
+      // token. Read from the JWT rather than re-queried: the `jwt` callback in
+      // app/api/auth/options.ts puts it there, and a second round trip to
+      // `profiles` for one string would sit on the customer-visible path.
+      bookingUserProvider = typeof token.provider === 'string' ? token.provider : null;
       logTiming('Authentication', 'success');
     }
 
@@ -1389,10 +1401,28 @@ export async function POST(request: NextRequest) {
     // warning. Failures are logged server-side and land in
     // `booking_process_logs` as the 'Email notification' / 'LINE notification'
     // steps.
+    // Claim token for the confirmation upsell, issued HERE and nowhere else.
+    //
+    // This is the only request in the whole flow where we know the caller is the
+    // one who made this booking. Minting it on the confirmation page instead —
+    // which is what the first version did — meant the proof was a SESSION, and a
+    // guest session resolves on email alone, so anyone who knew a customer's
+    // email could obtain one, open their booking, and be handed a token minted
+    // against their profile. Possession proved nothing.
+    //
+    // Guests only: a customer already signed in has nothing to claim. Null when
+    // the secret is unavailable, in which case the upsell hides itself rather
+    // than offering something it cannot honour.
+    const claimToken =
+      !isLiffContext && bookingUserProvider === 'guest'
+        ? mintClaimToken({ bookingId: booking.id, profileId: userId })
+        : null;
+
     return NextResponse.json({
       success: true,
       booking,
       bookingId: booking.id,
+      claimToken,
       bay: availableBay,
       bayDisplayName,
       customerId: customerId || undefined,

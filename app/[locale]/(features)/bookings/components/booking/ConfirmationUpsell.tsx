@@ -3,7 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ProviderButtons } from '@/components/auth/ProviderButtons';
-import { saveClaimHandoff, takeClaimHandoff } from './claimHandoff';
+import {
+  saveClaimHandoff,
+  takeClaimHandoff,
+  readClaimToken,
+  clearClaimToken,
+} from './claimHandoff';
 
 /**
  * Offered to a customer who has just booked as a GUEST: sign in, and this
@@ -31,22 +36,33 @@ interface ConfirmationUpsellProps {
   bookingId: string;
   /** Only guests see this. A signed-in customer already has what it offers. */
   isGuest: boolean;
-  /** Null when the token could not be minted; the upsell then stays hidden. */
-  claimToken: string | null;
-  /** Locale-prefixed, query-free return path back to this confirmation page. */
+  /** Locale-prefixed return path back to this confirmation page. */
   callbackUrl: string;
 }
 
 type ClaimState = 'idle' | 'claiming' | 'claimed' | 'failed';
 
-export function ConfirmationUpsell({
-  bookingId,
-  isGuest,
-  claimToken,
-  callbackUrl,
-}: ConfirmationUpsellProps) {
+export function ConfirmationUpsell({ bookingId, isGuest, callbackUrl }: ConfirmationUpsellProps) {
   const t = useTranslations('bookings.confirmation');
   const [claim, setClaim] = useState<ClaimState>('idle');
+
+  /**
+   * The token comes from CLIENT storage, put there by the create response —
+   * never from a server prop minted on this render.
+   *
+   * That distinction is the security property. Minting here would mean the only
+   * proof of "you are the guest who booked" is the session on this request, and
+   * a guest session resolves on email alone: anyone knowing a customer's email
+   * could obtain one, open their booking, and be handed a valid token for it.
+   * Issued at create, possession means this browser made this booking.
+   *
+   * Read in an effect rather than during render because sessionStorage does not
+   * exist on the server, and reading it inline would desync hydration.
+   */
+  const [claimToken, setClaimToken] = useState<string | null>(null);
+  useEffect(() => {
+    setClaimToken(readClaimToken(bookingId)?.token ?? null);
+  }, [bookingId]);
 
   // On return from the provider, finish the job. `takeClaimHandoff` clears as
   // it reads, so a failure is not retried on every subsequent page load.
@@ -65,6 +81,10 @@ export function ConfirmationUpsell({
       .then((res) => {
         if (cancelled) return;
         setClaim(res.ok ? 'claimed' : 'failed');
+        // Spent either way. A successful claim has nothing left to do, and a
+        // failed one must not be silently re-offered on the next page load with
+        // a token the server has already rejected.
+        clearClaimToken();
       })
       .catch(() => {
         if (!cancelled) setClaim('failed');

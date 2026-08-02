@@ -3,31 +3,34 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { verifyClaimToken } from '@/lib/auth/claim-token';
-import { findOrCreateCustomer } from '@/utils/customer-service';
 
 /**
  * Attach a booking made as a GUEST to the account the customer has just signed
  * into.
  *
  * ── Why this exists ───────────────────────────────────────────────────────
- * The confirmation upsell tells a guest that signing in will show them their
- * bookings. Without this route that is false at the moment it is offered:
- * OAuth profiles are created with NO phone number (`app/api/auth/options.ts`),
- * so `profiles.customer_id` is never set, and `/api/vip/status` reads exactly
- * that column and answers `not_linked`. The customer taps "see your bookings"
- * and lands on an empty portal — the upsell disproving itself on first use.
+ * The confirmation upsell tells a guest that signing in will bring this booking
+ * with them. Without this route that is false: the booking stays pointed at the
+ * throwaway guest profile, and the account they just signed into never shows it.
  *
  * ── Authorisation ─────────────────────────────────────────────────────────
  * Cannot be ownership: the caller is signing in as a DIFFERENT profile than the
- * one that booked, which is the entire point. Instead the confirmation page
- * mints a short-lived HMAC token while the guest session is still valid, and it
- * rides sessionStorage across the OAuth hop. Possession is the proof.
+ * one that booked, which is the entire point. So `/api/bookings/create` issues a
+ * short-lived HMAC token in its response, and it rides sessionStorage across the
+ * OAuth hop. Possession is the proof.
  *
- * ── What is trusted ───────────────────────────────────────────────────────
- * Only the session and the token. The phone used for matching is read
- * SERVER-SIDE from the booking row — never from the request body — so a caller
- * cannot claim a booking onto an arbitrary phone number and inherit a stranger's
- * customer record.
+ * The token is issued at CREATE, not on the confirmation page — that distinction
+ * is the security property. On the confirmation page the only available proof is
+ * a session, and a guest session resolves on email alone, so anyone knowing a
+ * customer's email could obtain one, open their booking, and be handed a valid
+ * token for it. Issued at create, possession means this browser made this
+ * booking, on the one request where that is knowable.
+ *
+ * ── What this deliberately does NOT do ────────────────────────────────────
+ * It does not adopt the customer record. See the comment on the update below:
+ * matching on a phone number the caller typed would hand a stranger's CRM
+ * record to a durable OAuth identity, walking straight around the guest gate in
+ * lib/auth/vip-access.ts.
  */
 export async function POST(
   request: NextRequest,
@@ -88,40 +91,42 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid or expired claim' }, { status: 403 });
   }
 
-  if (!booking.phone_number) {
-    // Nothing to match on. `findOrCreateCustomer` keys on phone alone.
-    return NextResponse.json(
-      { error: 'Booking has no phone number to match on', code: 'NO_PHONE' },
-      { status: 409 }
-    );
-  }
-
-  // Idempotent: if this profile is already linked to the booking's customer,
-  // the claim has already happened (a double tap, a retry). Report success
-  // rather than doing the work twice.
-  const { data: callerProfile } = await supabase
-    .from('profiles')
-    .select('customer_id')
-    .eq('id', profileId)
-    .maybeSingle();
-
-  if (callerProfile?.customer_id && callerProfile.customer_id === booking.customer_id) {
+  // Idempotent: already this profile's booking, so a double tap or a retry is
+  // a no-op rather than a second write.
+  if (booking.user_id === profileId) {
     return NextResponse.json({ ok: true, alreadyLinked: true });
   }
 
-  try {
-    // Reuses the ONE matcher the whole app agrees on, with values read from the
-    // booking row. No new matching logic and no new trust surface: this is
-    // exactly what would have happened had the customer been signed in when
-    // they booked.
-    await findOrCreateCustomer(
-      profileId,
-      booking.name,
-      booking.phone_number,
-      booking.email ?? undefined
-    );
-  } catch (err) {
-    console.error('[Claim] findOrCreateCustomer failed', { bookingId, err });
+  // Move the BOOKING, not the identity.
+  //
+  // This deliberately does NOT call `findOrCreateCustomer`. That matcher keys on
+  // PHONE ALONE (utils/customer-service.ts), and the phone here came off a
+  // booking row that anyone could have typed. Calling it would adopt whichever
+  // customer record that phone belongs to onto the caller's real, durable OAuth
+  // profile — which then passes `denyVipAccess`, because it is not a guest.
+  //
+  // That is an account takeover, and it walks straight around the guest gate
+  // this same changeset adds: book with someone else's phone, sign in, and the
+  // VIP portal is now theirs. The phone is attacker-controlled input; a
+  // customer record is not something to hand over on the strength of it.
+  //
+  // Re-pointing `user_id` is all the upsell ever promised — "this booking comes
+  // with you" — and `/api/vip/bookings` already surfaces bookings by `user_id`
+  // as well as `customer_id`, so the customer sees it either way.
+  //
+  // `customer_id` on the row is left alone: it is the CRM's link for this
+  // booking and staff depend on it. What changes is who may see the booking in
+  // the portal, not who the booking belongs to commercially.
+  const { error: repointError } = await supabase
+    .from('bookings')
+    .update({ user_id: profileId })
+    .eq('id', bookingId)
+    // Guard against a concurrent claim: only move it if it is still where the
+    // token said it was.
+    .eq('user_id', verified.claims.profileId);
+
+  if (repointError) {
+    console.error('[Claim] failed to re-point booking', { bookingId, repointError });
     return NextResponse.json({ error: 'Could not link the booking' }, { status: 500 });
   }
 

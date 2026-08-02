@@ -11,7 +11,6 @@ import {
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/options';
 import { getLocale } from 'next-intl/server';
-import { mintClaimToken } from '@/lib/auth/claim-token';
 import { localePath } from '@/i18n/locale-path';
 import { ConfirmationUpsell } from '../components/booking/ConfirmationUpsell';
 
@@ -55,11 +54,14 @@ export default async function ConfirmationPage({
     redirect('/bookings');
   }
 
+  const sessionProvider = (session.user as { provider?: string }).provider ?? null;
+
   const mayView = canViewBooking({
     sessionUserId: session.user.id,
     profileCustomerId: profile?.customer_id,
     bookingUserId: booking.user_id,
     bookingCustomerId: booking.customer_id,
+    sessionProvider,
   });
 
   if (!mayView) {
@@ -68,17 +70,14 @@ export default async function ConfirmationPage({
     redirect('/bookings');
   }
 
-  // Mint the claim token HERE, while the guest session that made the booking is
-  // still the one on this request. After the customer signs in it is gone, and
-  // there is nothing left to prove they were ever the guest who booked.
-  //
-  // Only for guests: a customer already signed in has nothing to claim. Returns
-  // null if the secret is unavailable, in which case the upsell hides itself
-  // rather than offering something it cannot honour.
-  const isGuest = (session.user as { provider?: string }).provider === 'guest';
-  const claimToken = isGuest
-    ? mintClaimToken({ bookingId: booking.id, profileId: session.user.id })
-    : null;
+  // NOT where the claim token is minted. It used to be, and that was wrong:
+  // the only proof available on this request is the session, and a guest
+  // session resolves on email alone — so anyone who knew a customer's email
+  // could obtain one, open their booking, and be handed a token minted against
+  // their profile. The token now comes from the `/api/bookings/create`
+  // response, the one request where the caller is provably the person who made
+  // the booking. The upsell reads it from client storage.
+  const isGuest = sessionProvider === 'guest';
 
   // Return to THIS page after the provider round trip, so the claim can finish
   // and the customer sees the booking they were promised rather than a generic
@@ -132,7 +131,6 @@ export default async function ConfirmationPage({
           <ConfirmationUpsell
             bookingId={booking.id}
             isGuest={isGuest}
-            claimToken={claimToken}
             callbackUrl={confirmationPath}
           />
         </div>

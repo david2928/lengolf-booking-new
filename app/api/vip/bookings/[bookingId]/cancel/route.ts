@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/options';
+import { authOptions } from '@/app/api/auth/options';
 import { denyVipAccess } from '@/lib/auth/vip-access';
 import { createServerClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
@@ -63,16 +63,19 @@ export async function POST(request: NextRequest, context: CancelRouteContext) {
     return NextResponse.json({ error: 'cancellation_reason must be a string or null if provided' }, { status: 400 });
   }
 
-  // A guest session may not cancel through the VIP surface. It is resolved on
-  // email alone (see lib/auth/vip-access.ts), so it is not proof of identity —
-  // and cancelling is destructive, which makes this stricter than the read
-  // routes rather than looser.
+  // A guest session may not cancel through the VIP surface. It resolves on
+  // email alone (see lib/auth/vip-access.ts), so it is not proof of identity,
+  // and cancelling is destructive — stricter than the read routes, not looser.
   //
-  // Placed BEFORE the branching on purpose: a guest session would otherwise
-  // take the first branch below and never be examined. The LIFF path is
-  // untouched, because it authenticates a LINE profile rather than a guest one.
-  const guestDenial = denyVipAccess(session);
-  if (session?.user?.id && guestDenial) return guestDenial;
+  // Placed BEFORE the branching, or a guest would take the first branch below
+  // and never be examined. Both conjuncts are load-bearing: `session?.user?.id`
+  // stops `denyVipAccess`'s 401-for-unauthenticated shadowing the LIFF branch,
+  // and `!payload.lineUserId` makes it explicit that a LIFF caller is never
+  // affected even if a stale guest cookie rides along in the WebView.
+  if (session?.user?.id && !payload.lineUserId) {
+    const denial = denyVipAccess(session);
+    if (denial) return denial;
+  }
 
   // Support both NextAuth session and LINE userId authentication
   let profileId: string;

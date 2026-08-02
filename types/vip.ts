@@ -134,6 +134,16 @@ export interface VipPackagesResponse {
 export interface ApiErrorPayload {
   error?: string;
   message?: string;
+  /**
+   * Machine-readable reason, where the route supplies one.
+   *
+   * `GUEST_SESSION_NOT_ELIGIBLE` is the only value today: a guest session is
+   * authenticated but not proof of identity (lib/auth/vip-access.ts), so the
+   * VIP routes 403 it. The VIP layout keys off this to offer sign-in rather
+   * than render a generic error, which for a guest is both wrong and a dead
+   * end — signing in again as a guest cannot help.
+   */
+  code?: string;
   // other potential error fields from backend
 }
 

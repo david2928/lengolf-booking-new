@@ -96,6 +96,61 @@ describe('canViewBooking', () => {
     ).toBe(false);
   });
 
+  // A GUEST session is not proof of identity — it resolves on email alone, so
+  // anyone knowing an address can obtain one on that profile. Widening it to
+  // every booking sharing the customer record would turn one leaked email into
+  // the whole booking history behind that phone number.
+  describe('a guest session gets the narrow check only', () => {
+    it('still sees its OWN booking', () => {
+      expect(
+        canViewBooking({
+          sessionUserId: SESSION,
+          profileCustomerId: CUSTOMER,
+          bookingUserId: SESSION,
+          bookingCustomerId: CUSTOMER,
+          sessionProvider: 'guest',
+        })
+      ).toBe(true);
+    });
+
+    it('does NOT reach a sibling profile via the shared customer record', () => {
+      expect(
+        canViewBooking({
+          sessionUserId: SESSION,
+          profileCustomerId: CUSTOMER,
+          bookingUserId: OTHER_PROFILE,
+          bookingCustomerId: CUSTOMER,
+          sessionProvider: 'guest',
+        })
+      ).toBe(false);
+    });
+
+    // The same shape a real provider IS allowed, so the two cases differ only
+    // by the provider — which is the whole point of the distinction.
+    it('while a real provider still does', () => {
+      expect(
+        canViewBooking({
+          sessionUserId: SESSION,
+          profileCustomerId: CUSTOMER,
+          bookingUserId: OTHER_PROFILE,
+          bookingCustomerId: CUSTOMER,
+          sessionProvider: 'google',
+        })
+      ).toBe(true);
+    });
+
+    it('treats an absent provider as trusted, preserving existing callers', () => {
+      expect(
+        canViewBooking({
+          sessionUserId: SESSION,
+          profileCustomerId: CUSTOMER,
+          bookingUserId: OTHER_PROFILE,
+          bookingCustomerId: CUSTOMER,
+        })
+      ).toBe(true);
+    });
+  });
+
   it('refuses an empty session id even when the booking is equally empty', () => {
     expect(
       canViewBooking({

@@ -3,7 +3,7 @@
 import React, { ReactNode, useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut, signIn } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, User, Package, Calendar, LogOut, Trophy, LinkIcon, ExternalLink } from 'lucide-react';
@@ -24,6 +24,9 @@ const VipLayout = ({ children }: VipLayoutProps) => {
   const { data: session, status: sessionStatus } = useSession();
   const t = useTranslations('vip.common');
   const tLayout = useTranslations('vip.layout');
+  // `nav.signIn` already exists in all five catalogs; the guest branch below
+  // reuses it rather than adding a fifth state to translate.
+  const tNav = useTranslations('nav');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showPromotions, setShowPromotions] = useState(false);
   const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
@@ -209,6 +212,32 @@ const VipLayout = ({ children }: VipLayoutProps) => {
           <p className="text-muted-foreground text-lg">{t('redirectingToLogin')}</p>
         </div>
       );
+  }
+
+  // A GUEST session is authenticated but not eligible for the VIP area, and
+  // that is not an error — it is a missing account.
+  //
+  // Without this branch the customer gets the destructive red screen below,
+  // raw error string and all. That is now the DEFAULT post-booking experience
+  // for anyone who booked anonymously, because `ConfirmationContent` links
+  // every customer to `/vip/bookings` under "Manage bookings online", and under
+  // the new flow almost every customer is a guest.
+  //
+  // Sending them to sign-in is both truthful and the thing that fixes it: an
+  // account is exactly what they lack. Reuses the existing unauthenticated
+  // copy rather than inventing a fifth state to translate.
+  const isGuestNotEligible =
+    (vipStatusError as VipApiError)?.payload?.code === 'GUEST_SESSION_NOT_ELIGIBLE';
+
+  if (sessionStatus === 'authenticated' && isGuestNotEligible && !isLoadingVipStatus) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+        <p className="text-muted-foreground text-lg mb-6 text-center">{t('redirectingToLogin')}</p>
+        <button onClick={() => signIn(undefined, { callbackUrl: '/vip/bookings' })}>
+          {tNav('signIn')}
+        </button>
+      </div>
+    );
   }
 
   // Show error message if VIP status failed to load for an authenticated user

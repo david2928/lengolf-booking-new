@@ -33,6 +33,7 @@ import { formatFlowDate } from './summarySubline';
 import { localePath } from '@/i18n/locale-path';
 import { takeContactDraft } from './contactDraft';
 import { toE164 } from '@/lib/phone-e164';
+import { saveClaimToken } from '../../claimHandoff';
 
 /**
  * The balance half of `/api/user/active-packages`.
@@ -1060,6 +1061,16 @@ export function useBookingDetailsForm({
       }
 
       const { booking } = createData;
+
+      // Hold the claim token the create response issued, if any. It is only
+      // present for a guest booking, and it is the ONLY proof that this browser
+      // is the one that made this booking — the confirmation upsell has nothing
+      // to offer without it. Stored here rather than minted on the confirmation
+      // page, because there the only available proof is a session, and a guest
+      // session resolves on email alone.
+      if (typeof createData.claimToken === 'string' && createData.claimToken) {
+        saveClaimToken({ bookingId: booking.id, token: createData.claimToken });
+      }
 
       // There is no notification status to check any more. The confirmation
       // email and the staff LINE message are dispatched after the response, so

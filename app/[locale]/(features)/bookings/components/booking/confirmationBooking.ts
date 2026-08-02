@@ -79,18 +79,41 @@ export function canViewBooking(args: {
   profileCustomerId: string | null | undefined;
   bookingUserId: string | null | undefined;
   bookingCustomerId: string | null | undefined;
+  /**
+   * The session's auth provider. A GUEST session is not proof of identity — it
+   * resolves on email alone (see lib/auth/vip-access.ts) — so it gets the
+   * narrow check only.
+   */
+  sessionProvider?: string | null;
 }): boolean {
-  const { sessionUserId, profileCustomerId, bookingUserId, bookingCustomerId } = args;
+  const {
+    sessionUserId,
+    profileCustomerId,
+    bookingUserId,
+    bookingCustomerId,
+    sessionProvider,
+  } = args;
 
   // A session without an id is not a session; refuse before comparing anything.
   if (!sessionUserId) return false;
 
-  const sameCustomer =
-    !!profileCustomerId && !!bookingCustomerId && profileCustomerId === bookingCustomerId;
-
   // Covers the window between booking creation and the customer link being
   // written, and legacy rows that never got one.
   const sameProfile = !!bookingUserId && bookingUserId === sessionUserId;
+
+  // A guest session gets THIS AND NOTHING MORE.
+  //
+  // The customer branch below is what lets one human see a booking they made
+  // under a different provider — genuinely needed, since findOrCreateCustomer
+  // links guest/google/line profiles to one customers row by phone. But it is
+  // only safe when the session is trustworthy, and a guest one is not: anyone
+  // knowing an email can obtain a session on that profile. Widening such a
+  // session to every booking sharing its customer record would turn one leaked
+  // email into the whole booking history behind that phone number.
+  if (sessionProvider === 'guest') return sameProfile;
+
+  const sameCustomer =
+    !!profileCustomerId && !!bookingCustomerId && profileCustomerId === bookingCustomerId;
 
   return sameCustomer || sameProfile;
 }
