@@ -35,7 +35,7 @@ export async function GET() {
       conditions: promo.conditions ?? {},
       title_en: promo.title_en,
       title_th: promo.title_th,
-      // Read by `calculateCost`: it decides whether the sub-2-hour bogo hint may
+      // Read by `calculateCost`: it decides whether the one-hour bogo hint may
       // say "Or redeem your free hour within 7 days". Only a promotion that
       // actually mints a credit may make that promise, and the same column gates
       // the grant itself in /api/bookings/create, so the quote the customer sees

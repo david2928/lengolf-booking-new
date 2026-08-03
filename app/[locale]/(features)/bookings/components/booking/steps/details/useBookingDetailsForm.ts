@@ -326,7 +326,7 @@ export function useBookingDetailsForm({
 
   /**
    * Free simulator hours the customer already holds — today, the B1G1 hour a
-   * previous sub-2-hour booking earned them.
+   * previous one-hour booking earned them.
    *
    * `null` until the fetch resolves, `[]` for a genuine zero balance. Same
    * `?? null` convention as `packageBalance` above: a balance that has not

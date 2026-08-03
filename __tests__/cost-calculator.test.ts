@@ -23,7 +23,7 @@ const baseInput: CostCalculationInput = {
 };
 
 // Stands in for the new-customer B1G1 (54c08739), the one promotion that mints
-// a redeemable free-hour credit. `grants_credit` is what entitles its sub-2-hour
+// a redeemable free-hour credit. `grants_credit` is what entitles its one-hour
 // hint to say "Or redeem your free hour within 7 days"; see the dedicated
 // describe block at the bottom of this file for the row that may not.
 const bogoPromo: ApplicablePromotion = {
@@ -1260,10 +1260,10 @@ describe('the weekday off-peak B1G1', () => {
   });
 
   // -------------------------------------------------------------------------
-  // The sub-2-hour hint. One hour is the DEFAULT duration on the ladder, so
+  // The one-hour hint. One hour is the DEFAULT duration on the ladder, so
   // this is the majority of what a returning customer sees from this offer.
   // -------------------------------------------------------------------------
-  describe('the sub-2-hour hint promises only what the row can deliver', () => {
+  describe('the one-hour hint promises only what the row can deliver', () => {
     // The clause is a promise that a CREDIT exists. Only a promotion with
     // `grants_credit` mints one (see /api/bookings/create), and the weekday row
     // does not. A returning customer reading it would be owed an hour nothing

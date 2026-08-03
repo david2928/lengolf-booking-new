@@ -946,7 +946,7 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     notesKo.push(...winner.notes.ko);
     notesZh.push(...winner.notes.zh);
 
-    // Only the WINNER's notes are pushed. A losing sub-2-hour bogo's "book 2
+    // Only the WINNER's notes are pushed. A losing one-hour bogo's "book 2
     // hours to get 1 hour free" hint is deliberately suppressed: because offers
     // do not stack, at 2 hours that offer would merely compete with the one
     // already applied and could still lose, so the hint would be a promise we
@@ -955,12 +955,12 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
     // might not honour. Do not re-litigate it without re-opening the promise.
     //
     // Disclosed ONLY when the winner actually applied a discount. When the best
-    // candidate is advice-only (a sub-2-hour bogo), every other candidate is
+    // candidate is advice-only (a one-hour bogo), every other candidate is
     // worth ≤ ฿0 too, so nothing was applied — and "we applied the one worth
     // the most" next to a ฿0 saving is a claim the breakdown contradicts.
     //
     // `value > 0` because "also considered" has to mean an offer that could
-    // GENUINELY have applied and lost. A ฿0 candidate — the sub-2-hour bogo, or
+    // GENUINELY have applied and lost. A ฿0 candidate — the one-hour bogo, or
     // a nonsensical negative `fixed_amount` — never competed for anything, and
     // naming it frames advice as a competition it lost: at a 1-hour booking the
     // customer would read "we applied the one worth the most. Also considered:

@@ -409,7 +409,11 @@ export async function POST(request: NextRequest) {
             provider_id: lineUserId,
             display_name: name || null,
             phone_number: phone_number || null,
-            email: email || null,
+            // Normalized, not raw. This column is nullable and is READ BACK as
+            // the fallback source further down, so storing a malformed value
+            // here would hand it straight back to the next booking as though it
+            // were an address we had on file.
+            email: normalizeEmail(email),
             marketing_preference: false
           })
           .select('id')
@@ -489,23 +493,59 @@ export async function POST(request: NextRequest) {
     // so reaching this branch at all is already the unusual path.
     let resolvedEmail = normalizeEmail(email);
     if (!resolvedEmail) {
-      // `profiles`, keyed on the AUTHENTICATED user id — deliberately NOT the
-      // customer resolved by phone below. A phone match is not proof of
-      // identity; that is why the marketing-consent write further down carries a
-      // household-phone guard. Mailing one household member's booking to
-      // another's address is a worse outcome than sending nothing at all.
-      const { data: profileRow } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('id', userId)
-        .maybeSingle();
-      resolvedEmail = normalizeEmail(profileRow?.email);
+      // Only for a caller whose identity is PROVEN. On the NextAuth path the
+      // JWT is that proof. On the LIFF path it is the verified id token — and
+      // during rollout step B above, `x-line-user-id` alone is an unverified
+      // assertion anyone can send. Since the success response echoes the whole
+      // booking row back, reading a stored address into it on the strength of a
+      // claimed LINE id would turn that header into an email-disclosure
+      // primitive: submit a bogus address as someone else, read theirs out of
+      // the JSON. An unverified caller gets no fallback and no confirmation,
+      // which is the same outcome as before this block existed.
+      const identityProven = !isLiffContext || Boolean(verifiedLineUserId);
+      if (identityProven) {
+        // `profiles`, keyed on the authenticated user id — deliberately NOT the
+        // customer resolved by phone below. A phone match is not proof of
+        // identity; that is why the marketing-consent write further down carries
+        // a household-phone guard. Mailing one household member's booking to
+        // another's address is a worse outcome than sending nothing at all.
+        const { data: profileRow } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', userId)
+          .maybeSingle();
+        resolvedEmail = normalizeEmail(profileRow?.email);
+      }
       // Never log the address itself — this line is about which SOURCE won.
       console.warn(
         `[Booking] Submitted email unusable for user ${userId}; ` +
-          (resolvedEmail ? 'using the address on their profile.' : 'no usable address on file.'),
+          (resolvedEmail
+            ? 'using the address on their profile.'
+            : identityProven
+              ? 'no usable address on file.'
+              : 'unverified LIFF caller, profile fallback skipped.'),
       );
     }
+
+    /**
+     * What goes in `bookings.email`, which is NOT NULL with no default.
+     *
+     * So the column cannot carry "we have no address for this person", and
+     * writing `resolvedEmail` straight in would raise 23502 and FAIL THE
+     * BOOKING for anyone the fallback could not help. That is the opposite of
+     * the intent above — the customer would lose a confirmed slot over a typo,
+     * where before this change they merely lost the email. It is also the
+     * common case, not a rare one: most `line` and `facebook` profiles carry no
+     * email at all, so the fallback finds nothing to use.
+     *
+     * The raw submission is therefore kept as the last resort. It is honest
+     * (it is what the customer typed, and staff can read and repair it) and it
+     * never reaches SMTP — `sendBookingConfirmationEmail` refuses anything
+     * `isValidEmail` rejects. Note this is only about `bookings`: the CRM write
+     * below still gets `resolvedEmail`, because `customers.email` is a durable
+     * record that outlives this booking.
+     */
+    const storedEmail = resolvedEmail ?? (typeof email === 'string' ? email.trim() : '');
 
     // 3. Date validation (native database function handles parsing)
     logTiming('Date validation', 'success');
@@ -790,10 +830,9 @@ export async function POST(request: NextRequest) {
         id: generateBookingId(),
         user_id: userId,
         name: name,
-        // `resolvedEmail`, not the raw submission — see the resolution step
-        // above. Null when nothing usable was found, which is honest; the old
-        // behaviour stored the garbage and pretended it had mailed it.
-        email: resolvedEmail,
+        // NOT NULL column — see `storedEmail` above for why this is not
+        // `resolvedEmail` directly.
+        email: storedEmail,
         phone_number: phone_number,
         date: date,
         start_time: start_time,

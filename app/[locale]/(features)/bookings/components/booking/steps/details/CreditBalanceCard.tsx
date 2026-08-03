@@ -27,7 +27,7 @@ function tidyHours(hours: number): number {
 }
 
 /**
- * Free simulator hours the customer holds — today, the B1G1 hour a sub-2-hour
+ * Free simulator hours the customer holds — today, the B1G1 hour a one-hour
  * booking earned them.
  *
  * Three rules this card exists to keep:
