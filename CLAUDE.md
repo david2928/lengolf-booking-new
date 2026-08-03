@@ -597,6 +597,22 @@ cookie-driven root redirect, cookie-driven `/auth/login` redirect,
   produces `/ko`, `/th`, etc. — once trapped, every subsequent switch
   stays on bare URLs. The 308 breaks the trap. See the
   `next-intl-v3` skill for the predicate + test pattern.
+- **Never hand-write a locale alternation to gate on `pathname`.** The
+  chat widget did (`/^\/(th|ko|ja|zh)?(\/bookings)?\/?$/`) and never
+  matched the un-prefixed English `/bookings` for three months (PR #128):
+  the optional locale group can't absorb `bookings`, and `(\/bookings)?`
+  wants a leading slash `^\/` has already eaten. It hid because `/`
+  rewrites to the English booking page, so the root — the way most people
+  arrive — kept working; only a direct hit or a client-side nav to
+  `/bookings` came up empty. Two things make this class of gate wrong by
+  construction: the locale list drifts from `i18n/routing.ts`, and under
+  `localePrefix: 'as-needed'` the default locale is *absent* from the URL,
+  so the unprefixed form is a distinct shape that a `(locale)?` group
+  cannot express. `lib/chatSurface.ts` is the pattern to copy — split on
+  `/`, compare segments, and read the locales from `routing.locales` minus
+  `routing.defaultLocale`. Note `usePathname()` returns what the browser
+  shows, not the internal rewrite target, so `/` reads as `/` and never as
+  `/en/bookings`.
 - **CJK Han Unification fallback.** See
   `app/globals.css` — we add `html[lang="ja|ko|zh"] body` font stacks
   even though we don't load Noto fonts, as a belt-and-suspenders against
