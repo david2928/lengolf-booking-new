@@ -415,7 +415,7 @@ export default function EditBookingPage() {
           </div>
         )}
 
-        <p className="text-xs text-gray-500 px-1">{t.noChargeNote}</p>
+        <p className="text-xs text-gray-500 px-1">{t.rateChangeNote}</p>
 
         <div className="space-y-2">
           <button

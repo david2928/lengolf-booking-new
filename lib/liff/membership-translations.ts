@@ -108,7 +108,7 @@ export interface MembershipTranslations {
   backToEdit: string;
   confirmChanges: string;
   savingChanges: string;
-  noChargeNote: string;
+  rateChangeNote: string;
   editSuccessTitle: string;
   editSuccessBody: string;
   editSuccessEmailNote: string;
@@ -254,7 +254,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     backToEdit: 'Back to Edit',
     confirmChanges: 'Confirm Changes',
     savingChanges: 'Saving',
-    noChargeNote: 'No charge for changing your booking.',
+    rateChangeNote: 'No change fee. Your bay rate depends on the new time and length, and is paid at the venue.',
     editSuccessTitle: 'Booking Updated',
     editSuccessBody: 'Your booking is confirmed for the new time, and the booking ID stays the same.',
     editSuccessEmailNote: 'We have emailed you the updated details and told our team.',
@@ -398,7 +398,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     backToEdit: 'กลับไปแก้ไข',
     confirmChanges: 'ยืนยันการเปลี่ยนแปลง',
     savingChanges: 'กำลังบันทึก',
-    noChargeNote: 'ไม่มีค่าใช้จ่ายในการเปลี่ยนแปลงการจองค่ะ',
+    rateChangeNote: 'ไม่มีค่าธรรมเนียมในการเปลี่ยนแปลงค่ะ อัตราค่าเบย์ขึ้นอยู่กับเวลาและระยะเวลาใหม่ และชำระที่ร้านตามปกตินะคะ',
     editSuccessTitle: 'อัปเดตการจองแล้ว',
     editSuccessBody: 'การจองของคุณได้รับการยืนยันตามเวลาใหม่แล้วค่ะ รหัสการจองยังคงเดิม',
     editSuccessEmailNote: 'เราได้ส่งอีเมลรายละเอียดใหม่ให้คุณ และแจ้งทีมงานเรียบร้อยแล้วค่ะ',
@@ -542,7 +542,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     backToEdit: '編集に戻る',
     confirmChanges: '変更を確定する',
     savingChanges: '保存しています',
-    noChargeNote: '変更に料金はかかりません。',
+    rateChangeNote: '変更手数料はかかりません。ベイ料金は新しい時間と利用時間に応じて計算され、ご来店時のお支払いとなります。',
     editSuccessTitle: 'ご予約を変更しました',
     editSuccessBody: '新しい時間でご予約が確定しました。予約番号は変わりません。',
     editSuccessEmailNote: '新しい内容をメールでお送りし、スタッフにも共有しました。',
@@ -686,7 +686,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     backToEdit: '返回修改',
     confirmChanges: '确认更改',
     savingChanges: '正在保存',
-    noChargeNote: '更改预约不收取费用。',
+    rateChangeNote: '更改不收取手续费。打位费用根据新的时间和时长计算，到店支付。',
     editSuccessTitle: '预约已更新',
     editSuccessBody: '您的预约已按新时间确认，预约编号保持不变。',
     editSuccessEmailNote: '我们已将更新后的详情发送到您的邮箱，并通知了工作人员。',

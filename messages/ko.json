@@ -603,7 +603,6 @@
       "confirmChanges": "변경 확정",
       "savingChanges": "저장 중",
       "slotAvailable": "이 시간은 예약 가능합니다",
-      "noChargeNote": "예약 변경에는 요금이 발생하지 않습니다.",
       "editSuccessTitle": "예약이 변경되었습니다",
       "editSuccessBody": "새로운 시간으로 예약이 확정되었으며, 예약 번호는 그대로입니다.",
       "editSuccessEmailNote": "변경된 내용을 이메일로 보내드렸고 저희 팀에도 전달했습니다.",
@@ -621,7 +620,8 @@
       "contactOnLine": "LINE으로 문의하기",
       "errOutsideOpeningHours": "해당 시간은 영업시간이 아닙니다. 다른 시간을 선택하시거나 LINE으로 연락 주세요.",
       "bayTypeSocial": "소셜 베이",
-      "bayTypeAiLab": "AI Lab"
+      "bayTypeAiLab": "AI Lab",
+      "rateChangeNote": "변경 수수료는 없습니다. 베이 요금은 새로운 시간과 이용 시간에 따라 달라지며, 현장에서 결제하시면 됩니다."
     },
     "packages": {
       "loading": "패키지 정보를 불러오는 중...",

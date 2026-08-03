@@ -378,7 +378,7 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
 
             {error && <ErrorNote message={error} />}
 
-            <p className="text-xs text-gray-500">{t('noChargeNote')}</p>
+            <p className="text-xs text-gray-500">{t('rateChangeNote')}</p>
 
             <DialogFooter className="gap-2 sm:flex-col sm:space-y-2">
               <Button onClick={handleConfirm} disabled={isSaving} className="w-full">

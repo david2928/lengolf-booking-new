@@ -603,7 +603,6 @@
       "confirmChanges": "确认更改",
       "savingChanges": "正在保存",
       "slotAvailable": "该时间可以预约",
-      "noChargeNote": "更改预约不收取费用。",
       "editSuccessTitle": "预约已更新",
       "editSuccessBody": "您的预约已按新时间确认，预约编号保持不变。",
       "editSuccessEmailNote": "我们已将更新后的详情发送到您的邮箱，并通知了工作人员。",
@@ -621,7 +620,8 @@
       "contactOnLine": "通过 LINE 联系我们",
       "errOutsideOpeningHours": "该时间不在营业时间内。请选择其他时间，或通过 LINE 联系我们。",
       "bayTypeSocial": "社交打位",
-      "bayTypeAiLab": "AI Lab"
+      "bayTypeAiLab": "AI Lab",
+      "rateChangeNote": "更改不收取手续费。打位费用根据新的时间和时长计算，到店支付。"
     },
     "packages": {
       "loading": "正在加载套餐信息...",

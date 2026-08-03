@@ -603,7 +603,6 @@
       "confirmChanges": "Confirm changes",
       "savingChanges": "Saving",
       "slotAvailable": "This time is available",
-      "noChargeNote": "No charge for changing your booking.",
       "editSuccessTitle": "Booking updated",
       "editSuccessBody": "Your booking is confirmed for the new time, and the booking ID stays the same.",
       "editSuccessEmailNote": "We have emailed you the updated details and told our team.",
@@ -621,7 +620,8 @@
       "contactOnLine": "Message us on LINE",
       "errOutsideOpeningHours": "That time is outside our opening hours. Please choose another time, or message us on LINE.",
       "bayTypeSocial": "Social Bay",
-      "bayTypeAiLab": "AI Lab"
+      "bayTypeAiLab": "AI Lab",
+      "rateChangeNote": "No change fee. Your bay rate depends on the new time and length, and is paid at the venue."
     },
     "packages": {
       "loading": "Loading package information...",
