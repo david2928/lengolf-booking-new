@@ -33,6 +33,7 @@ describe('isBookingsLandingPath', () => {
 
   it('tolerates a trailing slash', () => {
     expect(isBookingsLandingPath('/bookings/')).toBe(true);
+    expect(isBookingsLandingPath('/th/')).toBe(true);
     expect(isBookingsLandingPath('/th/bookings/')).toBe(true);
   });
 
@@ -41,6 +42,10 @@ describe('isBookingsLandingPath', () => {
       if (locale === routing.defaultLocale) continue;
       expect(isBookingsLandingPath(`/${locale}`)).toBe(true);
       expect(isBookingsLandingPath(`/${locale}/bookings`)).toBe(true);
+      // The second segment must be `bookings` specifically — loosening that
+      // check to "one segment" would open the widget on every localised page.
+      expect(isBookingsLandingPath(`/${locale}/vip`)).toBe(false);
+      expect(isBookingsLandingPath(`/${locale}/course-rental`)).toBe(false);
     }
   });
 
