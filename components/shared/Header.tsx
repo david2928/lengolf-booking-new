@@ -28,9 +28,14 @@ const Header: React.FC<HeaderProps> = ({
   compact,
 }) => {
   return (
-    <header className={`bg-primary text-primary-foreground sticky top-0 z-50 shadow-md ${compact ? 'py-2 header-desktop:py-4' : 'py-4'}`}>
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center">
+    // The mobile menu opens *inside* this header, and the page behind it is
+    // scroll-locked while it is open. A sticky element pinned at top:0 cannot be
+    // scrolled to, so a menu taller than the screen would be unreachable. Capping
+    // the header at the dynamic viewport height and laying it out as a column
+    // lets the menu take whatever is left over and scroll itself instead.
+    <header className={`bg-primary text-primary-foreground sticky top-0 z-50 shadow-md flex flex-col max-h-dvh ${compact ? 'py-2 header-desktop:py-4' : 'py-4'}`}>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col min-h-0">
+        <div className="flex justify-between items-center flex-shrink-0">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-shrink">
             <h1 className={`font-bold text-white flex-shrink-0 ${compact ? 'text-xl header-desktop:text-2xl' : 'text-2xl'}`}>
               {title}

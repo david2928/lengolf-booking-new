@@ -78,6 +78,16 @@ const VipLayout = ({ children }: VipLayoutProps) => {
     };
   }, [showPromotions, mobileMenuOpen]);
 
+  // The open menu fills the screen and its last row (sign in / sign out) rests
+  // at the bottom edge — exactly where the chat FAB is pinned, which would
+  // otherwise swallow that row's taps. See app/globals.css.
+  useEffect(() => {
+    document.body.classList.toggle('mobile-menu-open', mobileMenuOpen);
+    return () => {
+      document.body.classList.remove('mobile-menu-open');
+    };
+  }, [mobileMenuOpen]);
+
   const isVipStatusCacheValid = useCallback(() => {
     const cache = vipStatusCache.current;
     const currentTime = Date.now();
@@ -380,7 +390,7 @@ const VipLayout = ({ children }: VipLayoutProps) => {
           </>
         }
         mobileMenu={
-          <nav className="header-desktop:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
+          <nav className="header-desktop:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground min-h-0 overflow-y-auto overscroll-contain">
             <ul className="space-y-2 px-2">
               {sessionStatus === 'authenticated' && isVipEligible ? (
                 <>
