@@ -36,8 +36,10 @@ export default function BookingActions({
         </button>
       )}
       {/* A lesson has to be moved with the coach, so point at LINE rather than
-          showing a button that would be refused. */}
-      {!canEdit && isCoaching && canCancel && (
+          showing a button that would be refused. Deliberately NOT gated on
+          `canCancel`: the detail route sets `canCancel = ... && !isCoaching`, so
+          the two can never both be true and the hint would never render. */}
+      {!canEdit && isCoaching && (
         <p className="px-1 pb-1 text-xs text-gray-500 text-center">{t.coachingEditHint}</p>
       )}
       {canCancel && (

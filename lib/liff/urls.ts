@@ -19,3 +19,15 @@ export function getLiffBookingDetailUrl(bookingId: string): string {
 export function getLiffBookingEditUrl(bookingId: string): string {
   return `${LIFF_URLS.membership}/booking/${bookingId}/edit`;
 }
+
+/**
+ * Back to the detail page after an edit, bypassing its 30s cache.
+ *
+ * `appCache` is per-lambda-instance, so the eviction the modify route performs
+ * is best-effort: the return navigation can land on a different instance and be
+ * served the pre-edit date and time. Asking for a fresh read is what actually
+ * guarantees the customer sees the change they just made.
+ */
+export function getLiffBookingDetailFreshUrl(bookingId: string): string {
+  return `${getLiffBookingDetailUrl(bookingId)}?fresh=1`;
+}

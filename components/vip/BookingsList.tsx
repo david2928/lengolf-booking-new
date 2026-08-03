@@ -17,8 +17,11 @@ import { utcToZonedTime, format } from 'date-fns-tz'; // Import from date-fns-tz
 import { isCoachingBooking } from '@/lib/booking-edit-rules';
 
 interface BookingsListProps {
-  onModifyBooking: (bookingId: string) => void; 
-  onCancelBooking: (bookingId: string) => void;  
+  /** Hands over the whole booking: the edit modal prefills from it, and the
+   *  list already holds the row it is rendering, so refetching to find it again
+   *  is a round trip that can fail and leave the click doing nothing. */
+  onModifyBooking: (booking: VipBooking) => void;
+  onCancelBooking: (bookingId: string) => void;
   refreshNonce?: number;
   optimisticUpdates?: { [bookingId: string]: Partial<VipBooking> };
 }
@@ -297,7 +300,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
                 return (
                   <CardFooter className="flex gap-2 pt-0 pb-4 px-4">
                     {!isCoaching && (
-                      <Button variant="outline" onClick={() => onModifyBooking(booking.id)} className="flex-1 py-1 px-2 h-auto text-xs">
+                      <Button variant="outline" onClick={() => onModifyBooking(booking)} className="flex-1 py-1 px-2 h-auto text-xs">
                         <Edit className="mr-1 h-3 w-3" /> {t('edit')}
                       </Button>
                     )}

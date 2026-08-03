@@ -7,6 +7,7 @@
  * a test rather than with a comment.
  */
 
+import { format as formatDate } from 'date-fns';
 import {
   MIN_EDIT_NOTICE_HOURS,
   computeEditability,
@@ -15,8 +16,10 @@ import {
   freeBaysFromAvailability,
   isCoachingBooking,
   isPlayFoodBooking,
+  localCalendarDate,
   selectBayForEditedSlot,
 } from '@/lib/booking-edit-rules';
+import { parseBangkokDate } from '@/utils/date';
 
 const SOCIAL = ['Bay 1', 'Bay 2', 'Bay 3'];
 const AI_LAB = 'Bay 4';
@@ -45,6 +48,42 @@ describe('computeEndTime', () => {
 
   it('returns the start unchanged rather than NaN on malformed input', () => {
     expect(computeEndTime('not-a-time', 2)).toBe('not-a-time');
+  });
+});
+
+/**
+ * The edit form holds its working date as a `yyyy-MM-dd` string and converts it
+ * for exactly two consumers: the calendar widget and `date-fns`, both of which
+ * read LOCAL getters.
+ *
+ * The first version used `parseBangkokDate` for that conversion. It is the right
+ * instant and the wrong local day: in any browser west of +07 the modal opened
+ * already "changed", fetched the previous day's slots, and submitted an edit one
+ * day early — while the review screen, which renders through the Bangkok-pinned
+ * next-intl formatter, showed both sides as the same date. Nothing on screen
+ * disagreed with anything else, so there was no symptom until the booking moved.
+ *
+ * Invisible on a Bangkok dev machine, which is exactly why it is pinned here.
+ */
+describe('localCalendarDate — the date the customer actually submits', () => {
+  const ZONES = ['UTC', 'America/New_York', 'Europe/London', 'Asia/Tokyo', 'Asia/Bangkok'];
+  const originalTz = process.env.TZ;
+  afterAll(() => {
+    process.env.TZ = originalTz;
+  });
+
+  it.each(ZONES)('round-trips through date-fns unchanged in %s', (zone) => {
+    process.env.TZ = zone;
+    for (const iso of ['2026-08-10', '2026-01-01', '2026-12-31']) {
+      expect(formatDate(localCalendarDate(iso), 'yyyy-MM-dd')).toBe(iso);
+    }
+  });
+
+  it('is the fix for a real defect: parseBangkokDate does NOT round-trip', () => {
+    // Documents the trap rather than the fix. `parseBangkokDate('2026-08-10')`
+    // is 2026-08-09T17:00Z, whose local day is the 9th anywhere under +07.
+    const instant = parseBangkokDate('2026-08-10');
+    expect(instant.toISOString()).toBe('2026-08-09T17:00:00.000Z');
   });
 });
 

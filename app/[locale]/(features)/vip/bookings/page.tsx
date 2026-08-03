@@ -39,19 +39,13 @@ const VipBookingsPage = () => {
     }
   }, [vipStatus, isLoadingVipStatus, router]);
 
-  // The edit modal needs the whole booking (date, time, duration, pax, bay) to
-  // prefill its form, not just the id — same reason the cancel modal fetches.
-  const handleOpenModifyModal = async (bookingId: string) => {
-    setSelectedBookingId(bookingId);
-
-    try {
-      const bookingsData = await getVipBookings({ filter: 'all', limit: 100 });
-      setSelectedBooking(bookingsData.bookings.find(b => b.id === bookingId));
-    } catch (error) {
-      console.error('Failed to fetch booking details for edit modal:', error);
-      setSelectedBooking(undefined);
-    }
-
+  // The list hands over the booking it is already rendering. Refetching the
+  // whole page of bookings to find one row would add a failure mode with no
+  // loading state: a throw, or a booking past the fetch limit, would open
+  // nothing and leave the modal state stuck open.
+  const handleOpenModifyModal = (booking: VipBooking) => {
+    setSelectedBookingId(booking.id);
+    setSelectedBooking(booking);
     setIsModifyModalOpen(true);
   };
 

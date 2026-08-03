@@ -235,6 +235,24 @@ export function freeBaysFromAvailability(raw: unknown): string[] {
 }
 
 /**
+ * A Date whose **local** calendar day equals the given `yyyy-MM-dd`.
+ *
+ * For calendar widgets and `date-fns`' `format`, both of which read local
+ * getters. `parseBangkokDate` is the wrong tool for those: it returns the
+ * correct *instant*, which in a browser west of +07 falls on the previous local
+ * day — so `format(parseBangkokDate('2026-08-10'), 'yyyy-MM-dd')` yields
+ * `'2026-08-09'` in London and submits an edit for the wrong date.
+ *
+ * Rule of thumb: `localCalendarDate` for anything that will be read back through
+ * local getters, `parseBangkokDate` for anything compared against a real instant
+ * or rendered through the Bangkok-pinned next-intl formatter.
+ */
+export function localCalendarDate(dateISO: string): Date {
+  const [year, month, day] = dateISO.slice(0, 10).split('-').map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
+
+/**
  * End time of a slot as `HH:mm` Bangkok wall clock.
  *
  * Minute arithmetic, not string concatenation: durations are fractional

@@ -32,6 +32,8 @@ import { verifyLineIdToken } from '@/lib/auth/line-id-token';
 import { appCache } from '@/lib/cache';
 import { parseBangkokDate } from '@/utils/date';
 import { ALL_DURATIONS } from '@/lib/booking-durations';
+import { getOpeningHour } from '@/lib/opening-hours';
+import { CLOSING_HOUR } from '@/lib/booking-periods';
 import {
   MAX_CUSTOMER_NOTES_LENGTH,
   MAX_PEOPLE,
@@ -72,6 +74,31 @@ function fail(
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):(00|30)$/;
+
+/**
+ * Notifications here are awaited BEFORE the response, unlike on create — staff
+ * need to know a booking moved, and the customer is told it succeeded. That
+ * makes an unbounded wait dangerous rather than merely wasteful: `vercel.json`
+ * caps `app/api/**` at 30s, and nodemailer's default connection timeout is two
+ * minutes, so one slow SMTP host would turn a COMMITTED edit into a 504 the
+ * customer reads as failure and retries.
+ *
+ * Same shape as `withTimeout` in `/api/bookings/create`.
+ */
+const NOTIFICATION_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(task: () => Promise<T>, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    task(),
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`${label} timed out after ${NOTIFICATION_TIMEOUT_MS}ms`)),
+        NOTIFICATION_TIMEOUT_MS
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
 
 export async function PUT(request: NextRequest, context: ModifyRouteContext) {
   const { bookingId } = await context.params;
@@ -248,6 +275,32 @@ export async function PUT(request: NextRequest, context: ModifyRouteContext) {
       if (newStartsAt.getTime() <= Date.now()) {
         return fail('NEW_TIME_IN_PAST', 'Please choose a time in the future.', 400);
       }
+
+      // Opening hours are NOT enforced anywhere below this line. `check_availability`
+      // only counts overlapping confirmed rows, so at 03:00 every bay is trivially
+      // free and a crafted payload would write a booking for the middle of the
+      // night; and a session running past closing would give `computeEndTime` a
+      // time that wraps modulo 24, scheduling the review request ~22 hours in the
+      // past so it fires immediately. The picker already respects both bounds —
+      // this is the server saying the same thing.
+      const openingHour = getOpeningHour(newDate);
+      const startHour = Number(newStartTime.split(':')[0]);
+      const startMinutes = startHour * 60 + Number(newStartTime.split(':')[1]);
+
+      if (startHour < openingHour) {
+        return fail(
+          'VALIDATION_ERROR',
+          `We open at ${String(openingHour).padStart(2, '0')}:00. Please choose a later time.`,
+          400
+        );
+      }
+      if (startMinutes + newDuration * 60 > CLOSING_HOUR * 60) {
+        return fail(
+          'VALIDATION_ERROR',
+          `Bookings have to finish by ${CLOSING_HOUR}:00. Please choose a shorter session or an earlier time.`,
+          400
+        );
+      }
     }
 
     // ── 6. Guards on things already attached to this booking ──────────────
@@ -303,23 +356,39 @@ export async function PUT(request: NextRequest, context: ModifyRouteContext) {
         customer_id_param: currentBooking.customer_id,
       });
 
+      // Fails CLOSED, like the credit guard above. A transient RPC failure must
+      // not be the reason a booking silently moves past the expiry of the
+      // package paying for it.
       if (packagesError) {
-        console.warn(`[VIP Modify] Package lookup failed for ${bookingId}:`, packagesError);
-      } else if (Array.isArray(packages)) {
-        const linked = packages.find(
-          (pkg: { package_id?: string }) => pkg.package_id === currentBooking.package_id
-        ) as { expiration_date?: string | null } | undefined;
+        console.error(`[VIP Modify] Package lookup failed for ${bookingId}:`, packagesError);
+        return fail('INTERNAL', 'Could not verify your package. Please try again.', 500);
+      }
 
-        // String compare is exact here: both sides are `yyyy-MM-dd` Bangkok
-        // calendar dates, so no Date parsing (and no timezone) is involved.
-        if (linked?.expiration_date && newDate > linked.expiration_date) {
-          return fail(
-            'PACKAGE_EXPIRED',
-            'Your package expires before that date. Please choose an earlier date or contact us on LINE.',
-            409,
-            { expiresOn: linked.expiration_date }
-          );
-        }
+      const linked = (Array.isArray(packages) ? packages : []).find(
+        (pkg: { package_id?: string }) => pkg.package_id === currentBooking.package_id
+      ) as { expiration_date?: string | null } | undefined;
+
+      // `get_customer_packages` omits packages that are already dead, so a
+      // booking whose package has lapsed finds nothing here. Treat that as
+      // expired rather than as "no constraint" — the alternative is that the
+      // most stale bookings are the ones free to move anywhere.
+      if (!linked) {
+        return fail(
+          'PACKAGE_EXPIRED',
+          'The package on this booking is no longer active. Please contact us on LINE to move it.',
+          409
+        );
+      }
+
+      // String compare is exact here: both sides are `yyyy-MM-dd` Bangkok
+      // calendar dates, so no Date parsing (and no timezone) is involved.
+      if (linked.expiration_date && newDate > linked.expiration_date) {
+        return fail(
+          'PACKAGE_EXPIRED',
+          'Your package expires before that date. Please choose an earlier date or contact us on LINE.',
+          409,
+          { expiresOn: linked.expiration_date }
+        );
       }
     }
 
@@ -440,20 +509,45 @@ export async function PUT(request: NextRequest, context: ModifyRouteContext) {
       if (recheckError) {
         console.warn(`[VIP Modify] Post-write re-check failed for ${bookingId}:`, recheckError);
       } else if (stillFree === false) {
-        const { error: revertError } = await admin
+        // Restore EVERY field the update wrote, not just the slot. Reverting the
+        // time but keeping a raised guest count would leave the customer's
+        // booking in a state they never asked for, on a request we are about to
+        // report as failed.
+        const { data: reverted, error: revertError } = await admin
           .from('bookings')
           .update({
             date: currentBooking.date,
             start_time: currentBooking.start_time,
             duration: currentBooking.duration,
             bay: currentBooking.bay,
+            number_of_people: currentBooking.number_of_people,
+            customer_notes: currentBooking.customer_notes,
           })
-          .eq('id', bookingId);
+          .eq('id', bookingId)
+          // Same compare-and-swap as the forward write: if a cancel landed in
+          // this window, do not resurrect the old slot onto a cancelled row.
+          .eq('status', 'confirmed')
+          .select('id')
+          .maybeSingle();
 
-        if (revertError) {
+        if (revertError || !reverted) {
+          // The booking is now double-booked and we could not undo it. Nobody
+          // downstream will notice on their own — the notification block is past
+          // the return below — so tell the desk here, and never let a LINE
+          // failure swallow the response.
           console.error(
             `[VIP Modify] CRITICAL: could not revert ${bookingId} after losing the race:`,
             revertError
+          );
+          await pushToStaffGroup(
+            `⚠️ MANUAL CHECK NEEDED (ID: ${bookingId})\n` +
+              `An edit lost a race and could not be rolled back.\n` +
+              `Wanted: ${newDate} ${newStartTime} (${newDuration}h) on ${assignedBay}\n` +
+              `Original: ${currentBooking.date} ${currentBooking.start_time} ` +
+              `(${currentBooking.duration}h) on ${currentBooking.bay}\n` +
+              `This bay may now be double-booked.`
+          ).catch((err) =>
+            console.error(`[VIP Modify] Could not raise the revert alarm for ${bookingId}:`, err)
           );
         }
 
@@ -544,7 +638,12 @@ export async function PUT(request: NextRequest, context: ModifyRouteContext) {
     // ── 13. Notify, awaited before responding ─────────────────────────────
     // Not `after()`: staff act on this, and a bay move nobody announced is a bay
     // move the desk discovers when two groups arrive at once.
+    //
+    // Skipped entirely when nothing actually changed — a no-op patch (or a retry
+    // after a timeout) should not push a "BOOKING MODIFIED" message listing no
+    // modifications, or mail the customer a second time.
     const notify: Promise<unknown>[] = [];
+    const shouldNotify = changedFields.length > 0;
 
     const field = <T,>(from: T, to: T): T | ModifiedField<T> =>
       from === to ? to : { from, to };
@@ -573,50 +672,63 @@ export async function PUT(request: NextRequest, context: ModifyRouteContext) {
     const displayName = customerName || updatedBooking.name || 'Customer';
     customerEmail = customerEmail || updatedBooking.email || null;
 
-    notify.push(
-      pushToStaffGroup(
-        buildBookingModifiedMessage({
-          bookingId,
-          customerName: displayName,
-          phoneNumber: customerPhone,
-          bookingDate: field(currentBooking.date, updatedBooking.date),
-          bookingStartTime: field(currentBooking.start_time, updatedBooking.start_time),
-          bookingEndTime: field(oldEnd, newEnd),
-          duration: field(currentBooking.duration, updatedBooking.duration),
-          bayNumber: field(
-            getDisplayBayName(currentBooking.bay),
-            getDisplayBayName(updatedBooking.bay)
-          ),
-          numberOfPeople: field(currentBooking.number_of_people, updatedBooking.number_of_people),
-          customerNotes: updatedBooking.customer_notes,
-          channel,
-        })
-      ).catch((err) =>
-        console.error(`[VIP Modify] Staff LINE notification failed for ${bookingId}:`, err)
-      )
-    );
-
-    if (customerEmail) {
+    if (shouldNotify) {
       notify.push(
-        sendBookingModificationEmail({
-          email: customerEmail,
-          userName: displayName,
-          bookingId,
-          date: updatedBooking.date,
-          startTime: updatedBooking.start_time,
-          endTime: newEnd,
-          duration: updatedBooking.duration,
-          numberOfPeople: updatedBooking.number_of_people ?? 1,
-          previousDate: slotChanged ? currentBooking.date : undefined,
-          previousStartTime: slotChanged ? currentBooking.start_time : undefined,
-          previousEndTime: slotChanged ? oldEnd : undefined,
-          language: bookingLanguage ?? undefined,
-        }).catch((err) =>
-          console.error(`[VIP Modify] Modification email failed for ${bookingId}:`, err)
+        withTimeout(
+          () =>
+            pushToStaffGroup(
+              buildBookingModifiedMessage({
+                bookingId,
+                customerName: displayName,
+                phoneNumber: customerPhone,
+                bookingDate: field(currentBooking.date, updatedBooking.date),
+                bookingStartTime: field(currentBooking.start_time, updatedBooking.start_time),
+                bookingEndTime: field(oldEnd, newEnd),
+                duration: field(currentBooking.duration, updatedBooking.duration),
+                bayNumber: field(
+                  getDisplayBayName(currentBooking.bay),
+                  getDisplayBayName(updatedBooking.bay)
+                ),
+                numberOfPeople: field(
+                  currentBooking.number_of_people,
+                  updatedBooking.number_of_people
+                ),
+                customerNotes: updatedBooking.customer_notes,
+                channel,
+              })
+            ),
+          'staff LINE notification'
+        ).catch((err) =>
+          console.error(`[VIP Modify] Staff LINE notification failed for ${bookingId}:`, err)
         )
       );
-    } else {
-      console.warn(`[VIP Modify] No email on file for ${bookingId}; skipping customer email`);
+
+      if (customerEmail) {
+        notify.push(
+          withTimeout(
+            () =>
+              sendBookingModificationEmail({
+                email: customerEmail as string,
+                userName: displayName,
+                bookingId,
+                date: updatedBooking.date,
+                startTime: updatedBooking.start_time,
+                endTime: newEnd,
+                duration: updatedBooking.duration,
+                numberOfPeople: updatedBooking.number_of_people ?? 1,
+                previousDate: slotChanged ? currentBooking.date : undefined,
+                previousStartTime: slotChanged ? currentBooking.start_time : undefined,
+                previousEndTime: slotChanged ? oldEnd : undefined,
+                language: bookingLanguage ?? undefined,
+              }),
+            'modification email'
+          ).catch((err) =>
+            console.error(`[VIP Modify] Modification email failed for ${bookingId}:`, err)
+          )
+        );
+      } else {
+        console.warn(`[VIP Modify] No email on file for ${bookingId}; skipping customer email`);
+      }
     }
 
     await Promise.all(notify);

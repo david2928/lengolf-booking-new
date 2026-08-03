@@ -26,6 +26,7 @@ import {
   MIN_PEOPLE,
   computeEndTime,
   deriveBayType,
+  localCalendarDate,
 } from '@/lib/booking-edit-rules';
 import { modifyVipBooking } from '../../lib/vipService';
 import { VipApiError } from '../../types/vip';
@@ -34,7 +35,7 @@ import type {
   ModifyVipBookingErrorCode,
   VipBooking,
 } from '../../types/vip';
-import { parseBangkokDate } from '@/utils/date';
+import { getBangkokDateString, parseBangkokDate } from '@/utils/date';
 
 interface BookingModifyModalProps {
   booking: VipBooking;
@@ -73,7 +74,17 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState<Date>(() => parseBangkokDate(booking.date));
+  /**
+   * The working date is a `yyyy-MM-dd` STRING, never a Date.
+   *
+   * Holding a Date and formatting it back with `date-fns` reads local getters,
+   * so a Bangkok instant renders as the previous day for any browser west of
+   * +07 — the modal would open already "changed", fetch the wrong day's slots,
+   * and submit an edit one day early while the Bangkok-pinned review screen
+   * showed both sides as identical. Keeping the string authoritative removes the
+   * round trip entirely.
+   */
+  const [dateString, setDateString] = useState(booking.date);
   const [startTime, setStartTime] = useState(booking.startTime);
   const [duration, setDuration] = useState(booking.duration);
   const [people, setPeople] = useState(booking.numberOfPeople || 1);
@@ -81,15 +92,18 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
   const [confirmedChanges, setConfirmedChanges] = useState<ModifyVipBookingChanges>({});
 
   const bayType = useMemo(() => deriveBayType(booking.bay), [booking.bay]);
-  const dateString = formatDate(selectedDate, 'yyyy-MM-dd');
   const isOriginalDate = dateString === booking.date;
+
+  /** Local-midnight, for the calendar widget and the availability hook — both
+   *  read local getters. Display goes through `bangkokInstant` instead. */
+  const calendarDate = useMemo(() => localCalendarDate(dateString), [dateString]);
 
   // Availability is fetched with this booking EXCLUDED, so the customer's own
   // slot shows as free rather than as the thing blocking them.
   useEffect(() => {
     if (!isOpen || stage !== 'form') return;
-    void fetchAvailability(selectedDate, booking.id);
-  }, [isOpen, stage, selectedDate, booking.id, fetchAvailability]);
+    void fetchAvailability(calendarDate, booking.id);
+  }, [isOpen, stage, calendarDate, booking.id, fetchAvailability]);
 
   /**
    * Slots this booking could actually move to.
@@ -134,18 +148,28 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
     return match?.headroom ?? duration;
   }, [offerableSlots, startTime, duration]);
 
-  const durationOptions = useMemo(
+  const isOriginalSlot = isOriginalDate && startTime === booking.startTime;
+
+  const durationOptions = useMemo(() => {
     // 4 and 5 hours are package-holder rungs on create. An edit never lengthens
     // a booking past what it already is plus the slot's headroom, and the
     // customer's package entitlement is not re-derived here, so the ladder is
     // capped to the base rungs unless they are already booked longer.
-    () =>
-      allowedDurations({
-        maxHours: selectedHeadroom,
-        hasActivePackage: booking.duration > 3,
-      }),
-    [selectedHeadroom, booking.duration]
-  );
+    const ladder = allowedDurations({
+      maxHours: selectedHeadroom,
+      hasActivePackage: booking.duration > 3,
+    });
+
+    // Bookings exist off the standard ladder — 0.5, 3.5 and 6 hours are all in
+    // the table, mostly staff-created. While the customer is still on their own
+    // slot that length is demonstrably bookable, so it has to be offered: the
+    // clamp below would otherwise rewrite it the moment the modal opened, and a
+    // customer who came to move the date would silently also lose (or gain) time.
+    if (isOriginalSlot && !ladder.includes(booking.duration)) {
+      return [...ladder, booking.duration].sort((a, b) => a - b);
+    }
+    return ladder;
+  }, [selectedHeadroom, booking.duration, isOriginalSlot]);
 
   // A duration that no longer fits the chosen slot has to give way, or the
   // review screen would show a length the server will reject.
@@ -233,7 +257,7 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
         // picker and refresh it rather than stranding them on the review screen.
         if (payload?.code && SLOT_ERROR_CODES.has(payload.code)) {
           setStage('form');
-          void fetchAvailability(selectedDate, booking.id);
+          void fetchAvailability(calendarDate, booking.id);
         }
       } else {
         setError(t('errEditDefault'));
@@ -243,13 +267,28 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
     }
   };
 
-  const longDate = (value: Date) =>
-    format.dateTime(value, { weekday: 'short', day: 'numeric', month: 'long' });
+  /**
+   * Display a `yyyy-MM-dd` through the Bangkok-pinned next-intl formatter.
+   *
+   * Takes the string, not a Date, so there is no local-getter round trip to get
+   * wrong: `parseBangkokDate` produces the correct instant and next-intl renders
+   * it in Asia/Bangkok, which is the same answer in every browser.
+   */
+  const longDate = (iso: string) =>
+    format.dateTime(parseBangkokDate(iso), {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'long',
+    });
 
-  const slotRange = (date: string, start: string, hours: number) =>
+  const slotRange = (start: string, hours: number) =>
     `${start} - ${computeEndTime(start, hours)}`;
 
-  const today = new Date();
+  // Bangkok's calendar day, not the browser's: a customer in London at 19:00 is
+  // already on tomorrow in Bangkok, and "Today" has to mean the venue's today.
+  const todayISO = getBangkokDateString();
+  const tomorrowISO = getBangkokDateString(addDays(new Date(), 1));
+  const calendarToday = localCalendarDate(todayISO);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetAndClose()}>
@@ -268,20 +307,18 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
               {confirmedChanges.date && (
                 <ChangeRow
                   label={t('editDateLabel')}
-                  from={longDate(parseBangkokDate(confirmedChanges.date.from))}
-                  to={longDate(parseBangkokDate(confirmedChanges.date.to))}
+                  from={longDate(confirmedChanges.date.from)}
+                  to={longDate(confirmedChanges.date.to)}
                 />
               )}
               {(confirmedChanges.start_time || confirmedChanges.duration) && (
                 <ChangeRow
                   label={t('editTimeLabel')}
                   from={slotRange(
-                    booking.date,
                     confirmedChanges.start_time?.from ?? booking.startTime,
                     confirmedChanges.duration?.from ?? booking.duration
                   )}
                   to={slotRange(
-                    dateString,
                     confirmedChanges.start_time?.to ?? startTime,
                     confirmedChanges.duration?.to ?? duration
                   )}
@@ -314,14 +351,14 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
               <ReviewRow
                 label={t('editDateLabel')}
                 changed={pendingChanges.date}
-                before={longDate(parseBangkokDate(booking.date))}
-                after={longDate(selectedDate)}
+                before={longDate(booking.date)}
+                after={longDate(dateString)}
               />
               <ReviewRow
                 label={t('editTimeLabel')}
                 changed={pendingChanges.startTime || pendingChanges.duration}
-                before={slotRange(booking.date, booking.startTime, booking.duration)}
-                after={slotRange(dateString, startTime, duration)}
+                before={slotRange(booking.startTime, booking.duration)}
+                after={slotRange(startTime, duration)}
               />
               <ReviewRow
                 label={t('editPeopleLabel')}
@@ -378,18 +415,18 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
                 <div className="grid grid-cols-3 gap-2">
                   <DateChip
                     label={t('todayLabel')}
-                    active={dateString === formatDate(today, 'yyyy-MM-dd')}
-                    onClick={() => setSelectedDate(today)}
+                    active={dateString === todayISO}
+                    onClick={() => setDateString(todayISO)}
                   />
                   <DateChip
                     label={t('tomorrowLabel')}
-                    active={dateString === formatDate(addDays(today, 1), 'yyyy-MM-dd')}
-                    onClick={() => setSelectedDate(addDays(today, 1))}
+                    active={dateString === tomorrowISO}
+                    onClick={() => setDateString(tomorrowISO)}
                   />
                   <DateChip
-                    label={longDate(parseBangkokDate(booking.date))}
+                    label={longDate(booking.date)}
                     active={isOriginalDate}
-                    onClick={() => setSelectedDate(parseBangkokDate(booking.date))}
+                    onClick={() => setDateString(booking.date)}
                   />
                 </div>
                 <button
@@ -401,7 +438,7 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
                     <CalendarIcon className="h-4 w-4 text-green-600" aria-hidden="true" />
                     {t('pickAnotherDate')}
                   </span>
-                  <span className="text-gray-500">{longDate(selectedDate)}</span>
+                  <span className="text-gray-500">{longDate(dateString)}</span>
                 </button>
 
                 {showCalendar && (
@@ -454,15 +491,18 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
                     `}</style>
                     <DayPicker
                       mode="single"
-                      selected={selectedDate}
+                      selected={calendarDate}
                       onSelect={(picked) => {
                         if (picked) {
-                          setSelectedDate(picked);
+                          // DayPicker hands back a LOCAL-midnight Date, so
+                          // formatting it with local getters is the correct
+                          // round trip here (unlike a Bangkok instant).
+                          setDateString(formatDate(picked, 'yyyy-MM-dd'));
                           setShowCalendar(false);
                         }
                       }}
-                      startMonth={today}
-                      disabled={[{ before: today }]}
+                      startMonth={calendarToday}
+                      disabled={[{ before: calendarToday }]}
                     />
                   </div>
                 )}

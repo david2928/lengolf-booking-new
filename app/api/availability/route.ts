@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/options';
 import { createServerClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
+import { denyVipAccess } from '@/lib/auth/vip-access';
 import { verifyLineIdToken } from '@/lib/auth/line-id-token';
 import { getOpeningHour } from '@/lib/opening-hours';
 
@@ -26,6 +27,19 @@ const BOOKING_ID_PATTERN = /^BK\d{6}[A-Za-z0-9]{4}$/;
 async function ownsBooking(request: NextRequest, bookingId: string): Promise<boolean> {
   const admin = createAdminClient();
 
+  // Identity FIRST, booking lookup second. Doing the cheap DB read first let an
+  // unauthenticated caller distinguish "this booking id exists" from "it does
+  // not" by response latency — a LINE round trip happens only for real ids — and
+  // let any known-valid id drive unbounded outbound requests to LINE from the
+  // busiest public route in the app.
+  const verifiedLineUserId = await verifyLineIdToken(request.headers.get('x-line-id-token'));
+  const session = verifiedLineUserId ? null : await getServerSession(authOptions);
+
+  // A guest session resolves on email alone, so it proves nothing. The modify
+  // endpoint refuses them; this gate has to agree, or a guest session could have
+  // the exclusion honoured for someone else's booking.
+  if (!verifiedLineUserId && (!session?.user?.id || denyVipAccess(session))) return false;
+
   const { data: booking } = await admin
     .from('bookings')
     .select('user_id, customer_id')
@@ -34,7 +48,6 @@ async function ownsBooking(request: NextRequest, bookingId: string): Promise<boo
 
   if (!booking) return false;
 
-  const verifiedLineUserId = await verifyLineIdToken(request.headers.get('x-line-id-token'));
   if (verifiedLineUserId) {
     const { data: profile } = await admin
       .from('profiles')
@@ -50,14 +63,13 @@ async function ownsBooking(request: NextRequest, bookingId: string): Promise<boo
     );
   }
 
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return false;
-  if (booking.user_id === session.user.id) return true;
+  // Session path. Already proven non-guest and non-null above.
+  if (booking.user_id === session!.user!.id) return true;
 
   const { data: profile } = await admin
     .from('profiles')
     .select('customer_id')
-    .eq('id', session.user.id)
+    .eq('id', session!.user!.id)
     .maybeSingle();
 
   return Boolean(profile?.customer_id && booking.customer_id === profile.customer_id);

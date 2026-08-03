@@ -1,11 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Language, isValidLanguage } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
 import { resolveLanguage, saveLanguagePreference } from '@/lib/liff/language-persistence';
-import { getLiffBookingDetailUrl } from '@/lib/liff/urls';
+import { getLiffBookingDetailFreshUrl } from '@/lib/liff/urls';
 import BookingDetailHeader from '@/components/liff/membership/booking-detail/BookingDetailHeader';
 import BookingDetailLoading from '@/components/liff/membership/booking-detail/BookingDetailLoading';
 import EditBookingForm, {
@@ -14,7 +14,6 @@ import EditBookingForm, {
 } from '@/components/liff/membership/booking-edit/EditBookingForm';
 import EditReviewCard from '@/components/liff/membership/booking-edit/EditReviewCard';
 import type { TimeSlot } from '@/components/liff/booking/TimeSlotList';
-import { getCurrentBangkokTime } from '@/utils/date';
 import type { ModifyVipBookingErrorCode } from '@/types/vip';
 
 interface BookingDetail extends EditableBooking {
@@ -43,6 +42,17 @@ export default function EditBookingPage() {
    * send, and editing is a write against someone's reservation.
    */
   const [lineIdToken, setLineIdToken] = useState<string | null>(null);
+  /**
+   * The same token, in a ref.
+   *
+   * The mount effect runs once and closes over the first render's callbacks, so
+   * the first availability fetch would otherwise carry no token — the server
+   * would fail the ownership check, silently drop `excludeBookingId`, and show
+   * the customer their own slot as occupied. That is the exact bug this feature
+   * exists to fix, and it would have looked intermittent: changing the date once
+   * picks up a fresh closure and starts working.
+   */
+  const lineIdTokenRef = useRef<string | null>(null);
   const [language, setLanguage] = useState<Language>('en');
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
@@ -55,15 +65,22 @@ export default function EditBookingPage() {
     async (date: string) => {
       setIsLoadingSlots(true);
       try {
+        const token = lineIdTokenRef.current;
         const response = await fetch('/api/availability', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(lineIdToken ? { 'x-line-id-token': lineIdToken } : {}),
+            ...(token ? { 'x-line-id-token': token } : {}),
           },
           body: JSON.stringify({
             date,
-            currentTimeInBangkok: getCurrentBangkokTime().toISOString(),
+            // A real instant. NOT `getCurrentBangkokTime().toISOString()` — that
+            // helper returns a shifted Date and calling toISOString on it
+            // subtracts the runtime offset a second time. It happens to cancel
+            // out at exactly +07, so it looks right in Bangkok and is two hours
+            // wrong on a Japanese phone, which then gets offered slots that have
+            // already passed. The SQL does its own AT TIME ZONE conversion.
+            currentTimeInBangkok: new Date().toISOString(),
             // Ignore this booking when computing availability, or the customer
             // is shown their own slot as occupied. Honoured only for its owner.
             excludeBookingId: bookingId,
@@ -99,7 +116,9 @@ export default function EditBookingPage() {
         setIsLoadingSlots(false);
       }
     },
-    [bookingId, lineIdToken]
+    // Reads the token from a ref, so this callback stays stable and the mount
+    // effect's closure cannot go stale.
+    [bookingId]
   );
 
   const fetchBookingDetail = useCallback(
@@ -194,7 +213,12 @@ export default function EditBookingPage() {
         // then 401s and we send the customer back through login rather than
         // leaving them on a form whose submit never works.
         try {
-          setLineIdToken(window.liff.getIDToken?.() ?? null);
+          const token = window.liff.getIDToken?.() ?? null;
+          // Ref FIRST: the availability fetch below runs inside this same
+          // effect and reads the ref, whereas setState would not be visible
+          // until the next render.
+          lineIdTokenRef.current = token;
+          setLineIdToken(token);
         } catch (err) {
           console.warn('[EditBooking] Could not read the LIFF ID token:', err);
         }
@@ -214,7 +238,9 @@ export default function EditBookingPage() {
   }, []);
 
   const navigateToDetail = () => {
-    window.location.href = getLiffBookingDetailUrl(bookingId);
+    // `fresh=1`: the detail page caches for 30s per lambda instance, so without
+    // this a customer can be shown their pre-edit time on the way back.
+    window.location.href = getLiffBookingDetailFreshUrl(bookingId);
   };
 
   const handleDateChange = (date: string) => {

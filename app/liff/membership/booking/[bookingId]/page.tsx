@@ -117,8 +117,12 @@ export default function BookingDetailPage() {
 
   const fetchBookingDetail = async (userId: string) => {
     try {
+      // Forward `?fresh=1` when we arrived here from the edit screen. The detail
+      // response is cached for 30s per lambda instance, so without this the
+      // customer can be shown the booking exactly as it was before they changed it.
+      const wantsFresh = new URLSearchParams(window.location.search).get('fresh') === '1';
       const response = await fetch(
-        `/api/liff/membership/booking/${bookingId}?lineUserId=${userId}`
+        `/api/liff/membership/booking/${bookingId}?lineUserId=${userId}${wantsFresh ? '&fresh=1' : ''}`
       );
 
       if (response.status === 403) {

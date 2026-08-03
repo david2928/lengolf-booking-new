@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { th, enUS, ja, zhCN } from 'date-fns/locale';
 import { Language } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
-import { parseBangkokDate } from '@/utils/date';
+import { localCalendarDate } from '@/lib/booking-edit-rules';
 import { slotRange, type EditableBooking, type EditSelection } from './EditBookingForm';
 
 interface EditReviewCardProps {
@@ -25,8 +25,11 @@ export default function EditReviewCard({ booking, selection, language }: EditRev
   const t = membershipTranslations[language];
   const locale = language === 'th' ? th : language === 'ja' ? ja : language === 'zh' ? zhCN : enUS;
 
-  const longDate = (iso: string) =>
-    format(parseBangkokDate(iso), 'EEEE, MMMM d', { locale });
+  // `localCalendarDate`, not `parseBangkokDate`: date-fns' `format` reads local
+  // getters, and a Bangkok instant renders as the previous day for any browser
+  // west of +07 — so the review screen would name the wrong day on the very
+  // screen whose job is to show exactly what is changing.
+  const longDate = (iso: string) => format(localCalendarDate(iso), 'EEEE, MMMM d', { locale });
 
   const rows = [
     {

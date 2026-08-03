@@ -10,7 +10,7 @@ import { membershipTranslations } from '@/lib/liff/membership-translations';
 import { bookingTranslations } from '@/lib/liff/booking-translations';
 import TimeSlotList, { type TimeSlot } from '@/components/liff/booking/TimeSlotList';
 import { bayTypeHeadroom } from '@/lib/booking-durations';
-import { MAX_PEOPLE, MIN_PEOPLE, computeEndTime } from '@/lib/booking-edit-rules';
+import { MAX_PEOPLE, MIN_PEOPLE, computeEndTime, localCalendarDate } from '@/lib/booking-edit-rules';
 import type { BayType } from '@/lib/bayConfig';
 
 export interface EditableBooking {
@@ -94,23 +94,39 @@ export default function EditBookingForm({
 
   const selectedSlot = offerable.find((slot) => slot.time === selection.startTime) ?? null;
 
+  const isOriginalDate = selection.date === booking.date;
+  const isOriginalSlot = isOriginalDate && selection.startTime === booking.startTime;
+
   // LIFF's create flow offers whole hours only; keep parity so a customer does
   // not see a 1.5 h option here that they could not have booked in the first
   // place.
   const maxDuration = Math.min(Math.floor(selectedSlot?.maxHours ?? booking.duration), 5);
-  const durationOptions = useMemo(
-    () => Array.from({ length: Math.max(1, maxDuration) }, (_, i) => i + 1),
-    [maxDuration]
-  );
+
+  const durationOptions = useMemo(() => {
+    const whole = Array.from({ length: Math.max(1, maxDuration) }, (_, i) => i + 1);
+
+    // Half-hour and other off-ladder lengths are real in the data (0.5 h alone
+    // accounts for a few hundred customer bookings, and 1.5 h is ordinary since
+    // the v3 slots function shipped). While the customer is still on their own
+    // slot that length is by definition bookable, so it must be offered —
+    // otherwise the clamp below fires before they touch anything and quietly
+    // rounds their booking, which for 1.5 h means losing half an hour they paid
+    // for and for 0.5 h means gaining one they did not.
+    if (isOriginalSlot && !whole.includes(booking.duration)) {
+      return [...whole, booking.duration].sort((a, b) => a - b);
+    }
+    return whole;
+  }, [maxDuration, isOriginalSlot, booking.duration]);
 
   // A duration the newly chosen slot cannot fit has to give way.
   useEffect(() => {
-    if (selection.duration > maxDuration && maxDuration >= 1) {
-      onSelectionChange({ ...selection, duration: maxDuration });
-    }
-  }, [maxDuration, selection, onSelectionChange]);
-
-  const isOriginalDate = selection.date === booking.date;
+    if (durationOptions.length === 0) return;
+    if (durationOptions.includes(selection.duration)) return;
+    onSelectionChange({
+      ...selection,
+      duration: durationOptions[durationOptions.length - 1],
+    });
+  }, [durationOptions, selection, onSelectionChange]);
 
   return (
     <div className="space-y-4">
@@ -183,7 +199,7 @@ export default function EditBookingForm({
             </svg>
             {quickDates.some((d) => format(d, 'yyyy-MM-dd') === selection.date)
               ? t.otherDate
-              : format(new Date(`${selection.date}T00:00:00`), 'EEEE, MMM d', { locale })}
+              : format(localCalendarDate(selection.date), 'EEEE, MMM d', { locale })}
           </div>
         </div>
       </div>
