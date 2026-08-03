@@ -344,6 +344,7 @@
       "errorNeedName": "予約のためお名前をご入力ください。",
       "errorNeedPhone": "有効な電話番号をご入力ください。",
       "errorNeedEmail": "確認メールをお送りするためメールアドレスが必要です。",
+      "errorEmailLooksWrong": "メールアドレスの形式が正しくないようです。ご確認ください。",
       "signInPromptTitle": "入力の手間を省く",
       "signInPromptBody": "ログインすると、登録済みの情報を自動で入力します。"
     },
@@ -444,6 +445,7 @@
       "signInToContinue": "続行するにはログインしてください",
       "nameRequired": "お名前は必須です",
       "emailRequired": "メールは必須です",
+      "emailInvalid": "正しいメールアドレスを入力してください",
       "phoneRequired": "電話番号は必須です",
       "phoneInvalid": "正しい電話番号を入力してください",
       "clubSetUnavailable": "選択されたクラブセットはご希望の時間帯では利用できません。別のオプションをお選びください。",

@@ -16,6 +16,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { normalizeEmail } from '@/lib/email-format';
+
 interface ResolveInput {
   customerId?: string | null;
   customerPhone?: string | null;
@@ -151,8 +153,7 @@ export async function resolveOrCreateCustomerId(
     // Minimal email format gate: this string was only length-checked upstream
     // and now lands in the CRM column staff tooling + outreach read — a garbage
     // or forged value is worse there than a null.
-    const email = customerEmail?.trim() || null;
-    const safeEmail = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+    const safeEmail = normalizeEmail(customerEmail);
     const { data: created, error: insertError } = await admin
       .from('customers')
       .insert({

@@ -344,6 +344,7 @@
       "errorNeedName": "예약을 위해 이름을 입력해 주세요.",
       "errorNeedPhone": "올바른 전화번호를 입력해 주세요.",
       "errorNeedEmail": "예약 확인 메일을 보내려면 이메일이 필요합니다.",
+      "errorEmailLooksWrong": "이메일 주소 형식이 올바르지 않은 것 같습니다. 다시 확인해 주세요.",
       "signInPromptTitle": "입력 시간을 줄이세요",
       "signInPromptBody": "로그인하시면 저장된 정보를 자동으로 채워드려요."
     },
@@ -444,6 +445,7 @@
       "signInToContinue": "계속하려면 로그인해 주세요",
       "nameRequired": "이름은 필수입니다",
       "emailRequired": "이메일은 필수입니다",
+      "emailInvalid": "올바른 이메일 주소를 입력해 주세요",
       "phoneRequired": "전화번호는 필수입니다",
       "phoneInvalid": "올바른 전화번호를 입력해 주세요",
       "clubSetUnavailable": "선택하신 클럽 세트는 더 이상 해당 시간에 이용할 수 없습니다. 다른 옵션을 선택해 주세요.",

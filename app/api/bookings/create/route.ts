@@ -16,6 +16,7 @@ import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
 import { isValidLanguage } from '@/lib/liff/translations';
 import { isValidLocale } from '@/i18n/routing';
 import { sanitizeAttribution } from '@/lib/attribution/click-ids';
+import { normalizeEmail } from '@/lib/email-format';
 import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
 import {
   getPosDiscountTitle,
@@ -472,6 +473,40 @@ export async function POST(request: NextRequest) {
     }
     logTiming('Request parsing', 'success');
 
+    // The address this booking is actually stored and mailed with. The
+    // submitted value is only the first candidate.
+    //
+    // Booking BK260803FKLR was created with `email: 'r'` on 2026-08-03 — one
+    // keystroke, truthy, so it cleared the presence check above. Nodemailer
+    // refused the envelope (`EENVELOPE: No recipients defined`) and the customer
+    // received nothing, while their real address sat on `profiles` the whole
+    // time. `bookings.email` also feeds the review-request scheduler at the end
+    // of this handler, so a bad value fails twice, half an hour apart.
+    //
+    // Falling back rather than rejecting: the slot is available and the booking
+    // is otherwise sound, so failing it over a typo costs the customer more than
+    // a silently-corrected address does. The flow validates before submitting,
+    // so reaching this branch at all is already the unusual path.
+    let resolvedEmail = normalizeEmail(email);
+    if (!resolvedEmail) {
+      // `profiles`, keyed on the AUTHENTICATED user id — deliberately NOT the
+      // customer resolved by phone below. A phone match is not proof of
+      // identity; that is why the marketing-consent write further down carries a
+      // household-phone guard. Mailing one household member's booking to
+      // another's address is a worse outcome than sending nothing at all.
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .maybeSingle();
+      resolvedEmail = normalizeEmail(profileRow?.email);
+      // Never log the address itself — this line is about which SOURCE won.
+      console.warn(
+        `[Booking] Submitted email unusable for user ${userId}; ` +
+          (resolvedEmail ? 'using the address on their profile.' : 'no usable address on file.'),
+      );
+    }
+
     // 3. Date validation (native database function handles parsing)
     logTiming('Date validation', 'success');
 
@@ -562,7 +597,12 @@ export async function POST(request: NextRequest) {
         try {
           console.log(`[Customer Service] Starting customer identification for user ${userId}${isLiffContext ? ' (LIFF)' : ''}`);
 
-          const result = await findOrCreateCustomer(userId, name, phone_number, email);
+          // `resolvedEmail`, so a malformed submission is never written onto a
+          // NEW `customers` row. That column is read by staff tooling and
+          // outreach, where a garbage value outlives this booking.
+          const result = await findOrCreateCustomer(
+            userId, name, phone_number, resolvedEmail ?? undefined,
+          );
 
           console.log(`[Customer Service] Customer identification result:`, {
             isNew: result.is_new_customer,
@@ -750,7 +790,10 @@ export async function POST(request: NextRequest) {
         id: generateBookingId(),
         user_id: userId,
         name: name,
-        email: email,
+        // `resolvedEmail`, not the raw submission — see the resolution step
+        // above. Null when nothing usable was found, which is honest; the old
+        // behaviour stored the garbage and pretended it had mailed it.
+        email: resolvedEmail,
         phone_number: phone_number,
         date: date,
         start_time: start_time,
@@ -926,6 +969,14 @@ export async function POST(request: NextRequest) {
               // Normalize emails for the household-phone identity guard. A
               // whitespace-only matched email collapses to null (treated as
               // "no email on record"); same for missing/undefined.
+              //
+              // Reads the RAW submission, not `resolvedEmail`, and that
+              // asymmetry with the booking row above is deliberate. This guard
+              // asks "did the person filling in this form prove they are the
+              // person on the customer record" — substituting an address they
+              // did not type would answer a question nobody asked. A malformed
+              // submission therefore fails the check and consent is skipped,
+              // which is the direction to fail in for a consent write.
               const matchedEmail = matchedCustomer.email?.trim().toLowerCase() || null;
               const formEmail = (email ?? '').trim().toLowerCase() || null;
               const identityOk =
@@ -1089,12 +1140,13 @@ export async function POST(request: NextRequest) {
               date,
               startTime: start_time,
               // parseFloat, not parseInt: half-hour durations shipped two slices
-              // ago, so this is '1.5'/'2.5' in the wild. Truncation was latent for
-              // the old `>= 2` branch (every value on the current ladder lands on
-              // the same side either way), but it is load-bearing now — the free
-              // window of a 2.5h bogo is priced at a different position than a 2h
-              // one, and value is what picks the winner. The same parseInt('1.5')
-              // mistake already caused a production bug on the LIFF surface.
+              // ago, so this is '1.5'/'2.5' in the wild. Truncation now decides
+              // the bogo GATE, not just the amount — parseInt('1.5') is 1, which
+              // fails `duration > 1` and would silently drop the discount a 1.5h
+              // booking is owed. It also prices the free window of a 2.5h bogo at
+              // a different position than a 2h one, and value is what picks the
+              // winner. The same parseInt('1.5') mistake already caused a
+              // production bug on the LIFF surface.
               duration: parseFloat(duration) || 1,
               clubRentalId: club_rental_type || 'none',
               addOns: Object.fromEntries((validatedAddOns ?? []).map((a) => [a.key, true])),
@@ -1110,7 +1162,7 @@ export async function POST(request: NextRequest) {
             });
 
             // The winner, whether it applied a discount or only advice. Read
-            // `appliedPromotionId`, never `discounts[0]`: a sub-2-hour bogo wins by
+            // `appliedPromotionId`, never `discounts[0]`: a one-hour bogo wins by
             // contributing the "redeem within 7 days" hint and pushes no discount
             // row — which is the live case today and the one staff must honour.
             const applied = applicablePromotions.find((p) => p.id === breakdown.appliedPromotionId);
@@ -1216,13 +1268,13 @@ export async function POST(request: NextRequest) {
               // whether THIS booking was discounted, not on which offer won.
               //
               // `discounted` is the gate because the paired `pos.discounts` rows are
-              // percentage / 100.00 / item. On a booking of 2 hours or more the item
-              // is the second hour and zeroing it is exactly right. On a shorter
-              // booking the offer contributed advice and no discount, the item is
-              // the WHOLE booking, and the same instruction tells staff to zero a
-              // booking the customer was quoted in full. One hour is the default
-              // duration on the ladder, so that is the majority of an off-peak
-              // offer's bookings, not an edge case.
+              // percentage / 100.00 / item. Over an hour the item is the free tail
+              // and zeroing it is exactly right. At exactly one hour the offer
+              // contributed advice and no discount, the item is the WHOLE booking,
+              // and the same instruction tells staff to zero a booking the customer
+              // was quoted in full. One hour is the default duration on the ladder,
+              // so that is a large share of an off-peak offer's bookings, not an
+              // edge case.
               //
               // The advice-only branch says so out loud rather than falling silent.
               // The note still names the offer, because the customer saw it; a named

@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { formatPhoneNumberIntl, isValidPhoneNumber } from 'react-phone-number-input';
+import { isValidEmail } from '@/lib/email-format';
 import { ChangeAnswerButton } from '../../affordances';
 
 /** The three contact values the card stands in for. */
@@ -33,7 +34,11 @@ export function firstIncompleteContactField({
 }: ContactIdentity): ContactFieldId | null {
   if (!name.trim()) return 'bd-name';
   if (!phoneNumber || !isValidPhoneNumber(phoneNumber)) return 'bd-phone';
-  if (!email.trim()) return 'bd-email';
+  // Format, not just presence. This was the ONLY contact field checked for
+  // emptiness alone while the phone beside it was fully validated, so `r` — one
+  // keystroke, truthy — passed every gate and reached nodemailer. See
+  // lib/email-format.ts.
+  if (!isValidEmail(email)) return 'bd-email';
   return null;
 }
 
@@ -42,8 +47,9 @@ export function firstIncompleteContactField({
  *
  * A blank line in the card is worse than a plain empty input, and partial
  * prefill is common — LINE users frequently have no email on file — so the card
- * is all-or-nothing. An invalid stored phone counts as missing: the card would
- * otherwise present a number the customer cannot book with as settled fact.
+ * is all-or-nothing. An invalid stored phone OR email counts as missing: the
+ * card would otherwise present a value the customer cannot book with as settled
+ * fact, and an address they never get to see is one they never get to correct.
  */
 export function isIdentityComplete(contact: ContactIdentity): boolean {
   return firstIncompleteContactField(contact) === null;

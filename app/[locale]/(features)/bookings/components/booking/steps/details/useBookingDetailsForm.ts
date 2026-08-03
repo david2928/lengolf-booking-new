@@ -14,6 +14,7 @@ import { toast } from 'react-hot-toast';
 import { useSession, signIn, getSession } from 'next-auth/react';
 import type { Session } from 'next-auth';
 import { isValidPhoneNumber } from 'react-phone-number-input';
+import { isValidEmail } from '@/lib/email-format';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { getPlayFoodPackages } from '@/types/play-food-packages';
 import { getPremiumClubPricing, getPremiumPlusClubPricing, formatClubRentalInfo, getGearUpItems } from '@/types/golf-club-rental';
@@ -828,8 +829,14 @@ export function useBookingDetailsForm({
       currentErrors.name = tErrors('nameRequired');
       isValid = false;
     }
+    // Missing and malformed are separate messages on purpose: "email is
+    // required" beside a field the customer has visibly filled in reads as a
+    // broken form, and they retype the same value. Mirrors the phone pair below.
     if (!email) {
       currentErrors.email = tErrors('emailRequired');
+      isValid = false;
+    } else if (!isValidEmail(email)) {
+      currentErrors.email = tErrors('emailInvalid');
       isValid = false;
     }
     // Updated phone number validation

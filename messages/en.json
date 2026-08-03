@@ -344,6 +344,7 @@
       "errorNeedName": "We need your name to hold the booking.",
       "errorNeedPhone": "Please enter a valid phone number.",
       "errorNeedEmail": "We need an email to send your confirmation.",
+      "errorEmailLooksWrong": "That does not look like an email address. Please check it.",
       "signInPromptTitle": "Save the typing",
       "signInPromptBody": "Sign in and we will fill in what we already know."
     },
@@ -444,6 +445,7 @@
       "signInToContinue": "Please sign in to continue",
       "nameRequired": "Name is required",
       "emailRequired": "Email is required",
+      "emailInvalid": "Please enter a valid email address",
       "phoneRequired": "Phone number is required",
       "phoneInvalid": "Please enter a valid phone number",
       "clubSetUnavailable": "The selected club set is no longer available for your time slot. Please choose a different option.",
