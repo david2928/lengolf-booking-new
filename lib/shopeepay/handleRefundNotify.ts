@@ -5,6 +5,7 @@ import { extractReferenceId, isFinalSuccess, type NotifyTransactionPayload } fro
 import { claimAndSendRefundEmail } from './markRefundAsRefunded';
 import { composeRentalLineMessage } from '@/lib/club-rental/lineMessage';
 import { resolveLineMessageRental } from '@/lib/club-rental/orders';
+import { pushToStaffGroup } from '@/lib/notifications/staffLine';
 
 const IS_PROD_ENV = process.env.VERCEL_ENV === 'production';
 
@@ -247,7 +248,7 @@ export async function handleRefundNotify(
   // do a read-then-write on the FRESH row (post our increment).
   const { data: txn, error: txnErr } = await supabase
     .from('payment_transactions')
-    .select('id, club_rental_id, amount, refunded_amount')
+    .select('id, club_rental_id, payment_link_id, amount, refunded_amount')
     .eq('id', refundRow.payment_transaction_id)
     .single<PaymentTransactionRow>();
 
@@ -272,6 +273,53 @@ export async function handleRefundNotify(
   if (txnUpdateErr) {
     console.error('[ShopeePay/webhook/refund] txn update failed:', txnUpdateErr);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+  }
+
+  // 6a. Ad-hoc payment link. There is no in-app refund for these in v1 — the
+  // escalation message tells staff to refund in the ShopeePay merchant portal —
+  // so once ShopeePay ships refund callbacks this branch starts firing for
+  // portal-initiated refunds. public.payment_links has no 'refunded' status, so
+  // rather than silently leaving the row reading 'paid' with no signal at all,
+  // ping staff. Give this a real status transition (plus a migration) if ad-hoc
+  // refunds ever become a first-class flow.
+  const adhocLinkId = (txn as { payment_link_id?: string | null }).payment_link_id;
+  if (adhocLinkId) {
+    const { data: linkRow } = await supabase
+      .from('payment_links')
+      .select('link_code, customer_name, amount, description')
+      .eq('id', adhocLinkId)
+      .maybeSingle();
+
+    const l = linkRow as {
+      link_code: string;
+      customer_name: string;
+      amount: number;
+      description: string;
+    } | null;
+
+    console.warn(
+      `[ShopeePay/webhook/refund] ad-hoc payment link ${l?.link_code ?? adhocLinkId} refunded ` +
+        `(${newTxnStatus}) — payment_links.status remains 'paid'; reconcile by hand`
+    );
+
+    if (l) {
+      try {
+        await pushToStaffGroup(
+          [
+            `${IS_PROD_ENV ? '' : '[UAT] '}↩️ PAYMENT LINK REFUNDED (ID: ${l.link_code})`,
+            '',
+            `Customer: ${l.customer_name}`,
+            `For: ${l.description}`,
+            `Amount: ฿${(l.amount / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            '',
+            'The link still reads PAID in the back office — ad-hoc links have no',
+            'refunded state yet. Reconcile this one by hand.',
+          ].join('\n')
+        );
+      } catch (err) {
+        console.error('[ShopeePay/webhook/refund] ad-hoc staff notification failed:', err);
+      }
+    }
   }
 
   // 6. Update the rental's payment_status to mirror the txn state — and

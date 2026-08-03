@@ -39,6 +39,12 @@ interface StatusResponse {
   paid_at?: string | null;
   failure_reason?: 'declined' | 'cancelled' | 'expired' | 'unknown' | null;
   summary?: RentalOrderSummary | null;
+  /**
+   * Ad-hoc payment links (PL-...) only. They have no club sets or dates to
+   * itemise, so `summary` is always null and this free-text line is what the
+   * customer actually paid for ("Deposit - Smith 50th birthday, 15 Aug").
+   */
+  description?: string | null;
 }
 
 const POLL_INTERVAL_MS = 2500;
@@ -201,6 +207,9 @@ function SuccessView({
   t: ReturnType<typeof useTranslations>;
   format: ReturnType<typeof useFormatter>;
 }) {
+  /** Ad-hoc payment link (PL-) rather than a club rental (CR-). */
+  const isAdhoc = data.ref?.startsWith('PL-') ?? false;
+
   const formatDate = (iso: string) =>
     format.dateTime(new Date(`${iso}T00:00:00+07:00`), {
       timeZone: 'Asia/Bangkok',
@@ -233,7 +242,12 @@ function SuccessView({
           </svg>
         </div>
         <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('successTitle')}</h1>
-        <p className="text-sm text-gray-600">{t('successBody')}</p>
+        {/* An ad-hoc payment link has no reservation and, by v1 design, sends no
+            email — promising a receipt would generate exactly the "did my money
+            go through?" doubt this page exists to remove. */}
+        <p className="text-sm text-gray-600">
+          {isAdhoc ? t('successBodyAdhoc') : t('successBody')}
+        </p>
       </div>
 
       {/* Receipt card — what they paid + transaction details. */}
@@ -271,9 +285,24 @@ function SuccessView({
           </>
         )}
 
+        {/* Ad-hoc payment links carry no summary — show what was paid for instead. */}
+        {!data.summary && data.description && (
+          <>
+            <div className="text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">{t('successDescriptionLabel')}</span>
+                <span className="font-medium text-gray-900 text-right">{data.description}</span>
+              </div>
+            </div>
+            <hr className="my-4 border-gray-100" />
+          </>
+        )}
+
         <div className="space-y-2 text-sm">
           <div className="flex justify-between gap-3">
-            <span className="text-gray-500">{t('successRentalCodeLabel')}</span>
+            <span className="text-gray-500">
+              {isAdhoc ? t('successCodeLabel') : t('successRentalCodeLabel')}
+            </span>
             <span className="font-mono font-semibold text-gray-900">{data.ref}</span>
           </div>
           <div className="flex justify-between gap-3">
@@ -346,7 +375,12 @@ function FailedView({
   } as const;
 
   // Retry only makes sense when the failure is recoverable AND we have a ref.
-  const canRetry = (reason === 'declined' || reason === 'cancelled' || reason === 'unknown') && !!ref;
+  // Ad-hoc payment links (PL-) are excluded: /payment/start is rental-only and
+  // would 404 trying to load an order summary. Staff re-issue the link instead.
+  const canRetry =
+    (reason === 'declined' || reason === 'cancelled' || reason === 'unknown') &&
+    !!ref &&
+    !ref.startsWith('PL-');
 
   return (
     <div
