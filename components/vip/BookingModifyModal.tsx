@@ -366,10 +366,12 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
                 before={String(booking.numberOfPeople || 1)}
                 after={String(people)}
               />
+              {/* The short type name, like every other row. The explanatory
+                  sentence belongs under the pickers, not in a table cell. */}
               <ReviewRow
                 label={t('bayLabel')}
                 changed={false}
-                before={bayType === 'ai_lab' ? t('bayNoteAiLab') : t('bayNoteSocial')}
+                before={bayType === 'ai_lab' ? t('bayTypeAiLab') : t('bayTypeSocial')}
                 after=""
               />
             </div>
@@ -650,6 +652,29 @@ function DateChip({
   );
 }
 
+/**
+ * The old value, an arrow, the new value.
+ *
+ * Deliberately NOT struck through. A line through `09:00 - 11:00` runs straight
+ * across the separating hyphen, so the range reads as one mangled number and the
+ * customer has to squint at the thing whose entire job is to be scannable. The
+ * arrow already says "became", and muted-vs-bold carries the rest; `sr-only`
+ * text says it out loud for anyone who cannot see either.
+ *
+ * Wraps rather than overflowing: two time ranges plus an arrow do not fit beside
+ * a label on a 375px screen.
+ */
+function FromTo({ from, to }: { from: string; to: string }) {
+  return (
+    <span className="flex flex-wrap items-center justify-end gap-x-1.5 text-right">
+      <span className="text-gray-400">{from}</span>
+      <ArrowRight className="h-3 w-3 flex-shrink-0 text-gray-400" aria-hidden="true" />
+      <span className="sr-only">changed to</span>
+      <span className="font-semibold text-green-700">{to}</span>
+    </span>
+  );
+}
+
 /** One line of the review table. Unchanged fields still show, so the customer
  *  can confirm what is NOT moving as well as what is. */
 function ReviewRow({
@@ -667,11 +692,7 @@ function ReviewRow({
     <div className={`flex items-start justify-between gap-3 px-3 py-2.5 ${changed ? 'bg-green-50' : ''}`}>
       <span className="flex-shrink-0 text-gray-500">{label}</span>
       {changed ? (
-        <span className="text-right">
-          <span className="text-gray-400 line-through">{before}</span>
-          <ArrowRight className="mx-1 inline h-3 w-3 text-gray-400" aria-hidden="true" />
-          <span className="font-semibold text-green-700">{after}</span>
-        </span>
+        <FromTo from={before} to={after} />
       ) : (
         <span className="text-right font-medium text-gray-900">{before}</span>
       )}
@@ -683,11 +704,7 @@ function ChangeRow({ label, from, to }: { label: string; from: string; to: strin
   return (
     <div className="flex items-start justify-between gap-3">
       <span className="flex-shrink-0 text-gray-500">{label}</span>
-      <span className="text-right">
-        <span className="text-gray-400 line-through">{from}</span>
-        <ArrowRight className="mx-1 inline h-3 w-3 text-gray-400" aria-hidden="true" />
-        <span className="font-semibold text-green-700">{to}</span>
-      </span>
+      <FromTo from={from} to={to} />
     </div>
   );
 }

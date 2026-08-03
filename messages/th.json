@@ -589,8 +589,8 @@
       "slotFullLabel": "เต็ม",
       "loadingTimes": "กำลังตรวจสอบเวลาว่าง",
       "noTimesAvailable": "วันนี้ไม่มีเวลาว่างค่ะ ลองเลือกวันอื่นนะคะ",
-      "bayNoteSocial": "คุณอยู่ที่ Social Bay และจะยังอยู่ที่ Social Bay ค่ะ",
-      "bayNoteAiLab": "คุณอยู่ที่ AI Lab และจะยังอยู่ที่ AI Lab ค่ะ",
+      "bayNoteSocial": "เราจะจัดให้คุณอยู่ที่ Social Bay เหมือนเดิมค่ะ",
+      "bayNoteAiLab": "เราจะจัดให้คุณอยู่ที่ AI Lab เหมือนเดิมค่ะ",
       "reviewChanges": "ตรวจสอบการเปลี่ยนแปลง",
       "reviewTitle": "ตรวจสอบการเปลี่ยนแปลง",
       "reviewIntro": "กรุณาตรวจสอบรายละเอียดด้านล่าง แล้วกดยืนยันค่ะ",
@@ -619,7 +619,9 @@
       "errStateChanged": "การจองนี้มีการเปลี่ยนแปลงระหว่างที่คุณแก้ไขค่ะ กรุณาโหลดหน้าใหม่แล้วลองอีกครั้งนะคะ",
       "errEditDefault": "ไม่สามารถบันทึกการเปลี่ยนแปลงได้ค่ะ กรุณาลองใหม่อีกครั้งนะคะ",
       "contactOnLine": "ทักหาเราทาง LINE",
-      "errOutsideOpeningHours": "เวลานั้นอยู่นอกเวลาทำการค่ะ กรุณาเลือกเวลาอื่น หรือทักหาเราทาง LINE นะคะ"
+      "errOutsideOpeningHours": "เวลานั้นอยู่นอกเวลาทำการค่ะ กรุณาเลือกเวลาอื่น หรือทักหาเราทาง LINE นะคะ",
+      "bayTypeSocial": "Social Bay",
+      "bayTypeAiLab": "AI Lab"
     },
     "packages": {
       "loading": "กำลังโหลดข้อมูลแพ็กเกจ...",

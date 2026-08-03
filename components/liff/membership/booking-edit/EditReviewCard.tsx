@@ -75,9 +75,15 @@ export default function EditReviewCard({ booking, selection, language }: EditRev
           >
             <span className="text-sm text-gray-500 flex-shrink-0">{row.label}</span>
             {row.changed ? (
-              <span className="text-sm text-right ml-4">
-                <span className="text-gray-400 line-through">{row.before}</span>
-                <span className="mx-1 text-gray-400">&rarr;</span>
+              /* No strikethrough: a line through `09:00 - 11:00` cuts straight
+                 across the separating hyphen, so the range stops being readable
+                 at exactly the moment the customer needs to read it. The arrow
+                 and the weight carry the meaning, and it wraps instead of
+                 overflowing on a narrow phone. */
+              <span className="ml-4 flex flex-wrap items-center justify-end gap-x-1.5 text-sm text-right">
+                <span className="text-gray-400">{row.before}</span>
+                <span className="text-gray-400" aria-hidden="true">&rarr;</span>
+                <span className="sr-only">changed to</span>
                 <span className="font-semibold text-green-700">{row.after}</span>
               </span>
             ) : (

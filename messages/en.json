@@ -589,8 +589,8 @@
       "slotFullLabel": "Full",
       "loadingTimes": "Checking availability",
       "noTimesAvailable": "No times available on this date. Try another day.",
-      "bayNoteSocial": "You are in a Social Bay and will stay in one.",
-      "bayNoteAiLab": "You are in the AI Lab and will stay there.",
+      "bayNoteSocial": "We'll keep you in a Social Bay.",
+      "bayNoteAiLab": "We'll keep you in the AI Lab.",
       "reviewChanges": "Review changes",
       "reviewTitle": "Review changes",
       "reviewIntro": "Check the details below, then confirm.",
@@ -619,7 +619,9 @@
       "errStateChanged": "This booking changed while you were editing. Please reload and try again.",
       "errEditDefault": "We could not save your changes. Please try again.",
       "contactOnLine": "Message us on LINE",
-      "errOutsideOpeningHours": "That time is outside our opening hours. Please choose another time, or message us on LINE."
+      "errOutsideOpeningHours": "That time is outside our opening hours. Please choose another time, or message us on LINE.",
+      "bayTypeSocial": "Social Bay",
+      "bayTypeAiLab": "AI Lab"
     },
     "packages": {
       "loading": "Loading package information...",

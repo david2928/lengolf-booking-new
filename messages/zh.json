@@ -589,8 +589,8 @@
       "slotFullLabel": "已满",
       "loadingTimes": "正在查询空位",
       "noTimesAvailable": "这一天没有可预约的时间，请选择其他日期。",
-      "bayNoteSocial": "您预约的是社交打位，将继续安排同类打位。",
-      "bayNoteAiLab": "您预约的是 AI Lab，将继续为您保留。",
+      "bayNoteSocial": "我们会继续为您安排社交打位。",
+      "bayNoteAiLab": "我们会继续为您保留 AI Lab。",
       "reviewChanges": "查看更改",
       "reviewTitle": "确认更改",
       "reviewIntro": "请核对以下内容后确认。",
@@ -619,7 +619,9 @@
       "errStateChanged": "您编辑期间该预约发生了变化。请刷新后重试。",
       "errEditDefault": "未能保存您的更改。请重试。",
       "contactOnLine": "通过 LINE 联系我们",
-      "errOutsideOpeningHours": "该时间不在营业时间内。请选择其他时间，或通过 LINE 联系我们。"
+      "errOutsideOpeningHours": "该时间不在营业时间内。请选择其他时间，或通过 LINE 联系我们。",
+      "bayTypeSocial": "社交打位",
+      "bayTypeAiLab": "AI Lab"
     },
     "packages": {
       "loading": "正在加载套餐信息...",
