@@ -148,6 +148,7 @@ export type ModifyVipBookingErrorCode =
   | 'PACKAGE_EXPIRED'
   | 'CREDIT_INVARIANT'
   | 'DURATION_LOCKED'
+  | 'OUTSIDE_OPENING_HOURS'
   | 'STATE_CHANGED'
   | 'INTERNAL';
 

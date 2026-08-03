@@ -1,16 +1,24 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { format, addDays, isToday, isTomorrow } from 'date-fns';
+import { format } from 'date-fns';
 import { th, enUS, ja, zhCN } from 'date-fns/locale';
+import { getBangkokDateString } from '@/utils/date';
 import { Language } from '@/lib/liff/translations';
 import { membershipTranslations } from '@/lib/liff/membership-translations';
 // "Today" already exists in the booking catalog; duplicating it into the
 // membership one would give the same word two translations to drift apart.
 import { bookingTranslations } from '@/lib/liff/booking-translations';
 import TimeSlotList, { type TimeSlot } from '@/components/liff/booking/TimeSlotList';
-import { bayTypeHeadroom } from '@/lib/booking-durations';
-import { MAX_PEOPLE, MIN_PEOPLE, computeEndTime, localCalendarDate } from '@/lib/booking-edit-rules';
+import { ALL_DURATIONS, bayTypeHeadroom } from '@/lib/booking-durations';
+import {
+  MAX_PEOPLE,
+  MIN_PEOPLE,
+  clampDuration,
+  computeEndTime,
+  editDurationOptions,
+  localCalendarDate,
+} from '@/lib/booking-edit-rules';
 import type { BayType } from '@/lib/bayConfig';
 
 export interface EditableBooking {
@@ -63,11 +71,25 @@ export default function EditBookingForm({
   const locale = language === 'th' ? th : language === 'ja' ? ja : language === 'zh' ? zhCN : enUS;
 
   const bayType: BayType = booking.bayType === 'ai' ? 'ai_lab' : 'social';
-  // Computed once per mount. `today` is intentionally outside the dependency
-  // array: a fresh `new Date()` every render would make the memo useless and
-  // rebuild the four buttons on every keystroke elsewhere in the form.
-  const today = useMemo(() => new Date(), []);
-  const quickDates = useMemo(() => Array.from({ length: 4 }, (_, i) => addDays(today, i)), [today]);
+  /**
+   * The venue's calendar, not the phone's.
+   *
+   * The LIFF WebView follows the device timezone, so a customer opening this
+   * from outside +07 would otherwise see a "Today" chip naming a day that is
+   * already over in Bangkok, and a `min` bound one day loose — the server then
+   * refuses with NEW_TIME_IN_PAST. Held as `yyyy-MM-dd` strings for the same
+   * reason the web modal does: comparing dates as strings has no zone in it.
+   *
+   * Bangkok has no DST, so adding whole days in milliseconds is exact.
+   */
+  const todayISO = useMemo(() => getBangkokDateString(), []);
+  const quickDateISOs = useMemo(
+    () =>
+      Array.from({ length: 4 }, (_, i) =>
+        getBangkokDateString(new Date(Date.now() + i * 86_400_000))
+      ),
+    []
+  );
 
   /**
    * Slots this booking can actually take, capped to what its own bay type can
@@ -100,32 +122,29 @@ export default function EditBookingForm({
   // LIFF's create flow offers whole hours only; keep parity so a customer does
   // not see a 1.5 h option here that they could not have booked in the first
   // place.
-  const maxDuration = Math.min(Math.floor(selectedSlot?.maxHours ?? booking.duration), 5);
+  const headroom = selectedSlot?.maxHours ?? booking.duration;
 
-  const durationOptions = useMemo(() => {
-    const whole = Array.from({ length: Math.max(1, maxDuration) }, (_, i) => i + 1);
+  const durationOptions = useMemo(
+    () =>
+      editDurationOptions({
+        bookingDuration: booking.duration,
+        headroom,
+        isOriginalSlot,
+        wholeHoursOnly: true,
+        hasActivePackage: false,
+        ladder: ALL_DURATIONS,
+      }),
+    [headroom, isOriginalSlot, booking.duration]
+  );
 
-    // Half-hour and other off-ladder lengths are real in the data (0.5 h alone
-    // accounts for a few hundred customer bookings, and 1.5 h is ordinary since
-    // the v3 slots function shipped). While the customer is still on their own
-    // slot that length is by definition bookable, so it must be offered —
-    // otherwise the clamp below fires before they touch anything and quietly
-    // rounds their booking, which for 1.5 h means losing half an hour they paid
-    // for and for 0.5 h means gaining one they did not.
-    if (isOriginalSlot && !whole.includes(booking.duration)) {
-      return [...whole, booking.duration].sort((a, b) => a - b);
-    }
-    return whole;
-  }, [maxDuration, isOriginalSlot, booking.duration]);
-
-  // A duration the newly chosen slot cannot fit has to give way.
+  // A duration the newly chosen slot cannot fit has to give way. Downwards only:
+  // picking the longest offered rung would turn a 30-minute booking into a
+  // five-hour one with no interaction. See `clampDuration`.
   useEffect(() => {
-    if (durationOptions.length === 0) return;
-    if (durationOptions.includes(selection.duration)) return;
-    onSelectionChange({
-      ...selection,
-      duration: durationOptions[durationOptions.length - 1],
-    });
+    const next = clampDuration(selection.duration, durationOptions);
+    if (next !== selection.duration) {
+      onSelectionChange({ ...selection, duration: next });
+    }
   }, [durationOptions, selection, onSelectionChange]);
 
   return (
@@ -135,9 +154,11 @@ export default function EditBookingForm({
         <h2 className="text-base font-semibold text-gray-900 mb-3">{t.selectNewDate}</h2>
 
         <div className="grid grid-cols-4 gap-2 mb-3">
-          {quickDates.map((date) => {
-            const value = format(date, 'yyyy-MM-dd');
+          {quickDateISOs.map((value, index) => {
             const selected = value === selection.date;
+            // Local-midnight purely for the day/month NUMERALS, which date-fns
+            // reads off local getters. The identity of the day is the string.
+            const shown = localCalendarDate(value);
             return (
               <button
                 key={value}
@@ -151,15 +172,15 @@ export default function EditBookingForm({
                 <div
                   className={`text-[10px] font-semibold uppercase ${selected ? 'text-white/80' : 'text-gray-500'}`}
                 >
-                  {isToday(date)
+                  {index === 0
                     ? tb.today
-                    : isTomorrow(date)
+                    : index === 1
                       ? { en: 'TMR', th: 'พรุ่งนี้', ja: '明日', zh: '明天' }[language]
-                      : format(date, 'EEE', { locale })}
+                      : format(shown, 'EEE', { locale })}
                 </div>
-                <div className="text-2xl font-bold mt-0.5">{format(date, 'd')}</div>
+                <div className="text-2xl font-bold mt-0.5">{format(shown, 'd')}</div>
                 <div className={`text-[10px] ${selected ? 'text-white/70' : 'text-gray-400'}`}>
-                  {format(date, 'MMM', { locale })}
+                  {format(shown, 'MMM', { locale })}
                 </div>
               </button>
             );
@@ -175,7 +196,7 @@ export default function EditBookingForm({
         <div className="relative">
           <input
             type="date"
-            min={format(today, 'yyyy-MM-dd')}
+            min={todayISO}
             value={selection.date}
             onChange={(e) => e.target.value && onDateChange(e.target.value)}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -184,7 +205,7 @@ export default function EditBookingForm({
           />
           <div
             className={`w-full py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 pointer-events-none ${
-              quickDates.some((d) => format(d, 'yyyy-MM-dd') === selection.date)
+              quickDateISOs.includes(selection.date)
                 ? 'bg-gray-100 text-gray-700'
                 : 'bg-primary text-white'
             }`}
@@ -197,7 +218,7 @@ export default function EditBookingForm({
                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            {quickDates.some((d) => format(d, 'yyyy-MM-dd') === selection.date)
+            {quickDateISOs.includes(selection.date)
               ? t.otherDate
               : format(localCalendarDate(selection.date), 'EEEE, MMM d', { locale })}
           </div>

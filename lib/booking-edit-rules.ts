@@ -234,6 +234,74 @@ export function freeBaysFromAvailability(raw: unknown): string[] {
     .map(([bay]) => bay);
 }
 
+export interface EditDurationInput {
+  /** The booking's current length, which may be off the standard ladder. */
+  bookingDuration: number;
+  /** Longest session the chosen slot can serve for this bay type. */
+  headroom: number;
+  /** True while the customer is still on the slot the booking already occupies. */
+  isOriginalSlot: boolean;
+  /** LIFF offers whole hours only, matching its create flow. */
+  wholeHoursOnly: boolean;
+  /** Unlocks the 4 h and 5 h rungs. */
+  hasActivePackage: boolean;
+  /** The base ladder, injected so this module need not import from itself. */
+  ladder: number[];
+}
+
+/**
+ * The durations to offer while editing, ascending.
+ *
+ * Distinct from `allowedDurations` because an edit starts from a booking that
+ * already exists, and that booking's length is not necessarily on the ladder:
+ * 0.5, 3.5 and 6 hour bookings are all in the table, mostly staff-created, and
+ * 1.5 is ordinary but absent from LIFF's whole-hour ladder. While the customer
+ * is still on their own slot that length is by definition bookable, so it has to
+ * be offered — otherwise {@link clampDuration} rewrites it before they touch
+ * anything.
+ */
+export function editDurationOptions({
+  bookingDuration,
+  headroom,
+  isOriginalSlot,
+  wholeHoursOnly,
+  hasActivePackage,
+  ladder,
+}: EditDurationInput): number[] {
+  const base = wholeHoursOnly
+    ? Array.from({ length: Math.max(1, Math.min(Math.floor(headroom), 5)) }, (_, i) => i + 1)
+    : ladder.filter((hours) => hours <= headroom && (hasActivePackage || hours <= 3));
+
+  const options = base.length > 0 ? base : [MIN_DURATION_HOURS];
+
+  if (isOriginalSlot && !options.includes(bookingDuration)) {
+    return [...options, bookingDuration].sort((a, b) => a - b);
+  }
+  return options;
+}
+
+/**
+ * The duration to fall back to when the current one is no longer offered.
+ *
+ * **Downwards, never upwards.** The obvious `options[options.length - 1]` picks
+ * the LONGEST rung, which silently lengthens the booking: a customer moving a
+ * 30-minute session to another day would have had 3 hours (web) or 5 hours
+ * (LIFF) selected for them, and since the endpoint does not re-check package
+ * entitlement when a booking grows, the extra hours would simply be taken.
+ *
+ * Falls back to the shortest option only when nothing fits, which can happen
+ * when the whole ladder sits above the current length (a 0.5 h booking moved to
+ * a slot whose shortest rung is 1 h).
+ */
+export function clampDuration(current: number, options: number[]): number {
+  if (options.length === 0 || options.includes(current)) return current;
+  const fits = options.filter((hours) => hours <= current);
+  return fits.length > 0 ? fits[fits.length - 1] : options[0];
+}
+
+/** Shortest bookable session. Mirrors `MIN_DURATION` in `booking-durations.ts`. */
+const MIN_DURATION_HOURS = 1;
+
 /**
  * A Date whose **local** calendar day equals the given `yyyy-MM-dd`.
  *

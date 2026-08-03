@@ -122,6 +122,7 @@ export interface MembershipTranslations {
   errCreditInvariant: string;
   errClubSetUnavailable: string;
   errDurationLocked: string;
+  errOutsideOpeningHours: string;
   errStateChanged: string;
   errSessionExpired: string;
   errEditDefault: string;
@@ -267,6 +268,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     errCreditInvariant: 'This booking has free credit applied, so it cannot be made shorter.',
     errClubSetUnavailable: 'Your reserved clubs are already booked at that time. Please choose another slot.',
     errDurationLocked: 'Your Play & Food set includes a fixed number of hours. You can still move the date and time.',
+    errOutsideOpeningHours: 'That time is outside our opening hours. Please choose another time, or message us on LINE.',
     errStateChanged: 'This booking changed while you were editing. Please reload and try again.',
     errSessionExpired: 'Your session expired. Please reopen this page from LINE.',
     errEditDefault: 'We could not save your changes. Please try again.',
@@ -410,6 +412,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     errCreditInvariant: 'การจองนี้ใช้เครดิตฟรีอยู่ จึงลดระยะเวลาลงไม่ได้ค่ะ',
     errClubSetUnavailable: 'ชุดไม้กอล์ฟที่คุณจองไว้ถูกใช้ในเวลานั้นแล้วค่ะ กรุณาเลือกเวลาอื่นนะคะ',
     errDurationLocked: 'เซ็ต Play & Food มีจำนวนชั่วโมงที่กำหนดไว้ค่ะ แต่ยังเปลี่ยนวันและเวลาได้นะคะ',
+    errOutsideOpeningHours: 'เวลานั้นอยู่นอกเวลาทำการค่ะ กรุณาเลือกเวลาอื่น หรือทักหาเราทาง LINE นะคะ',
     errStateChanged: 'การจองนี้มีการเปลี่ยนแปลงระหว่างที่คุณแก้ไขค่ะ กรุณาโหลดหน้าใหม่แล้วลองอีกครั้งนะคะ',
     errSessionExpired: 'เซสชันหมดอายุค่ะ กรุณาเปิดหน้านี้จาก LINE อีกครั้งนะคะ',
     errEditDefault: 'ไม่สามารถบันทึกการเปลี่ยนแปลงได้ค่ะ กรุณาลองใหม่อีกครั้งนะคะ',
@@ -553,6 +556,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     errCreditInvariant: 'このご予約には無料クレジットが適用されているため、短くはできません。',
     errClubSetUnavailable: 'ご予約のクラブセットはその時間すでに貸出予定です。別の時間をお選びください。',
     errDurationLocked: 'Play & Food セットは利用時間が決まっています。日付と時間は変更できます。',
+    errOutsideOpeningHours: 'その時間は営業時間外です。別の時間をお選びいただくか、LINE でご連絡ください。',
     errStateChanged: '編集中にご予約が変更されました。再読み込みしてお試しください。',
     errSessionExpired: 'セッションの有効期限が切れました。LINE からこのページを開き直してください。',
     errEditDefault: '変更を保存できませんでした。もう一度お試しください。',
@@ -696,6 +700,7 @@ export const membershipTranslations: Record<Language, MembershipTranslations> = 
     errCreditInvariant: '该预约已使用免费额度，因此无法缩短时长。',
     errClubSetUnavailable: '您预订的球杆在该时间已被租出。请选择其他时段。',
     errDurationLocked: 'Play & Food 套餐包含固定时长。您仍然可以更改日期和时间。',
+    errOutsideOpeningHours: '该时间不在营业时间内。请选择其他时间，或通过 LINE 联系我们。',
     errStateChanged: '您编辑期间该预约发生了变化。请刷新后重试。',
     errSessionExpired: '会话已过期。请从 LINE 重新打开此页面。',
     errEditDefault: '未能保存您的更改。请重试。',

@@ -269,6 +269,8 @@ export default function EditBookingPage() {
         return t.errCreditInvariant;
       case 'DURATION_LOCKED':
         return t.errDurationLocked;
+      case 'OUTSIDE_OPENING_HOURS':
+        return t.errOutsideOpeningHours;
       case 'COACHING_NOT_EDITABLE':
         return t.errCoaching;
       case 'TOO_LATE_TO_EDIT':

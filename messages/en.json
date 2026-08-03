@@ -618,7 +618,8 @@
       "errDurationLocked": "Your Play & Food set includes a fixed number of hours. You can still move the date and time.",
       "errStateChanged": "This booking changed while you were editing. Please reload and try again.",
       "errEditDefault": "We could not save your changes. Please try again.",
-      "contactOnLine": "Message us on LINE"
+      "contactOnLine": "Message us on LINE",
+      "errOutsideOpeningHours": "That time is outside our opening hours. Please choose another time, or message us on LINE."
     },
     "packages": {
       "loading": "Loading package information...",

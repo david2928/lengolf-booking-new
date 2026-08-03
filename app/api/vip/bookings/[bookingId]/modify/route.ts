@@ -287,18 +287,27 @@ export async function PUT(request: NextRequest, context: ModifyRouteContext) {
       const startHour = Number(newStartTime.split(':')[0]);
       const startMinutes = startHour * 60 + Number(newStartTime.split(':')[1]);
 
+      //
+      // Its own code, not VALIDATION_ERROR: a booking staff placed outside
+      // opening hours (an 08:00 start, or a session running past 23:00) trips
+      // this the moment its owner tries to move the DATE, even though they
+      // changed nothing about the time. That is not a mistake they can correct
+      // in the form, so the clients point them at LINE rather than showing a
+      // generic failure they can only retry.
       if (startHour < openingHour) {
         return fail(
-          'VALIDATION_ERROR',
-          `We open at ${String(openingHour).padStart(2, '0')}:00. Please choose a later time.`,
-          400
+          'OUTSIDE_OPENING_HOURS',
+          `We open at ${String(openingHour).padStart(2, '0')}:00. Please choose a later time, or message us on LINE.`,
+          409,
+          { openingHour, closingHour: CLOSING_HOUR }
         );
       }
       if (startMinutes + newDuration * 60 > CLOSING_HOUR * 60) {
         return fail(
-          'VALIDATION_ERROR',
-          `Bookings have to finish by ${CLOSING_HOUR}:00. Please choose a shorter session or an earlier time.`,
-          400
+          'OUTSIDE_OPENING_HOURS',
+          `Bookings have to finish by ${CLOSING_HOUR}:00. Please choose a shorter session or an earlier time, or message us on LINE.`,
+          409,
+          { openingHour, closingHour: CLOSING_HOUR }
         );
       }
     }
@@ -351,7 +360,18 @@ export async function PUT(request: NextRequest, context: ModifyRouteContext) {
 
     // A package that expires before the new date would leave the booking
     // pointing at something the customer can no longer use.
-    if (currentBooking.package_id && newDate !== currentBooking.date && currentBooking.customer_id) {
+    if (currentBooking.package_id && newDate !== currentBooking.date) {
+      // A package booking with no customer_id cannot be checked at all — the
+      // package lookup is keyed on the customer. Refuse rather than skip: this
+      // is the one shape where an unchecked booking could move past its expiry.
+      if (!currentBooking.customer_id) {
+        return fail(
+          'PACKAGE_EXPIRED',
+          'We could not verify the package on this booking. Please message us on LINE to move it.',
+          409
+        );
+      }
+
       const { data: packages, error: packagesError } = await admin.rpc('get_customer_packages', {
         customer_id_param: currentBooking.customer_id,
       });
@@ -368,10 +388,11 @@ export async function PUT(request: NextRequest, context: ModifyRouteContext) {
         (pkg: { package_id?: string }) => pkg.package_id === currentBooking.package_id
       ) as { expiration_date?: string | null } | undefined;
 
-      // `get_customer_packages` omits packages that are already dead, so a
-      // booking whose package has lapsed finds nothing here. Treat that as
-      // expired rather than as "no constraint" — the alternative is that the
-      // most stale bookings are the ones free to move anywhere.
+      // `get_customer_packages` DOES return expired and depleted packages, so
+      // this branch is not "the package lapsed" — that case is caught by the
+      // expiry compare below. Reaching here means the package on the booking is
+      // not among this customer's at all, which is a mismatch we cannot reason
+      // about. Block rather than treat it as "no constraint".
       if (!linked) {
         return fail(
           'PACKAGE_EXPIRED',
@@ -539,13 +560,20 @@ export async function PUT(request: NextRequest, context: ModifyRouteContext) {
             `[VIP Modify] CRITICAL: could not revert ${bookingId} after losing the race:`,
             revertError
           );
-          await pushToStaffGroup(
-            `⚠️ MANUAL CHECK NEEDED (ID: ${bookingId})\n` +
-              `An edit lost a race and could not be rolled back.\n` +
-              `Wanted: ${newDate} ${newStartTime} (${newDuration}h) on ${assignedBay}\n` +
-              `Original: ${currentBooking.date} ${currentBooking.start_time} ` +
-              `(${currentBooking.duration}h) on ${currentBooking.bay}\n` +
-              `This bay may now be double-booked.`
+          // Bounded like every other push in this route. This is the one path
+          // where the response body matters most — the client only retries on
+          // the 409 below — so a slow LINE API must not turn it into a 504.
+          await withTimeout(
+            () =>
+              pushToStaffGroup(
+                `⚠️ MANUAL CHECK NEEDED (ID: ${bookingId})\n` +
+                  `An edit lost a race and could not be rolled back.\n` +
+                  `Wanted: ${newDate} ${newStartTime} (${newDuration}h) on ${assignedBay}\n` +
+                  `Original: ${currentBooking.date} ${currentBooking.start_time} ` +
+                  `(${currentBooking.duration}h) on ${currentBooking.bay}\n` +
+                  `This bay may now be double-booked.`
+              ),
+            'revert alarm'
           ).catch((err) =>
             console.error(`[VIP Modify] Could not raise the revert alarm for ${bookingId}:`, err)
           );

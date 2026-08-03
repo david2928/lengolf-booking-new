@@ -8,11 +8,14 @@
  */
 
 import { format as formatDate } from 'date-fns';
+import { ALL_DURATIONS } from '@/lib/booking-durations';
 import {
   MIN_EDIT_NOTICE_HOURS,
+  clampDuration,
   computeEditability,
   computeEndTime,
   deriveBayType,
+  editDurationOptions,
   freeBaysFromAvailability,
   isCoachingBooking,
   isPlayFoodBooking,
@@ -84,6 +87,118 @@ describe('localCalendarDate — the date the customer actually submits', () => {
     // is 2026-08-09T17:00Z, whose local day is the 9th anywhere under +07.
     const instant = parseBangkokDate('2026-08-10');
     expect(instant.toISOString()).toBe('2026-08-09T17:00:00.000Z');
+  });
+});
+
+/**
+ * The duration ladder for an EDIT, and what happens when the current length is
+ * no longer offered.
+ *
+ * This lived in the two components at first, which is precisely why it shipped
+ * broken twice: neither version was reachable from a test. The first cut clamped
+ * on mount and SHORTENED off-ladder bookings; the fix for that clamped to the
+ * longest offered rung and LENGTHENED them instead — a 30-minute booking became
+ * three hours (web) or five (LIFF) the moment the customer touched the date,
+ * and the endpoint does not re-check package entitlement when a booking grows.
+ *
+ * Off-ladder lengths are ordinary in the data: 0.5, 1.5, 3.5 and 6 hour
+ * bookings all exist, mostly staff-created.
+ */
+describe('editDurationOptions + clampDuration', () => {
+  const web = (bookingDuration: number, headroom: number, isOriginalSlot: boolean) =>
+    editDurationOptions({
+      bookingDuration,
+      headroom,
+      isOriginalSlot,
+      wholeHoursOnly: false,
+      hasActivePackage: bookingDuration > 3,
+      ladder: ALL_DURATIONS,
+    });
+
+  const liff = (bookingDuration: number, headroom: number, isOriginalSlot: boolean) =>
+    editDurationOptions({
+      bookingDuration,
+      headroom,
+      isOriginalSlot,
+      wholeHoursOnly: true,
+      hasActivePackage: false,
+      ladder: ALL_DURATIONS,
+    });
+
+  describe('on mount, before availability loads', () => {
+    // Headroom falls back to the booking's own duration at this point, and the
+    // customer has not touched anything — nothing may change.
+    it.each([0.5, 1.5, 3.5, 6])('leaves a %sh booking untouched on both surfaces', (d) => {
+      expect(clampDuration(d, web(d, d, true))).toBe(d);
+      expect(clampDuration(d, liff(d, d, true))).toBe(d);
+    });
+  });
+
+  describe('after the customer picks a different slot', () => {
+    // The booking's own duration is no longer offered, because it is no longer
+    // demonstrably bookable. Whatever replaces it must never be LONGER.
+    it.each([
+      // 0.5 is the one exception: 1h is the minimum bookable session, so there
+      // is nothing shorter to fall back to. See the invariant test below.
+      [0.5, 1, 1],
+      [1.5, 1.5, 1],
+      [3.5, 3, 3],
+      [6, 5, 5],
+    ])('clamps %sh to %sh (web) and %sh (LIFF), never to a longer rung', (d, expectedWeb, expectedLiff) => {
+      expect(clampDuration(d, web(d, 5, false))).toBe(expectedWeb);
+      expect(clampDuration(d, liff(d, 5, false))).toBe(expectedLiff);
+    });
+
+    /**
+     * The one case where the clamp is allowed to lengthen is a booking shorter
+     * than the minimum bookable session. A 0.5 h booking is a staff-created
+     * shape the customer could never have booked here, so moving it to a legal
+     * slot has to round up to 1 h — there is nothing shorter to offer. That is
+     * not silent: the review step renders it as a changed row (30 min → 1 hour)
+     * and the customer confirms it explicitly.
+     */
+    it('never lengthens, except up to the 1h minimum when nothing shorter exists', () => {
+      for (const d of [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6]) {
+        for (const headroom of [1, 1.5, 2, 3, 5]) {
+          for (const options of [web(d, headroom, false), liff(d, headroom, false)]) {
+            const result = clampDuration(d, options);
+            if (d >= 1) {
+              expect(result).toBeLessThanOrEqual(d);
+            } else {
+              expect(result).toBe(Math.min(...options));
+            }
+          }
+        }
+      }
+    });
+
+    it('shortens to fit a narrower slot', () => {
+      expect(clampDuration(3, web(3, 1.5, false))).toBe(1.5);
+      expect(clampDuration(3, liff(3, 2, false))).toBe(2);
+    });
+  });
+
+  it('offers the package rungs only to a booking already longer than 3h', () => {
+    expect(web(2, 5, false)).not.toContain(5);
+    expect(web(4, 5, false)).toContain(5);
+  });
+
+  it('offers whole hours only on LIFF, matching its create flow', () => {
+    expect(liff(2, 5, false)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('is never empty, so the picker cannot render with no options', () => {
+    expect(web(1, 0, false).length).toBeGreaterThan(0);
+    expect(liff(1, 0, false).length).toBeGreaterThan(0);
+  });
+
+  /** The clamp must reach a fixed point in one step, or the effect that calls it loops. */
+  it('is idempotent', () => {
+    for (const d of [0.5, 1.5, 3.5, 6]) {
+      const options = web(d, 5, false);
+      const once = clampDuration(d, options);
+      expect(clampDuration(once, options)).toBe(once);
+    }
   });
 });
 

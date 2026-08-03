@@ -14,7 +14,7 @@ import Link from 'next/link';
 import EmptyState from './EmptyState'; // Import EmptyState
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card imports
 import { utcToZonedTime, format } from 'date-fns-tz'; // Import from date-fns-tz
-import { isCoachingBooking } from '@/lib/booking-edit-rules';
+import { computeEditability } from '@/lib/booking-edit-rules';
 
 interface BookingsListProps {
   /** Hands over the whole booking: the edit modal prefills from it, and the
@@ -292,14 +292,21 @@ const BookingsList: React.FC<BookingsListProps> = ({ onModifyBooking, onCancelBo
 
                 if (!isFutureBooking) return null;
 
-                // A lesson has to be moved with the coach, whose availability is
-                // nothing to do with bay availability, so it offers cancel only.
-                // Same rule the LIFF booking detail already applies.
-                const isCoaching = isCoachingBooking(booking.bookingType);
+                // The Edit button asks the SAME resolver the endpoint uses, so
+                // the button a customer sees and the answer they get cannot
+                // disagree. (Cancel keeps the local rule above: it is a
+                // different, older policy — coaching bookings can be cancelled
+                // from here even though they cannot be edited.)
+                const { canEdit } = computeEditability({
+                  status: booking.status,
+                  date: booking.date,
+                  start_time: booking.startTime,
+                  booking_type: booking.bookingType,
+                });
 
                 return (
                   <CardFooter className="flex gap-2 pt-0 pb-4 px-4">
-                    {!isCoaching && (
+                    {canEdit && (
                       <Button variant="outline" onClick={() => onModifyBooking(booking)} className="flex-1 py-1 px-2 h-auto text-xs">
                         <Edit className="mr-1 h-3 w-3" /> {t('edit')}
                       </Button>

@@ -618,7 +618,8 @@
       "errDurationLocked": "Play & Food 套餐包含固定时长。您仍然可以更改日期和时间。",
       "errStateChanged": "您编辑期间该预约发生了变化。请刷新后重试。",
       "errEditDefault": "未能保存您的更改。请重试。",
-      "contactOnLine": "通过 LINE 联系我们"
+      "contactOnLine": "通过 LINE 联系我们",
+      "errOutsideOpeningHours": "该时间不在营业时间内。请选择其他时间，或通过 LINE 联系我们。"
     },
     "packages": {
       "loading": "正在加载套餐信息...",

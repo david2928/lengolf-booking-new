@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
-import { addDays, format as formatDate } from 'date-fns';
+import { format as formatDate } from 'date-fns';
 import { CalendarIcon, ClockIcon, UsersIcon } from '@heroicons/react/24/outline';
 import { AlertTriangle, ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 import {
@@ -18,14 +18,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { SegmentedOptions } from '@/components/shared/SegmentedOptions';
 import { useAvailability, type TimeSlot } from '@/app/[locale]/(features)/bookings/hooks/useAvailability';
-import { allowedDurations, bayTypeHeadroom, formatDurationLabel } from '@/lib/booking-durations';
+import { ALL_DURATIONS, bayTypeHeadroom, formatDurationLabel } from '@/lib/booking-durations';
 import { BOOKING_PERIODS, getBookingPeriod, type BookingPeriod } from '@/lib/booking-periods';
 import {
   MAX_CUSTOMER_NOTES_LENGTH,
   MAX_PEOPLE,
   MIN_PEOPLE,
+  clampDuration,
   computeEndTime,
   deriveBayType,
+  editDurationOptions,
   localCalendarDate,
 } from '@/lib/booking-edit-rules';
 import { modifyVipBooking } from '../../lib/vipService';
@@ -150,34 +152,27 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
 
   const isOriginalSlot = isOriginalDate && startTime === booking.startTime;
 
-  const durationOptions = useMemo(() => {
-    // 4 and 5 hours are package-holder rungs on create. An edit never lengthens
-    // a booking past what it already is plus the slot's headroom, and the
-    // customer's package entitlement is not re-derived here, so the ladder is
-    // capped to the base rungs unless they are already booked longer.
-    const ladder = allowedDurations({
-      maxHours: selectedHeadroom,
-      hasActivePackage: booking.duration > 3,
-    });
-
-    // Bookings exist off the standard ladder — 0.5, 3.5 and 6 hours are all in
-    // the table, mostly staff-created. While the customer is still on their own
-    // slot that length is demonstrably bookable, so it has to be offered: the
-    // clamp below would otherwise rewrite it the moment the modal opened, and a
-    // customer who came to move the date would silently also lose (or gain) time.
-    if (isOriginalSlot && !ladder.includes(booking.duration)) {
-      return [...ladder, booking.duration].sort((a, b) => a - b);
-    }
-    return ladder;
-  }, [selectedHeadroom, booking.duration, isOriginalSlot]);
+  const durationOptions = useMemo(
+    () =>
+      editDurationOptions({
+        bookingDuration: booking.duration,
+        headroom: selectedHeadroom,
+        isOriginalSlot,
+        wholeHoursOnly: false,
+        // 4 and 5 hours are package-holder rungs on create. Entitlement is not
+        // re-derived here, so they are offered only to a booking already that long.
+        hasActivePackage: booking.duration > 3,
+        ladder: ALL_DURATIONS,
+      }),
+    [selectedHeadroom, booking.duration, isOriginalSlot]
+  );
 
   // A duration that no longer fits the chosen slot has to give way, or the
-  // review screen would show a length the server will reject.
+  // review screen would show a length the server will reject. Downwards only —
+  // see `clampDuration`.
   useEffect(() => {
-    if (!durationOptions.includes(duration) && durationOptions.length > 0) {
-      setDuration(durationOptions[durationOptions.length - 1]);
-    }
-  }, [durationOptions, duration]);
+    setDuration((current) => clampDuration(current, durationOptions));
+  }, [durationOptions]);
 
   const pendingChanges = useMemo(() => {
     const trimmedNotes = notes.trim();
@@ -218,6 +213,8 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
           return t('errCreditInvariant', { hours: Number(payload?.creditHours ?? 0) });
         case 'DURATION_LOCKED':
           return t('errDurationLocked');
+        case 'OUTSIDE_OPENING_HOURS':
+          return t('errOutsideOpeningHours');
         case 'COACHING_NOT_EDITABLE':
           return t('errCoaching');
         case 'TOO_LATE_TO_EDIT':
@@ -286,8 +283,11 @@ const BookingModifyModal: React.FC<BookingModifyModalProps> = ({
 
   // Bangkok's calendar day, not the browser's: a customer in London at 19:00 is
   // already on tomorrow in Bangkok, and "Today" has to mean the venue's today.
+  // Milliseconds, not `addDays`: `addDays` preserves the local wall clock, so
+  // across a DST transition in the browser's zone it advances 23 or 25 hours and
+  // the chip can skip a day. Bangkok has no DST, so +24h is exact.
   const todayISO = getBangkokDateString();
-  const tomorrowISO = getBangkokDateString(addDays(new Date(), 1));
+  const tomorrowISO = getBangkokDateString(new Date(Date.now() + 86_400_000));
   const calendarToday = localCalendarDate(todayISO);
 
   return (
