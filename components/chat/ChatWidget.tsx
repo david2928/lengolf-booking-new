@@ -11,6 +11,7 @@ import { usePathname } from 'next/navigation';
 import { ChatButton } from './ChatButton';
 import { ChatWindow } from './ChatWindow';
 import { useChatSession } from '@/hooks/useChatSession';
+import { isBookingsLandingPath } from '@/lib/chatSurface';
 
 export default function ChatWidget() {
   const pathname = usePathname();
@@ -19,10 +20,7 @@ export default function ChatWidget() {
   // Only show chat on the bookings landing page (/bookings and locale-prefixed equivalents)
   // e.g. /bookings, /th/bookings, /ko/bookings, /ja/bookings, /zh/bookings, or root /
   const isLiffPage = pathname?.startsWith('/liff');
-  const isBookingsPage = pathname
-    ? /^\/(th|ko|ja|zh)?(\/bookings)?\/?$/.test(pathname)
-    : false;
-  const shouldHide = isLiffPage || !isBookingsPage;
+  const shouldHide = isLiffPage || !isBookingsLandingPath(pathname);
 
   const {
     chatSession,
