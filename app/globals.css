@@ -422,3 +422,30 @@ body.has-summary-bar [data-chat-fab] {
     display: none !important;
   }
 }
+
+/*
+ * Chat FAB vs. the open mobile nav menu.
+ * ------------------------------------------------------------------------
+ * The mobile menu now caps at the viewport height and scrolls internally (see
+ * components/shared/Header.tsx), which means its last row — Sign in / Sign out
+ * — comes to rest exactly at the bottom of the screen. That is precisely where
+ * the chat FAB is pinned, so the FAB lands on top of that row and swallows its
+ * taps: measured at 390x420 on `/th/bookings`, `document.elementFromPoint` over
+ * the right-hand end of the last row returned the FAB, not the menu item.
+ *
+ * Before the menu could scroll this was invisible — the last row was off-screen
+ * entirely, and the FAB merely covered whichever arbitrary middle row happened
+ * to sit at that height.
+ *
+ * Hiding beats nudging here: the summary-bar rule above lifts the FAB by 6rem
+ * because the bar is short, but an open menu owns the whole screen, so there is
+ * nowhere to lift it to. Both layouts that pass a `mobileMenu` to Header add
+ * `mobile-menu-open` to <body> for as long as it is open.
+ *
+ * Specificity and `!important` follow the same reasoning as the two rules
+ * above: `body.mobile-menu-open [data-chat-fab]` is (0,2,1) against the FAB's
+ * own utilities at (0,1,0).
+ */
+body.mobile-menu-open [data-chat-fab] {
+  display: none !important;
+}
