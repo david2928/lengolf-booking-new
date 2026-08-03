@@ -13,7 +13,7 @@ import { ChangeAnswerButton, RevealDetailsButton } from '../../affordances';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import type { BayType } from '@/lib/bayConfig';
 import { allowedDurations, formatDurationLabel } from '@/lib/booking-durations';
-import { SegmentedOptions } from './SegmentedOptions';
+import { SegmentedOptions } from '@/components/shared/SegmentedOptions';
 import { SetMenuCard } from './SetMenuCard';
 import { everySetIncludesUnlimitedDrinks } from '@/lib/play-food-value';
 

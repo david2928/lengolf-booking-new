@@ -91,42 +91,13 @@ export async function sendBookingNotification(booking: BookingNotification) {
   }
 }
 
-// VIP-BE-012: Function for VIP Booking Modification Notification
-export async function sendVipModificationNotification(
-  userName: string, 
-  bookingId: string, 
-  newDetails: string // e.g., "New Date/Time/Bay"
-) {
-  const baseUrl = getBaseUrl();
-  if (!baseUrl) {
-    console.error('Base URL for notifications is not configured. Skipping VIP modification LINE notification.');
-    return false;
-  }
-  const message = `VIP ${userName} modified booking ${bookingId} to ${newDetails}.`;
-  try {
-    const response = await fetch(`${baseUrl}/api/notifications/line/simple`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
-      },
-      body: JSON.stringify({ message }),
-    });
+// The VIP booking-modification notification used to live here. It was never
+// called, and it POSTed to `/api/notifications/line/simple` — a route that does
+// not exist, so wiring it up would have 404ed. The real edit notification is
+// built by `buildBookingModifiedMessage` in `@/lib/notifications/staffLine` and
+// pushed in-process by `/api/vip/bookings/[id]/modify`, with no self-HTTP hop.
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('LINE Notify API response error:', response.status, errorText);
-      throw new Error(`Failed to send VIP modification LINE notification: ${errorText}`);
-    }
-    return true;
-  } catch (error) {
-    console.error('Error sending VIP modification LINE notification:', error);
-    return false;
-  }
-}
-
-
-function getDisplayBayName(simpleBayName: string | null): string {
+export function getDisplayBayName(simpleBayName: string | null): string {
     if (simpleBayName === 'Bay 1') return 'Bay 1 (Bar)';
     if (simpleBayName === 'Bay 2') return 'Bay 2';
     if (simpleBayName === 'Bay 3') return 'Bay 3 (Entrance)';

@@ -74,13 +74,29 @@
 
         <!-- PUT /api/vip/bookings/{bookingId}/modify -->
         <div class="endpoint">
-            <h2>POST /api/vip/bookings/{bookingId}/modify</h2>
-            <p style="color:orange;"><strong>Note:</strong> This endpoint will now perform a cancellation as per revised strategy.</p>
+            <h2>PUT /api/vip/bookings/{bookingId}/modify</h2>
+            <p><strong>A real in-place edit.</strong> The booking keeps its id, its history, and any
+               credit or package attached to it. Send only the fields you are changing. The bay is
+               never sent: it is reassigned server-side within the booking's own bay type.</p>
+            <p>Failures carry a machine code:
+               <code>NO_FIELDS</code>, <code>VALIDATION_ERROR</code>, <code>NEW_TIME_IN_PAST</code> (400);
+               <code>UNAUTHORIZED</code> (401);
+               <code>FORBIDDEN</code>, <code>ACCOUNT_NOT_LINKED</code> (403);
+               <code>NOT_FOUND</code> (404);
+               <code>NOT_CONFIRMED</code>, <code>BOOKING_IN_PAST</code>, <code>TOO_LATE_TO_EDIT</code>,
+               <code>COACHING_NOT_EDITABLE</code>, <code>SLOT_UNAVAILABLE</code>,
+               <code>CLUB_SET_UNAVAILABLE</code>, <code>PACKAGE_EXPIRED</code>,
+               <code>CREDIT_INVARIANT</code>, <code>DURATION_LOCKED</code>,
+               <code>STATE_CHANGED</code> (409);
+               <code>INTERNAL</code> (500).</p>
+            <p style="color:#666;">LIFF callers authenticate with a verified <code>x-line-id-token</code>.
+               A bare <code>x-line-user-id</code> is NOT accepted here, unlike /cancel, so this page
+               only exercises the NextAuth session path.</p>
             <label for="modifyBookingId">Booking ID:</label>
-            <input type="text" id="modifyBookingId" placeholder="Enter Booking ID">
-            <label for="modifyBookingPayload">Optional JSON Payload (for cancellation_reason):</label>
-            <textarea id="modifyBookingPayload" rows="3" placeholder='{ "cancellation_reason": "your reason here..." }'></textarea>
-            <button data-method="POST" data-resultid="modifyBookingResult" data-payload-textarea="modifyBookingPayload" id="modifyBookingBtn">Cancel Booking (Simulating Modify)</button>
+            <input type="text" id="modifyBookingId" placeholder="BK260803ABCD">
+            <label for="modifyBookingPayload">JSON payload (only the fields you are changing):</label>
+            <textarea id="modifyBookingPayload" rows="6" placeholder='{ "date": "2026-08-05", "start_time": "14:00", "duration": 2, "number_of_people": 3 }'></textarea>
+            <button data-method="PUT" data-resultid="modifyBookingResult" data-payload-textarea="modifyBookingPayload" id="modifyBookingBtn">Modify Booking</button>
             <pre id="modifyBookingResult"></pre>
         </div>
 
@@ -133,11 +149,12 @@
                     } else if (this.id === 'modifyBookingBtn') {
                         const bookingId = document.getElementById('modifyBookingId').value;
                         if (!bookingId) {
-                            resultElement.innerHTML = '<span class="error">Error: Booking ID is required for modify/cancel.</span>';
+                            resultElement.innerHTML = '<span class="error">Error: Booking ID is required for modify.</span>';
                             return;
                         }
                         actualEndpoint = `${nextApiBaseUrl}/api/vip/bookings/${bookingId}/modify`;
-                        // No body needed for the revised modify (cancel) operation
+                        // The payload textarea IS the patch; the generic handler
+                        // below reads it via data-payload-textarea.
                     } else if (this.id === 'cancelBookingBtn') {
                         const bookingId = document.getElementById('cancelBookingId').value;
                         if (!bookingId) {
