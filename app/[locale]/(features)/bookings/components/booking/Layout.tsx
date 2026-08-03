@@ -302,7 +302,7 @@ export function Layout({ children, hidePromotionBar, hideNav, compactHeader, flu
           </>
         }
         mobileMenu={
-          <nav className="header-desktop:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground">
+          <nav className="header-desktop:hidden mt-4 bg-primary pt-2 pb-3 border-t border-primary-foreground/20 text-primary-foreground min-h-0 overflow-y-auto overscroll-contain">
             <ul className="space-y-2 px-2">
               {sessionStatus === 'authenticated' && isVipEligible ? (
                   <>
