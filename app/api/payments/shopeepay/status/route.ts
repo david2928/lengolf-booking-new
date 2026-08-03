@@ -143,10 +143,14 @@ async function adhocStatus(supabase: SupabaseClient<any, any, any>, ref: string)
         probe.errcode === 0 &&
         (probe.status !== undefined || probe.transaction_status !== undefined)
       ) {
+        // Re-assert the live-status filter: between the SELECT above and this
+        // write a webhook can commit 'success', and reconciliation reads this
+        // row. Never flip a succeeded charge to failed.
         await supabase
           .from('payment_transactions')
           .update({ status: 'failed', error_code: probe.errcode })
-          .eq('id', txn.id);
+          .eq('id', txn.id)
+          .in('status', ['pending', 'redirected']);
         try {
           await markPaymentLinkFailed(supabase, link.id, 'gateway declined (status poll)');
         } catch {

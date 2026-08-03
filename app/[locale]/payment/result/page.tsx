@@ -207,6 +207,9 @@ function SuccessView({
   t: ReturnType<typeof useTranslations>;
   format: ReturnType<typeof useFormatter>;
 }) {
+  /** Ad-hoc payment link (PL-) rather than a club rental (CR-). */
+  const isAdhoc = data.ref?.startsWith('PL-') ?? false;
+
   const formatDate = (iso: string) =>
     format.dateTime(new Date(`${iso}T00:00:00+07:00`), {
       timeZone: 'Asia/Bangkok',
@@ -239,7 +242,12 @@ function SuccessView({
           </svg>
         </div>
         <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('successTitle')}</h1>
-        <p className="text-sm text-gray-600">{t('successBody')}</p>
+        {/* An ad-hoc payment link has no reservation and, by v1 design, sends no
+            email — promising a receipt would generate exactly the "did my money
+            go through?" doubt this page exists to remove. */}
+        <p className="text-sm text-gray-600">
+          {isAdhoc ? t('successBodyAdhoc') : t('successBody')}
+        </p>
       </div>
 
       {/* Receipt card — what they paid + transaction details. */}
@@ -292,7 +300,9 @@ function SuccessView({
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between gap-3">
-            <span className="text-gray-500">{t('successRentalCodeLabel')}</span>
+            <span className="text-gray-500">
+              {isAdhoc ? t('successCodeLabel') : t('successRentalCodeLabel')}
+            </span>
             <span className="font-mono font-semibold text-gray-900">{data.ref}</span>
           </div>
           <div className="flex justify-between gap-3">

@@ -1165,6 +1165,8 @@
       "successTitle": "결제가 완료되었습니다",
       "successBody": "감사합니다! 예약이 확정되었습니다. 영수증을 이메일로 보내드렸습니다.",
       "successRentalCodeLabel": "대여 코드",
+      "successBodyAdhoc": "감사합니다. 결제가 완료되었습니다.",
+      "successCodeLabel": "참조 번호",
       "successDescriptionLabel": "내용",
       "successTransactionLabel": "ShopeePay 거래 번호",
       "successAmountLabel": "결제 금액",

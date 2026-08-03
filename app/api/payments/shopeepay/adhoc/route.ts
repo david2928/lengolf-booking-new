@@ -228,7 +228,13 @@ export async function POST(request: NextRequest) {
 
   /** Roll the link back out of 'pending' when the gateway leg fails. */
   const failLink = async (txnUpdates: Record<string, unknown>) => {
-    await supabase.from('payment_transactions').update(txnUpdates).eq('id', txnRow.id);
+    // Re-assert the live-status filter at write time: a 'success' txn must never
+    // be flipped to failed. Same rule as supersede-payment.ts in lengolf-forms.
+    await supabase
+      .from('payment_transactions')
+      .update(txnUpdates)
+      .eq('id', txnRow.id)
+      .in('status', ['pending', 'redirected']);
     await supabase
       .from('payment_links')
       .update({ status: 'failed' })

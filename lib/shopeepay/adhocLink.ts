@@ -21,8 +21,14 @@ import { pushToStaffGroup } from '@/lib/notifications/staffLine';
 
 const IS_PROD_ENV = process.env.VERCEL_ENV === 'production';
 
-/** PL-YYYYMMDD-XXXX. Disjoint from club_rentals.rental_code (CR-). */
-export const LINK_CODE_PATTERN = /^PL-\d{8}-[A-Z0-9]{4}$/;
+/**
+ * PL-YYYYMMDD-XXXXXXXX. Disjoint from club_rentals.rental_code (CR-).
+ *
+ * 8 chars, not 4: /api/payments/shopeepay/status is unauthenticated and returns
+ * the staff-typed `description`, so a narrow suffix would make a day's worth of
+ * free-text event/customer details enumerable.
+ */
+export const LINK_CODE_PATTERN = /^PL-\d{8}-[A-Z0-9]{8}$/;
 
 export interface PaymentLinkRow {
   id: string;
@@ -35,6 +41,8 @@ export interface PaymentLinkRow {
   status: 'draft' | 'pending' | 'paid' | 'cancelled' | 'expired' | 'failed';
   expires_at: string | null;
   paid_at: string | null;
+  /** Survives the paid flip, so it distinguishes a staff cancel from a cron expiry. */
+  cancelled_at: string | null;
   created_by: string;
   created_at: string;
 }
@@ -94,25 +102,55 @@ export async function markPaymentLinkPaid(
   supabase: Admin,
   linkId: string
 ): Promise<MarkPaidResult> {
-  const before = await loadPaymentLinkById(supabase, linkId);
+  const paidAt = new Date().toISOString();
 
-  const { data, error } = await supabase
+  // Two-step guarded flip so `previousStatus` is derived ATOMICALLY from which
+  // predicate matched, not from a separate pre-read.
+  //
+  // A pre-read races the very thing the escalation banner exists to catch: an
+  // admin's cancel committing between the SELECT and the UPDATE would report
+  // previousStatus='pending' and staff would get a normal green "payment
+  // received" for money that landed on a link they had written off — the one
+  // case v1 has no in-app remedy for. The inverse interleaving fired a spurious
+  // "refund this manually" banner on a perfectly good payment.
+  //
+  // Step 1: the common case. Winning here PROVES the link was still live.
+  const live = await supabase
     .from('payment_links')
-    .update({ status: 'paid', paid_at: new Date().toISOString() })
+    .update({ status: 'paid', paid_at: paidAt })
+    .eq('id', linkId)
+    .eq('status', 'pending')
+    .select('*')
+    .maybeSingle();
+
+  if (live.error) throw live.error;
+  if (live.data) {
+    return { flipped: live.data as PaymentLinkRow, previousStatus: 'pending' };
+  }
+
+  // Step 2: not pending. Either already paid (idempotent replay -> null) or the
+  // link was cancelled/expired/failed/draft and money arrived anyway. Winning
+  // here PROVES it was a late arrival, so escalate.
+  const late = await supabase
+    .from('payment_links')
+    .update({ status: 'paid', paid_at: paidAt })
     .eq('id', linkId)
     .neq('status', 'paid')
     .select('*')
     .maybeSingle();
 
-  if (error) throw error;
+  if (late.error) throw late.error;
+  if (!late.data) {
+    // Already paid — idempotent replay.
+    return { flipped: null, previousStatus: 'paid' };
+  }
 
-  // Note: transaction_sn is deliberately NOT written here — it lives on the
-  // payment_transactions row, which the caller has already updated. This
-  // function's only job is the guarded status flip.
-
+  // cancelled_at survives the paid flip, so it still identifies a staff cancel
+  // as distinct from a cron expiry.
+  const row = late.data as PaymentLinkRow;
   return {
-    flipped: (data as PaymentLinkRow | null) ?? null,
-    previousStatus: before?.status ?? null,
+    flipped: row,
+    previousStatus: row.cancelled_at ? 'cancelled' : 'expired',
   };
 }
 
