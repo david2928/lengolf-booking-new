@@ -15,6 +15,7 @@ import SharedFooter from '@/components/shared/Footer'; // Import the SharedFoote
 import Header from '@/components/shared/Header';
 import PromotionBar from '@/components/shared/PromotionBar';
 import { Promotion, fetchPromotions } from '@/lib/liff/promotions-data';
+import { useCloseMobileMenuOnDesktop } from '@/hooks/useCloseMobileMenuOnDesktop';
 
 interface VipLayoutProps {
   children: ReactNode;
@@ -87,6 +88,11 @@ const VipLayout = ({ children }: VipLayoutProps) => {
       document.body.classList.remove('mobile-menu-open');
     };
   }, [mobileMenuOpen]);
+
+  // Both the menu and its burger vanish at `header-desktop`, so an open menu
+  // carried across that breakpoint would strand the scroll lock above with no
+  // control left to release it.
+  useCloseMobileMenuOnDesktop(setMobileMenuOpen);
 
   const isVipStatusCacheValid = useCallback(() => {
     const cache = vipStatusCache.current;

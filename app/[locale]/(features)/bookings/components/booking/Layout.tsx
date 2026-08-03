@@ -15,6 +15,7 @@ import Header from '@/components/shared/Header';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import PromotionBar from '@/components/shared/PromotionBar';
 import { Promotion, fetchPromotions } from '@/lib/liff/promotions-data';
+import { useCloseMobileMenuOnDesktop } from '@/hooks/useCloseMobileMenuOnDesktop';
 import { LogOut, Package as PackageIconLucide, Calendar as CalendarIconLucide, Trophy as TrophyIconLucide, Link as LinkIconLucideRadix, User as UserIconLucide } from 'lucide-react';
 
 interface LayoutProps {
@@ -69,6 +70,11 @@ export function Layout({ children, hidePromotionBar, hideNav, compactHeader, flu
       document.body.classList.remove('mobile-menu-open');
     };
   }, [mobileMenuOpen]);
+
+  // Both the menu and its burger vanish at `header-desktop`, so an open menu
+  // carried across that breakpoint would strand the scroll lock above with no
+  // control left to release it.
+  useCloseMobileMenuOnDesktop(setMobileMenuOpen);
 
   // Warm up VIP profile cache early for faster "My Account" navigation
   useEffect(() => {

@@ -27,11 +27,27 @@
  */
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative, sep } from 'path';
+import { act, renderHook } from '@testing-library/react';
+import {
+  HEADER_DESKTOP_QUERY,
+  useCloseMobileMenuOnDesktop,
+} from '@/hooks/useCloseMobileMenuOnDesktop';
 
 const REPO_ROOT = join(__dirname, '..');
 const read = (rel: string) => readFileSync(join(REPO_ROOT, rel), 'utf8');
 
 const HEADER = 'components/shared/Header.tsx';
+
+/**
+ * Read out of the config rather than scraped out of its source: `npm run format`
+ * runs Prettier with no config file, so its default `singleQuote: false` would
+ * rewrite `'header-desktop'` to `"header-desktop"` and defeat a regex.
+ */
+const HEADER_DESKTOP_SCREEN = 'header-desktop';
+const headerDesktopWidth: string =
+  require('../tailwind.config').default.theme.extend.screens[
+    HEADER_DESKTOP_SCREEN
+  ];
 
 /**
  * Every `className` in a file, whether written as a plain string or as a
@@ -81,6 +97,17 @@ describe('shared Header chrome', () => {
     const container = listWith(source, 'container');
     expect(has(container, 'min-h-0')).toBe(true);
     expect(has(container, 'flex-col')).toBe(true);
+  });
+
+  it('hides the burger at the breakpoint the close-on-desktop hook watches', () => {
+    // The burger is the only control that can clear `mobileMenuOpen` by hand.
+    // If it stopped hiding at exactly the width the hook watches — say someone
+    // consolidated onto a stock `xl:hidden` — there would be a band where the
+    // burger is gone but the hook has not fired, which is the stuck scroll lock
+    // again, just narrower. Asserting the token rather than the width keeps
+    // this honest even if the config value changes.
+    const burger = listWith(source, 'header-desktop:hidden', 'p-2');
+    expect(has(burger, `${HEADER_DESKTOP_SCREEN}:hidden`)).toBe(true);
   });
 
   it('never compresses the title bar itself', () => {
@@ -136,6 +163,13 @@ describe('mobile menu owners', () => {
       expect(has(menu(), 'overflow-y-auto')).toBe(true);
     });
 
+    it('hides at the breakpoint the close-on-desktop hook watches', () => {
+      // Pins the third corner of the triangle: the config feeds the hook's
+      // query, and both the menu and the burger must disappear at that same
+      // token. Move any one of them alone and this suite goes red.
+      expect(has(menu(), `${HEADER_DESKTOP_SCREEN}:hidden`)).toBe(true);
+    });
+
     it('can shrink below its content height', () => {
       expect(has(menu(), 'min-h-0')).toBe(true);
     });
@@ -152,6 +186,18 @@ describe('mobile menu owners', () => {
       expect(source).toMatch(/mobileMenuOpen[\s\S]{0,120}overflow\s*=\s*'hidden'/);
     });
 
+    it('closes the menu when the viewport crosses to desktop', () => {
+      // Both the menu and the burger that closes it are `header-desktop:hidden`.
+      // Cross the breakpoint with the menu open and every control capable of
+      // clearing `mobileMenuOpen` is `display: none` — while the lock asserted
+      // above is still on the body. The page then cannot scroll until a reload.
+      // Closing it on the media-query change is what keeps the lock reversible.
+      expect(source).toContain('useCloseMobileMenuOnDesktop');
+      expect(source).toMatch(
+        /useCloseMobileMenuOnDesktop\(\s*setMobileMenuOpen\s*\)/,
+      );
+    });
+
     it('clears the chat FAB off the menu while it is open', () => {
       // The menu's last row (sign in / sign out) now rests exactly at the
       // bottom edge, which is where the FAB is pinned — it stole that row's
@@ -159,6 +205,122 @@ describe('mobile menu owners', () => {
       expect(source).toMatch(/classList\.toggle\('mobile-menu-open', mobileMenuOpen\)/);
       expect(source).toMatch(/classList\.remove\('mobile-menu-open'\)/);
     });
+  });
+});
+
+/**
+ * The one part of this bug jsdom CAN prove, because it is state rather than
+ * layout: crossing the breakpoint must clear `mobileMenuOpen`. jsdom ships no
+ * `matchMedia` at all, so the hook gets a stub whose `matches` we flip by hand
+ * and whose listeners we can count.
+ */
+const stubMatchMedia = () => {
+  const listeners = new Set<() => void>();
+  const mql = {
+    matches: false,
+    addEventListener: jest.fn((event: string, listener: () => void) => {
+      if (event === 'change') listeners.add(listener);
+    }),
+    removeEventListener: jest.fn((event: string, listener: () => void) => {
+      if (event === 'change') listeners.delete(listener);
+    }),
+  };
+  const matchMedia = jest.fn(() => mql as unknown as MediaQueryList);
+  Object.defineProperty(window, 'matchMedia', {
+    value: matchMedia,
+    configurable: true,
+    writable: true,
+  });
+  return {
+    matchMedia,
+    mql,
+    listenerCount: () => listeners.size,
+    /** What a real browser does on a resize across the breakpoint. */
+    resizeTo: (matches: boolean) =>
+      act(() => {
+        mql.matches = matches;
+        listeners.forEach((listener) => listener());
+      }),
+  };
+};
+
+describe('closing the mobile menu at the desktop breakpoint', () => {
+  it('closes an open menu when the viewport crosses to desktop', () => {
+    // The bug, reproduced: open at 390px wide, resize to 1400px, and the body
+    // stays `overflow: hidden` with no visible control left to undo it.
+    const media = stubMatchMedia();
+    const setMobileMenuOpen = jest.fn();
+
+    renderHook(() => useCloseMobileMenuOnDesktop(setMobileMenuOpen));
+    setMobileMenuOpen.mockClear();
+    media.resizeTo(true);
+
+    expect(setMobileMenuOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('leaves the menu alone while the viewport is still mobile', () => {
+    // Resizing 390px -> 500px keeps the burger on screen, so the menu is still
+    // reachable and closing it would just yank it out from under the customer.
+    const media = stubMatchMedia();
+    const setMobileMenuOpen = jest.fn();
+
+    renderHook(() => useCloseMobileMenuOnDesktop(setMobileMenuOpen));
+    setMobileMenuOpen.mockClear();
+    media.resizeTo(false);
+
+    expect(setMobileMenuOpen).not.toHaveBeenCalled();
+  });
+
+  it('closes on mount if the viewport is already desktop', () => {
+    // Holds the invariant as "never open at desktop" rather than the narrower
+    // "closes on a change", so a menu restored open by any future means still
+    // cannot strand the lock.
+    const media = stubMatchMedia();
+    media.mql.matches = true;
+    const setMobileMenuOpen = jest.fn();
+
+    renderHook(() => useCloseMobileMenuOnDesktop(setMobileMenuOpen));
+
+    expect(setMobileMenuOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('stops listening once the layout unmounts', () => {
+    const media = stubMatchMedia();
+
+    const { unmount } = renderHook(() =>
+      useCloseMobileMenuOnDesktop(jest.fn()),
+    );
+    expect(media.listenerCount()).toBe(1);
+    unmount();
+
+    expect(media.listenerCount()).toBe(0);
+  });
+
+  it('does not resubscribe on every render', () => {
+    // Given a stable argument the listener is registered once. That the CALL
+    // SITES actually pass one — the `useState` setter rather than an inline
+    // arrow — is a separate claim, held by the source-level assertion in
+    // 'closes the menu when the viewport crosses to desktop' above.
+    const media = stubMatchMedia();
+    const setMobileMenuOpen = jest.fn();
+
+    const { rerender } = renderHook(() =>
+      useCloseMobileMenuOnDesktop(setMobileMenuOpen),
+    );
+    rerender();
+    rerender();
+
+    expect(media.mql.addEventListener).toHaveBeenCalledTimes(1);
+  });
+
+  it('watches exactly the `header-desktop` breakpoint tailwind hides the menu at', () => {
+    // The companion assertions above pin the menu and the burger to the
+    // `header-desktop:hidden` TOKEN; this one pins the hook's query to the
+    // WIDTH that token resolves to. Together they mean the hook fires at
+    // exactly the width the two controls vanish at. Retune the config and all
+    // three move as one; retune only one of them and this suite goes red.
+    expect(headerDesktopWidth).toMatch(/^\d+px$/);
+    expect(HEADER_DESKTOP_QUERY).toBe(`(min-width: ${headerDesktopWidth})`);
   });
 });
 
