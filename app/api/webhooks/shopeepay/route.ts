@@ -8,6 +8,7 @@ import {
 } from '@/lib/shopeepay/types';
 import { claimAndSendConfirmationEmail } from '@/lib/shopeepay/markRentalAsPaid';
 import { handleRefundNotify } from '@/lib/shopeepay/handleRefundNotify';
+import { handleAdhocPaid, handleAdhocFailed } from '@/lib/shopeepay/adhocLink';
 import { composeRentalLineMessage, composeOrderPaidLineMessage } from '@/lib/club-rental/lineMessage';
 import { resolveLineMessageRental } from '@/lib/club-rental/orders';
 import { resolveRentalAddOns, type RentalAddOnItem } from '@/lib/club-rental/resolve-add-ons';
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
   const { data: txnRow, error: txnError } = await supabase
     .from('payment_transactions')
     .select(
-      'id, club_rental_id, amount, status, transaction_sn, payment_reference_id, raw_webhook_payload'
+      'id, club_rental_id, payment_link_id, amount, status, transaction_sn, payment_reference_id, raw_webhook_payload'
     )
     .eq('payment_reference_id', referenceId)
     .maybeSingle();
@@ -192,6 +193,27 @@ export async function POST(request: NextRequest) {
           `but rental payment_status is ${rentalCheck?.payment_status ?? 'unknown'} — ` +
           `re-running rental update + side-effects`
       );
+    } else if (txnRow.status === 'success' && txnRow.payment_link_id) {
+      // Same W5 consistency re-check, for ad-hoc payment links. Without this
+      // branch an ad-hoc txn fell into the `else` below and was short-circuited,
+      // so a delivery that committed the txn update but died before flipping the
+      // link would be silenced on retry — leaving the link 'pending' FOREVER
+      // with the money already taken.
+      const { data: linkCheck } = await supabase
+        .from('payment_links')
+        .select('status')
+        .eq('id', txnRow.payment_link_id)
+        .maybeSingle();
+
+      if ((linkCheck as { status: string } | null)?.status === 'paid') {
+        return NextResponse.json(ACK_OK);
+      }
+      console.warn(
+        `[ShopeePay/webhook] idempotency replay for ${referenceId} but payment_link ` +
+          `status is ${(linkCheck as { status: string } | null)?.status ?? 'unknown'} — ` +
+          `re-running the paid flip`
+      );
+      // Fall through — handleAdhocPaid is idempotent against an already-success txn.
     } else {
       // Non-success terminal state — safe to short-circuit.
       return NextResponse.json(ACK_OK);
@@ -233,6 +255,14 @@ export async function POST(request: NextRequest) {
   }
 
   if (!isSuccess) {
+    // Ad-hoc payment link declined. Without this branch the link stayed
+    // 'pending' until the expiry cron swept it and staff never learned the
+    // customer's payment bounced.
+    if (newTxnStatus === 'failed' && txnRow.payment_link_id) {
+      await handleAdhocFailed(supabase, txnRow.payment_link_id, payload);
+      return NextResponse.json(ACK_OK);
+    }
+
     // Failed / non-terminal payload — update the rental to 'failed' if
     // ShopeePay returned a non-success terminal state, otherwise leave
     // it 'pending' and let the cleanup cron expire it.
@@ -292,6 +322,13 @@ export async function POST(request: NextRequest) {
   }
 
   // ----- Success path -----
+
+  // Ad-hoc payment link (event/party deposit, custom quote). Placed BEFORE the
+  // no-club_rental_id catch-all below so that warn keeps its role as the true
+  // "success with no recognisable subject" case.
+  if (txnRow.payment_link_id) {
+    return handleAdhocPaid(supabase, txnRow, payload, { transactionSn: transaction_sn });
+  }
 
   if (!txnRow.club_rental_id) {
     console.warn(

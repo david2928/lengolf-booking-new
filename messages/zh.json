@@ -1165,6 +1165,7 @@
       "successTitle": "已收到付款",
       "successBody": "感谢您！您的预订已确认，收据已发送到您的邮箱。",
       "successRentalCodeLabel": "租赁编号",
+      "successDescriptionLabel": "付款项目",
       "successTransactionLabel": "ShopeePay 交易号",
       "successAmountLabel": "付款金额",
       "successPaidAtLabel": "付款时间",

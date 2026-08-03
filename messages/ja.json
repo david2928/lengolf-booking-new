@@ -1165,6 +1165,7 @@
       "successTitle": "お支払いを受領しました",
       "successBody": "ありがとうございます。ご予約が確定しました。レシートをメールでお送りしました。",
       "successRentalCodeLabel": "レンタルコード",
+      "successDescriptionLabel": "内容",
       "successTransactionLabel": "ShopeePay 取引番号",
       "successAmountLabel": "お支払い金額",
       "successPaidAtLabel": "お支払い時刻",
