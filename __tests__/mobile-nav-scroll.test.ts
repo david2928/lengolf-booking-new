@@ -27,6 +27,11 @@
  */
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative, sep } from 'path';
+import { act, renderHook } from '@testing-library/react';
+import {
+  HEADER_DESKTOP_QUERY,
+  useCloseMobileMenuOnDesktop,
+} from '@/hooks/useCloseMobileMenuOnDesktop';
 
 const REPO_ROOT = join(__dirname, '..');
 const read = (rel: string) => readFileSync(join(REPO_ROOT, rel), 'utf8');
@@ -152,6 +157,18 @@ describe('mobile menu owners', () => {
       expect(source).toMatch(/mobileMenuOpen[\s\S]{0,120}overflow\s*=\s*'hidden'/);
     });
 
+    it('closes the menu when the viewport crosses to desktop', () => {
+      // Both the menu and the burger that closes it are `header-desktop:hidden`.
+      // Cross the breakpoint with the menu open and every control capable of
+      // clearing `mobileMenuOpen` is `display: none` — while the lock asserted
+      // above is still on the body. The page then cannot scroll until a reload.
+      // Closing it on the media-query change is what keeps the lock reversible.
+      expect(source).toContain('useCloseMobileMenuOnDesktop');
+      expect(source).toMatch(
+        /useCloseMobileMenuOnDesktop\(\s*setMobileMenuOpen\s*\)/,
+      );
+    });
+
     it('clears the chat FAB off the menu while it is open', () => {
       // The menu's last row (sign in / sign out) now rests exactly at the
       // bottom edge, which is where the FAB is pinned — it stole that row's
@@ -159,6 +176,127 @@ describe('mobile menu owners', () => {
       expect(source).toMatch(/classList\.toggle\('mobile-menu-open', mobileMenuOpen\)/);
       expect(source).toMatch(/classList\.remove\('mobile-menu-open'\)/);
     });
+  });
+});
+
+/**
+ * The one part of this bug jsdom CAN prove, because it is state rather than
+ * layout: crossing the breakpoint must clear `mobileMenuOpen`. jsdom ships no
+ * `matchMedia` at all, so the hook gets a stub whose `matches` we flip by hand
+ * and whose listeners we can count.
+ */
+const stubMatchMedia = () => {
+  const listeners = new Set<() => void>();
+  const mql = {
+    matches: false,
+    addEventListener: jest.fn((event: string, listener: () => void) => {
+      if (event === 'change') listeners.add(listener);
+    }),
+    removeEventListener: jest.fn((event: string, listener: () => void) => {
+      if (event === 'change') listeners.delete(listener);
+    }),
+  };
+  const matchMedia = jest.fn(() => mql as unknown as MediaQueryList);
+  Object.defineProperty(window, 'matchMedia', {
+    value: matchMedia,
+    configurable: true,
+    writable: true,
+  });
+  return {
+    matchMedia,
+    mql,
+    listenerCount: () => listeners.size,
+    /** What a real browser does on a resize across the breakpoint. */
+    resizeTo: (matches: boolean) =>
+      act(() => {
+        mql.matches = matches;
+        listeners.forEach((listener) => listener());
+      }),
+  };
+};
+
+describe('closing the mobile menu at the desktop breakpoint', () => {
+  it('closes an open menu when the viewport crosses to desktop', () => {
+    // The bug, reproduced: open at 390px wide, resize to 1400px, and the body
+    // stays `overflow: hidden` with no visible control left to undo it.
+    const media = stubMatchMedia();
+    const setMobileMenuOpen = jest.fn();
+
+    renderHook(() => useCloseMobileMenuOnDesktop(setMobileMenuOpen));
+    setMobileMenuOpen.mockClear();
+    media.resizeTo(true);
+
+    expect(setMobileMenuOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('leaves the menu alone while the viewport is still mobile', () => {
+    // Resizing 390px -> 500px keeps the burger on screen, so the menu is still
+    // reachable and closing it would just yank it out from under the customer.
+    const media = stubMatchMedia();
+    const setMobileMenuOpen = jest.fn();
+
+    renderHook(() => useCloseMobileMenuOnDesktop(setMobileMenuOpen));
+    setMobileMenuOpen.mockClear();
+    media.resizeTo(false);
+
+    expect(setMobileMenuOpen).not.toHaveBeenCalled();
+  });
+
+  it('closes on mount if the viewport is already desktop', () => {
+    // Holds the invariant as "never open at desktop" rather than the narrower
+    // "closes on a change", so a menu restored open by any future means still
+    // cannot strand the lock.
+    const media = stubMatchMedia();
+    media.mql.matches = true;
+    const setMobileMenuOpen = jest.fn();
+
+    renderHook(() => useCloseMobileMenuOnDesktop(setMobileMenuOpen));
+
+    expect(setMobileMenuOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('stops listening once the layout unmounts', () => {
+    const media = stubMatchMedia();
+
+    const { unmount } = renderHook(() =>
+      useCloseMobileMenuOnDesktop(jest.fn()),
+    );
+    expect(media.listenerCount()).toBe(1);
+    unmount();
+
+    expect(media.listenerCount()).toBe(0);
+  });
+
+  it('does not resubscribe on every render', () => {
+    // Both layouts pass the `useState` setter, whose identity is stable. An
+    // inline arrow here would tear down and re-add the listener on each render.
+    const media = stubMatchMedia();
+    const setMobileMenuOpen = jest.fn();
+
+    const { rerender } = renderHook(() =>
+      useCloseMobileMenuOnDesktop(setMobileMenuOpen),
+    );
+    rerender();
+    rerender();
+
+    expect(media.mql.addEventListener).toHaveBeenCalledTimes(1);
+  });
+
+  it('watches exactly the `header-desktop` breakpoint tailwind hides the menu at', () => {
+    // The menu and the burger are hidden by `header-desktop:hidden`. If the
+    // hook watched any other width there would be a band where the menu is
+    // invisible but still open — the same stuck lock, just narrower and much
+    // harder to notice.
+    const declared = read('tailwind.config.ts').match(
+      /'header-desktop':\s*'(\d+)px'/,
+    );
+    expect(declared).toBeTruthy();
+    expect(HEADER_DESKTOP_QUERY).toBe(`(min-width: ${declared![1]}px)`);
+
+    const media = stubMatchMedia();
+    renderHook(() => useCloseMobileMenuOnDesktop(jest.fn()));
+
+    expect(media.matchMedia).toHaveBeenCalledWith(HEADER_DESKTOP_QUERY);
   });
 });
 
