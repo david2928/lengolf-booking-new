@@ -39,6 +39,17 @@ const read = (rel: string) => readFileSync(join(REPO_ROOT, rel), 'utf8');
 const HEADER = 'components/shared/Header.tsx';
 
 /**
+ * Read out of the config rather than scraped out of its source: `npm run format`
+ * runs Prettier with no config file, so its default `singleQuote: false` would
+ * rewrite `'header-desktop'` to `"header-desktop"` and defeat a regex.
+ */
+const HEADER_DESKTOP_SCREEN = 'header-desktop';
+const headerDesktopWidth: string =
+  require('../tailwind.config').default.theme.extend.screens[
+    HEADER_DESKTOP_SCREEN
+  ];
+
+/**
  * Every `className` in a file, whether written as a plain string or as a
  * template literal. Selecting these by content rather than by position keeps
  * the assertions indifferent to class ORDER — otherwise a Tailwind
@@ -86,6 +97,17 @@ describe('shared Header chrome', () => {
     const container = listWith(source, 'container');
     expect(has(container, 'min-h-0')).toBe(true);
     expect(has(container, 'flex-col')).toBe(true);
+  });
+
+  it('hides the burger at the breakpoint the close-on-desktop hook watches', () => {
+    // The burger is the only control that can clear `mobileMenuOpen` by hand.
+    // If it stopped hiding at exactly the width the hook watches — say someone
+    // consolidated onto a stock `xl:hidden` — there would be a band where the
+    // burger is gone but the hook has not fired, which is the stuck scroll lock
+    // again, just narrower. Asserting the token rather than the width keeps
+    // this honest even if the config value changes.
+    const burger = listWith(source, 'header-desktop:hidden', 'p-2');
+    expect(has(burger, `${HEADER_DESKTOP_SCREEN}:hidden`)).toBe(true);
   });
 
   it('never compresses the title bar itself', () => {
@@ -139,6 +161,13 @@ describe('mobile menu owners', () => {
 
     it('scrolls its own overflow', () => {
       expect(has(menu(), 'overflow-y-auto')).toBe(true);
+    });
+
+    it('hides at the breakpoint the close-on-desktop hook watches', () => {
+      // Pins the third corner of the triangle: the config feeds the hook's
+      // query, and both the menu and the burger must disappear at that same
+      // token. Move any one of them alone and this suite goes red.
+      expect(has(menu(), `${HEADER_DESKTOP_SCREEN}:hidden`)).toBe(true);
     });
 
     it('can shrink below its content height', () => {
@@ -268,8 +297,10 @@ describe('closing the mobile menu at the desktop breakpoint', () => {
   });
 
   it('does not resubscribe on every render', () => {
-    // Both layouts pass the `useState` setter, whose identity is stable. An
-    // inline arrow here would tear down and re-add the listener on each render.
+    // Given a stable argument the listener is registered once. That the CALL
+    // SITES actually pass one — the `useState` setter rather than an inline
+    // arrow — is a separate claim, held by the source-level assertion in
+    // 'closes the menu when the viewport crosses to desktop' above.
     const media = stubMatchMedia();
     const setMobileMenuOpen = jest.fn();
 
@@ -283,20 +314,13 @@ describe('closing the mobile menu at the desktop breakpoint', () => {
   });
 
   it('watches exactly the `header-desktop` breakpoint tailwind hides the menu at', () => {
-    // The menu and the burger are hidden by `header-desktop:hidden`. If the
-    // hook watched any other width there would be a band where the menu is
-    // invisible but still open — the same stuck lock, just narrower and much
-    // harder to notice.
-    const declared = read('tailwind.config.ts').match(
-      /'header-desktop':\s*'(\d+)px'/,
-    );
-    expect(declared).toBeTruthy();
-    expect(HEADER_DESKTOP_QUERY).toBe(`(min-width: ${declared![1]}px)`);
-
-    const media = stubMatchMedia();
-    renderHook(() => useCloseMobileMenuOnDesktop(jest.fn()));
-
-    expect(media.matchMedia).toHaveBeenCalledWith(HEADER_DESKTOP_QUERY);
+    // The companion assertions above pin the menu and the burger to the
+    // `header-desktop:hidden` TOKEN; this one pins the hook's query to the
+    // WIDTH that token resolves to. Together they mean the hook fires at
+    // exactly the width the two controls vanish at. Retune the config and all
+    // three move as one; retune only one of them and this suite goes red.
+    expect(headerDesktopWidth).toMatch(/^\d+px$/);
+    expect(HEADER_DESKTOP_QUERY).toBe(`(min-width: ${headerDesktopWidth})`);
   });
 });
 
