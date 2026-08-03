@@ -634,7 +634,7 @@ describe('only the best eligible offer applies', () => {
     expect(breakdown.notes.some((n) => n.includes('Only one offer applies'))).toBe(false);
   });
 
-  test('a sub-2-hour bogo does NOT out-rank a real discount', () => {
+  test('a one-hour bogo does NOT out-rank a real discount', () => {
     // 1h booking: the bogo can only advise (worth ฿0); 20% off saves ฿150.
     const breakdown = withPromos([bogoPromo, pctPromo], { duration: 1 });
     expect(breakdown.discounts).toHaveLength(1);
@@ -687,7 +687,7 @@ describe('only the best eligible offer applies', () => {
     expect(breakdown.notes.some((n) => n.includes('Book 2 hours to get 1 hour free'))).toBe(true);
   });
 
-  test('a LONE sub-2-hour bogo still prints its hint (unchanged behaviour)', () => {
+  test('a LONE one-hour bogo still prints its hint (unchanged behaviour)', () => {
     const breakdown = withPromos([bogoPromo], { duration: 1 });
     expect(breakdown.discounts).toHaveLength(0);
     expect(breakdown.notes.some((n) => n.includes('Book 2 hours to get 1 hour free'))).toBe(true);
@@ -727,7 +727,7 @@ describe('only the best eligible offer applies', () => {
     // NOT the "free window prices to ฿0" branch, despite the shape: `free_hours: 0`
     // is falsy, so the row fails the `promo.free_hours` guard and never reaches
     // the bogo branch at all. The genuine ฿0-free-window path (free_hours >= 1
-    // at duration >= 2, `segmentsCost` rounding to zero) is NOT pinned here and
+    // at duration > 1, `segmentsCost` rounding to zero) is NOT pinned here and
     // is likely unreachable with real rate data — don't read this as covering it.
     const zeroBogo: ApplicablePromotion = { ...bogoPromo, id: 'promo-zero', free_hours: 0 };
     const breakdown = withPromos([zeroBogo, pctPromo]);
@@ -895,11 +895,16 @@ describe('a single eligible promotion produces the whole pre-refactor breakdown'
       });
   });
 
-  test('a sub-2-hour bogo: no discount row, the hint in all five locales', () => {
-    // The LIVE production shape — one auto-apply B1G1, a new customer, a booking
-    // under two hours. 13:30–15:00 straddles 14:00 (0.5×550 + 1×750 = ฿1,025).
-    // `appliedPromotionId` is set with `discounts` empty: the offer won by
-    // contributing advice, which the staff LINE note has to reproduce.
+  test('a 1.5h bogo waives the trailing HALF hour, priced where it falls', () => {
+    // The booking that exposed the old `>= 2` gate in production (BK260803FKLR,
+    // 2026-08-03): 90 minutes, offer shown, nothing waived, and a staff note
+    // saying not to discount. The requirement is buying ONE hour, so the 30
+    // minutes past it are free.
+    //
+    // 13:30–15:00 straddles 14:00 (0.5×550 + 1×750 = ฿1,025). The free window is
+    // the LAST half hour, 14:30–15:00, which sits wholly in the ฿750 band — so
+    // ฿375, not half of the ฿650 blended rate. Same reason the 2h case pins the
+    // boundary: the position of the free window is the whole point.
     expect(calculateCost({ ...baseInput, startTime: '13:30', duration: 1.5, applicablePromotions: [bogoPromo] }))
       .toEqual({
         lineItems: [{
@@ -916,35 +921,84 @@ describe('a single eligible promotion produces the whole pre-refactor breakdown'
           detailZh: '0.5小时 × ฿550 + 1小时 × ฿750 (工作日)',
           amount: 1025,
         }],
-        discounts: [],
+        discounts: [{
+          id: 'promo-promo-b1g1',
+          label: 'Buy 1 Get 1 Free',
+          labelTh: 'ซื้อ 1 แถม 1',
+          labelJa: 'Buy 1 Get 1 Free',
+          labelKo: 'Buy 1 Get 1 Free',
+          labelZh: 'Buy 1 Get 1 Free',
+          amount: -375,
+          promotionId: 'promo-b1g1',
+        }],
         appliedPromotionId: 'promo-b1g1',
         subtotal: 1025,
-        totalDiscount: 0,
-        estimatedTotal: 1025,
+        totalDiscount: -375,
+        estimatedTotal: 650,
         isWeekend: false,
         timeSlotLabel: 'Before 14:00',
         hourlyRate: 550,
-        notes: [
-          ESTIMATE_NOTE.en,
-          '🎉 Buy 1 Get 1 Free: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days',
-        ],
-        notesTh: [
-          ESTIMATE_NOTE.th,
-          '🎉 ซื้อ 1 แถม 1: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน',
-        ],
-        notesJa: [
-          ESTIMATE_NOTE.ja,
-          '🎉 Buy 1 Get 1 Free：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください',
-        ],
-        notesKo: [
-          ESTIMATE_NOTE.ko,
-          '🎉 Buy 1 Get 1 Free: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요',
-        ],
-        notesZh: [
-          ESTIMATE_NOTE.zh,
-          '🎉 Buy 1 Get 1 Free：预订2小时即获1小时免费！或在7天内兑换您的免费时段',
-        ],
+        // No hint: the offer was HONOURED here, so there is nothing to advise.
+        notes: [ESTIMATE_NOTE.en],
+        notesTh: [ESTIMATE_NOTE.th],
+        notesJa: [ESTIMATE_NOTE.ja],
+        notesKo: [ESTIMATE_NOTE.ko],
+        notesZh: [ESTIMATE_NOTE.zh],
       });
+  });
+
+  test('exactly 1 hour stays advice-only, with the hint in all five locales', () => {
+    // The bottom rung, and NOT an off-by-one: there is nothing past the paid
+    // hour to waive, so honouring the offer here would zero the booking.
+    // `appliedPromotionId` is set with `discounts` empty — the offer won by
+    // contributing advice, which the staff LINE note has to reproduce.
+    const breakdown = calculateCost({
+      ...baseInput, startTime: '13:30', duration: 1, applicablePromotions: [bogoPromo],
+    });
+    expect(breakdown.discounts).toEqual([]);
+    expect(breakdown.totalDiscount).toBe(0);
+    expect(breakdown.appliedPromotionId).toBe('promo-b1g1');
+    expect(breakdown.notes).toEqual([
+      ESTIMATE_NOTE.en,
+      '🎉 Buy 1 Get 1 Free: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days',
+    ]);
+    expect(breakdown.notesTh).toEqual([
+      ESTIMATE_NOTE.th,
+      '🎉 ซื้อ 1 แถม 1: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน',
+    ]);
+    expect(breakdown.notesJa).toEqual([
+      ESTIMATE_NOTE.ja,
+      '🎉 Buy 1 Get 1 Free：2時間ご予約で1時間無料！または7日以内に無料時間をご利用ください',
+    ]);
+    expect(breakdown.notesKo).toEqual([
+      ESTIMATE_NOTE.ko,
+      '🎉 Buy 1 Get 1 Free: 2시간 예약 시 1시간 무료! 또는 7일 이내에 무료 시간을 사용하세요',
+    ]);
+    expect(breakdown.notesZh).toEqual([
+      ESTIMATE_NOTE.zh,
+      '🎉 Buy 1 Get 1 Free：预订2小时即获1小时免费！或在7天内兑换您的免费时段',
+    ]);
+  });
+
+  test('every rung of the duration ladder waives what the offer owes', () => {
+    // One table so a future ladder change has one place to fail. Flat ฿750 band
+    // (14:00 start, weekday) keeps the arithmetic readable: free hours are
+    // `min(free_hours, duration - 1)`, capped at the promo's one hour.
+    const rungs: Array<{ duration: number; waived: number; total: number }> = [
+      { duration: 1,   waived: 0,    total: 750 },  // nothing past the paid hour
+      { duration: 1.5, waived: -375, total: 750 },  // 0.5 free
+      { duration: 2,   waived: -750, total: 750 },  // 1 free
+      { duration: 2.5, waived: -750, total: 1125 }, // still 1 — capped by free_hours
+      { duration: 3,   waived: -750, total: 1500 },
+    ];
+    for (const { duration, waived, total } of rungs) {
+      const breakdown = calculateCost({
+        ...baseInput, startTime: '14:00', duration, applicablePromotions: [bogoPromo],
+      });
+      // Duration in the assertion so a failure names the rung that broke.
+      expect({ duration, waived: breakdown.totalDiscount, total: breakdown.estimatedTotal })
+        .toEqual({ duration, waived, total });
+    }
   });
 
   test('and none of the four ever names a competitor', () => {

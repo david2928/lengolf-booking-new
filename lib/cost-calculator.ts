@@ -39,7 +39,7 @@ export interface ApplicablePromotion {
    * True for the new-customer B1G1 and nothing else today. It is a property of
    * the ROW, not of `promotion_type`: the weekday off-peak offer is also a
    * `bogo` with `free_hours: 1` and grants nothing, so a type check cannot tell
-   * them apart. Read here to decide whether the sub-2-hour hint may promise
+   * them apart. Read here to decide whether the one-hour hint may promise
    * "redeem your free hour within 7 days", and read again in
    * `app/api/bookings/create/route.ts` to decide whether to actually grant it —
    * one column, so the promise and the grant cannot drift.
@@ -128,7 +128,7 @@ export interface CostBreakdown {
    * Read this, never a second eligibility pass, when another surface has to
    * agree with the customer's quote (the staff LINE note in
    * `app/api/bookings/create/route.ts` does). `discounts[0].promotionId` is NOT
-   * a substitute: a sub-2-hour bogo wins by contributing ADVICE ("book 2 hours
+   * a substitute: a one-hour bogo wins by contributing ADVICE ("book 2 hours
    * to get 1 hour free") and pushes no discount row, yet it is still a promise
    * made to the customer that staff have to honour.
    *
@@ -236,7 +236,7 @@ interface PromotionCandidate {
   promotionId: string;
   /**
    * Baht the customer saves if this candidate is applied — the sole ranking key.
-   * Zero for a candidate that only carries advice (the sub-2-hour bogo), which
+   * Zero for a candidate that only carries advice (the one-hour bogo), which
    * is why such a candidate can never out-rank a real discount.
    */
   value: number;
@@ -736,11 +736,23 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
 
     const candidateNotes = emptyLocalizedNotes();
 
-    // BOGO: 2+ hours → discount applied now; 1 hour → hint to book longer next time for free hour
+    // BOGO: over 1 hour → discount applied now; exactly 1 hour → hint to book
+    // longer next time for a free hour.
+    //
+    // The requirement is buying ONE hour, not two (owner, 2026-08-03). The gate
+    // was `duration >= 2` while the ladder ran in whole hours, where the two
+    // readings coincide. Half-hour rungs shipped and they stopped coinciding: a
+    // 1.5h booking has bought its hour and taken half of its free one, and was
+    // being charged for all 90 minutes while still being SHOWN the offer.
+    //
+    // Exactly 1 hour stays advice-only, and that is not an off-by-one: there is
+    // nothing beyond the paid hour to waive, so honouring it inside the booking
+    // would zero the booking. `freeHours` below expresses this — it is
+    // `duration - 1`, which is 0 at one hour and has no discount to push.
     if (promo.promotion_type === 'bogo' && promo.free_hours) {
       if (packageAppliesToBay || playFoodPkg) continue;
 
-      if (duration >= 2) {
+      if (duration > 1) {
         // Apply free hour discount to current booking. The free hour(s) are
         // the LAST of the block (customer plays the bonus time at the end),
         // prorated across rate boundaries like the bay charge itself.
@@ -775,7 +787,7 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         }
         // A free window that prices to ฿0 saves the customer nothing, so there
         // is no candidate to push. It is invisible at the disclosure for the
-        // same reason the sub-2-hour bogo below is: see the `value > 0` filter
+        // same reason the one-hour bogo below is: see the `value > 0` filter
         // on `alsoConsidered` — an offer worth ฿0 never competed for anything.
       } else {
         // Two hints, because there are two kinds of bogo.
@@ -788,10 +800,16 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         // would promise a returning customer an hour nothing ever creates —
         // undiscoverable, since the credit wallet is read-only to customers.
         //
-        // Without a credit, the sub-2-hour case has exactly one true and useful
-        // thing to say: extend to 2 hours and the second hour is free HERE. Do
+        // Without a credit, the one-hour case has exactly one true and useful
+        // thing to say: extend the booking and the extra time is free HERE. Do
         // not gate on `promotion_type` or on the row id; gate on the declared
         // column, which is the same one the grant reads.
+        //
+        // The copy still names two hours because that is where a WHOLE free
+        // hour lands and it is the clearest call to action. Since the threshold
+        // dropped to one hour it understates the offer slightly — 1.5h now
+        // waives 30 minutes too — but it is not false, and rewording it is five
+        // locales of customer-facing copy.
         if (promo.grants_credit) {
           candidateNotes.en.push(`🎉 ${promo.title_en}: Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days`);
           candidateNotes.th.push(`🎉 ${promo.title_th}: จอง 2 ชม. เพื่อรับฟรี 1 ชม.! หรือใช้สิทธิ์ฟรีภายใน 7 วัน`);
@@ -819,7 +837,7 @@ export function calculateCost(input: CostCalculationInput): CostBreakdown {
         }
 
         // Worth ฿0 today — this offer only advises booking longer. It stays a
-        // candidate so a LONE sub-2-hour bogo still prints its hint, but a value
+        // candidate so a LONE one-hour bogo still prints its hint, but a value
         // of 0 means it can never out-rank an offer that actually saves money —
         // nor be named as one that lost, which it never was.
         promotionCandidates.push({

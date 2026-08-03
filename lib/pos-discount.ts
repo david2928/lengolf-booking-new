@@ -48,13 +48,17 @@ export function withPosDiscountInstruction(
  * The counterpart instruction for a booking the quote did NOT discount.
  *
  * An offer can win the flow's single-offer selection and still charge nothing:
- * a bogo below 2 hours has no second hour to waive, so it contributes advice
- * only. The staff note still names it, because the customer was shown it — and
- * a named offer with no instruction beside it reads as "apply the usual
- * discount", which is precisely the wrong action. The paired POS row is
- * 100%-off-one-item, and on a 1-hour booking the item IS the whole booking, so
- * a staff member acting on that reading zeroes a booking the customer was
- * quoted in full.
+ * a bogo at exactly 1 hour has nothing beyond the paid hour to waive, so it
+ * contributes advice only. The staff note still names it, because the customer
+ * was shown it — and a named offer with no instruction beside it reads as
+ * "apply the usual discount", which is precisely the wrong action. The paired
+ * POS row is 100%-off-one-item, and on a 1-hour booking the item IS the whole
+ * booking, so a staff member acting on that reading zeroes a booking the
+ * customer was quoted in full.
+ *
+ * One hour is the only duration that reaches here now. The threshold used to be
+ * two, so 1.5h landed here as well; it is discounted from 2026-08-03 and takes
+ * the ordinary "apply POS discount" instruction instead.
  *
  * Stated as an imperative rather than left to silence. There is no wording that
  * means "no instruction" except an instruction saying so.
