@@ -344,6 +344,45 @@ routes are Node. Top-level `regions` in `vercel.json` is the mechanism.
 - Support for both regular and package-based bookings
 - Automated review request scheduling (30min post-session)
 
+### Mobile nav menu — the header must stay capped, the menu must stay a scroller
+
+`components/shared/Header.tsx` renders the mobile menu *inside* a `sticky top-0`
+header, and both layouts that pass a `mobileMenu` scroll-lock the body while it
+is open. That combination trapped the bottom of the menu off-screen from
+2026-04 to 2026-08-03: the page could not scroll because it was locked, and the
+menu could not scroll because it was `overflow: visible`. Measured at 812x375
+(a phone in landscape) 165px sat below the fold, with Golf Lessons, Main Site
+and Sign In wholly unreachable; a signed-in VIP overflows even a portrait phone.
+
+**Removing the scroll lock does not fix this** — a `sticky` element pinned at
+`top: 0` cannot be scrolled to, so its overflow stays unreachable either way.
+The lock is load-bearing and should stay. What makes the menu reachable is a
+shrink chain with no magic numbers, and every link is required:
+
+```
+header    max-h-dvh flex flex-col      cap + column
+ └ div    container min-h-0 flex-col   may shrink below content
+    ├ div flex-shrink-0                title bar never compresses (holds the close button)
+    └ nav min-h-0 overflow-y-auto      absorbs the shortfall and scrolls
+```
+
+`dvh`, not `vh`: `100vh` is the *largest* viewport, so a `vh` cap still hides
+the last rows behind the phone's URL bar. This needs Tailwind >= 3.4 — an older
+version emits **nothing** for `max-h-dvh`, silently dropping the cap.
+
+Consequence to remember: the menu's last row now rests exactly at the bottom
+edge, which is where `fixed` bottom-anchored UI lives. The chat FAB landed on
+top of it and swallowed its taps until `body.mobile-menu-open [data-chat-fab]`
+was added — see the rules and reasoning in `app/globals.css`. Anything new
+pinned to the bottom of the viewport has to clear the open menu too.
+
+Guarded by `__tests__/mobile-nav-scroll.test.ts`, which discovers the layouts
+that pass a `mobileMenu` rather than hardcoding them. Note it is source-level by
+necessity — jsdom performs no layout, so a render test passes against the broken
+markup just as happily. To verify for real, use a browser at a small viewport:
+`nav.scrollHeight > nav.clientHeight`, then scroll to the end and assert the
+last row's `getBoundingClientRect().bottom <= innerHeight`.
+
 ### LIFF / iOS Compatibility
 - iOS Safari and LIFF WebView do NOT support `showPicker()` on hidden date inputs
 - Never use `sr-only` + programmatic `showPicker()`/`focus()`/`click()` for native inputs on mobile
