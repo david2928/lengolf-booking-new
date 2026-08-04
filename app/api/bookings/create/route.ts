@@ -16,6 +16,7 @@ import { scheduleReviewRequest } from '@/lib/reviewRequestScheduler';
 import { isValidLanguage } from '@/lib/liff/translations';
 import { isValidLocale } from '@/i18n/routing';
 import { sanitizeAttribution } from '@/lib/attribution/click-ids';
+import { sendBookingConversion, BOOKING_VALUE_THB } from '@/lib/meta/capi';
 import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
 import {
   getPosDiscountTitle,
@@ -329,6 +330,20 @@ export async function POST(request: NextRequest) {
             return [{ key: canonical.id, label: canonical.name, price: canonical.price }];
           })
       : null;
+
+    // Meta match signals, read from the request while we still have it. `_fbp`
+    // and `_fbc` are first-party cookies the pixel sets on booking.len.golf, so
+    // the server can read them without any client change — they are absent on
+    // the LIFF path, which loads no pixel, and that path leans on the hashed
+    // email/phone instead.
+    const metaSignals = {
+      fbp: request.cookies.get('_fbp')?.value ?? null,
+      fbc: request.cookies.get('_fbc')?.value ?? null,
+      clientIp:
+        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+      userAgent: request.headers.get('user-agent'),
+      eventSourceUrl: request.headers.get('referer'),
+    };
 
     // 2. Authenticate user - support both NextAuth and LIFF context
     const claimedLineUserId = request.headers.get('x-line-user-id');
@@ -1380,6 +1395,36 @@ export async function POST(request: NextRequest) {
               error: reviewRequestError instanceof Error ? reviewRequestError.message : 'Unknown error'
             });
           }
+        }
+        // Report the booking to Meta server-side. Covers the LIFF path too,
+        // which loads no pixel at all, and fires on the COMMITTED booking
+        // rather than on a click — see lib/meta/capi.ts for why the existing
+        // browser-side CompleteRegistration could not do either.
+        try {
+          const metaResult = await sendBookingConversion({
+            bookingId: booking.id,
+            eventTimeMs: Date.parse(booking.created_at) || Date.now(),
+            email: booking.email,
+            phone: booking.phone_number,
+            firstName: booking.name,
+            value: BOOKING_VALUE_THB,
+            isNewCustomer,
+            ...metaSignals,
+          });
+          logTiming(
+            'Meta conversion',
+            metaResult.sent ? 'success' : metaResult.error ? 'error' : 'success',
+            metaResult.sent
+              ? { eventsReceived: metaResult.eventsReceived }
+              : { skipped: metaResult.skipped, error: metaResult.error },
+          );
+        } catch (metaError) {
+          // Belt and braces: sendBookingConversion resolves rather than throws,
+          // but a throw here would abort nothing behind it and still must not
+          // reach the customer.
+          logTiming('Meta conversion', 'error', {
+            error: metaError instanceof Error ? metaError.message : 'Unknown error',
+          });
         }
       } catch (sideEffectError) {
         // The booking is already committed and the customer already has their
