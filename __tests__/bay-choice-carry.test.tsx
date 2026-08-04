@@ -22,8 +22,12 @@ jest.mock('next-auth/react', () => ({
   signIn: jest.fn(),
 }));
 
+// Telemetry is irrelevant to what this file asserts, but useBookingFlow calls
+// the hook unconditionally — so the mock has to supply it, not just the pushers.
 jest.mock('@/lib/booking-telemetry', () => ({
-  pushBayBookingStepViewed: jest.fn(),
+  BAY_BOOKING_STEPS: ['date', 'time', 'details'],
+  useStepViewedTelemetry: jest.fn(),
+  pushStepViewed: jest.fn(),
 }));
 
 const FLOW_KEY = 'lengolf.bayBookingFlow';

@@ -5,7 +5,7 @@ import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from './useAvailability';
 import { useFlowPersistence } from '@/lib/use-flow-persistence';
-import { pushBayBookingStepViewed } from '@/lib/booking-telemetry';
+import { BAY_BOOKING_STEPS, useStepViewedTelemetry } from '@/lib/booking-telemetry';
 import { useDetailsSubStep, DETAIL_SUB_STEPS } from '../components/booking/steps/details/useDetailsSubStep';
 
 export function useBookingFlow() {
@@ -166,14 +166,30 @@ export function useBookingFlow() {
     },
   );
 
-  // Report the step the customer actually lands on. Gated on `flowRestored`
+  // A marketing deep link carries ?selectDate=..., and lands on step 1 until the
+  // effect below promotes it to step 2. That effect is declared after this one,
+  // so telemetry would otherwise report a `date` view the customer never had.
+  // Suppress until the param has been consumed — the deep-link effect clears it
+  // via router.replace, which drops it from `searchParams` and opens the gate on
+  // the step the customer actually lands on.
+  //
+  // Deliberately NOT gated on session status the way this was drafted while the
+  // flow still had a login wall. That gate existed because the deep-link effect
+  // only ran when authenticated, so a param nothing would ever consume could
+  // silence the funnel for a whole session. The effect is unconditional now, so
+  // the param is always consumed and the plain check is both simpler and safe.
+  const deepLinkStepPending = !!searchParams?.get('selectDate');
+
+  // Report the first view of each step, once per mount. Gated on `flowRestored`
   // because useFlowPersistence restores in a mount effect: without the gate this
   // fires for the initial step 1 and then the restored step, inventing a `date`
   // view and skipping the restored step's predecessor entirely.
-  useEffect(() => {
-    if (!flowRestored) return;
-    pushBayBookingStepViewed(currentStep);
-  }, [flowRestored, currentStep]);
+  useStepViewedTelemetry({
+    event: 'bay_booking_step_viewed',
+    steps: BAY_BOOKING_STEPS,
+    index: currentStep - 1,
+    enabled: flowRestored && !deepLinkStepPending,
+  });
 
   useEffect(() => {
     if (searchParams && !isAutoSelecting) {
