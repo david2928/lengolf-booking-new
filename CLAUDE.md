@@ -111,6 +111,9 @@ EMAIL_USER=               # SMTP username
 EMAIL_PASSWORD=           # SMTP password
 EMAIL_TLS_REJECT_UNAUTHORIZED=false  # Set to false to allow self-signed certificates (default: true)
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=  # Browser-restricted Maps JS API key; enables Places autocomplete on delivery address. HTTP-referrer-restricted in GCP Console (booking.len.golf/* + localhost:3000/*). Same project as lengolf-forms.
+META_CAPI_ACCESS_TOKEN=   # OPTIONAL. Meta Conversions API token for pixel 480537434714703. Absent = booking conversions are not reported to Meta; nothing else changes. See "Meta Conversions API" below.
+META_PIXEL_ID=            # OPTIONAL, defaults to 480537434714703 (the pixel already in the page)
+META_CAPI_TEST_EVENT_CODE=# OPTIONAL, routes events to Meta Events Manager "Test events" instead of production
 ```
 
 ## Marketing-consent deploy notes (PR #18, merged 2026-04-26)
@@ -297,6 +300,50 @@ deliberately secondary and flipping it triggers 2–3 weeks of Smart Bidding
 relearning.
 
 Design spec: `docs/superpowers/specs/2026-07-25-gclid-capture-design.md`.
+
+## Meta Conversions API (server-side booking conversions)
+
+`lib/meta/capi.ts`, called from `/api/bookings/create` inside its `after()`
+chain. It exists because the only booking signal Meta had was the browser
+pixel's `CompleteRegistration`, fired by a GTM trigger matching the **click
+text** "Confirm Booking" — which counts the click rather than the committed
+booking, never matched a Thai/Japanese/Korean/Chinese customer, and dies to iOS
+ATT and ad blockers.
+
+**The reason it belongs in the API route and not a component: LIFF.** GTM is
+injected only in `app/[locale]/layout.tsx`, so the LINE mini-app at `app/liff/*`
+loads no pixel at all — but both surfaces POST to `/api/bookings/create`.
+Measured 2026-08-04, 217 of 804 bookings in a 30-day window were LIFF and
+completely invisible to Meta.
+
+Non-negotiables, each of which has a test in `__tests__/meta-capi.test.ts`:
+
+- **No module-load env assertion.** Missing config logs once and skips. This
+  repo has been bitten twice by throwing at import time (MARKETING_PREFS_SECRET,
+  SHOPEEPAY_*) — it fails the build at `Collecting page data` and blocks every
+  deploy. A booking must never fail because an analytics token is absent.
+- **`event_time` is SECONDS.** A milliseconds value places the event ~55,000
+  years in the future and Meta drops it without complaint.
+- **`event_id` is the booking id**, shared with the browser pixel so a web
+  booking counted by both paths collapses to one conversion.
+- **Phone normalises to Thai E.164 digits** (`0812345678` → `66812345678`), and
+  returns undefined rather than guessing when the result is implausible. A wrong
+  hash is worse than no hash: it still looks like a valid identifier, Meta still
+  reports `events_received: 1`, and it matches nobody. Nothing errors anywhere.
+- **Name hashes the first token only.** Meta matches given names; hashing
+  "Somchai Jaidee" whole would never match.
+- `_fbp` / `_fbc` are read server-side from the request cookies — first-party on
+  booking.len.golf, so no client change was needed. Absent on LIFF, which leans
+  on hashed email/phone instead.
+
+`BOOKING_VALUE_THB` is deliberately the same flat 1200 that GTM tag 62 sends to
+Google Ads, not this booking's promo-adjusted price — feeding a discounted
+amount to one platform and a flat one to the other makes the two ROAS figures
+incomparable. Change both or neither.
+
+Still open: staff-created bookings (471 of 804 in the same window — walk-in,
+phone, LINE chat) reach no ad platform at all. They need Meta's Offline
+Conversions API, mirroring what `lengolf-ads-etl` already does for Google.
 
 ## Common Gotchas
 
