@@ -18,6 +18,7 @@ import { getCoursePriceBreakdown, getGearUpItems, getSetThumbnailUrl } from '@/t
 import { usePricingLoader } from '@/lib/pricing-hook';
 import { useFlowPersistence, clearFlowPersistence } from '@/lib/use-flow-persistence';
 import { pushEventToGtm } from '@/utils/gtm';
+import { useStepViewedTelemetry } from '@/lib/booking-telemetry';
 import { readAttribution } from '@/lib/attribution/click-ids';
 import { courseDeliveryFee } from '@/lib/club-rental/order-pricing';
 import { BOOKING_SUMMARY_BAR_SPACER } from '@/components/shared/BookingSummaryBar';
@@ -94,6 +95,12 @@ const TIME_OPTIONS = [
 type Step = 'dates' | 'set' | 'delivery' | 'contact' | 'review' | 'confirmation';
 
 const STEP_ORDER: Step[] = ['dates', 'set', 'delivery', 'contact', 'review'];
+
+// Reportable steps, in funnel order. 'confirmation' is a real step view but not
+// part of the funnel denominator, so `total_steps` stays STEP_ORDER.length —
+// which is the shape already collected since mid-May. Module-level so the
+// reference stays stable across renders (it is a telemetry effect dependency).
+const TELEMETRY_STEPS: readonly Step[] = [...STEP_ORDER, 'confirmation'];
 
 export default function CourseRentalPage() {
   usePricingLoader();
@@ -242,14 +249,17 @@ export default function CourseRentalPage() {
   // customer never saw and skipping the restored step's predecessors entirely.
   // Mirrors the same gate in useBookingFlow.ts, deliberately, so the two
   // funnels stay comparable in GA4.
-  useEffect(() => {
-    if (!flowRestored) return;
-    pushEventToGtm('course_rental_step_viewed', {
-      step,
-      step_index: step === 'confirmation' ? STEP_ORDER.length : STEP_ORDER.indexOf(step),
-      total_steps: STEP_ORDER.length,
-    });
-  }, [flowRestored, step]);
+  // Reports the FIRST view of each step, once per mount — `goBack()` moving to
+  // an earlier step no longer re-emits, so per-step counts are usable directly
+  // as drop-off denominators. Shares the dedupe policy with bay booking rather
+  // than restating it, which is the point of the shared hook.
+  useStepViewedTelemetry({
+    event: 'course_rental_step_viewed',
+    steps: TELEMETRY_STEPS,
+    index: TELEMETRY_STEPS.indexOf(step),
+    totalSteps: STEP_ORDER.length,
+    enabled: flowRestored,
+  });
 
   // Each step is a fresh "page" — reset scroll to the top so the customer never
   // lands mid-page (or at the footer) after tapping Continue at the bottom of

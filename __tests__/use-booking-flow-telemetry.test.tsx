@@ -1,28 +1,22 @@
 /**
- * Regression test for the bay-booking funnel telemetry restore bug: without
- * gating on `useFlowPersistence`'s `restored` flag, a mount that restores to
- * step 3 fires a phantom `date` event for the initial step-1 render before the
- * restored step lands, and the middle step (`time`) is never reported at all.
+ * Bay-booking funnel telemetry as wired into useBookingFlow.
+ *
+ * Asserts against `window.dataLayer` rather than a mock of the telemetry module,
+ * because the module IS the thing under test here: the hook owns the dedupe
+ * policy, and a mock would let a regression in it pass silently.
  */
 import { renderHook, waitFor } from '@testing-library/react';
+import { act } from 'react';
 import { useBookingFlow } from '@/app/[locale]/(features)/bookings/hooks/useBookingFlow';
 
-jest.mock('next-auth/react', () => ({
-  useSession: () => ({ status: 'unauthenticated' }),
-  signIn: jest.fn(),
-}));
+const steps = () =>
+  (window.dataLayer ?? [])
+    .filter((d) => d.event === 'bay_booking_step_viewed')
+    .map((d) => d.step);
 
-jest.mock('@/lib/booking-telemetry', () => ({
-  pushBayBookingStepViewed: jest.fn(),
-}));
-
-import { pushBayBookingStepViewed } from '@/lib/booking-telemetry';
-
-const mockedPush = pushBayBookingStepViewed as jest.Mock;
-
-describe('useBookingFlow telemetry on restore', () => {
+describe('useBookingFlow telemetry', () => {
   beforeEach(() => {
-    mockedPush.mockClear();
+    window.dataLayer = [];
     sessionStorage.clear();
   });
 
@@ -46,9 +40,7 @@ describe('useBookingFlow telemetry on restore', () => {
     const { result } = renderHook(() => useBookingFlow());
 
     await waitFor(() => expect(result.current.currentStep).toBe(3));
-
-    const emittedSteps = mockedPush.mock.calls.map((call) => call[0]);
-    expect(emittedSteps).toEqual([3]);
+    await waitFor(() => expect(steps()).toEqual(['details']));
   });
 
   // Guards the opposite failure to the one above. If the `flowRestored` gate is
@@ -59,8 +51,27 @@ describe('useBookingFlow telemetry on restore', () => {
   test('a fresh mount with no saved snapshot still reports step 1', async () => {
     renderHook(() => useBookingFlow());
 
-    await waitFor(() => expect(mockedPush).toHaveBeenCalled());
+    await waitFor(() => expect(steps()).toEqual(['date']));
+  });
 
-    expect(mockedPush.mock.calls.map((call) => call[0])).toEqual([1]);
+  // The regression this file exists for. Going back is an advertised path now —
+  // the step header carries a "Change" pill — so a 1->2->1->2 journey is normal,
+  // and it used to report `date` and `time` twice each. Any event-count drop-off
+  // report built on that reads the later steps as larger than they were.
+  test('does not re-report a step the customer returns to', async () => {
+    const { result } = renderHook(() => useBookingFlow());
+
+    await waitFor(() => expect(steps()).toEqual(['date']));
+
+    act(() => result.current.handleDateSelect(new Date('2026-08-05T00:00:00.000Z')));
+    await waitFor(() => expect(result.current.currentStep).toBe(2));
+
+    act(() => result.current.handleBack());
+    await waitFor(() => expect(result.current.currentStep).toBe(1));
+
+    act(() => result.current.handleDateSelect(new Date('2026-08-05T00:00:00.000Z')));
+    await waitFor(() => expect(result.current.currentStep).toBe(2));
+
+    expect(steps()).toEqual(['date', 'time']);
   });
 });
