@@ -302,6 +302,28 @@ describe('splitName', () => {
     expect(splitName("  O'Brien,  Sean  ")).toEqual({ first: 'obrien', last: 'sean' });
   });
 
+  // Thai tone marks and vowel signs are Unicode category Mn, and Thai has no
+  // precomposed forms. Stripping them rewrites the name and hashes to something
+  // that matches nobody — the majority of this customer base.
+  it.each([
+    ['สมชาย ใจดี', { first: 'สมชาย', last: 'ใจดี' }],
+    ['นิดา น้ำใส', { first: 'นิดา', last: 'น้ำใส' }],
+    ['ธีระพงษ์ วงศ์คำ', { first: 'ธีระพงษ์', last: 'วงศ์คำ' }],
+  ])('preserves Thai combining marks in %s', (input, expected) => {
+    expect(splitName(input as string)).toEqual(expected);
+  });
+
+  it('folds decomposed and precomposed spellings to the same string', () => {
+    // Build both forms from escapes. Written as pasted literals these are
+    // visually identical, so the test would silently compare a string to
+    // itself and prove nothing.
+    const precomposed = 'José';       // e-acute as a single code point
+    const decomposed = 'José';       // 'e' + combining acute
+    expect(precomposed).not.toBe(decomposed);
+    expect(splitName(decomposed)).toEqual(splitName(precomposed));
+    expect(splitName(precomposed).first).toBe('josé');
+  });
+
   it('returns nulls for blank input', () => {
     expect(splitName('  ')).toEqual({ first: null, last: null });
   });
@@ -401,9 +423,20 @@ export interface SplitName {
 export function splitName(raw: string | null | undefined): SplitName {
   if (typeof raw !== 'string') return { first: null, last: null };
 
+  // `\p{M}` (combining marks) is load-bearing, not decoration. Thai tone marks
+  // and vowel signs are category Mn, and Thai has no precomposed letter+mark
+  // forms — so `[^\p{L}\p{N}\s]` silently rewrites almost every Thai name
+  // (สมชาย ใจดี -> สมชาย ใจด). Since the customer base is largely Thai, that
+  // would hash the wrong string for most people: worse than sending no name,
+  // because it looks like a signal and matches nobody.
+  //
+  // NFC first so a decomposed name and its precomposed twin hash identically —
+  // once marks are preserved, "José" spelled two ways would otherwise produce
+  // two different hashes.
   const cleaned = raw
+    .normalize('NFC')
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
 
