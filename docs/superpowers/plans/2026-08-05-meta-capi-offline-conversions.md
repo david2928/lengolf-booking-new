@@ -1654,21 +1654,20 @@ git commit -m "test(meta): route contract guards for config, auth, staging order
 -- and steady-state events are never more than ~24h old.
 --
 -- The URL and the Vault key mirror 'club-rental-expired-notify-1min'.
+-- SECURITY: the Vault lookup is a SUBQUERY inside the scheduled command, so
+-- the token is resolved at execution time and never stored. Do NOT interpolate
+-- it with format() -- that writes the secret in plaintext into
+-- cron.job.command, readable by anyone who can query cron.job, and is exactly
+-- what the July 2026 cron-token-to-Vault migration removed. Mirrors the
+-- existing 'club-rental-expired-notify-1min' job.
 DO $$
-DECLARE
-  v_url   TEXT := 'https://booking.len.golf/api/cron/meta-capi-upload';
-  v_token TEXT;
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
     RAISE NOTICE 'pg_cron not installed -- enable it and re-run this migration.';
     RETURN;
   END IF;
 
-  SELECT decrypted_secret INTO v_token
-    FROM vault.decrypted_secrets
-   WHERE name = 'cron_api_key';
-
-  IF v_token IS NULL THEN
+  IF NOT EXISTS (SELECT 1 FROM vault.decrypted_secrets WHERE name = 'cron_api_key') THEN
     RAISE EXCEPTION 'Vault secret "cron_api_key" not found -- create it before scheduling.';
   END IF;
 
@@ -1679,11 +1678,19 @@ BEGIN
   PERFORM cron.schedule(
     'meta-capi-upload-nightly',
     '0 20 * * *',
-    format(
-      $cron$ SELECT net.http_get(url => %L, headers => %L::jsonb, timeout_milliseconds => 55000); $cron$,
-      v_url,
-      json_build_object('Authorization', 'Bearer ' || v_token)::text
-    )
+    $cron$
+      SELECT net.http_get(
+        url := 'https://booking.len.golf/api/cron/meta-capi-upload',
+        headers := jsonb_build_object(
+          'Authorization',
+          'Bearer ' || (
+            SELECT decrypted_secret FROM vault.decrypted_secrets
+             WHERE name = 'cron_api_key' LIMIT 1
+          )
+        ),
+        timeout_milliseconds := 55000
+      ) AS request_id;
+    $cron$
   );
 END
 $$;
