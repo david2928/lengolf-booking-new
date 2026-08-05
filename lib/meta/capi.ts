@@ -55,6 +55,29 @@ export function eventIdForBooking(bookingId: string): string {
   return `booking-${bookingId}`;
 }
 
+/**
+ * PostgREST serialises timestamptz with an explicit zone, and we require one.
+ * Without it `Date.parse` silently reads the string as local time in the
+ * runtime zone (UTC on Vercel) instead of failing — producing a wrong but
+ * plausible instant, which misattributes the conversion rather than skipping
+ * it. Note the time component is mandatory in this pattern: a bare `±HH`
+ * offset rule would match the `-30` in `2026-07-30`.
+ */
+const HAS_EXPLICIT_ZONE = /\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}(?::?\d{2})?)$/;
+
+/**
+ * V8's `Date.parse` accepts `+07:00` and `+0700` but returns NaN for the bare
+ * `+07` form — even though it's a valid ISO 8601 offset and HAS_EXPLICIT_ZONE
+ * already accepts it above. Pad it to `+07:00` so a legitimately-zoned string
+ * doesn't get rejected purely because of which offset spelling it used. Only
+ * matches a trailing `[+-]DD`, so it can't touch `+0700` (last 3 chars are
+ * `700`, not `+DD`) or the date portion (already gated behind
+ * HAS_EXPLICIT_ZONE, which requires a preceding time component).
+ */
+function normalizeShortOffset(value: string): string {
+  return value.replace(/([+-]\d{2})$/, '$1:00');
+}
+
 export function buildPurchaseEvent(row: PendingBooking): BuiltEvent | null {
   const built = buildUserData({
     bookingEmail: row.booking_email,
@@ -64,7 +87,9 @@ export function buildPurchaseEvent(row: PendingBooking): BuiltEvent | null {
   });
   if (!built) return null;
 
-  const ms = Date.parse(row.event_time);
+  if (!HAS_EXPLICIT_ZONE.test(row.event_time)) return null;
+
+  const ms = Date.parse(normalizeShortOffset(row.event_time));
   if (Number.isNaN(ms)) return null;
 
   return {
@@ -93,6 +118,15 @@ export interface SendResult {
   eventsReceived: number;
   fbTraceId: string | null;
   error: string | null;
+  /**
+   * Meta's numeric error code (e.g. 190 = invalid token, 100 = missing
+   * perms). Task 8's retry logic needs this to tell a permanent failure from
+   * a transient one — without it, a bad token burns the same 3 retries as a
+   * network blip instead of failing loud on the first attempt. `null` on
+   * success and on a network exception, where there is no HTTP response to
+   * read a code from.
+   */
+  errorCode: number | null;
 }
 
 /**
@@ -105,7 +139,7 @@ export async function sendEvents(
   events: MetaServerEvent[],
 ): Promise<SendResult> {
   if (events.length === 0) {
-    return { ok: true, eventsReceived: 0, fbTraceId: null, error: null };
+    return { ok: true, eventsReceived: 0, fbTraceId: null, error: null, errorCode: null };
   }
 
   const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${config.datasetId}/events`;
@@ -140,6 +174,7 @@ export async function sendEvents(
         eventsReceived: 0,
         fbTraceId: payload.error?.fbtrace_id ?? payload.fbtrace_id ?? null,
         error: message,
+        errorCode: payload.error?.code ?? null,
       };
     }
 
@@ -148,6 +183,7 @@ export async function sendEvents(
       eventsReceived: payload.events_received ?? 0,
       fbTraceId: payload.fbtrace_id ?? null,
       error: null,
+      errorCode: null,
     };
   } catch (err) {
     return {
@@ -155,6 +191,9 @@ export async function sendEvents(
       eventsReceived: 0,
       fbTraceId: null,
       error: err instanceof Error ? err.message : String(err),
+      // No HTTP response to read a code from — this is a network-level
+      // failure (DNS, TLS, socket), not a Graph API rejection.
+      errorCode: null,
     };
   }
 }

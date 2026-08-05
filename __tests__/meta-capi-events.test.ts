@@ -77,6 +77,52 @@ describe('buildPurchaseEvent', () => {
     expect(json).not.toContain('John');
     expect(json.toLowerCase()).not.toContain('john doe');
   });
+
+  it('every user_data value is a 64-char hex hash, never raw', () => {
+    const built = buildPurchaseEvent(CANDIDATE)!;
+    const values = Object.values(built.event.user_data).flat();
+    expect(values.length).toBeGreaterThan(0);
+    for (const v of values) expect(v).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  // PostgREST always serialises timestamptz with an explicit zone, but a
+  // schema change to plain `timestamp` (or a differently-shaped producer of a
+  // PendingBooking row) could hand us an offset-less string. Without this
+  // guard, Date.parse would silently read it as local time in the runtime
+  // zone (UTC on Vercel) rather than failing — a wrong-but-plausible instant
+  // that misattributes the conversion instead of skipping it.
+  describe('event_time zone requirement', () => {
+    const ACCEPTED_INSTANT = Math.floor(Date.parse('2026-08-04T03:30:00Z') / 1000);
+
+    // Every case below encodes the SAME absolute instant, 03:30 UTC / 10:30
+    // Bangkok, just spelled differently — that's what makes the shared
+    // ACCEPTED_INSTANT assertion meaningful rather than coincidental.
+    it.each([
+      ['colon offset', '2026-08-04T03:30:00+00:00'],
+      ['zulu', '2026-08-04T03:30:00Z'],
+      ['bare-hour offset', '2026-08-04T10:30:00+07'],
+      ['4-digit offset', '2026-08-04T10:30:00+0700'],
+      ['space-separated instead of T', '2026-08-04 10:30:00+07:00'],
+      ['fractional seconds', '2026-08-04T10:30:00.123+07:00'],
+    ])('accepts %s and resolves to the correct absolute instant', (_label, eventTime) => {
+      const built = buildPurchaseEvent({ ...CANDIDATE, event_time: eventTime });
+      expect(built).not.toBeNull();
+      // Fractional-seconds case lands 123ms later — compare at the second.
+      expect(built?.event.event_time).toBe(ACCEPTED_INSTANT);
+    });
+
+    it('rejects an offset-less timestamp rather than guessing a zone', () => {
+      expect(
+        buildPurchaseEvent({ ...CANDIDATE, event_time: '2026-08-04T10:30:00' }),
+      ).toBeNull();
+    });
+
+    // Regression pin: a naive bare `±HH` offset regex matches the `-30` in a
+    // date-only string like this one and would wrongly accept it.
+    it('rejects a date-only string (the -30 lookalike-offset trap)', () => {
+      expect(buildPurchaseEvent({ ...CANDIDATE, event_time: '2026-07-30' })).toBeNull();
+    });
+  });
 });
 
 describe('sendEvents', () => {
@@ -119,6 +165,7 @@ describe('sendEvents', () => {
       eventsReceived: 1,
       fbTraceId: 'trace-abc',
       error: null,
+      errorCode: null,
     });
   });
 
@@ -146,6 +193,22 @@ describe('sendEvents', () => {
     expect(result.fbTraceId).toBe('trace-err');
   });
 
+  // Task 8's retry logic gives up after 3 attempts. Without the numeric code
+  // it can't tell a permanent failure (bad token, missing perms) from a
+  // transient one (network blip, rate limit) — a bad token would otherwise
+  // silently burn 3 nightly cycles instead of failing loud on the first.
+  it('surfaces the numeric Graph API error code so retry logic can classify it', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: { message: '(#100) Missing perms', code: 100, fbtrace_id: 'trace-err' },
+      }),
+    });
+    const result = await sendEvents(CONFIG, [EVENT]);
+    expect(result.errorCode).toBe(100);
+  });
+
   it('surfaces a network failure without throwing', async () => {
     fetchMock.mockRejectedValue(new Error('socket hang up'));
     const result = await sendEvents(CONFIG, [EVENT]);
@@ -153,10 +216,22 @@ describe('sendEvents', () => {
     expect(result.error).toContain('socket hang up');
   });
 
+  it('has no error code for a network failure — there is no HTTP response to read one from', async () => {
+    fetchMock.mockRejectedValue(new Error('socket hang up'));
+    const result = await sendEvents(CONFIG, [EVENT]);
+    expect(result.errorCode).toBeNull();
+  });
+
   it('does nothing and reports ok for an empty batch', async () => {
     const result = await sendEvents(CONFIG, []);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(result).toEqual({ ok: true, eventsReceived: 0, fbTraceId: null, error: null });
+    expect(result).toEqual({
+      ok: true,
+      eventsReceived: 0,
+      fbTraceId: null,
+      error: null,
+      errorCode: null,
+    });
   });
 
   it('caps a request at MAX_EVENTS_PER_REQUEST', () => {
