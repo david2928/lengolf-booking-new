@@ -14,6 +14,9 @@ export interface MetaCapiConfig {
   testEventCode: string | null;
 }
 
+// Treats whitespace-only as absent — a stray env var set to " " in the
+// Vercel dashboard (or an empty-but-present value from a templated env file)
+// would otherwise read as "configured" and pass a blank credential downstream.
 function readEnv(name: string): string | null {
   const raw = process.env[name];
   if (typeof raw !== 'string') return null;

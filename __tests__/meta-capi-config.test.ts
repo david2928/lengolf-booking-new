@@ -23,9 +23,21 @@ describe('getMetaCapiConfig', () => {
     expect(getMetaCapiConfig()).toBeNull();
   });
 
+  it('returns null when only the dataset id is set', () => {
+    delete process.env.META_CAPI_ACCESS_TOKEN;
+    process.env.META_CAPI_DATASET_ID = '1326508338698235';
+    expect(getMetaCapiConfig()).toBeNull();
+  });
+
   it('returns null when a value is blank or whitespace', () => {
     process.env.META_CAPI_ACCESS_TOKEN = '   ';
     process.env.META_CAPI_DATASET_ID = '1326508338698235';
+    expect(getMetaCapiConfig()).toBeNull();
+  });
+
+  it('returns null when the dataset id is blank or whitespace', () => {
+    process.env.META_CAPI_ACCESS_TOKEN = 'tok';
+    process.env.META_CAPI_DATASET_ID = '   ';
     expect(getMetaCapiConfig()).toBeNull();
   });
 
