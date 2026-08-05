@@ -9,9 +9,10 @@
  * net.http_get + Bearer CRON_API_KEY from Vault).
  *
  * Idempotency is belt-and-braces: public.meta_capi_pending anti-joins rows
- * already uploaded/skipped/exhausted, AND every event carries a stable
+ * already uploaded or retry-exhausted, AND every event carries a stable
  * event_id derived from the booking id so Meta collapses any duplicate that
- * slips through a crashed run.
+ * slips through a crashed run. ('pending' and 'skipped' are deliberately NOT
+ * terminal — see migration 20260805120070.)
  *
  * `?dryRun=1` builds the payload and reports counts without POSTing.
  */
@@ -167,12 +168,20 @@ export async function GET(request: NextRequest) {
   // all three Vercel environments — this repo has lost two production builds
   // to exactly that (MARKETING_PREFS_SECRET, SHOPEEPAY_*). A dry run is still
   // useful unconfigured: it reports what WOULD be sent.
+  //
+  // 503 rather than 200, because the pg_cron job is already live: a 200 would
+  // no-op silently every night with nothing to alert on, and `net._http_response`
+  // would record a clean run. That is precisely how the marketing-consent bug
+  // stayed invisible for three months. 503 keeps "fail soft" intact — nothing
+  // throws, no build breaks — while making the unconfigured state observable.
+  // Same distinction the auth check draws: 503 is a deployment fault, not a
+  // caller fault.
   const config = getMetaCapiConfig();
   if (!config && !dryRun) {
     console.warn(
       '[meta-capi] META_CAPI_ACCESS_TOKEN / META_CAPI_DATASET_ID are not set — skipping this run.',
     );
-    return NextResponse.json({ skipped: 'not configured' });
+    return NextResponse.json({ skipped: 'not configured' }, { status: 503 });
   }
 
   const supabase = createServerClient();
@@ -329,7 +338,11 @@ export async function GET(request: NextRequest) {
           fbtrace_id: result.fbTraceId,
           error_message: null,
         })
-        .in('booking_id', bookingIds);
+        .in('booking_id', bookingIds)
+        // Only promote rows THIS run staged. Two overlapping ticks read the
+        // same candidates; if the other one already resolved these rows, its
+        // outcome is the current truth and must not be overwritten by ours.
+        .eq('status', 'pending');
 
       if (markError) {
         // The events ARE at Meta. The rows stay 'pending', which the view

@@ -27,6 +27,18 @@ describe('meta-capi-upload route contract', () => {
     expect(source).not.toMatch(/throw new Error\([^)]*META_CAPI/);
   });
 
+  /**
+   * ...but "does not throw" must not become "says nothing". The pg_cron job is
+   * live, so a 200 here would no-op every night and record a clean run in
+   * `net._http_response` — the exact shape of the marketing-consent bug that
+   * went unnoticed for three months. 503 keeps the fail-soft property (nothing
+   * throws, no build breaks) while making the unconfigured state alertable.
+   * Pinned because softening it back to 200 looks like a harmless tidy-up.
+   */
+  it('answers 503, not 200, when the CAPI credentials are missing', () => {
+    expect(source).toMatch(/skipped: 'not configured' \},\s*\{ status: 503 \}/);
+  });
+
   it('requires a bearer token with a constant-time compare', () => {
     expect(source).toMatch(/CRON_API_KEY/);
     expect(source).toMatch(/charCodeAt\(i\) \^ expected\.charCodeAt\(i\)/);
@@ -57,7 +69,7 @@ describe('meta-capi-upload route contract', () => {
 
   /**
    * Every exclusion rule — non-cancelled, non-test, inside the 7-day window,
-   * not already uploaded/skipped/exhausted — lives in the view. A route that
+   * not already uploaded or retry-exhausted — lives in the view. A route that
    * read `bookings` directly would bypass all four at once, which is both an
    * overbilling risk (cancelled bookings sent as Purchases) and a batch-poison
    * risk (a stale event_time rejects the WHOLE request).
@@ -80,10 +92,12 @@ describe('meta-capi-upload route contract', () => {
   });
 
   /**
-   * `?dryRun=1` is the operator's safe probe. If it reached a write it would
-   * stamp real bookings 'skipped' — and the view anti-joins 'skipped', so those
-   * conversions would be excluded permanently, by a command whose whole promise
-   * was that it changed nothing.
+   * `?dryRun=1` is the operator's safe probe, and a probe that writes is not a
+   * probe. If it reached the skip-recording upsert it would stamp real bookings
+   * 'skipped' and overwrite their error_message — mutating live tracking state
+   * from a command whose whole promise was that it changed nothing. (Since
+   * 20260805120070 that no longer retires them permanently, but a dry run
+   * still has no business writing.)
    */
   it('returns from a dry run before any write', () => {
     const dryRunIdx = source.indexOf('dryRun: true');
@@ -114,6 +128,22 @@ describe('meta-capi-upload route contract', () => {
     // Absent from every write payload the route builds: PostgREST updates only
     // the columns it is given, which is what preserves the accumulated count.
     expect(source).not.toMatch(/retry_count:/);
+  });
+
+  /**
+   * Atomicity is not enough on its own — two ticks can still read the same
+   * candidates before either stages. Without this guard, a stale tick that
+   * fails can flip rows another tick already delivered back to 'failed',
+   * burning their retry budget until they are retired despite Meta having
+   * received them. The stable event_id protects Meta from double-counting; it
+   * does nothing for the tracking table, and the tracking table is what
+   * decides whether a conversion is ever retried.
+   *
+   * This is the route half. The other half is `AND status <> 'uploaded'` in
+   * the RPC (migration 20260805120090).
+   */
+  it('only promotes rows this run staged', () => {
+    expect(source).toMatch(/\.eq\('status', 'pending'\)/);
   });
 
   /**

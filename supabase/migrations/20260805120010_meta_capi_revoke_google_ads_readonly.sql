@@ -11,7 +11,3 @@
 
 REVOKE ALL ON public.meta_capi_pending FROM google_ads_readonly;
 REVOKE ALL ON marketing.meta_capi_uploads FROM google_ads_readonly;
-
--- Stop future objects in public from defaulting SELECT to this role.
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-  REVOKE SELECT ON TABLES FROM google_ads_readonly;
