@@ -6,7 +6,7 @@
  * production: Meta accepts a wrong hash exactly as happily as a right one and
  * simply never matches it.
  */
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { parsePhoneNumberFromString, type PhoneNumber } from 'libphonenumber-js';
 
 /**
  * Addresses that are not real customers. `@len.golf` is the placeholder staff
@@ -34,13 +34,17 @@ export function normalizeEmail(raw: string | null | undefined): string | null {
 }
 
 /**
+ * Shared by normalizePhoneE164 and phoneCountry so every caller — including
+ * Task 4's buildUserData, which needs both the E.164 string and the country
+ * for the same row — parses each raw value exactly once.
+ *
  * Thai numbers are stored in a mix of shapes (`0xx` 10-digit, `66xx` 11-digit,
  * bare 9-digit missing the leading zero) and the customer base includes real
  * international numbers (+65, +49, +44, +62). A blanket "+66" prefix corrupts
  * the internationals, so parse properly with TH as the default region: explicit
  * international numbers keep their own country, bare local ones resolve to TH.
  */
-export function normalizePhoneE164(raw: string | null | undefined): string | null {
+function parsePhone(raw: string | null | undefined): PhoneNumber | null {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim();
   if (trimmed.length === 0) return null;
@@ -48,10 +52,19 @@ export function normalizePhoneE164(raw: string | null | undefined): string | nul
   try {
     const parsed = parsePhoneNumberFromString(trimmed, 'TH');
     if (!parsed || !parsed.isValid()) return null;
-    return parsed.number;
+    return parsed;
   } catch {
+    // parsePhoneNumberFromString already returns undefined for ordinary bad
+    // input (garbage, too short, etc.) — this only guards against an
+    // unexpected exception from the library itself, so a single malformed
+    // row in the unattended nightly batch can't take the whole run down.
     return null;
   }
+}
+
+export function normalizePhoneE164(raw: string | null | undefined): string | null {
+  const parsed = parsePhone(raw);
+  return parsed ? parsed.number : null;
 }
 
 /**
@@ -60,17 +73,8 @@ export function normalizePhoneE164(raw: string | null | undefined): string | nul
  * tourists and would feed Meta a false signal rather than no signal.
  */
 export function phoneCountry(raw: string | null | undefined): string | null {
-  if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim();
-  if (trimmed.length === 0) return null;
-
-  try {
-    const parsed = parsePhoneNumberFromString(trimmed, 'TH');
-    if (!parsed || !parsed.isValid() || !parsed.country) return null;
-    return parsed.country.toLowerCase();
-  } catch {
-    return null;
-  }
+  const parsed = parsePhone(raw);
+  return parsed?.country ? parsed.country.toLowerCase() : null;
 }
 
 export interface SplitName {
@@ -81,9 +85,20 @@ export interface SplitName {
 export function splitName(raw: string | null | undefined): SplitName {
   if (typeof raw !== 'string') return { first: null, last: null };
 
+  // `\p{M}` (combining marks) is load-bearing, not decoration. Thai tone marks
+  // and vowel signs are category Mn, and Thai has no precomposed letter+mark
+  // forms — so `[^\p{L}\p{N}\s]` silently rewrites almost every Thai name
+  // (สมชาย ใจดี -> สมชาย ใจด). Since the customer base is largely Thai, that
+  // would hash the wrong string for most people: worse than sending no name,
+  // because it looks like a signal and matches nobody.
+  //
+  // NFC first so a decomposed name and its precomposed twin hash identically —
+  // once marks are preserved, "José" spelled two ways would otherwise produce
+  // two different hashes.
   const cleaned = raw
+    .normalize('NFC')
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
 
