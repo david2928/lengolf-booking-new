@@ -3,6 +3,8 @@ import {
   normalizePhoneE164,
   phoneCountry,
   splitName,
+  hashIdentifier,
+  buildUserData,
 } from '@/lib/meta/identity';
 
 describe('normalizeEmail', () => {
@@ -127,5 +129,129 @@ describe('splitName', () => {
     expect(precomposed).not.toBe(decomposed);
     expect(splitName(decomposed)).toEqual(splitName(precomposed));
     expect(splitName(precomposed).first).toBe('josé');
+  });
+});
+
+describe('hashIdentifier', () => {
+  // Verified against `node -e "crypto.createHash('sha256')..."`.
+  it.each([
+    ['test@example.com', '973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b'],
+    ['+66812345678', '7fc93a279e8accbc8e77df576f2f1806df2b9cbff068711f3de71108184e6bb2'],
+    ['john', '96d9632f363564cc3032521409cf22a852f2032eec099ed5967c0d000cec607a'],
+    ['doe', '799ef92a11af918e3fb741df42934f3b568ed2d93ac1df74f1b8d41a27932a6f'],
+    ['th', '6bde0b830d8bd56dea61c5c1cb648c7ffca6ffce2923ad1db9f29079cac947e0'],
+  ])('hashes %s to the documented SHA-256', (input, expected) => {
+    expect(hashIdentifier(input)).toBe(expected);
+  });
+});
+
+describe('buildUserData', () => {
+  it('prefers the customer record email over the booking email', () => {
+    const result = buildUserData({
+      bookingEmail: 'stale@example.com',
+      customerEmail: 'test@example.com',
+      phone: null,
+      name: null,
+    });
+    expect(result?.userData.em).toEqual([
+      '973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b',
+    ]);
+  });
+
+  // The whole point of the customers join: 139 of 411 staff bookings hide a
+  // real address behind the @len.golf placeholder on the booking row.
+  it('falls back to the booking email when the customer email is the placeholder', () => {
+    const result = buildUserData({
+      bookingEmail: 'test@example.com',
+      customerEmail: 'info@len.golf',
+      phone: null,
+      name: null,
+    });
+    expect(result?.userData.em).toEqual([
+      '973dfe463ec85785f5f95af5ba3906eedb2d931c24e69824a89ea65dba4e813b',
+    ]);
+  });
+
+  it('hashes the phone in E.164', () => {
+    const result = buildUserData({
+      bookingEmail: null,
+      customerEmail: null,
+      phone: '0812345678',
+      name: null,
+    });
+    expect(result?.userData.ph).toEqual([
+      '7fc93a279e8accbc8e77df576f2f1806df2b9cbff068711f3de71108184e6bb2',
+    ]);
+  });
+
+  it('includes hashed first and last name when present', () => {
+    const result = buildUserData({
+      bookingEmail: 'test@example.com',
+      customerEmail: null,
+      phone: null,
+      name: 'John Doe',
+    });
+    expect(result?.userData.fn).toEqual([
+      '96d9632f363564cc3032521409cf22a852f2032eec099ed5967c0d000cec607a',
+    ]);
+    expect(result?.userData.ln).toEqual([
+      '799ef92a11af918e3fb741df42934f3b568ed2d93ac1df74f1b8d41a27932a6f',
+    ]);
+  });
+
+  it('derives the country from the phone, not a hardcoded th', () => {
+    const thai = buildUserData({
+      bookingEmail: null, customerEmail: null, phone: '0812345678', name: null,
+    });
+    expect(thai?.userData.country).toEqual([
+      '6bde0b830d8bd56dea61c5c1cb648c7ffca6ffce2923ad1db9f29079cac947e0',
+    ]);
+
+    const german = buildUserData({
+      bookingEmail: null, customerEmail: null, phone: '+4917612345678', name: null,
+    });
+    // Must differ from the Thai hash — a tourist is not in Thailand.
+    expect(german?.userData.country).not.toEqual(thai?.userData.country);
+  });
+
+  it('omits country when there is no phone to derive it from', () => {
+    const result = buildUserData({
+      bookingEmail: 'test@example.com', customerEmail: null, phone: null, name: null,
+    });
+    expect(result?.userData).not.toHaveProperty('country');
+  });
+
+  it('reports which identifier kinds were sent, never their values', () => {
+    const result = buildUserData({
+      bookingEmail: 'test@example.com',
+      customerEmail: null,
+      phone: '0812345678',
+      name: 'John Doe',
+    });
+    expect(result?.matchKeys.sort()).toEqual(['country', 'em', 'fn', 'ln', 'ph']);
+  });
+
+  // Name alone is far too weak to match on and would pollute match-quality
+  // metrics, so it is never sufficient on its own.
+  it('returns null when neither email nor phone survives', () => {
+    expect(
+      buildUserData({
+        bookingEmail: 'info@len.golf',
+        customerEmail: null,
+        phone: '',
+        name: 'John Doe',
+      }),
+    ).toBeNull();
+  });
+
+  it('omits absent fields rather than sending empty arrays', () => {
+    const result = buildUserData({
+      bookingEmail: null,
+      customerEmail: null,
+      phone: '0812345678',
+      name: null,
+    });
+    expect(result?.userData).not.toHaveProperty('em');
+    expect(result?.userData).not.toHaveProperty('fn');
   });
 });

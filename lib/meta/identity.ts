@@ -6,6 +6,7 @@
  * production: Meta accepts a wrong hash exactly as happily as a right one and
  * simply never matches it.
  */
+import { createHash } from 'crypto';
 import { parsePhoneNumberFromString, type PhoneNumber } from 'libphonenumber-js';
 
 /**
@@ -109,4 +110,81 @@ export function splitName(raw: string | null | undefined): SplitName {
     first: parts[0],
     last: parts.length > 1 ? parts.slice(1).join(' ') : null,
   };
+}
+
+/** SHA-256 hex. The value MUST already be normalised — Meta hashes normalised text. */
+export function hashIdentifier(normalized: string): string {
+  return createHash('sha256').update(normalized).digest('hex');
+}
+
+/** Meta's `user_data`. Every value is hashed; nothing here is reversible. */
+export interface MetaUserData {
+  em?: string[];
+  ph?: string[];
+  fn?: string[];
+  ln?: string[];
+  country?: string[];
+}
+
+export interface BuiltUserData {
+  userData: MetaUserData;
+  /** Identifier KINDS present, e.g. ['em','ph']. Never values — safe to log and store. */
+  matchKeys: string[];
+}
+
+export interface IdentityInput {
+  bookingEmail: string | null | undefined;
+  customerEmail: string | null | undefined;
+  phone: string | null | undefined;
+  name: string | null | undefined;
+}
+
+export function buildUserData(input: IdentityInput): BuiltUserData | null {
+  // Customer record first: it is clean (zero placeholders observed), while the
+  // booking row carries the @len.golf placeholder on most staff bookings. Both
+  // go through the denylist, so if the customer record is ever polluted the
+  // booking row still gets its chance.
+  const email = normalizeEmail(input.customerEmail) ?? normalizeEmail(input.bookingEmail);
+
+  // Parsed once and reused for both the E.164 string and the country — parsePhone
+  // is the same private helper normalizePhoneE164/phoneCountry delegate to, so
+  // this row doesn't pay for parsing the same raw string twice.
+  const parsedPhone = parsePhone(input.phone);
+  const phone = parsedPhone ? parsedPhone.number : null;
+
+  // A name is a weak signal on its own and would inflate our apparent match
+  // rate while matching nobody. Require at least one strong identifier.
+  if (!email && !phone) return null;
+
+  const { first, last } = splitName(input.name);
+
+  const userData: MetaUserData = {};
+  const matchKeys: string[] = [];
+
+  if (email) {
+    userData.em = [hashIdentifier(email)];
+    matchKeys.push('em');
+  }
+  if (phone) {
+    userData.ph = [hashIdentifier(phone)];
+    matchKeys.push('ph');
+  }
+  if (first) {
+    userData.fn = [hashIdentifier(first)];
+    matchKeys.push('fn');
+  }
+  if (last) {
+    userData.ln = [hashIdentifier(last)];
+    matchKeys.push('ln');
+  }
+
+  // Only ever derived from the number we just parsed. Defaulting to 'th' would
+  // feed Meta a false signal for every tourist rather than simply no signal.
+  const country = parsedPhone?.country ? parsedPhone.country.toLowerCase() : null;
+  if (country) {
+    userData.country = [hashIdentifier(country)];
+    matchKeys.push('country');
+  }
+
+  return { userData, matchKeys };
 }
