@@ -126,10 +126,18 @@ export interface MetaUserData {
   country?: string[];
 }
 
+/**
+ * Identifier kinds, tied to the wire field names so the two cannot drift. A
+ * plain `string[]` would let a rename desync `matchKeys` from `userData`
+ * silently — and since these are only ever read as diagnostics, the result
+ * would be quietly wrong match-quality reporting rather than a crash.
+ */
+export type MatchKey = keyof MetaUserData;
+
 export interface BuiltUserData {
   userData: MetaUserData;
   /** Identifier KINDS present, e.g. ['em','ph']. Never values — safe to log and store. */
-  matchKeys: string[];
+  matchKeys: MatchKey[];
 }
 
 export interface IdentityInput {
@@ -159,7 +167,7 @@ export function buildUserData(input: IdentityInput): BuiltUserData | null {
   const { first, last } = splitName(input.name);
 
   const userData: MetaUserData = {};
-  const matchKeys: string[] = [];
+  const matchKeys: MatchKey[] = [];
 
   if (email) {
     userData.em = [hashIdentifier(email)];
