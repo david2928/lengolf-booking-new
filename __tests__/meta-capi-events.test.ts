@@ -1,4 +1,10 @@
-import { buildPurchaseEvent, BOOKING_CONVERSION_VALUE_THB } from '@/lib/meta/capi';
+import {
+  buildPurchaseEvent,
+  BOOKING_CONVERSION_VALUE_THB,
+  sendEvents,
+  chunkEvents,
+  MAX_EVENTS_PER_REQUEST,
+} from '@/lib/meta/capi';
 
 const CANDIDATE = {
   booking_id: 'BK-12345',
@@ -70,5 +76,113 @@ describe('buildPurchaseEvent', () => {
     expect(json).not.toContain('0812345678');
     expect(json).not.toContain('John');
     expect(json.toLowerCase()).not.toContain('john doe');
+  });
+});
+
+describe('sendEvents', () => {
+  const CONFIG = {
+    accessToken: 'tok-123',
+    datasetId: '1326508338698235',
+    testEventCode: null,
+  };
+
+  const EVENT = buildPurchaseEvent(CANDIDATE)!.event;
+
+  let fetchMock: jest.Mock;
+
+  beforeEach(() => {
+    fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ events_received: 1, messages: [], fbtrace_id: 'trace-abc' }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it('posts to the dataset events endpoint', async () => {
+    await sendEvents(CONFIG, [EVENT]);
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://graph.facebook.com/v22.0/1326508338698235/events');
+  });
+
+  it('sends the token in the body, never in the query string', async () => {
+    await sendEvents(CONFIG, [EVENT]);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).not.toContain('tok-123');
+    expect(JSON.parse(init.body).access_token).toBe('tok-123');
+  });
+
+  it('returns events_received and the trace id', async () => {
+    const result = await sendEvents(CONFIG, [EVENT]);
+    expect(result).toEqual({
+      ok: true,
+      eventsReceived: 1,
+      fbTraceId: 'trace-abc',
+      error: null,
+    });
+  });
+
+  it('omits test_event_code when unset', async () => {
+    await sendEvents(CONFIG, [EVENT]);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('test_event_code');
+  });
+
+  it('includes test_event_code when set', async () => {
+    await sendEvents({ ...CONFIG, testEventCode: 'TEST123' }, [EVENT]);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).test_event_code).toBe('TEST123');
+  });
+
+  it('surfaces a Graph API error without throwing', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: { message: '(#100) Missing perms', code: 100, fbtrace_id: 'trace-err' },
+      }),
+    });
+    const result = await sendEvents(CONFIG, [EVENT]);
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('Missing perms');
+    expect(result.fbTraceId).toBe('trace-err');
+  });
+
+  it('surfaces a network failure without throwing', async () => {
+    fetchMock.mockRejectedValue(new Error('socket hang up'));
+    const result = await sendEvents(CONFIG, [EVENT]);
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('socket hang up');
+  });
+
+  it('does nothing and reports ok for an empty batch', async () => {
+    const result = await sendEvents(CONFIG, []);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ ok: true, eventsReceived: 0, fbTraceId: null, error: null });
+  });
+
+  it('caps a request at MAX_EVENTS_PER_REQUEST', () => {
+    expect(MAX_EVENTS_PER_REQUEST).toBe(1000);
+  });
+});
+
+describe('chunkEvents', () => {
+  it('returns an empty array for an empty input', () => {
+    expect(chunkEvents([], 3)).toEqual([]);
+  });
+
+  it('returns a single chunk when fewer items than the chunk size', () => {
+    expect(chunkEvents([1, 2], 5)).toEqual([[1, 2]]);
+  });
+
+  it('splits an exact multiple into even chunks', () => {
+    expect(chunkEvents([1, 2, 3, 4], 2)).toEqual([[1, 2], [3, 4]]);
+  });
+
+  it('leaves a shorter final chunk for a non-exact multiple', () => {
+    expect(chunkEvents([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it('defaults to MAX_EVENTS_PER_REQUEST when no size is given', () => {
+    const events = Array.from({ length: 5 }, (_, i) => i);
+    expect(chunkEvents(events)).toEqual([events]);
   });
 });

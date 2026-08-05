@@ -11,6 +11,7 @@
  * then fails to record. Meta collapses same-name + same-id events within 48h.
  */
 import { buildUserData, type MetaUserData, type MatchKey } from './identity';
+import type { MetaCapiConfig } from './config';
 
 /**
  * Per-booking conversion value. Derived in the notes on GTM tag 62 in container
@@ -82,4 +83,87 @@ export function buildPurchaseEvent(row: PendingBooking): BuiltEvent | null {
       },
     },
   };
+}
+
+/** Meta's documented per-request ceiling. */
+export const MAX_EVENTS_PER_REQUEST = 1000;
+
+export interface SendResult {
+  ok: boolean;
+  eventsReceived: number;
+  fbTraceId: string | null;
+  error: string | null;
+}
+
+/**
+ * POST one batch to the dataset. Never throws — a cron route that dies mid-run
+ * leaves rows staged 'pending' with no diagnostic, so every failure path has to
+ * come back as data the caller can record.
+ */
+export async function sendEvents(
+  config: MetaCapiConfig,
+  events: MetaServerEvent[],
+): Promise<SendResult> {
+  if (events.length === 0) {
+    return { ok: true, eventsReceived: 0, fbTraceId: null, error: null };
+  }
+
+  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${config.datasetId}/events`;
+
+  // The token goes in the BODY. In the query string it would land in access
+  // logs and any proxy in between.
+  const body: Record<string, unknown> = {
+    data: events,
+    access_token: config.accessToken,
+  };
+  if (config.testEventCode) {
+    body.test_event_code = config.testEventCode;
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const payload = (await response.json()) as {
+      events_received?: number;
+      fbtrace_id?: string;
+      error?: { message?: string; code?: number; fbtrace_id?: string };
+    };
+
+    if (!response.ok || payload.error) {
+      const message = payload.error?.message ?? `HTTP ${response.status}`;
+      return {
+        ok: false,
+        eventsReceived: 0,
+        fbTraceId: payload.error?.fbtrace_id ?? payload.fbtrace_id ?? null,
+        error: message,
+      };
+    }
+
+    return {
+      ok: true,
+      eventsReceived: payload.events_received ?? 0,
+      fbTraceId: payload.fbtrace_id ?? null,
+      error: null,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      eventsReceived: 0,
+      fbTraceId: null,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+/** Split a batch into request-sized chunks. */
+export function chunkEvents<T>(events: T[], size = MAX_EVENTS_PER_REQUEST): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < events.length; i += size) {
+    chunks.push(events.slice(i, i + size));
+  }
+  return chunks;
 }
