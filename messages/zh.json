@@ -344,6 +344,7 @@
       "errorNeedName": "请填写姓名以保留预订。",
       "errorNeedPhone": "请填写有效的电话号码。",
       "errorNeedEmail": "需要邮箱地址以便发送确认邮件。",
+      "errorEmailLooksWrong": "这看起来不像是邮箱地址，请检查一下。",
       "signInPromptTitle": "省去输入",
       "signInPromptBody": "登录后，我们会自动填写已有的信息。"
     },
@@ -444,6 +445,7 @@
       "signInToContinue": "请登录以继续",
       "nameRequired": "姓名为必填",
       "emailRequired": "邮箱为必填",
+      "emailInvalid": "请输入有效的邮箱地址",
       "phoneRequired": "电话号码为必填",
       "phoneInvalid": "请输入有效的电话号码",
       "clubSetUnavailable": "所选球杆套装在您的时段已不可用。请选择其他选项。",

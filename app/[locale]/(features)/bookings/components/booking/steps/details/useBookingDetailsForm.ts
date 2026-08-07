@@ -14,6 +14,7 @@ import { toast } from 'react-hot-toast';
 import { useSession, signIn, getSession } from 'next-auth/react';
 import type { Session } from 'next-auth';
 import { isValidPhoneNumber } from 'react-phone-number-input';
+import { isValidEmail } from '@/lib/email-format';
 import type { PlayFoodPackage } from '@/types/play-food-packages';
 import { getPlayFoodPackages } from '@/types/play-food-packages';
 import { getPremiumClubPricing, getPremiumPlusClubPricing, formatClubRentalInfo, getGearUpItems } from '@/types/golf-club-rental';
@@ -325,7 +326,7 @@ export function useBookingDetailsForm({
 
   /**
    * Free simulator hours the customer already holds — today, the B1G1 hour a
-   * previous sub-2-hour booking earned them.
+   * previous one-hour booking earned them.
    *
    * `null` until the fetch resolves, `[]` for a genuine zero balance. Same
    * `?? null` convention as `packageBalance` above: a balance that has not
@@ -828,8 +829,14 @@ export function useBookingDetailsForm({
       currentErrors.name = tErrors('nameRequired');
       isValid = false;
     }
+    // Missing and malformed are separate messages on purpose: "email is
+    // required" beside a field the customer has visibly filled in reads as a
+    // broken form, and they retype the same value. Mirrors the phone pair below.
     if (!email) {
       currentErrors.email = tErrors('emailRequired');
+      isValid = false;
+    } else if (!isValidEmail(email)) {
+      currentErrors.email = tErrors('emailInvalid');
       isValid = false;
     }
     // Updated phone number validation

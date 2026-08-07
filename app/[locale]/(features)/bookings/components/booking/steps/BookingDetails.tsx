@@ -293,7 +293,7 @@ export function BookingDetails(props: BookingDetailsProps) {
               />
             )}
             {/* Free-hour credits the customer already holds — the B1G1 hour a
-                previous sub-2-hour booking earned them. Renders NOTHING at a
+                previous one-hour booking earned them. Renders NOTHING at a
                 zero balance (and while the fetch is in flight), which is the
                 overwhelmingly common case: it must never appear as an empty
                 "0 hours" card. Read-only and outside the estimate — the card's

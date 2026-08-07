@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { isValidEmail } from '@/lib/email-format';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { BookingReviewPanel } from './BookingReviewPanel';
@@ -273,7 +274,10 @@ export function YourDetailsStep({
                 className={`w-full h-12 px-4 rounded-lg focus:outline-none ${
                   errorField === 'bd-email'
                     ? 'border border-amber-500 bg-amber-50 focus:border-green-500 focus:ring-1 focus:ring-green-500'
-                    : !email
+                    : // Green is a claim that the field is DONE, so it has to
+                      // mean valid, not merely non-empty. `r` used to render
+                      // green — the strongest possible signal to press Confirm.
+                      !isValidEmail(email)
                     ? 'bg-gray-50 border border-red-100 focus:border-green-500 focus:ring-1 focus:ring-green-500'
                     : 'bg-gray-50 border border-green-500'
                 }`}
@@ -284,7 +288,12 @@ export function YourDetailsStep({
               {t('emailConfirmationNote')}
             </p>
             {errorField === 'bd-email' && (
-              <p className="mt-1 text-sm font-medium text-amber-600">{t('errorNeedEmail')}</p>
+              // "We need an email" in front of a filled-in field reads as a
+              // broken form and gets the same value retyped. The flag fires for
+              // empty AND malformed now, so it has to say which.
+              <p className="mt-1 text-sm font-medium text-amber-600">
+                {email.trim() ? t('errorEmailLooksWrong') : t('errorNeedEmail')}
+              </p>
             )}
             {emailError && (
               <p className="mt-1 text-sm text-red-600">{emailError}</p>

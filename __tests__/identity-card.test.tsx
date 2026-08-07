@@ -143,12 +143,32 @@ describe('firstIncompleteContactField', () => {
     expect(firstIncompleteContactField({ ...COMPLETE, phoneNumber: '+6612' })).toBe('bd-phone');
   });
 
+  // The regression. Booking BK260803FKLR (2026-08-03) was created with the
+  // email `r`: one keystroke, truthy, so the old `!email.trim()` check passed
+  // it, nodemailer refused the envelope and no confirmation was ever sent.
+  // Email is now held to the same standard as the phone beside it.
+  test.each([
+    ['a single character', 'r'],
+    ['a local part with no domain', 'rowan@'],
+    ['a domain with no dot', 'rowan@localhost'],
+    ['no @ at all', 'rowan.mckenzie.com'],
+    ['an embedded space', 'rowan @len.golf'],
+    ['whitespace only', '   '],
+  ])('a malformed email (%s) is reported as bd-email', (_label, email) => {
+    expect(firstIncompleteContactField({ ...COMPLETE, email })).toBe('bd-email');
+  });
+
+  test('surrounding whitespace does not make a good address bad', () => {
+    expect(firstIncompleteContactField({ ...COMPLETE, email: '  a@b.com  ' })).toBeNull();
+  });
+
   // The equivalence that makes hiding the inputs safe.
   test.each([
     ['', '+66812345678', 'a@b.com'],
     ['David', undefined, 'a@b.com'],
     ['David', '+6612', 'a@b.com'],
     ['David', '+66812345678', ''],
+    ['David', '+66812345678', 'r'],
     ['David', '+66812345678', 'a@b.com'],
   ] as Array<[string, string | undefined, string]>)(
     'the card shows iff no contact field can be flagged (%s / %s / %s)',

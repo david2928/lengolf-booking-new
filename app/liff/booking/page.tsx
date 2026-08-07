@@ -16,6 +16,7 @@ import { formatClubRentalInfo } from '@/types/golf-club-rental';
 import SuccessScreen from '@/components/liff/booking/SuccessScreen';
 import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
 import { isValidPhoneNumber } from 'react-phone-number-input';
+import { isValidEmail } from '@/lib/email-format';
 import { BayType } from '@/lib/bayConfig';
 
 type ViewState = 'loading' | 'error' | 'booking' | 'summary' | 'success';
@@ -407,7 +408,7 @@ export default function LiffBookingPage() {
 
     if (!formData.email.trim()) {
       errors.email = t.emailRequired;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!isValidEmail(formData.email)) {
       errors.email = t.invalidEmail;
     }
 

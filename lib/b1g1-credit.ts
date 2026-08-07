@@ -1,7 +1,7 @@
 /**
  * The B1G1 new-customer free hour, as a real grant.
  *
- * When a new customer books UNDER 2 hours, `lib/cost-calculator.ts` prints
+ * When a new customer books exactly 1 hour, `lib/cost-calculator.ts` prints
  * "Book 2 hours to get 1 hour free! Or redeem your free hour within 7 days" and
  * the staff LINE note prints "(1 free hr to redeem within 7 days, expires
  * <date>)". This module is what makes that promise real: it records a
@@ -10,14 +10,15 @@
  *
  * Both of those strings, and the call into this module, are gated on
  * `promotions.grants_credit` — NOT on `promotion_type = 'bogo'`. A second bogo
- * row (the weekday off-peak B1G1) exists and grants nothing; its sub-2-hour
- * hint says only "book 2 hours and your second hour is free" and no row is
- * written here. If you add a third bogo, the column is the only thing that
- * decides.
+ * row (the weekday off-peak B1G1) exists and grants nothing; its one-hour hint
+ * says only "book 2 hours and your second hour is free" and no row is written
+ * here. If you add a third bogo, the column is the only thing that decides.
  *
- * The 2-hour-or-longer path is NOT handled here. There the free hour is
- * consumed by the booking itself and priced out of the bay rate, so there is
- * nothing to carry forward.
+ * Anything OVER 1 hour is NOT handled here. There the free time is consumed by
+ * the booking itself and priced out of the bay rate, so there is nothing to
+ * carry forward. That boundary moved on 2026-08-03 — it used to be 2 hours, so
+ * a 1.5h booking banked a whole free hour for later; it now takes 30 minutes
+ * off the booking in front of it and banks nothing.
  *
  * Three rules this file exists to keep:
  *
