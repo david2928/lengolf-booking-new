@@ -229,30 +229,41 @@ export function useBookingDetailsForm({
    * appear mid-keystroke and unmount the field under the cursor — see the block
    * comment on `showIdentityCard` for the bookings that cost us.
    *
-   * The ref cannot serve here. It is deliberately non-reactive, so a component
-   * reading it would not re-render when it flips; and a value read during
-   * render must be state, or React may tear on a concurrent re-render.
+   * The ref cannot serve here, and neither can replace the other. Mutating a ref
+   * schedules no re-render, so the card would only pick the change up on the
+   * next unrelated render. Conversely the ref must STAY a ref: it is read inside
+   * the prefill effects' functional updaters, whose dependency arrays do not
+   * list it, so as state it would close over a stale `false` and re-open the
+   * prefill-clobbers-typing bug it exists to prevent.
    */
   const [contactTouched, setContactTouched] = useState(false);
 
   /**
-   * The setters this hook hands out. Anything set through these came from a
-   * customer keystroke, so it latches BOTH guards above and freezes prefill for
-   * every field. Prefill itself uses the raw setters and so cannot trip them.
+   * Latch both guards. They are two representations of ONE fact — the customer
+   * has typed — and a setter that raised only one would fail silently in a
+   * different way each time: miss the ref and prefill overwrites what they
+   * wrote; miss the state and the card unmounts the field mid-keystroke. Raising
+   * them together in one place is what makes that unrepresentable.
    */
-  const setNameEdited = (value: string) => {
+  const markContactTouched = () => {
     userEditedContact.current = true;
     setContactTouched(true);
+  };
+
+  /**
+   * The setters this hook hands out. Anything set through these came from a
+   * customer keystroke. Prefill uses the raw setters and so cannot trip them.
+   */
+  const setNameEdited = (value: string) => {
+    markContactTouched();
     setName(value);
   };
   const setEmailEdited = (value: string) => {
-    userEditedContact.current = true;
-    setContactTouched(true);
+    markContactTouched();
     setEmail(value);
   };
   const setPhoneNumberEdited = (value: string | undefined) => {
-    userEditedContact.current = true;
-    setContactTouched(true);
+    markContactTouched();
     setPhoneNumber(value);
   };
 

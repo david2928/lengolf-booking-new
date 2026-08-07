@@ -68,10 +68,20 @@ export interface YourDetailsStepProps {
   /**
    * True once the customer has typed into ANY of the three contact fields.
    *
-   * Suppresses the identity card for the rest of the session. The card is a
-   * recap of details PREFILL supplied; completeness the customer just typed is
-   * not something to recap back at them, and swapping the inputs out mid-edit
-   * destroys the field under their cursor — see the gate below.
+   * Suppresses the identity card for the lifetime of this mount — not "the
+   * session", which in this flow also names a differently-scoped sessionStorage
+   * snapshot. Leaving step 3 unmounts `BookingDetails` and the three values die
+   * with it, so resetting alongside them is consistent.
+   *
+   * The card is a recap of details PREFILL supplied; completeness the customer
+   * just typed is not something to recap back at them, and swapping the inputs
+   * out mid-edit destroys the field under their cursor — see the gate below.
+   *
+   * One acknowledged seam: leaving to sign in and coming back restores the typed
+   * values through `takeContactDraft`, which uses the RAW setters, so this is
+   * false on the remount and the card can recap details the customer typed
+   * themselves. That is harmless — nothing is in flight and Change is right
+   * there — and it is the better outcome than re-presenting three full inputs.
    */
   contactTouched: boolean;
   /** True once the customer tapped Change on the identity card. Reveals the
@@ -102,10 +112,13 @@ export interface YourDetailsStepProps {
  * For a returning customer whose profile supplied all three values, the inputs
  * are replaced by a read-only `IdentityCard` — so those ids are then absent from
  * the DOM. That is safe because the card and jump-to-error share one predicate
- * (`firstIncompleteContactField`): the card shows exactly when none of the three
- * fields can be flagged. `contactFlagged` below is belt-and-braces for the
- * impossible case, so a flag would still yield the inputs rather than scroll to
- * a node that is not there.
+ * (`firstIncompleteContactField`): the card shows only when none of the three
+ * fields can be flagged. Only when, not exactly when — the gate carries further
+ * conjuncts, so the card may decline to show while the predicate is satisfied.
+ * That direction only leaves more fields in the DOM, so the `getElementById`
+ * invariant is strengthened rather than weakened. `contactFlagged` below is not
+ * merely belt-and-braces: it is a live second route into the mid-edit unmount,
+ * because the inputs clear the flag as the customer types.
  */
 export function YourDetailsStep({
   name,
@@ -148,9 +161,21 @@ export function YourDetailsStep({
      and every remaining character was discarded — so whatever prefix happened
      to satisfy the predicate is what got submitted. That is how bookings were
      created with the email `r` (BK260803FKLR and six others, 2026-08-03 to
-     08-06). It only became reachable when PR #122 removed the login wall: before
-     that every customer arrived prefilled, so the card rendered on mount and the
-     transition never happened mid-edit.
+     08-06).
+
+     The window opened with PR #122, and the reason is merge topology rather than
+     behaviour: the card (c2c624f, dated 2026-07-25) sat on `feat/booking-ux-overhaul`
+     and is an ANCESTOR of a32fe1e, so it and the login-wall removal reached
+     production together on 08-02. There was never a period with the card live
+     behind the wall. Do not infer one from the commit date — that reading came up
+     in review, and the DB agrees with the topology: the first malformed email is
+     08-03, the day after.
+
+     `contactFlagged` is the second way in, not merely a third safety belt. All
+     three inputs clear the flag as you type (`setErrorField(null)` below), so for
+     a customer whose identity was otherwise complete, clearing it re-showed the
+     card mid-keystroke — same unmount, different trigger. `!contactTouched`
+     closes that route too, which is why it leads rather than follows.
 
      Gating on prefill rather than on the values themselves is also what the card
      is FOR — a recap of details the customer never had to supply. Someone who
@@ -187,8 +212,10 @@ export function YourDetailsStep({
         {/* Sign-in as a shortcut, above the fields it saves the customer
             filling in. Hidden once they are signed in — there is nothing left
             to offer — and hidden behind the IdentityCard branch above, because
-            a customer whose details are already complete has nothing to gain
-            either. */}
+            a customer whose PREFILLED details are already complete has nothing
+            to gain either. Note a guest who typed all three keeps this row now
+            that `contactTouched` suppresses the card: they are not signed in, so
+            the offer is still live and still saves them the typing next time. */}
         {!isSignedIn && (
           <div className="mb-4">
             <InFlowSignIn

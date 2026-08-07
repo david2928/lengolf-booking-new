@@ -21,11 +21,19 @@ export type ContactFieldId = 'bd-name' | 'bd-phone' | 'bd-email';
  *
  * **This is the single source of truth for contact completeness.** Both
  * `firstInvalidField` in `useBookingDetailsForm` (which drives jump-to-error)
- * and `isIdentityComplete` below (which decides whether the card replaces the
+ * and `isIdentityComplete` below (which decides whether the card MAY replace the
  * inputs) call it, so the two cannot drift apart. That matters: the inputs are
  * absent from the DOM while the card is showing, and `flagAndRevealField`
- * locates them with `document.getElementById`. Because the card shows exactly
- * when this returns `null`, a flag can never target a field the card is hiding.
+ * locates them with `document.getElementById`.
+ *
+ * The safety property is a one-way implication, not an equivalence: the card
+ * shows ONLY when this returns `null`, so a flag can never target a field the
+ * card is hiding. It may decline to show while this returns `null` — the caller
+ * adds further conjuncts, `contactTouched` among them — and that direction is
+ * the safe one, since it can only leave MORE fields in the DOM. Do not "restore"
+ * the biconditional by moving those conjuncts in here; one of them exists
+ * precisely because a card that appeared whenever the values allowed it
+ * destroyed the input being typed into.
  */
 export function firstIncompleteContactField({
   name,
