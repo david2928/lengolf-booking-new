@@ -298,6 +298,84 @@ relearning.
 
 Design spec: `docs/superpowers/specs/2026-07-25-gclid-capture-design.md`.
 
+## Meta Conversions API upload (nightly)
+
+`/api/cron/meta-capi-upload` uploads bookings to Meta dataset **LENGOLF v2
+(1326508338698235)**, nightly at 03:00 Bangkok via pg_cron
+(`meta-capi-upload-nightly`). Without it Meta sees ~14% of bookings — LIFF
+loads no GTM, and staff-created bookings never touch a browser we own.
+
+### The pixel on the site is not ours
+
+`480537434714703` (GTM tag #48) is **not reachable from the LENGOLF Business
+Manager** — not owned, not a client pixel, not on `act_725466328005161`. Its
+audiences are named `MTZ - …`, which points at the agency. Do not try to send
+CAPI events to it; you get `(#100) Missing perms`. Until GTM tag #48 is
+repointed to `1326508338698235`, the browser and server halves sit in different
+datasets.
+
+### Never send the `@len.golf` email
+
+It is the placeholder staff enter for walk-ins — **383 of 411** staff bookings
+in Jul 2026 shared the same one. Sending it tells Meta that a single person
+booked 383 times, and if that mailbox maps to a real Meta user, every staff
+booking misattributes onto them. `lib/meta/identity.ts` denylists the domain by
+**exact match** (`someone@notlen.golf.com` must survive). Identity resolves from
+`customers.email` first — it is clean and recovers a real address for about a
+third of staff bookings — and phone carries the rest.
+
+### Phone must be parsed, not prefixed
+
+Bookings hold Thai `0xx`, `66xx`, bare 9-digit, **and** real `+65`/`+49`/`+44`/
+`+62` tourist numbers. `libphonenumber-js` with default region `TH` is the only
+correct treatment; a blanket `+66` corrupts the internationals. `country` is
+derived from the parsed number for the same reason — a hardcoded `th` would
+feed Meta a false signal rather than no signal. (The Google uploader in
+`lengolf-ads-etl` still has the naive Thai-only version — same latent bug.)
+
+### `splitName` must keep Unicode combining marks
+
+`[^\p{L}\p{N}\s]` looks reasonable and silently destroys Thai names: tone marks
+and vowel signs are category `Mn` and Thai has no precomposed forms, so
+`สมชาย ใจดี` becomes `สมชาย ใจด`. Latin names hide it — `José` is NFC-precomposed
+and survives. The regex must include `\p{M}`, and input is NFC-normalised first
+so a decomposed spelling hashes identically to its precomposed twin.
+
+### The 7-day window is a hard edge
+
+Meta rejects the **entire request** if any `event_time` is more than 7 days old,
+so one stale row poisons every other event in the batch. Both
+`public.meta_capi_pending` and the route filter on it. `event_time` also must
+carry an explicit zone — without one `Date.parse` reads it as local time in the
+runtime zone (UTC on Vercel) and returns a wrong-but-plausible instant instead
+of `NaN`. Note V8 rejects a bare `+07` offset even though ISO 8601 allows it.
+This is also why there is no backfill: history starts when the job is switched
+on. The 62-day figure in older Meta docs belongs to the deprecated Offline
+Conversions API.
+
+### Dedup
+
+The container fires no `Purchase` and passes no `eventID`, so the server is the
+sole source of the conversion and there is nothing to dedupe against on the
+browser side. The stable `event_id` (`booking-<id>`) is still load-bearing: it
+protects against our own retried or overlapping cron ticks, which is why a
+tracking-update failure after a successful send is safe to leave for retry.
+
+### `REVOKE … FROM anon, authenticated` is not enough here
+
+`public.meta_capi_pending` carries raw emails and phones. Revoking anon and
+authenticated left `google_ads_readonly` holding SELECT, inherited from DEFAULT
+PRIVILEGES on `public`. Any future PII-bearing view in `public` needs the same
+sweep — check `information_schema.role_table_grants` rather than assuming.
+
+Env: `META_CAPI_ACCESS_TOKEN` (System User token, `ads_management`),
+`META_CAPI_DATASET_ID`, optional `META_CAPI_TEST_EVENT_CODE`. All read lazily —
+**never add a module-load assertion**, see the two incidents above. Missing
+config makes the route return `{ skipped: 'not configured' }`, so a silent
+nightly no-op is the failure mode to watch for after deploy.
+
+Design spec: `docs/superpowers/specs/2026-08-05-meta-capi-offline-conversions-design.md`.
+
 ## Common Gotchas
 
 ### Authentication
