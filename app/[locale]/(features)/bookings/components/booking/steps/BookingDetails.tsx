@@ -63,6 +63,7 @@ export function BookingDetails(props: BookingDetailsProps) {
     marketingOptIn,
     setMarketingOptIn,
     marketingPreference,
+    contactTouched,
     isEditingContact,
     setIsEditingContact,
     alsoUpdateAccount,
@@ -341,6 +342,7 @@ export function BookingDetails(props: BookingDetailsProps) {
               marketingOptIn={marketingOptIn}
               marketingPreference={marketingPreference}
               setMarketingOptIn={setMarketingOptIn}
+              contactTouched={contactTouched}
               isEditingContact={isEditingContact}
               onEditContact={() => setIsEditingContact(true)}
               alsoUpdateAccount={alsoUpdateAccount}

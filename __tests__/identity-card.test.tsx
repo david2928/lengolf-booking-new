@@ -14,10 +14,17 @@
  *    `bd-phone` / `bd-email` are absent from the DOM, and `flagAndRevealField`
  *    finds them with `document.getElementById`. That is safe only because the
  *    card's visibility predicate and jump-to-error's field check are the SAME
- *    function — `firstIncompleteContactField`. The card shows exactly when that
- *    returns null, i.e. exactly when none of the three can be flagged. The
- *    tests below pin that equivalence so a future edit to one cannot drift from
- *    the other.
+ *    function — `firstIncompleteContactField`. The card shows ONLY when that
+ *    returns null, i.e. never while one of the three could be flagged.
+ *
+ *    The tests below pin `isIdentityComplete` ↔ `firstIncompleteContactField()
+ *    === null`, which remains an equivalence. What is NOT an equivalence is the
+ *    card's actual visibility: `YourDetailsStep` adds further conjuncts
+ *    (`contactTouched`, `isEditingContact`, `contactFlagged`), so the card can
+ *    decline to show while the predicate is satisfied. That direction leaves
+ *    more fields in the DOM and so cannot break the invariant above. See
+ *    `contact-card-never-swaps-mid-typing.test.tsx` for why one of those
+ *    conjuncts is not optional.
  */
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

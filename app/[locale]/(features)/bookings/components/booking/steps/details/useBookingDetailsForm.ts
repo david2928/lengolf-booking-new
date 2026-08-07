@@ -220,21 +220,50 @@ export function useBookingDetailsForm({
   const userEditedContact = useRef(false);
 
   /**
+   * The same fact as `userEditedContact`, as STATE rather than a ref, because
+   * this one has to drive a render.
+   *
+   * `YourDetailsStep` gates the read-only `IdentityCard` on it: the card may
+   * only stand in for the three inputs when prefill supplied the values, never
+   * when the customer is typing them. Gating on the values alone let the card
+   * appear mid-keystroke and unmount the field under the cursor — see the block
+   * comment on `showIdentityCard` for the bookings that cost us.
+   *
+   * The ref cannot serve here, and neither can replace the other. Mutating a ref
+   * schedules no re-render, so the card would only pick the change up on the
+   * next unrelated render. Conversely the ref must STAY a ref: it is read inside
+   * the prefill effects' functional updaters, whose dependency arrays do not
+   * list it, so as state it would close over a stale `false` and re-open the
+   * prefill-clobbers-typing bug it exists to prevent.
+   */
+  const [contactTouched, setContactTouched] = useState(false);
+
+  /**
+   * Latch both guards. They are two representations of ONE fact — the customer
+   * has typed — and a setter that raised only one would fail silently in a
+   * different way each time: miss the ref and prefill overwrites what they
+   * wrote; miss the state and the card unmounts the field mid-keystroke. Raising
+   * them together in one place is what makes that unrepresentable.
+   */
+  const markContactTouched = () => {
+    userEditedContact.current = true;
+    setContactTouched(true);
+  };
+
+  /**
    * The setters this hook hands out. Anything set through these came from a
-   * customer keystroke, so it latches `userEditedContact` and freezes prefill
-   * for every field. Prefill itself uses the raw setters above and so cannot
-   * trip its own guard.
+   * customer keystroke. Prefill uses the raw setters and so cannot trip them.
    */
   const setNameEdited = (value: string) => {
-    userEditedContact.current = true;
+    markContactTouched();
     setName(value);
   };
   const setEmailEdited = (value: string) => {
-    userEditedContact.current = true;
+    markContactTouched();
     setEmail(value);
   };
   const setPhoneNumberEdited = (value: string | undefined) => {
-    userEditedContact.current = true;
+    markContactTouched();
     setPhoneNumber(value);
   };
 
@@ -1263,6 +1292,7 @@ export function useBookingDetailsForm({
     /** Existing consent. Display only — `true` hides the opt-in, `false`/`null` show it. */
     marketingPreference,
     // Contact editing / write-back scope
+    contactTouched,
     isEditingContact,
     setIsEditingContact,
     alsoUpdateAccount,
