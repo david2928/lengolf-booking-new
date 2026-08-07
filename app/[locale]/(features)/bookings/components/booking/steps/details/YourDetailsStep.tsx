@@ -65,6 +65,15 @@ export interface YourDetailsStepProps {
    * See the tri-state note on `marketingPreference` in `useBookingDetailsForm`.
    */
   marketingPreference: boolean | null;
+  /**
+   * True once the customer has typed into ANY of the three contact fields.
+   *
+   * Suppresses the identity card for the rest of the session. The card is a
+   * recap of details PREFILL supplied; completeness the customer just typed is
+   * not something to recap back at them, and swapping the inputs out mid-edit
+   * destroys the field under their cursor — see the gate below.
+   */
+  contactTouched: boolean;
   /** True once the customer tapped Change on the identity card. Reveals the
       three inputs and the "also update my account" opt-in. */
   isEditingContact: boolean;
@@ -121,6 +130,7 @@ export function YourDetailsStep({
   marketingOptIn,
   setMarketingOptIn,
   marketingPreference,
+  contactTouched,
   isEditingContact,
   onEditContact,
   alsoUpdateAccount,
@@ -130,8 +140,26 @@ export function YourDetailsStep({
 
   const contactFlagged =
     errorField === 'bd-name' || errorField === 'bd-phone' || errorField === 'bd-email';
+  /* `!contactTouched` is load-bearing, not a nicety. This expression is
+     evaluated on EVERY render, including the one caused by a single keystroke,
+     and flipping it to true UNMOUNTS the input the customer is typing into.
+     Because email is last in reading order, the flip always landed on an email
+     keystroke: the field was destroyed under the cursor, focus fell to <body>,
+     and every remaining character was discarded — so whatever prefix happened
+     to satisfy the predicate is what got submitted. That is how bookings were
+     created with the email `r` (BK260803FKLR and six others, 2026-08-03 to
+     08-06). It only became reachable when PR #122 removed the login wall: before
+     that every customer arrived prefilled, so the card rendered on mount and the
+     transition never happened mid-edit.
+
+     Gating on prefill rather than on the values themselves is also what the card
+     is FOR — a recap of details the customer never had to supply. Someone who
+     just typed all three has nothing to be reminded of. */
   const showIdentityCard =
-    !isEditingContact && !contactFlagged && isIdentityComplete({ name, phoneNumber, email });
+    !contactTouched &&
+    !isEditingContact &&
+    !contactFlagged &&
+    isIdentityComplete({ name, phoneNumber, email });
   /* Gates the marketing checkbox only. It used to gate a second variant of the
      consent note as well — the note carried a "see the opt-in above" clause
      that had to disappear whenever the box did. That clause is gone (it

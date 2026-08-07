@@ -68,6 +68,9 @@ const baseProps: YourDetailsStepProps = {
   marketingOptIn: false,
   setMarketingOptIn: () => {},
   marketingPreference: null,
+  // Prefilled, not typed — this fixture is a returning customer, so the card
+  // branch is the one it exercises, exactly as before `contactTouched` existed.
+  contactTouched: false,
   isEditingContact: false,
   onEditContact: () => {},
   alsoUpdateAccount: false,

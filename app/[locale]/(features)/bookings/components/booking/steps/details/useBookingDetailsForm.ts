@@ -220,21 +220,39 @@ export function useBookingDetailsForm({
   const userEditedContact = useRef(false);
 
   /**
+   * The same fact as `userEditedContact`, as STATE rather than a ref, because
+   * this one has to drive a render.
+   *
+   * `YourDetailsStep` gates the read-only `IdentityCard` on it: the card may
+   * only stand in for the three inputs when prefill supplied the values, never
+   * when the customer is typing them. Gating on the values alone let the card
+   * appear mid-keystroke and unmount the field under the cursor — see the block
+   * comment on `showIdentityCard` for the bookings that cost us.
+   *
+   * The ref cannot serve here. It is deliberately non-reactive, so a component
+   * reading it would not re-render when it flips; and a value read during
+   * render must be state, or React may tear on a concurrent re-render.
+   */
+  const [contactTouched, setContactTouched] = useState(false);
+
+  /**
    * The setters this hook hands out. Anything set through these came from a
-   * customer keystroke, so it latches `userEditedContact` and freezes prefill
-   * for every field. Prefill itself uses the raw setters above and so cannot
-   * trip its own guard.
+   * customer keystroke, so it latches BOTH guards above and freezes prefill for
+   * every field. Prefill itself uses the raw setters and so cannot trip them.
    */
   const setNameEdited = (value: string) => {
     userEditedContact.current = true;
+    setContactTouched(true);
     setName(value);
   };
   const setEmailEdited = (value: string) => {
     userEditedContact.current = true;
+    setContactTouched(true);
     setEmail(value);
   };
   const setPhoneNumberEdited = (value: string | undefined) => {
     userEditedContact.current = true;
+    setContactTouched(true);
     setPhoneNumber(value);
   };
 
@@ -1263,6 +1281,7 @@ export function useBookingDetailsForm({
     /** Existing consent. Display only — `true` hides the opt-in, `false`/`null` show it. */
     marketingPreference,
     // Contact editing / write-back scope
+    contactTouched,
     isEditingContact,
     setIsEditingContact,
     alsoUpdateAccount,
