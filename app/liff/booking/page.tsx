@@ -487,9 +487,22 @@ export default function LiffBookingPage() {
         isNewCustomer: result.booking?.is_new_customer === true,
       });
 
-      // Same conversion signal as the web flow. LIFF is the more affected of
-      // the two: its confirm button is Thai for most of its users, so the
-      // click-text trigger has effectively never fired here.
+      // INERT TODAY — kept deliberately, do not read this as working measurement.
+      //
+      // The GTM snippet is injected only in `app/[locale]/layout.tsx`, whose
+      // comment says it is scoped there "so LIFF and /auth/error don't pull
+      // analytics unnecessarily". `app/layout.tsx` and `app/liff/layout.tsx`
+      // load no container, so this push appends to a `window.dataLayer` array
+      // that nothing reads. It costs nothing and is correct by construction the
+      // moment a container is present.
+      //
+      // LIFF is the surface the click-text trigger hurt MOST — its confirm
+      // button is Thai for nearly all of its users — so its bookings stay
+      // untracked after this change. Closing that needs a real decision, not a
+      // line of code: either load GTM on /liff/* (reversing an explicit
+      // exclusion, with LINE in-app-webview and PDPA implications) or send the
+      // conversion server-side from /api/bookings/create, which would sit
+      // better with the gclid capture already happening there.
       pushBookingConfirmed({
         bookingId: result.bookingId,
         surface: 'liff',

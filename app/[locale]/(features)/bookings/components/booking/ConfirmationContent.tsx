@@ -62,20 +62,19 @@ export function ConfirmationContent({ booking }: ConfirmationContentProps) {
       .catch(() => {});
   }, [booking]);
 
-  // Push user-provided data to dataLayer for Google Ads Enhanced Conversions for Leads.
-  // GTM reads this to match offline conversion uploads (hashed email/phone) to ad clicks.
-  useEffect(() => {
-    if (booking.email || booking.phone_number) {
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push({
-        event: 'booking_confirmed',
-        enhanced_conversions: {
-          email: booking.email?.toLowerCase().trim() || undefined,
-          phone_number: booking.phone_number || undefined,
-        },
-      });
-    }
-  }, [booking.email, booking.phone_number]);
+  // NO `booking_confirmed` PUSH HERE. It used to live in this component and was
+  // harmless only by accident: the sole trigger for that event was GTM #61,
+  // which matched Click Text, so nothing ever listened to this push. Trigger
+  // #123 now listens for the dataLayer event, which makes a second producer a
+  // real double-count — and this is the worse of the two places to emit from,
+  // because the confirmation page is a plain GET: a reload, or the post-sign-in
+  // return trip that `confirmation/page.tsx` sets as its callbackUrl, would each
+  // book another conversion at 1200 THB a time.
+  //
+  // The single producer is `pushBookingConfirmed()` in lib/booking-telemetry.ts,
+  // called from the submit handler once the booking row exists. It carries the
+  // same `enhanced_conversions` payload this effect did, plus booking_id /
+  // surface / locale. See `__tests__/booking-confirmed-single-producer.test.ts`.
 
   // The booking is complete — clear the persisted bay-flow snapshot so returning
   // to /bookings starts a fresh booking (see useFlowPersistence in useBookingFlow).

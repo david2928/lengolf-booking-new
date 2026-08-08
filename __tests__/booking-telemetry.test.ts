@@ -15,6 +15,7 @@ import thMessages from '@/messages/th.json';
 import jaMessages from '@/messages/ja.json';
 import koMessages from '@/messages/ko.json';
 import zhMessages from '@/messages/zh.json';
+import { bookingTranslations as liffTranslations } from '@/lib/liff/booking-translations';
 
 const BAY = 'bay_booking_step_viewed';
 
@@ -176,6 +177,20 @@ describe('the click-text trigger this event replaces', () => {
     ['zh', zhMessages],
   ])('cannot match %s, so the click trigger never fired there', (_locale, messages) => {
     expect(confirmLabel(messages)).not.toContain(CLICK_TEXT_FILTER);
+  });
+
+  // The web catalog is only half the story. LIFF has its own translations and
+  // is the surface the trigger hurt most, so asserting only against
+  // messages/*.json would document the bug for the flow that suffered least.
+  test.each([['th'], ['ja'], ['zh']] as const)(
+    'cannot match LIFF %s either',
+    (locale) => {
+      expect(liffTranslations[locale].confirmBooking).not.toContain(CLICK_TEXT_FILTER);
+    },
+  );
+
+  test('matches LIFF English, confirming the filter is a language test and nothing more', () => {
+    expect(liffTranslations.en.confirmBooking).toContain(CLICK_TEXT_FILTER);
   });
 });
 

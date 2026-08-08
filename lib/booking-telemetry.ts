@@ -127,7 +127,13 @@ export type BookingSurface = 'web' | 'liff';
 export interface BookingConfirmedOptions {
   bookingId: string;
   surface: BookingSurface;
-  /** App UI locale at confirmation time — 'en' | 'th' | 'ja' | 'ko' | 'zh'. */
+  /**
+   * UI locale at confirmation time. The web flow can emit any of
+   * 'en' | 'th' | 'ja' | 'ko' | 'zh'; LIFF has no Korean catalog
+   * (`lib/liff/translations.ts` declares 'en' | 'th' | 'ja' | 'zh'), so
+   * `surface: 'liff'` never carries 'ko'. Worth knowing before building a GA4
+   * dimension on this and reading missing Korean LIFF rows as a data loss.
+   */
   locale: string;
   email?: string | null;
   phoneNumber?: string | null;
