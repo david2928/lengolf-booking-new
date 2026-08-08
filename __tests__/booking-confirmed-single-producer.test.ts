@@ -24,8 +24,22 @@ import { globSync } from 'glob';
 
 const ROOT = join(__dirname, '..');
 
-/** Source we own. Excludes build output, deps, worktree copies and this suite. */
-const SOURCE_GLOBS = ['app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'lib/**/*.{ts,tsx}', 'utils/**/*.{ts,tsx}'];
+/**
+ * Source we own. Excludes build output, deps, worktree copies and this suite.
+ *
+ * `hooks/` and `middleware.ts` were missing until 2026-08-08 — a probe file
+ * dropped in `hooks/` slipped past this scan entirely. The vacuity guard below
+ * cannot catch that: the other globs match hundreds of files, so `files.length`
+ * stays healthy while the scan silently covers less than it claims.
+ */
+const SOURCE_GLOBS = [
+  'app/**/*.{ts,tsx}',
+  'components/**/*.{ts,tsx}',
+  'hooks/**/*.{ts,tsx}',
+  'lib/**/*.{ts,tsx}',
+  'utils/**/*.{ts,tsx}',
+  'middleware.ts',
+];
 
 const files = SOURCE_GLOBS.flatMap((pattern) =>
   globSync(pattern, {

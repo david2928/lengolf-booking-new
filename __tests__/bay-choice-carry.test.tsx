@@ -24,8 +24,12 @@ jest.mock('next-auth/react', () => ({
 
 // Telemetry is irrelevant to what this file asserts, but useBookingFlow calls
 // the hook unconditionally — so the mock has to supply it, not just the pushers.
+// Spread the real module rather than listing exports — see the same mock in
+// `session-facts-carry.test.tsx` for why. This suite seeds from a
+// sessionStorage snapshot instead of walking the flow, so it did not break when
+// `pushDateSelected` was added; it was one edit away from doing so.
 jest.mock('@/lib/booking-telemetry', () => ({
-  BAY_BOOKING_STEPS: ['date', 'time', 'details'],
+  ...jest.requireActual('@/lib/booking-telemetry'),
   useStepViewedTelemetry: jest.fn(),
   pushStepViewed: jest.fn(),
 }));
