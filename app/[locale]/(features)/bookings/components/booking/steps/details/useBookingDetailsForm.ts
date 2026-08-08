@@ -20,6 +20,7 @@ import { getPlayFoodPackages } from '@/types/play-food-packages';
 import { getPremiumClubPricing, getPremiumPlusClubPricing, formatClubRentalInfo, getGearUpItems } from '@/types/golf-club-rental';
 import { usePricingLoader } from '@/lib/pricing-hook';
 import { readAttribution } from '@/lib/attribution/click-ids';
+import { pushBookingConfirmed } from '@/lib/booking-telemetry';
 import type { RentalClubSetWithAvailability } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from '../../../../hooks/useAvailability';
@@ -1107,6 +1108,20 @@ export function useBookingDetailsForm({
       if (typeof createData.claimToken === 'string' && createData.claimToken) {
         saveClaimToken({ bookingId: booking.id, token: createData.claimToken });
       }
+
+      // The conversion signal for GA4, Google Ads and the Meta Pixel. Pushed
+      // here rather than scraped off the button by GTM, because the button says
+      // "ยืนยันการจอง" / "予約を確定" / "예약 확정" / "确认预约" outside English and
+      // the click trigger has never matched any of them. Pushed after the
+      // create call succeeds, so a failed attempt no longer counts.
+      pushBookingConfirmed({
+        bookingId: booking.id,
+        surface: 'web',
+        locale,
+        email,
+        phoneNumber,
+        isNewCustomer: booking.is_new_customer === true,
+      });
 
       // There is no notification status to check any more. The confirmation
       // email and the staff LINE message are dispatched after the response, so
