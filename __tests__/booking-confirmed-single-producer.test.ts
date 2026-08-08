@@ -77,8 +77,10 @@ describe('booking_confirmed has a single producer', () => {
       })
       .map((f) => f.slice(ROOT.length + 1).replace(/\\/g, '/'));
 
-    // app/[locale]/layout.tsx holds the GTM snippet itself, which legitimately
-    // initialises and pushes to the dataLayer.
-    expect(offenders).toEqual(['app/[locale]/layout.tsx']);
+    // GoogleTagManager.tsx holds the GTM snippet itself, which legitimately
+    // initialises and pushes to the dataLayer. It is the ONLY allowance, and it
+    // is one file rather than one per surface precisely so that mounting the
+    // container somewhere new cannot smuggle in a second inline copy.
+    expect(offenders).toEqual(['components/shared/GoogleTagManager.tsx']);
   });
 });

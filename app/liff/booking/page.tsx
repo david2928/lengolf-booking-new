@@ -487,22 +487,18 @@ export default function LiffBookingPage() {
         isNewCustomer: result.booking?.is_new_customer === true,
       });
 
-      // INERT TODAY — kept deliberately, do not read this as working measurement.
+      // LIVE since `app/liff/layout.tsx` started mounting the GTM container.
+      // Between PR #136 and that change this push was inert — no container was
+      // loaded on `/liff/*`, so it appended to a `window.dataLayer` array that
+      // nothing read. Nothing about the call itself changed; the surface caught
+      // up with it.
       //
-      // The GTM snippet is injected only in `app/[locale]/layout.tsx`, whose
-      // comment says it is scoped there "so LIFF and /auth/error don't pull
-      // analytics unnecessarily". `app/layout.tsx` and `app/liff/layout.tsx`
-      // load no container, so this push appends to a `window.dataLayer` array
-      // that nothing reads. It costs nothing and is correct by construction the
-      // moment a container is present.
-      //
-      // LIFF is the surface the click-text trigger hurt MOST — its confirm
-      // button is Thai for nearly all of its users — so its bookings stay
-      // untracked after this change. Closing that needs a real decision, not a
-      // line of code: either load GTM on /liff/* (reversing an explicit
-      // exclusion, with LINE in-app-webview and PDPA implications) or send the
-      // conversion server-side from /api/bookings/create, which would sit
-      // better with the gclid capture already happening there.
+      // LIFF is the surface the old Click-Text trigger hurt most: its confirm
+      // button is Thai for nearly all of its users. Do not add a second push
+      // here or anywhere else — GTM trigger #123 fans out to three tags, one of
+      // which reports 1200 THB to Google Ads, and every one of them is
+      // `oncePerEvent`, meaning once per dataLayer PUSH.
+      // `__tests__/booking-confirmed-single-producer.test.ts` enforces this.
       pushBookingConfirmed({
         bookingId: result.bookingId,
         surface: 'liff',
