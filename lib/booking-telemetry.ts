@@ -27,7 +27,7 @@
  * A remount is a new first view by design: switching language navigates to a
  * different `[locale]` route, and the restored step is genuinely viewed again.
  */
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { pushEventToGtm } from '@/utils/gtm';
 
 /** The three-step spine, in order. `currentStep` in useBookingFlow is 1-based. */
@@ -122,33 +122,65 @@ export function pushAuthProviderChosen(provider: string, surface: AuthSurface): 
 }
 
 /**
- * A customer picked a date, leaving step 1.
+ * Push the date-selected event. Does NOT dedupe — call
+ * `useDateSelectedTelemetry` from a flow instead. Exported for direct unit
+ * testing, mirroring `pushStepViewed`.
+ */
+export function pushDateSelected(): void {
+  pushEventToGtm('bay_booking_date_selected');
+}
+
+/**
+ * Report the first date pick of the mount.
  *
  * Replaces GTM trigger #68, which matched Click Text containing "Select" on a
- * path containing `/bookings` — so it only ever saw the English "Select Date"
- * card. `messages/{th,ja,ko,zh}.json` render 'เลือกวันที่', '日付を選択',
- * '날짜 선택' and '选择日期', none of which contain that substring. Measured over
- * the 90 days to 2026-08-07: `/bookings` (the unprefixed English route) fired
- * 292 times against 4 on `/ja/bookings` and 2 on `/th/bookings` — the same page,
- * the same button, separated only by the locale prefix.
+ * path containing `/bookings`, so it only ever saw English visitors —
+ * `messages/{th,ja,ko,zh}.json` render 'เลือกวันที่', '日付を選択', '날짜 선택'
+ * and '选择日期', none of which contain that substring. Over the 90 days to
+ * 2026-08-07 the unprefixed English `/bookings` fired 292 times against 4 on
+ * `/ja/bookings` and 2 on `/th/bookings`.
  *
- * Fires from `handleDateSelect`, the one place a customer's date choice enters
- * flow state. Deliberately NOT fired for the `?selectDate=` deep link, which
- * sets the date without anyone picking anything — counting it would inflate the
- * step-1 exit rate with arrivals that skipped step 1 altogether.
+ * NOT A LIKE-FOR-LIKE REPLACEMENT, and the difference is bigger than the locale
+ * fix. "Select Date" is the card that OPENS the calendar (`setShowCalendar(true)`
+ * in `DateSelection.tsx`) — the Today and Tomorrow cards read "Today"/"Tomorrow"
+ * and a `DayPicker` cell reads a bare day number, so none of them ever matched.
+ * Trigger #68 therefore counted *English visitors opening the custom-date
+ * calendar*, not date picks: it missed every Today/Tomorrow pick even in
+ * English, and fired for people who opened the calendar and picked nothing.
+ * This event counts an actual pick, in every locale. Expect `booking_page_date`
+ * to jump well beyond what recovering th/ja/ko/zh alone would explain, and do
+ * not read a trend through the changeover.
+ *
+ * Deduped per mount, matching `useStepViewedTelemetry`, so counts stay usable
+ * directly as funnel denominators alongside `bay_booking_step_viewed`. Going
+ * back to step 1 and re-picking is an advertised path (`handleBack` nulls the
+ * date and returns you there), and without the guard a re-pick would let this
+ * stage out-count the step it descends from. A remount is a new first pick by
+ * design — switching language navigates to a different `[locale]` route.
+ *
+ * The `?selectDate=` deep link deliberately does NOT report: it sets the date
+ * without anyone picking anything, and counting it would credit step 1 with
+ * arrivals that skipped it. Guarded by `__tests__/use-booking-flow-telemetry.test.ts`
+ * rather than by this comment.
  *
  * NO PAYLOAD, and specifically no `days_ahead`. It is tempting, but the `Date`
- * arriving here is not one thing: the Today/Tomorrow cards pass a real instant
- * while `DayPicker` passes midnight in the VIEWER's zone. The flow resolves that
- * consistently by reading the viewer's local calendar date
+ * reaching `handleDateSelect` is not one thing: the Today/Tomorrow cards pass a
+ * real instant while `DayPicker` passes midnight in the VIEWER's zone. The flow
+ * resolves that consistently by reading the viewer's local calendar date
  * (`format(selectedDate, 'yyyy-MM-dd')` throughout), so a lead time computed in
  * Bangkok terms via `getBangkokDateString` would disagree with the date the
  * booking is actually made for — off by one for every customer east of +07.
  * Tag #73 continues to attach `profile_id` / `stable_hash_id` from their own
  * dataLayer variables, so nothing is lost by keeping this event bare.
  */
-export function pushDateSelected(): void {
-  pushEventToGtm('bay_booking_date_selected');
+export function useDateSelectedTelemetry(): () => void {
+  const reported = useRef(false);
+
+  return useCallback(() => {
+    if (reported.current) return;
+    reported.current = true;
+    pushDateSelected();
+  }, []);
 }
 
 /** Which flow produced the booking. Both post to `/api/bookings/create`. */

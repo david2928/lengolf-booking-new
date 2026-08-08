@@ -26,7 +26,21 @@ import { globSync } from 'glob';
 
 const ROOT = join(__dirname, '..');
 
-const SOURCE_GLOBS = ['app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'lib/**/*.{ts,tsx}', 'utils/**/*.{ts,tsx}'];
+/**
+ * `hooks/` and `middleware.ts` are easy to leave out and the omission is
+ * undetectable from inside the suite: `files.length` stays healthy because the
+ * other four globs match hundreds of files, so a scan that silently covers less
+ * than it claims still looks fine. A probe file dropped in `hooks/` did in fact
+ * slip past an earlier version of this list.
+ */
+const SOURCE_GLOBS = [
+  'app/**/*.{ts,tsx}',
+  'components/**/*.{ts,tsx}',
+  'hooks/**/*.{ts,tsx}',
+  'lib/**/*.{ts,tsx}',
+  'utils/**/*.{ts,tsx}',
+  'middleware.ts',
+];
 
 const files = SOURCE_GLOBS.flatMap((pattern) =>
   globSync(pattern, {
@@ -66,6 +80,37 @@ const OWNERS: ReadonlyArray<readonly [event: string, owner: string]> = [
   ['course_rental_payment_redirect', 'app/[locale]/course-rental/page.tsx'],
 ];
 
+/**
+ * Wrapper functions in `lib/booking-telemetry.ts`, and how many places may call
+ * each.
+ *
+ * Owning the event NAME is not the same as owning the number of pushes. For an
+ * event emitted through a helper the literal lives in the helper, so a second
+ * CALL SITE — `pushDateSelected()` added to the deep-link effect, say, which is
+ * exactly the double-count the code comments warn about — passes the ownership
+ * check above untouched. These are the events where that gap is real; the
+ * step-viewed and course-rental events carry their literal at the call site and
+ * are genuinely pinned by ownership alone.
+ */
+const WRAPPERS: readonly string[] = [
+  // Called once, by the hook that owns its dedupe.
+  'pushDateSelected',
+  // Called once, by useBookingFlow's handleDateSelect.
+  'useDateSelectedTelemetry',
+  // Called once, by ProviderButtons.handleSignIn — the single sign-in path
+  // shared by the login page, the in-flow row and the confirmation upsell.
+  'pushAuthProviderChosen',
+];
+
+/**
+ * Calls to `fn`, excluding its own declaration. Import specifiers are not
+ * matched because they carry no `(`.
+ */
+const callsTo = (fn: string, code: string): number => {
+  const withoutDeclaration = code.replace(new RegExp(`function\\s+${fn}\\s*\\(`, 'g'), ' ');
+  return (withoutDeclaration.match(new RegExp(`\\b${fn}\\s*\\(`, 'g')) ?? []).length;
+};
+
 describe('GTM-consumed dataLayer events have a single producer', () => {
   test('the source tree contains files to scan', () => {
     // Guards the test itself: a broken glob would make every case below pass
@@ -80,5 +125,42 @@ describe('GTM-consumed dataLayer events have a single producer', () => {
       .sort();
 
     expect(emitters).toEqual([owner]);
+  });
+
+  test.each(WRAPPERS)('%s has exactly one call site', (fn) => {
+    const callSites = files
+      .map((file) => [relative(file), callsTo(fn, codeOf(file))] as const)
+      .filter(([, count]) => count > 0);
+
+    const total = callSites.reduce((sum, [, count]) => sum + count, 0);
+
+    // Named in the failure message so a breach says WHERE, not just how many.
+    expect({ total, callSites }).toEqual({
+      total: 1,
+      callSites: [[expect.any(String), 1]],
+    });
+  });
+
+  /**
+   * The ownership table above is an allowlist, so an event nobody adds to it is
+   * simply unguarded. This catches that: every literal handed to
+   * `pushEventToGtm` must be a name this suite (or its `booking_confirmed`
+   * sibling) knows about.
+   */
+  test('every pushEventToGtm event name is accounted for', () => {
+    const OWNED = new Set([
+      ...OWNERS.map(([event]) => event),
+      // Guarded in full by booking-confirmed-single-producer.test.ts.
+      'booking_confirmed',
+    ]);
+
+    const unaccounted = files.flatMap((file) =>
+      [...codeOf(file).matchAll(/pushEventToGtm\(\s*['"`]([a-z0-9_]+)['"`]/gi)]
+        .map((match) => match[1])
+        .filter((event) => !OWNED.has(event))
+        .map((event) => `${event} (${relative(file)})`),
+    );
+
+    expect(unaccounted).toEqual([]);
   });
 });

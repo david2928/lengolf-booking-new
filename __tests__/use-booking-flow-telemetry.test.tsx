@@ -9,15 +9,47 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { useBookingFlow } from '@/app/[locale]/(features)/bookings/hooks/useBookingFlow';
 
+/**
+ * Overrides the blanket `next/navigation` mock in `jest.setup.js`, whose
+ * `useSearchParams().get` returns undefined for everything. The deep-link test
+ * below needs to actually supply `?selectDate=`, and that is the whole point of
+ * it — the invariant being guarded is that the deep link stays SILENT, which a
+ * mock that can never produce a param would assert vacuously.
+ */
+const mockSearchParams: Record<string, string | null> = {};
+
+/**
+ * Both objects are created ONCE and reused, which is load-bearing rather than
+ * tidiness. `useBookingFlow`'s deep-link effect lists `searchParams` and
+ * `router` in its dependency array, and its `finally` block sets state — so a
+ * mock that returned a fresh object per render would re-run the effect on every
+ * render and spin forever. Real `useSearchParams`/`useRouter` return stable
+ * references, so a per-render object would also be testing something Next never
+ * does. (The blanket mock in `jest.setup.js` does return fresh objects; it gets
+ * away with it only because its `get` always yields undefined, so the effect
+ * body never sets state and never re-renders.)
+ */
+const mockRouter = { push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() };
+const mockSearchParamsApi = { get: (key: string) => mockSearchParams[key] ?? null };
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => mockRouter,
+  useSearchParams: () => mockSearchParamsApi,
+}));
+
 const steps = () =>
   (window.dataLayer ?? [])
     .filter((d) => d.event === 'bay_booking_step_viewed')
     .map((d) => d.step);
 
+const dateSelects = () =>
+  (window.dataLayer ?? []).filter((d) => d.event === 'bay_booking_date_selected').length;
+
 describe('useBookingFlow telemetry', () => {
   beforeEach(() => {
     window.dataLayer = [];
     sessionStorage.clear();
+    for (const key of Object.keys(mockSearchParams)) delete mockSearchParams[key];
   });
 
   test('reports only the restored step (details), not a phantom date step', async () => {
@@ -73,5 +105,40 @@ describe('useBookingFlow telemetry', () => {
     await waitFor(() => expect(result.current.currentStep).toBe(2));
 
     expect(steps()).toEqual(['date', 'time']);
+    // Same dedupe rule for the date pick, for the same reason: this event feeds
+    // GTM tag #73 (GA4 `booking_page_date`, funnel stage 3), and a re-pick that
+    // re-reported would let stage 3 out-count the step it descends from.
+    expect(dateSelects()).toBe(1);
+  });
+
+  // `bay_booking_date_selected` replaces GTM trigger #68, which matched the
+  // English word "Select" in Click Text. Nothing here would fail loudly if the
+  // push were dropped — a missing dataLayer event is silent end to end — so the
+  // positive case needs a test as much as the dedupe does.
+  test('reports one date pick when the customer chooses a date', async () => {
+    const { result } = renderHook(() => useBookingFlow());
+
+    await waitFor(() => expect(steps()).toEqual(['date']));
+    expect(dateSelects()).toBe(0);
+
+    act(() => result.current.handleDateSelect(new Date('2026-08-05T00:00:00.000Z')));
+
+    await waitFor(() => expect(result.current.currentStep).toBe(2));
+    expect(dateSelects()).toBe(1);
+  });
+
+  // The invariant that was previously asserted only by a comment. A marketing
+  // deep link sets the date and promotes the step directly, without anyone
+  // picking anything; reporting it would credit step 1 with arrivals that
+  // skipped step 1 entirely. The effect that consumes `?selectDate=` sets the
+  // very same two pieces of state as `handleDateSelect`, so this is one
+  // plausible edit away from breaking.
+  test('the ?selectDate= deep link reports no date pick', async () => {
+    mockSearchParams.selectDate = '2026-08-05';
+
+    const { result } = renderHook(() => useBookingFlow());
+
+    await waitFor(() => expect(result.current.currentStep).toBe(2));
+    expect(dateSelects()).toBe(0);
   });
 });
