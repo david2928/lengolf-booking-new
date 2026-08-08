@@ -5,7 +5,7 @@ import { GOLF_CLUB_OPTIONS } from '@/types/golf-club-rental';
 import { BayType } from '@/lib/bayConfig';
 import type { TimeSlot } from './useAvailability';
 import { useFlowPersistence } from '@/lib/use-flow-persistence';
-import { BAY_BOOKING_STEPS, useStepViewedTelemetry } from '@/lib/booking-telemetry';
+import { BAY_BOOKING_STEPS, pushDateSelected, useStepViewedTelemetry } from '@/lib/booking-telemetry';
 import { useDetailsSubStep, DETAIL_SUB_STEPS } from '../components/booking/steps/details/useDetailsSubStep';
 
 export function useBookingFlow() {
@@ -249,6 +249,9 @@ export function useBookingFlow() {
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
     setCurrentStep(2);
+    // The only place a customer's own date choice lands. The `?selectDate=`
+    // deep link above sets the date directly and must NOT report a pick.
+    pushDateSelected();
   };
 
   /**

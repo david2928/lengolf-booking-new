@@ -121,6 +121,36 @@ export function pushAuthProviderChosen(provider: string, surface: AuthSurface): 
   pushEventToGtm('auth_provider_chosen', { provider, surface });
 }
 
+/**
+ * A customer picked a date, leaving step 1.
+ *
+ * Replaces GTM trigger #68, which matched Click Text containing "Select" on a
+ * path containing `/bookings` — so it only ever saw the English "Select Date"
+ * card. `messages/{th,ja,ko,zh}.json` render 'เลือกวันที่', '日付を選択',
+ * '날짜 선택' and '选择日期', none of which contain that substring. Measured over
+ * the 90 days to 2026-08-07: `/bookings` (the unprefixed English route) fired
+ * 292 times against 4 on `/ja/bookings` and 2 on `/th/bookings` — the same page,
+ * the same button, separated only by the locale prefix.
+ *
+ * Fires from `handleDateSelect`, the one place a customer's date choice enters
+ * flow state. Deliberately NOT fired for the `?selectDate=` deep link, which
+ * sets the date without anyone picking anything — counting it would inflate the
+ * step-1 exit rate with arrivals that skipped step 1 altogether.
+ *
+ * NO PAYLOAD, and specifically no `days_ahead`. It is tempting, but the `Date`
+ * arriving here is not one thing: the Today/Tomorrow cards pass a real instant
+ * while `DayPicker` passes midnight in the VIEWER's zone. The flow resolves that
+ * consistently by reading the viewer's local calendar date
+ * (`format(selectedDate, 'yyyy-MM-dd')` throughout), so a lead time computed in
+ * Bangkok terms via `getBangkokDateString` would disagree with the date the
+ * booking is actually made for — off by one for every customer east of +07.
+ * Tag #73 continues to attach `profile_id` / `stable_hash_id` from their own
+ * dataLayer variables, so nothing is lost by keeping this event bare.
+ */
+export function pushDateSelected(): void {
+  pushEventToGtm('bay_booking_date_selected');
+}
+
 /** Which flow produced the booking. Both post to `/api/bookings/create`. */
 export type BookingSurface = 'web' | 'liff';
 

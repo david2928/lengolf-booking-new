@@ -44,8 +44,15 @@ jest.mock('next-auth/react', () => ({
 
 // Telemetry is irrelevant to what this file asserts, but useBookingFlow calls
 // the hook unconditionally — so the mock has to supply it, not just the pushers.
+// Spread the real module and stub only the two effectful exports. An
+// exhaustive hand-written list looks tidier but silently becomes a landmine:
+// every export it omits resolves to `undefined`, so adding ANY new function to
+// booking-telemetry.ts breaks this suite with "is not a function" at a call
+// site that has nothing to do with the test. That is exactly what adding
+// `pushDateSelected` did. Keeping BAY_BOOKING_STEPS real is a bonus — the
+// literal can no longer drift from the source it is meant to mirror.
 jest.mock('@/lib/booking-telemetry', () => ({
-  BAY_BOOKING_STEPS: ['date', 'time', 'details'],
+  ...jest.requireActual('@/lib/booking-telemetry'),
   useStepViewedTelemetry: jest.fn(),
   pushStepViewed: jest.fn(),
 }));
