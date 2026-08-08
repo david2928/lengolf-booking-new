@@ -18,6 +18,7 @@ import { calculateCost, type ApplicablePromotion } from '@/lib/cost-calculator';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import { isValidEmail } from '@/lib/email-format';
 import { BayType } from '@/lib/bayConfig';
+import { pushBookingConfirmed } from '@/lib/booking-telemetry';
 
 type ViewState = 'loading' | 'error' | 'booking' | 'summary' | 'success';
 type BookingStep = 'date' | 'bay' | 'time' | 'form';
@@ -483,6 +484,18 @@ export default function LiffBookingPage() {
         // the API echoes back. Used by the success-screen cost calc instead
         // of the local isNewCustomer state, which can be stale (it was set
         // earlier in the session before customer-matching ran).
+        isNewCustomer: result.booking?.is_new_customer === true,
+      });
+
+      // Same conversion signal as the web flow. LIFF is the more affected of
+      // the two: its confirm button is Thai for most of its users, so the
+      // click-text trigger has effectively never fired here.
+      pushBookingConfirmed({
+        bookingId: result.bookingId,
+        surface: 'liff',
+        locale: language,
+        email: formData.email,
+        phoneNumber: formData.phone,
         isNewCustomer: result.booking?.is_new_customer === true,
       });
 

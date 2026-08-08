@@ -120,3 +120,66 @@ export type AuthSurface = 'login_page' | 'booking_details' | 'confirmation_upsel
 export function pushAuthProviderChosen(provider: string, surface: AuthSurface): void {
   pushEventToGtm('auth_provider_chosen', { provider, surface });
 }
+
+/** Which flow produced the booking. Both post to `/api/bookings/create`. */
+export type BookingSurface = 'web' | 'liff';
+
+export interface BookingConfirmedOptions {
+  bookingId: string;
+  surface: BookingSurface;
+  /** App UI locale at confirmation time — 'en' | 'th' | 'ja' | 'ko' | 'zh'. */
+  locale: string;
+  email?: string | null;
+  phoneNumber?: string | null;
+  isNewCustomer?: boolean;
+}
+
+/**
+ * A booking was actually created.
+ *
+ * The same class of bug as `pushAuthProviderChosen`, and a far more expensive
+ * one. GTM trigger #61 fires on CLICK TEXT containing "Confirm Booking", so it
+ * has only ever matched the English UI: `messages/{th,ja,ko,zh}.json` render
+ * 'ยืนยันการจอง', '予約を確定', '예약 확정' and '确认预约', none of which contain
+ * that substring. Three tags hang off that trigger — GA4 `booking_confirmed`
+ * (#74), the Google Ads conversion (#62) and the Meta Pixel
+ * `CompleteRegistration` (#15) — so every non-English booking has been invisible
+ * to all three at once.
+ *
+ * Measured over the 90 days to 2026-08-07: 727 English bookings produced 280
+ * GA4 `booking_confirmed` sessions (38%), while 141 Japanese produced 3, 46 Thai
+ * produced 1, and 14 Chinese and 2 Korean produced none. Thai sessions reached
+ * `bay_booking_step_viewed` 406 times against English's 148 — they get FURTHER
+ * into the funnel, and were then dropped at the last step by a string match.
+ * The downstream damage is not just reporting: Google Ads Smart Bidding has been
+ * training on a conversion feed that omits ~all non-English customers.
+ *
+ * Fires AFTER `/api/bookings/create` returns ok, which also fixes a second
+ * defect in the click trigger: a click that then failed still counted as a
+ * conversion. This event means a booking row exists.
+ *
+ * `enhanced_conversions` mirrors the `course_rental_confirmed` payload so one
+ * GTM user-data variable can serve both. Tag #62 currently has enhanced
+ * conversions disabled and a hardcoded value of 1200 THB (see its notes — that
+ * number is deliberate and per-BOOKING); nothing here overrides it.
+ */
+export function pushBookingConfirmed({
+  bookingId,
+  surface,
+  locale,
+  email,
+  phoneNumber,
+  isNewCustomer,
+}: BookingConfirmedOptions): void {
+  pushEventToGtm('booking_confirmed', {
+    booking_id: bookingId,
+    booking_surface: surface,
+    booking_locale: locale,
+    currency: 'THB',
+    is_new_customer: isNewCustomer ?? undefined,
+    enhanced_conversions: {
+      email: email?.toLowerCase().trim() || undefined,
+      phone_number: phoneNumber || undefined,
+    },
+  });
+}

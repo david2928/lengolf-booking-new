@@ -6,9 +6,15 @@
 import { renderHook } from '@testing-library/react';
 import {
   BAY_BOOKING_STEPS,
+  pushBookingConfirmed,
   pushStepViewed,
   useStepViewedTelemetry,
 } from '@/lib/booking-telemetry';
+import enMessages from '@/messages/en.json';
+import thMessages from '@/messages/th.json';
+import jaMessages from '@/messages/ja.json';
+import koMessages from '@/messages/ko.json';
+import zhMessages from '@/messages/zh.json';
 
 const BAY = 'bay_booking_step_viewed';
 
@@ -83,6 +89,93 @@ describe('pushStepViewed', () => {
       step_index: 5,
       total_steps: 5,
     });
+  });
+});
+
+describe('pushBookingConfirmed', () => {
+  beforeEach(() => {
+    window.dataLayer = [];
+  });
+
+  test('emits booking_confirmed with the identifiers GTM forwards', () => {
+    pushBookingConfirmed({
+      bookingId: 'BK-123',
+      surface: 'web',
+      locale: 'th',
+      email: '  Someone@Example.COM ',
+      phoneNumber: '+66812345678',
+      isNewCustomer: true,
+    });
+
+    expect(window.dataLayer).toHaveLength(1);
+    expect(window.dataLayer[0]).toEqual({
+      event: 'booking_confirmed',
+      booking_id: 'BK-123',
+      booking_surface: 'web',
+      booking_locale: 'th',
+      currency: 'THB',
+      is_new_customer: true,
+      enhanced_conversions: {
+        email: 'someone@example.com',
+        phone_number: '+66812345678',
+      },
+    });
+  });
+
+  // Enhanced-conversion inputs are optional: a LINE booking can carry neither.
+  // They must arrive as `undefined`, not '' — an empty string is a value GTM
+  // would forward and Google Ads would try to hash.
+  test('omits blank contact details rather than sending empty strings', () => {
+    pushBookingConfirmed({
+      bookingId: 'BK-124',
+      surface: 'liff',
+      locale: 'en',
+      email: '',
+      phoneNumber: null,
+    });
+
+    expect(window.dataLayer[0].enhanced_conversions).toEqual({
+      email: undefined,
+      phone_number: undefined,
+    });
+    expect(window.dataLayer[0].is_new_customer).toBeUndefined();
+  });
+
+  test('creates the dataLayer when the event beats the GTM snippet', () => {
+    delete (window as unknown as { dataLayer?: unknown[] }).dataLayer;
+
+    pushBookingConfirmed({ bookingId: 'BK-125', surface: 'web', locale: 'ja' });
+
+    expect(window.dataLayer).toHaveLength(1);
+    expect(window.dataLayer[0].event).toBe('booking_confirmed');
+  });
+});
+
+/**
+ * The reason `pushBookingConfirmed` exists, asserted against the real catalogs.
+ *
+ * GTM trigger #61 matches Click Text CONTAINING "Confirm Booking". Only the
+ * English string does. If someone ever "simplifies" the localized buttons back
+ * toward English this test still passes — it is not protecting the copy. It
+ * exists so that anyone who deletes the dataLayer event and reinstates the click
+ * trigger sees, in the diff, exactly which four locales that silently drops.
+ */
+describe('the click-text trigger this event replaces', () => {
+  const CLICK_TEXT_FILTER = 'Confirm Booking';
+  const confirmLabel = (m: { bookings: { detailsStep: { confirmBooking: string } } }) =>
+    m.bookings.detailsStep.confirmBooking;
+
+  test('matches English only', () => {
+    expect(confirmLabel(enMessages)).toContain(CLICK_TEXT_FILTER);
+  });
+
+  test.each([
+    ['th', thMessages],
+    ['ja', jaMessages],
+    ['ko', koMessages],
+    ['zh', zhMessages],
+  ])('cannot match %s, so the click trigger never fired there', (_locale, messages) => {
+    expect(confirmLabel(messages)).not.toContain(CLICK_TEXT_FILTER);
   });
 });
 
