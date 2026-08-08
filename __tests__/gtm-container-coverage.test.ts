@@ -17,6 +17,14 @@
  * The producer list is DISCOVERED rather than hardcoded — a new telemetry call
  * site on a new surface has to satisfy this without anyone remembering to add
  * it here.
+ *
+ * SCOPE: `app/` only. The walk-up resolves a file to its layout chain, which is
+ * meaningless from a `components/` path — a shared component's container
+ * coverage depends on which routes render it, which is not statically knowable
+ * here. Two of the helpers below (`pushAuthProviderChosen`,
+ * `pushProfileDataToGtm`) currently live exclusively in `components/`, so this
+ * suite says nothing about them. A green run is NOT "every dataLayer push in
+ * the repo is covered"; it is "every producer that sits on a route is".
  */
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname, relative, sep } from 'path';
@@ -32,8 +40,24 @@ const APP = join(ROOT, 'app');
 const PRODUCER_PATTERN =
   /\b(pushEventToGtm|pushBookingConfirmed|pushAuthProviderChosen|pushStepViewed|useStepViewedTelemetry|pushProfileDataToGtm)\b|dataLayer\s*\.\s*push\s*\(/;
 
-/** How a layout declares that it mounts the container. */
-const MOUNTS_CONTAINER = /<GoogleTagManager\b/;
+/** Public id of the container every surface must load. */
+const GTM_ID = 'GTM-MKCHVJKW';
+
+/** The one module allowed to define the container. */
+const CONTAINER_MODULE = 'components/shared/GoogleTagManager.tsx';
+
+/**
+ * How a layout declares that it mounts the container.
+ *
+ * Both halves are required. The tag name alone is not evidence: an auto-import
+ * can resolve `GoogleTagManager` to `next/third-parties/google`, which exports
+ * that same name and needs a `gtmId` prop — so the element would render, the
+ * regex would match, and no container would load. Checking the import path
+ * pins it to OUR module.
+ */
+const mountsContainer = (source: string): boolean =>
+  /<GoogleTagManager\b/.test(source) &&
+  /from\s+['"]@\/components\/shared\/GoogleTagManager['"]/.test(source);
 
 /**
  * Comments are not producers, and this file is surrounded by them. Both
@@ -67,7 +91,7 @@ function containerLayoutFor(file: string): string | null {
 
   while (dir.startsWith(APP)) {
     const layout = join(dir, 'layout.tsx');
-    if (existsSync(layout) && MOUNTS_CONTAINER.test(codeOf(layout))) {
+    if (existsSync(layout) && mountsContainer(codeOf(layout))) {
       return toPosix(relative(ROOT, layout));
     }
     const parent = dirname(dir);
@@ -103,14 +127,26 @@ describe('every dataLayer producer sits under a GTM container', () => {
     expect(containerLayoutFor(file)).not.toBeNull();
   });
 
-  test('LIFF is covered by its own layout, not by accident', () => {
-    // Specific enough to fail if someone "simplifies" by hoisting the container
-    // into the ROOT layout: that would also pull it into /auth/error, which
-    // renders outside [locale] precisely to stay dependency-free.
+  test('LIFF is covered by its own layout, not by inheritance', () => {
+    // `/liff/*` must carry its own mount. If this ever resolves to some ancestor
+    // instead, the container has been hoisted and the next test explains why
+    // that is a problem.
     expect(containerLayoutFor(join(APP, 'liff', 'booking', 'page.tsx'))).toBe('app/liff/layout.tsx');
   });
 
-  test('the container is defined in exactly one place', () => {
+  test('the ROOT layout does not mount the container', () => {
+    // Asserted directly rather than inferred from the walk-up, which returns the
+    // NEAREST mounting ancestor and stops — so adding a root mount while leaving
+    // the per-surface ones in place is invisible to every other test here.
+    //
+    // It matters because the root layout also wraps `/auth/error`, which renders
+    // outside `[locale]` precisely to stay dependency-free while reporting an
+    // auth failure. Mounting at the root is the "simplification" that quietly
+    // puts ad tags on the error page.
+    expect(mountsContainer(codeOf(join(APP, 'layout.tsx')))).toBe(false);
+  });
+
+  test('the container is defined in exactly one place, with the right id', () => {
     // Two inline copies can drift — a different linker config or a different
     // container id on one surface is a silently divergent measurement surface.
     const definitions = globSync('{app,components}/**/*.{ts,tsx}', {
@@ -121,6 +157,12 @@ describe('every dataLayer producer sits under a GTM container', () => {
       .filter((file) => /googletagmanager\.com\/gtm\.js/.test(codeOf(file)))
       .map((f) => toPosix(f.slice(ROOT.length + 1)));
 
-    expect(definitions).toEqual(['components/shared/GoogleTagManager.tsx']);
+    expect(definitions).toEqual([CONTAINER_MODULE]);
+
+    // The id itself, not just the presence of a loader. A typo or a pasted id
+    // from another property would load a container nobody owns — measurement
+    // lost with no error anywhere, which is the whole class of bug this file
+    // exists to catch.
+    expect(codeOf(join(ROOT, CONTAINER_MODULE))).toContain(GTM_ID);
   });
 });
