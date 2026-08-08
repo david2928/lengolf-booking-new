@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import { routing, isValidLocale, type Locale } from '@/i18n/routing';
 import ChatWidgetLoader from '@/components/chat/ChatWidgetLoader';
 import AttributionCapture from '@/components/shared/AttributionCapture';
+import GoogleTagManager from '@/components/shared/GoogleTagManager';
 import {
   SITE_URL,
   buildAlternates,
@@ -130,31 +131,11 @@ export default async function LocaleLayout({
 
   return (
     <>
-      {/* GTM + structured-data — scoped to [locale] so LIFF and /auth/error
-          don't pull analytics unnecessarily. */}
-      <Script id="google-tag-manager" strategy="afterInteractive">
-        {`
-          window.ttq = window.ttq || {
-            track: function() {},
-            page: function() {},
-            batch: function() {}
-          };
-
-          (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-          })(window,document,'script','dataLayer','GTM-MKCHVJKW');
-
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', 'AW-16456389020');
-          gtag('config', 'GTM-MKCHVJKW', {
-            linker: { domains: ['len.golf'], decorate_forms: false }
-          });
-        `}
-      </Script>
+      {/* The container now lives in a shared component because `/liff/*` mounts
+          it too — see `components/shared/GoogleTagManager.tsx`. The structured
+          data below stays here: it describes the public booking site and has no
+          meaning inside a LINE mini-app. */}
+      <GoogleTagManager />
       <Script
         id="structured-data"
         type="application/ld+json"
@@ -194,14 +175,6 @@ export default async function LocaleLayout({
           })
         }}
       />
-      <noscript>
-        <iframe
-          src="https://www.googletagmanager.com/ns.html?id=GTM-MKCHVJKW"
-          height="0"
-          width="0"
-          style={{ display: 'none', visibility: 'hidden' }}
-        />
-      </noscript>
       <NextIntlClientProvider locale={locale} messages={messages}>
         {children}
         <AttributionCapture />

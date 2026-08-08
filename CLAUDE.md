@@ -298,6 +298,63 @@ relearning.
 
 Design spec: `docs/superpowers/specs/2026-07-25-gclid-capture-design.md`.
 
+## The GTM container is mounted per-surface — a push without one is not measurement
+
+`components/shared/GoogleTagManager.tsx` is the only definition of the container
+(`GTM-MKCHVJKW`). It is mounted by **`app/[locale]/layout.tsx` and
+`app/liff/layout.tsx`**, and deliberately not by `app/layout.tsx` — hoisting it
+to the root would pull it into `/auth/error`, which renders outside `[locale]`
+precisely to stay dependency-free while reporting an auth failure.
+
+It used to be inlined in the `[locale]` layout alone, scoped there by a comment
+reading "so LIFF and /auth/error don't pull analytics unnecessarily". That
+reasonable-sounding default cost us the larger half of the funnel:
+**`/liff/*` produced 115 of the 206 API-created bookings in the 30 days to
+2026-08-08** (LINE-authenticated profiles), and every one was invisible to GA4.
+`pushBookingConfirmed()` had been called correctly from `/liff/booking` since
+PR #136 the whole time — into a `window.dataLayer` array that no container read.
+
+**That is the failure mode to internalise: a dataLayer push on a surface with no
+container succeeds silently.** No error, no warning, no failed request — the
+array just grows. Nothing in typecheck, lint, build or a jsdom render test can
+see it, because none of them load a third-party script. `__tests__/gtm-container-coverage.test.ts`
+therefore checks it at the source level: it discovers every producer under
+`app/` (anything naming `pushEventToGtm`, `pushBookingConfirmed`,
+`useStepViewedTelemetry`, … or `dataLayer.push`) and walks up the layout chain
+for a `<GoogleTagManager />`. New surfaces are covered without anyone
+remembering to add them.
+
+### Mounting the container opts that surface into EVERY All-Pages tag
+
+Not just the booking conversion — GA4 config (#22), the Meta Pixel base (#48),
+the Google Tag for `AW-16456389020` (#90) and the Conversion Linker (#21) all
+fire. Two consequences worth stating before adding a third surface:
+
+- **Check the container's pageview triggers for path filters that would match
+  it.** Trigger #102 ("Golf Page View") matches any path *containing* `/golf`
+  and fires a Google Ads conversion. No `/liff/*` route hits it today; a future
+  one easily could.
+- **GA4 site totals step up** when a previously-dark surface starts counting.
+  LIFF sessions were never in the property before; the discontinuity is the fix
+  landing, not a regression, and it needs an annotation rather than a trend
+  reading.
+
+PDPA: these tags fire with no consent gate and no Consent Mode, on LIFF as on
+the web app. That gap predates this and is tracked separately — but it is now
+wider, and "the LINE surface is exempt" is not a defence.
+
+### What LIFF still cannot have, and why no code fixes it
+
+Google Ads **click** attribution. The LINE in-app webview has its own cookie
+jar, so the `_gcl_*` cookies a Google ad click writes in Safari or Chrome are
+simply not visible there — loading GTM does not change that, and neither would
+a server-side upload. What LIFF bookings *do* get is the identifier-based
+offline upload: `public.google_ads_offline_conversions` is a plain `UNION ALL`
+over `bookings` + `club_rental_orders` with **no surface filter**, so LIFF rows
+have always been in it. That is already the best available signal for the
+surface. Don't build a second uploader here; see "Uploading is a separate repo"
+above.
+
 ## Common Gotchas
 
 ### Authentication
